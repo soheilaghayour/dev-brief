@@ -34,7 +34,7 @@ changed script updates this list in the same commit.
 docker compose up -d                                     # local Postgres (dev and integration tests need it)
 pnpm dev                                                 # web :3000 + api :3001; /api/* is rewritten to the api
 pnpm test                                                # Vitest: unit + API integration against real Postgres
-pnpm lint · pnpm typecheck · pnpm build
+pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm e2e                                                 # Playwright smoke tests in e2e/
 pnpm --filter api exec prisma migrate dev --create-only  # new migration: only in an issue that declares one
 pnpm --filter api exec prisma migrate deploy             # apply migrations
@@ -76,8 +76,8 @@ docs/                           # the PRD and the docs in the table above
 .github/                        # workflows/ci.yml, ISSUE_TEMPLATE/
 ```
 
-`apps/*` import from `packages/shared`, never from each other. Seeds live in
-`apps/api/prisma/` and CLIs in `apps/api/src/cli/`.
+`apps/*` import from `packages/shared`, never from each other. There is no top-level
+`scripts/` folder: seeds live in `apps/api/prisma/` and CLIs in `apps/api/src/cli/`.
 
 ## Naming conventions
 
@@ -197,7 +197,7 @@ a category name like `common/` is its specific name.
 - For tasks with 3+ steps, keep a visible todo list.
 - Every diff is read by a human: explain why a change is needed, not only what changed.
 - State facts plainly: count as a result only what is new — a check that confirms something already known is "already known", not a gain. Never pad: padding hides the real result.
-- One issue per PR, in small commits with clear messages. Each PR lists the PRD IDs it covers; a PR touching `docs/` keeps the PRD consistent.
+- One issue per PR, in small commits with clear messages. Each PR lists the PRD IDs and AC IDs it covers and adds a test for each; a PR touching `docs/` keeps the PRD consistent.
 - Every PR must pass CI. Run `pnpm typecheck && pnpm lint && pnpm test` before committing.
 - Never write test counts into docs, issues or PR descriptions: CI shows whether the tests pass.
 
