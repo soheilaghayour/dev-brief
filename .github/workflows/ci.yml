@@ -62,3 +62,17 @@ jobs:
           ALLOW_DESTRUCTIVE_SEED: '1'
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
+
+  images:
+    name: images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web]
+    steps:
+      - uses: actions/checkout@v7
+      # Build only: Coolify builds and runs the images on the VPS, so no registry is involved.
+      - run: docker build -f apps/${{ matrix.app }}/Dockerfile -t devbrief-${{ matrix.app }}:ci .
+      # The image must carry the schema engine, so a deploy never downloads it.
+      - if: matrix.app == 'api'
+        run: docker run --rm --network none --entrypoint sh devbrief-api:ci -c 'ls node_modules/.pnpm/node_modules/@prisma/engines/schema-engine-*'

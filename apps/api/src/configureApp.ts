@@ -1,6 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { toNodeHandler } from 'better-auth/node';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import { HSTS_MAX_AGE_SECONDS, PERMISSIONS_POLICY } from '@devbrief/shared';
 import helmet from 'helmet';
 import { assignRequestId } from './common/logging/requestId.js';
 import { PRIVATE_NO_STORE } from './common/cache/cacheControl.js';
@@ -24,13 +25,11 @@ export function configureApp(app: NestExpressApplication) {
   app.use(
     helmet({
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      strictTransportSecurity: { maxAge: HSTS_MAX_AGE_SECONDS, includeSubDomains: true },
     }),
   );
   app.use((_request: Request, response: Response, next: NextFunction) => {
-    response.setHeader(
-      'Permissions-Policy',
-      'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-    );
+    response.setHeader('Permissions-Policy', PERMISSIONS_POLICY);
     next();
   });
   // Better Auth is mounted here, before the JSON parser: it needs the raw body.

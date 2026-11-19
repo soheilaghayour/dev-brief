@@ -38,6 +38,7 @@ pnpm dev                                                 # web + api in watch mo
 pnpm test                                                # Vitest: unit + API integration against real Postgres
 pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm e2e                                                 # Playwright smoke tests in e2e/
+SMOKE_BASE_URL=<url> pnpm smoke:prod                     # public-flow smoke suite against a deployed site
 pnpm --filter api db:migrate --create-only               # new migration: only in an issue that declares one
 pnpm --filter api db:deploy                              # apply migrations
 pnpm --filter api db:generate                            # regenerate the Prisma client (also runs on install and build)
@@ -63,12 +64,12 @@ apps/
     src/content/                # landing-fixture.json: landing data when the API is unreachable at first build
     src/config/                 # features.ts: phase flags
   api/                          # NestJS (Express) + Prisma + scheduled ingestion
-    prisma/                     # schema.prisma, migrations/, seed.ts, seed/sources.json
+    prisma/                     # schema.prisma, migrations/, seed/sources.json
     src/                        # main.ts, app.module.ts, env.ts (Zod-validated env, fail fast)
     src/common/                 # cross-cutting: http, errors, zod, rate-limit, origin-guard, cache, logging
     src/modules/<resource>/     # one Nest module per resource: health, auth, feed, stories, sources, saves, ingestion, ranking, maintenance; P2/P3 modules per PRD §4.2
     src/modules/ingestion/adapters/  # one adapter per source: hn, devto, rss, github (P2)
-    src/cli/                    # ingestOnce.ts; generateExampleBriefings.ts (P3)
+    src/cli/                    # ingestOnce.ts, seed.ts; generateExampleBriefings.ts (P3)
     test/integration/           # API integration tests (Supertest + real Postgres)
     test/fixtures/              # recorded upstream responses; cluster-pairs.json (P2)
 packages/shared/
@@ -76,12 +77,13 @@ packages/shared/
   src/core/                     # pure decision functions: canonicalizeUrl, normalizeTitle, taxonomy, tagStory, ranking, …
   src/a2ui/                     # DevBrief catalog prop schemas, BriefingPlan, catalog.v1.json (P3)
 e2e/                            # Playwright specs + config
-docs/                           # the PRD and the docs in the table above
+docs/                           # the PRD and the docs in the table above; provision.sh: the one-off production setup wizard
 .github/                        # workflows/ci.yml, ISSUE_TEMPLATE/
+# apps/api/Dockerfile and apps/web/Dockerfile build from the repo root (docs/operations.md)
 ```
 
 `apps/*` import from `packages/shared`, never from each other. There is no top-level
-`scripts/` folder: seeds live in `apps/api/prisma/` and CLIs in `apps/api/src/cli/`.
+`scripts/` folder: seed data and the e2e seed live in `apps/api/prisma/`, and CLIs (including the seed) in `apps/api/src/cli/`.
 
 ## Naming conventions
 

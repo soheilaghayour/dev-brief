@@ -19,6 +19,8 @@ const EnvSchema = z
       .default('0')
       .transform((value) => value === '1'),
     APP_VERSION: z.string().min(1).default('dev'),
+    /** Sentry project DSN; unset (or empty) turns error reporting off. */
+    SENTRY_DSN: z.preprocess((value) => value || undefined, z.string().url().optional()),
     BETTER_AUTH_SECRET: z.string().min(32),
     GITHUB_CLIENT_ID: z.string().min(1),
     GITHUB_CLIENT_SECRET: z.string().min(1),

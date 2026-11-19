@@ -8,6 +8,8 @@ allowBuilds:
   '@prisma/engines': true
   # swagger-ui-dist's install-time telemetry; nothing needs it
   '@scarf/scarf': false
+  # downloads the sentry-cli binary that uploads source maps
+  '@sentry/cli': true
   '@swc/core': true
   esbuild: true
   prisma: true

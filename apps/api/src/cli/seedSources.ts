@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { z } from 'zod';
-import { PrismaClient } from '../src/generated/prisma/client.js';
-import { loadEnv } from '../src/env.js';
+import { loadEnv } from '../env.js';
+import { PrismaClient } from '../generated/prisma/client.js';
 
+// The path resolves from src/cli and from dist/cli alike, so the production image can seed without tsx.
 const sourcesJson: unknown = JSON.parse(
-  readFileSync(new URL('./seed/sources.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../prisma/seed/sources.json', import.meta.url), 'utf8'),
 );
 
 const SeedSourcesSchema = z.array(
@@ -26,7 +26,8 @@ export async function seedSources(prisma: PrismaClient) {
   }
 }
 
-async function main() {
+/** Seeds the database that DATABASE_URL names. */
+export async function runSeed() {
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: loadEnv().DATABASE_URL }),
   });
@@ -35,9 +36,4 @@ async function main() {
   } finally {
     await prisma.$disconnect();
   }
-}
-
-// Vitest imports seedSources; only a direct run (prisma db seed) seeds the database.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await main();
 }

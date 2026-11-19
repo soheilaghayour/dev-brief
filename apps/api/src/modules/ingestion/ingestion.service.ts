@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { TAXONOMY_VERSION } from '@devbrief/shared';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { IngestionStatus, Source } from '../../generated/prisma/client.js';
@@ -12,6 +13,7 @@ import {
   nextSourceHealth,
   nextStoryFields,
   overallStatus,
+  reportsSourceFailure,
   storyTags,
   titleDedupWindow,
 } from './ingestionRules.js';
@@ -165,10 +167,18 @@ export class IngestionService {
     } catch (error) {
       const message = describeFailure(error, fetching && signal.aborted);
       this.logger.warn(`Source ${source.slug} failed: ${message}`);
-      await this.prisma.source.update({
-        where: { id: source.id },
-        data: nextSourceHealth(source, { ok: false, error: message }, new Date()),
-      });
+      const health = nextSourceHealth(source, { ok: false, error: message }, new Date());
+      await this.prisma.source.update({ where: { id: source.id }, data: health });
+      if (reportsSourceFailure(health.consecutiveFailures)) {
+        Sentry.captureMessage(
+          `Source ${source.slug} failed ${health.consecutiveFailures} times in a row`,
+          {
+            level: 'error',
+            tags: { source: source.slug },
+            extra: { lastError: message },
+          },
+        );
+      }
       await this.recordRun(source, runId, startedAt, 'failed', NO_COUNTS, message);
       return { ...NO_COUNTS, outcome: 'failed' } satisfies SourceResult;
     }
