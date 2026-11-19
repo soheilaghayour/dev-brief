@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import type { RefObject } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { shouldRunShortcut, type Shortcut } from './shortcutRules';
@@ -35,6 +36,11 @@ export function ShortcutBindings({
   bindings: readonly ShortcutBinding[];
   leaderPending: RefObject<boolean>;
 }) {
+  // Lets e2e tests wait for the lazily loaded bindings before pressing keys.
+  useEffect(() => {
+    document.documentElement.dataset.hotkeysReady = '';
+  }, []);
+
   return bindings.map(({ shortcut, handlerRef }) => (
     <Binding
       key={shortcut.id}

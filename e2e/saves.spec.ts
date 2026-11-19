@@ -172,6 +172,7 @@ test('j and s on /saved move through the list and unsave the active story', asyn
 
   await page.goto('/saved');
   await expect(cards(page)).toHaveCount(2);
+  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
   await page.keyboard.press('j');
   await page.keyboard.press('s');
 

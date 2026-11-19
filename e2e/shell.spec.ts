@@ -36,6 +36,7 @@ test('AC-1.3.12 the navigation moves into a sheet below 768 px', async ({ page }
 
 test('? opens the shortcuts help from the registry and Esc closes it', async ({ page }) => {
   await page.goto('/feed');
+  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
   await page.keyboard.press('?');
   const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
   await expect(dialog).toBeVisible();
@@ -47,6 +48,7 @@ test('? opens the shortcuts help from the registry and Esc closes it', async ({ 
 
 test('g then s navigates to Saved', async ({ page }) => {
   await page.goto('/feed');
+  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
   await page.keyboard.press('j');
   await page.keyboard.press('g');
   await page.keyboard.press('s');
