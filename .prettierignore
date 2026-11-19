@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+.next
+dist
+coverage
+docs/prd.md
+CLAUDE.md
+DECISIONS.md
