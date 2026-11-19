@@ -64,7 +64,7 @@ apps/
     src/common/                 # cross-cutting: http, errors, zod, rate-limit, origin-guard, cache, logging
     src/modules/<resource>/     # one Nest module per resource: health, auth, feed, stories, sources, saves, ingestion, ranking, maintenance; P2/P3 modules per PRD §4.2
     src/modules/ingestion/adapters/  # one adapter per source: hn, devto, rss, github (P2)
-    src/cli/                    # ingestOnce.ts; generate-example-briefings.ts (P3)
+    src/cli/                    # ingestOnce.ts; generateExampleBriefings.ts (P3)
     test/integration/           # API integration tests (Supertest + real Postgres)
     test/fixtures/              # recorded upstream responses; cluster-pairs.json (P2)
 packages/shared/

@@ -526,7 +526,7 @@ dev-brief/
 │     ├─ src/modules/maintenance/            rollup + retention job
 │     ├─ src/modules/{clustering,summaries,preferences,llm}/   (P2)
 │     ├─ src/modules/{copilot,radar,collections}/              (P3)
-│     ├─ src/cli/                            ingestOnce.ts, generate-example-briefings.ts (P3)
+│     ├─ src/cli/                            ingestOnce.ts, generateExampleBriefings.ts (P3)
 │     └─ test/{integration,fixtures}/
 ├─ packages/shared/
 │  ├─ src/contracts/                         Zod API schemas + inferred types (per resource)
