@@ -58,6 +58,22 @@ describe('createApiClient', () => {
     );
   });
 
+  it('passes the cache option to fetch only when it is given', async () => {
+    const { client, fetchMock } = clientAnswering({ items: [], nextCursor: null });
+    await client.request({ path: '/feed' }, FeedPageSchema);
+    await client.request({ path: '/feed', cache: 'no-store' }, FeedPageSchema);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      expect.objectContaining({ cache: undefined }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+  });
+
   it('sends a JSON body and resolves on 204 for requestNoContent', async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
     const client = createApiClient({

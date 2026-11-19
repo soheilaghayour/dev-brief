@@ -1,5 +1,6 @@
 export * from './error.js';
 export * from './feed.js';
+export * from './feedLimits.js';
 export * from './health.js';
 export * from './me.js';
 export * from './pagination.js';

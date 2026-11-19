@@ -23,6 +23,28 @@ export const TAG_SLUGS = [
 
 export type TagSlug = (typeof TAG_SLUGS)[number];
 
+/** Display name per tag; the web ships only these, not the matching rules in `TAXONOMY`. */
+export const TAG_LABELS = {
+  react: 'React',
+  vue: 'Vue',
+  typescript: 'TypeScript',
+  javascript: 'JavaScript',
+  'ai-llms': 'AI/LLMs',
+  'system-design': 'System Design',
+  databases: 'Databases',
+  devops: 'DevOps',
+  security: 'Security',
+  performance: 'Performance',
+  css: 'CSS',
+  rust: 'Rust',
+  go: 'Go',
+  python: 'Python',
+  testing: 'Testing',
+  'web-platform': 'Web Platform',
+  mobile: 'Mobile',
+  career: 'Career',
+} satisfies Record<TagSlug, string>;
+
 export interface TagDefinition {
   slug: TagSlug;
   label: string;
@@ -42,7 +64,6 @@ export interface TagDefinition {
 
 const TAG_DEFINITIONS = {
   react: {
-    label: 'React',
     aliases: [
       'reactjs',
       'react.js',
@@ -60,16 +81,13 @@ const TAG_DEFINITIONS = {
     exclude: ['react to', 'reacting'],
   },
   vue: {
-    label: 'Vue',
     aliases: ['vue', 'vuejs', 'vue.js', 'nuxt', 'pinia', 'vite plugin vue'],
   },
   typescript: {
-    label: 'TypeScript',
     aliases: ['typescript', 'tsc', 'tsconfig', 'deno', 'type-level', 'zod'],
     sourceTagOnlyAliases: ['ts'],
   },
   javascript: {
-    label: 'JavaScript',
     aliases: [
       'javascript',
       'js',
@@ -84,7 +102,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   'ai-llms': {
-    label: 'AI/LLMs',
     aliases: [
       'llm',
       'llms',
@@ -110,7 +127,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   'system-design': {
-    label: 'System Design',
     aliases: [
       'system design',
       'architecture',
@@ -126,7 +142,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   databases: {
-    label: 'Databases',
     aliases: [
       'postgres',
       'postgresql',
@@ -146,7 +161,6 @@ const TAG_DEFINITIONS = {
     conditionalAliases: [{ alias: 'index', requiresAny: ['sql', 'database'] }],
   },
   devops: {
-    label: 'DevOps',
     aliases: [
       'devops',
       'kubernetes',
@@ -163,7 +177,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   security: {
-    label: 'Security',
     aliases: [
       'security',
       'vulnerability',
@@ -179,7 +192,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   performance: {
-    label: 'Performance',
     aliases: [
       'performance',
       'latency',
@@ -195,7 +207,6 @@ const TAG_DEFINITIONS = {
     patterns: ['(?<![\\w.])\\d+(?:\\.\\d+)?\\s*(?:x|×|%|times)\\s+faster\\b'],
   },
   css: {
-    label: 'CSS',
     aliases: [
       'css',
       'tailwind',
@@ -208,22 +219,18 @@ const TAG_DEFINITIONS = {
     ],
   },
   rust: {
-    label: 'Rust',
     aliases: ['rust', 'rustlang', 'cargo', 'crates.io', 'tokio', 'wasm-bindgen'],
     exclude: ['rust belt'],
   },
   go: {
-    label: 'Go',
     aliases: ['golang', 'go.dev', 'goroutine', 'goroutines'],
     caseSensitiveAliases: ['Go 1.'],
     sourceTagOnlyAliases: ['go'],
   },
   python: {
-    label: 'Python',
     aliases: ['python', 'pypi', 'django', 'flask', 'fastapi', 'pandas', 'uv', 'pip'],
   },
   testing: {
-    label: 'Testing',
     aliases: [
       'testing',
       'unit test',
@@ -237,7 +244,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   'web-platform': {
-    label: 'Web Platform',
     aliases: [
       'web platform',
       'browser',
@@ -255,7 +261,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   mobile: {
-    label: 'Mobile',
     aliases: [
       'ios',
       'android',
@@ -268,7 +273,6 @@ const TAG_DEFINITIONS = {
     ],
   },
   career: {
-    label: 'Career',
     aliases: [
       'career',
       'interview',
@@ -282,9 +286,10 @@ const TAG_DEFINITIONS = {
       'remote work',
     ],
   },
-} satisfies Record<TagSlug, Omit<TagDefinition, 'slug'>>;
+} satisfies Record<TagSlug, Omit<TagDefinition, 'slug' | 'label'>>;
 
-export const TAXONOMY: readonly TagDefinition[] = TAG_SLUGS.map((slug) => ({
+export const TAXONOMY: readonly TagDefinition[] = /* @__PURE__ */ TAG_SLUGS.map((slug) => ({
   slug,
+  label: TAG_LABELS[slug],
   ...TAG_DEFINITIONS[slug],
 }));

@@ -42,6 +42,7 @@ pnpm --filter api db:migrate --create-only               # new migration: only i
 pnpm --filter api db:deploy                              # apply migrations
 pnpm --filter api db:generate                            # regenerate the Prisma client (also runs on install and build)
 pnpm --filter api db:seed                                # seed sources (idempotent)
+pnpm --filter api db:seed:e2e                            # replaces all stories with fixed ones for Playwright (e2e DBs only, see ALLOW_DESTRUCTIVE_SEED)
 pnpm --filter api ingest:once                            # one full ingestion run
 ```
 
