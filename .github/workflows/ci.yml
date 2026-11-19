@@ -30,6 +30,7 @@ jobs:
       APP_URL: http://localhost:3000
       API_INTERNAL_URL: http://localhost:3001
       DATABASE_URL: postgresql://devbrief:devbrief@localhost:5432/devbrief
+      DATABASE_URL_TEST: postgresql://devbrief:devbrief@localhost:5432/devbrief
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -42,5 +43,8 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm --filter api db:deploy
+      - name: Schema matches migrations (no drift)
+        run: pnpm --filter api exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - run: pnpm test
       - run: pnpm build

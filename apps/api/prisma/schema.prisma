@@ -117,7 +117,8 @@ model Story {
   engagementPercentile Float                    @default(0)
   rankScore            Float                    @default(0)
   rankedAt             DateTime?
-  searchVector         Unsupported("tsvector")?
+  // Generated column from the hand-edited migration; the default mirrors pg_get_expr's rendering so migrate sees no drift.
+  searchVector         Unsupported("tsvector")? @default(dbgenerated("(setweight(to_tsvector('english'::regconfig, COALESCE(title, ''::text)), 'A'::\"char\") || setweight(to_tsvector('english'::regconfig, COALESCE(excerpt, ''::text)), 'B'::\"char\"))"))
   items                SourceItem[]
   saves                Save[]
 
@@ -125,6 +126,7 @@ model Story {
   @@index([rankScore(sort: Desc), id(sort: Desc)])
   @@index([normalizedTitle, publishedAt])
   @@index([tags], type: Gin)
+  @@index([searchVector], type: Gin)
 }
 
 model SourceItem {
