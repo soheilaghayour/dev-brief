@@ -241,6 +241,7 @@ export class IngestionService {
   private async storeItem(source: Source, raw: RawItem, mapped: MappedItem, now: Date) {
     const itemFields = {
       url: raw.url,
+      canonicalUrl: mapped.canonicalUrl,
       discussionUrl: raw.discussionUrl,
       title: raw.title,
       author: raw.author,
@@ -290,11 +291,9 @@ export class IngestionService {
     return 'created';
   }
 
-  /** The story with the same canonical URL, else one with the same normalized title published within 72 h. */
+  /** The story whose own or any item's canonical URL matches, else one with the same normalized title published within 72 h. */
   private async findStoryToJoin(mapped: MappedItem, raw: RawItem) {
-    const byUrl = await this.prisma.story.findUnique({
-      where: { canonicalUrl: mapped.canonicalUrl },
-    });
+    const byUrl = await this.findStoryByUrl(mapped.canonicalUrl);
     if (byUrl || mapped.normalizedTitle === '') return byUrl;
 
     const { from, to } = titleDedupWindow(raw.publishedAt);
@@ -302,6 +301,18 @@ export class IngestionService {
       where: { normalizedTitle: mapped.normalizedTitle, publishedAt: { gte: from, lte: to } },
       orderBy: { publishedAt: 'asc' },
     });
+  }
+
+  private async findStoryByUrl(canonicalUrl: string) {
+    const byStoryUrl = await this.prisma.story.findUnique({ where: { canonicalUrl } });
+    if (byStoryUrl) return byStoryUrl;
+    // A story joined by title keeps only its first item's URL; the others live on their items.
+    const byItemUrl = await this.prisma.sourceItem.findFirst({
+      where: { canonicalUrl },
+      orderBy: { firstSeenAt: 'asc' },
+      select: { story: true },
+    });
+    return byItemUrl?.story ?? null;
   }
 
   /** Recomputes what depends on all of a story's items: tags, earliest publishedAt, missing excerpt and reading time. */
