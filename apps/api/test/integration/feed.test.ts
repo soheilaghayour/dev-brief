@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { FeedPageSchema, type FeedPage } from '@devbrief/shared';
+import { ApiErrorSchema, FeedPageSchema, type FeedPage } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
@@ -14,7 +14,6 @@ const hoursAgo = (hours: number) => new Date(Date.now() - hours * HOUR);
 describe('GET /api/v1/feed', () => {
   const prisma = useTestDatabase();
   let app: INestApplication;
-  const ids: Record<string, string> = {};
 
   async function getFeed(params: Record<string, string | number> = {}) {
     const response = await request(app.getHttpServer()).get('/api/v1/feed').query(params);
@@ -51,7 +50,7 @@ describe('GET /api/v1/feed', () => {
       { title: 'Old story', hours: 24 * 20, rank: 100, tags: ['react'], sources: [hn.id] },
     ];
     for (const seed of seeds) {
-      const story = await createStory(prisma, {
+      await createStory(prisma, {
         title: seed.title,
         publishedAt: hoursAgo(seed.hours),
         rankScore: seed.rank,
@@ -59,7 +58,6 @@ describe('GET /api/v1/feed', () => {
         excerpt: seed.excerpt,
         itemSourceIds: seed.sources,
       });
-      ids[seed.title] = story.id;
     }
     app = await createTestApp();
   });
@@ -148,12 +146,14 @@ describe('GET /api/v1/feed', () => {
     for (const q of ['a', 'x'.repeat(101)]) {
       const response = await getFeed({ q });
       expect(response.status).toBe(400);
-      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+      expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
     }
   });
 
   it('rejects an unknown tag', async () => {
-    expect((await getFeed({ tags: 'not-a-tag' })).status).toBe(400);
+    const response = await getFeed({ tags: 'not-a-tag' });
+    expect(response.status).toBe(400);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
   });
 
   it('treats hostile q input as data, never as SQL', async () => {
@@ -187,15 +187,15 @@ describe('GET /api/v1/feed', () => {
         await createStory(prisma, {
           title: name,
           publishedAt: tieTime,
-          rankScore: 4,
+          rankScore: 0.1 + 0.2, // 0.30000000000000004 pins the float8 cursor round trip
           itemSourceIds: [hn.id],
         });
       }
       for (const sort of ['top', 'latest'] as const) {
-        const seen = await pageThrough(sort);
-        const expectedCount = sort === 'top' ? 7 : 8;
-        expect(seen).toHaveLength(expectedCount);
-        expect(new Set(seen).size).toBe(expectedCount);
+        const all = FeedPageSchema.parse((await getFeed({ sort, limit: 50 })).body).items.map(
+          (item) => item.id,
+        );
+        expect(await pageThrough(sort)).toEqual(all);
       }
       await prisma.story.deleteMany({ where: { title: { startsWith: 'Tie' } } });
     });
@@ -203,12 +203,12 @@ describe('GET /api/v1/feed', () => {
     it('AC-1.3.5 answers 400 INVALID_CURSOR for a malformed cursor or one from another sort', async () => {
       const malformed = await getFeed({ cursor: 'not-a-cursor' });
       expect(malformed.status).toBe(400);
-      expect(malformed.body.error.code).toBe('INVALID_CURSOR');
+      expect(ApiErrorSchema.parse(malformed.body).error.code).toBe('INVALID_CURSOR');
 
       const topPage = await getFeed({ limit: 1 });
       const mismatched = await getFeed({ sort: 'latest', cursor: topPage.body.nextCursor });
       expect(mismatched.status).toBe(400);
-      expect(mismatched.body.error.code).toBe('INVALID_CURSOR');
+      expect(ApiErrorSchema.parse(mismatched.body).error.code).toBe('INVALID_CURSOR');
     });
   });
 

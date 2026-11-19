@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { SourceList } from '@devbrief/shared';
-import { LruCache } from '../../common/cache/lru.cache.js';
+import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { sourceStatus } from '../../common/source-status/sourceStatus.js';
 
-const CACHE_TTL_MS = 60_000;
 const CACHE_KEY = 'sources';
 
 @Injectable()

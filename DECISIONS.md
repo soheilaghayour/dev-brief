@@ -41,6 +41,7 @@ links to them instead of restating them.
 - **A source is `healthy` within 2 hours of its last success, `stale` after, and `circuit_open` while its circuit is open; `/health` and `/sources` share this one rule.** [AC-1.3.11](docs/prd.md#f13-feed-and-discovery) leaves 2-3 h undefined; one constant, `SOURCE_STALE_AFTER_HOURS`, is easy to change.
 - **The feed query selects only ids and sort keys in raw SQL; a Prisma read then loads the cards.** The keyset, tag, kind and full-text filters need `$queryRaw` ([§4.2](docs/prd.md#42-monorepo-layout)); loading sources and items through Prisma avoids hand-rolled JSON aggregation.
 - **`POST /stories/lookup` drops repeated ids, keeping the first occurrence.** Order is the input order; a card twice in the result would only be noise.
+- **Top keyset cursors are not snapshot-stable across a rank recompute.** A story whose score moves past the cursor may be skipped or repeated in an open scroll; the client dedups by id (AC-1.3.5) and a reload starts fresh.
 - **Health is never cached and the API version comes from `APP_VERSION` (default `dev`).** A cached health answer would hide an outage.
 
 - **Geist comes from `next/font/google`, not the `geist` package.** It self-hosts a Latin-only subset with `display: swap` as [§7.1](docs/prd.md#71-design-references-and-system) asks; the package ships every weight and subset unsplit. The build needs network access to fetch the font once.

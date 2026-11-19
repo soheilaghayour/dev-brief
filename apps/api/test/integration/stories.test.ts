@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { StoryDetailSchema, StoryLookupResponseSchema } from '@devbrief/shared';
+import { ApiErrorSchema, StoryDetailSchema, StoryLookupResponseSchema } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from './createTestApp.js';
@@ -58,17 +58,25 @@ describe('stories endpoints', () => {
   it('GET /stories/:id answers 404 NOT_FOUND for an unknown id', async () => {
     const response = await request(app.getHttpServer()).get(`/api/v1/stories/${MISSING_ID}`);
     expect(response.status).toBe(404);
-    expect(response.body.error.code).toBe('NOT_FOUND');
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('NOT_FOUND');
   });
 
   it('GET /stories/:id answers 400 VALIDATION_FAILED for a malformed id', async () => {
     const response = await request(app.getHttpServer()).get('/api/v1/stories/not-an-id');
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
   });
 
   it('POST /stories/lookup preserves input order and reports unknown ids in missingIds', async () => {
     const response = await lookup({ ids: [secondId, MISSING_ID, firstId] });
+    expect(response.status).toBe(200);
+    const result = StoryLookupResponseSchema.parse(response.body);
+    expect(result.items.map((item) => item.id)).toEqual([secondId, firstId]);
+    expect(result.missingIds).toEqual([MISSING_ID]);
+  });
+
+  it('POST /stories/lookup drops repeated ids, keeping the first occurrence', async () => {
+    const response = await lookup({ ids: [secondId, firstId, secondId, MISSING_ID, MISSING_ID] });
     expect(response.status).toBe(200);
     const result = StoryLookupResponseSchema.parse(response.body);
     expect(result.items.map((item) => item.id)).toEqual([secondId, firstId]);
@@ -80,7 +88,7 @@ describe('stories endpoints', () => {
     const tooMany = Array.from({ length: 101 }, () => MISSING_ID);
     const response = await lookup({ ids: tooMany });
     expect(response.status).toBe(400);
-    expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
   });
 
   it('POST /stories/lookup requires the Origin header', async () => {
@@ -88,6 +96,6 @@ describe('stories endpoints', () => {
       .post('/api/v1/stories/lookup')
       .send({ ids: [firstId] });
     expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe('FORBIDDEN_ORIGIN');
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('FORBIDDEN_ORIGIN');
   });
 });

@@ -1,6 +1,4 @@
-import type { PrismaClient } from '../../src/generated/prisma/client.js';
-
-type SourceKind = 'hn' | 'devto' | 'rss' | 'github';
+import type { PrismaClient, SourceKind } from '../../src/generated/prisma/client.js';
 
 export function createSource(
   prisma: PrismaClient,

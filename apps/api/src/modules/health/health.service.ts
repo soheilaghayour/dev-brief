@@ -5,6 +5,9 @@ import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { overallStatus, sourceStatus } from '../../common/source-status/sourceStatus.js';
 
+/** /health must answer 503, not hang, when the database host stops responding. */
+const DB_CHECK_TIMEOUT_MS = 2_000;
+
 @Injectable()
 export class HealthService {
   constructor(
@@ -14,7 +17,7 @@ export class HealthService {
 
   async check(): Promise<Health> {
     const now = new Date();
-    const sources = await this.loadEnabledSources();
+    const sources = await this.loadEnabledSourcesOrFail();
     const reported = sources.map((source) => ({
       slug: source.slug,
       kind: source.kind,
@@ -29,15 +32,27 @@ export class HealthService {
     };
   }
 
-  private async loadEnabledSources() {
+  private async loadEnabledSourcesOrFail() {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      return await withTimeout(this.queryEnabledSources(), DB_CHECK_TIMEOUT_MS);
     } catch {
       throw new ApiException('UPSTREAM_UNAVAILABLE', 'The database is unreachable.');
     }
+  }
+
+  private async queryEnabledSources() {
+    await this.prisma.$queryRaw`SELECT 1`;
     return this.prisma.source.findMany({
       where: { enabled: true },
-      orderBy: [{ kind: 'asc' }, { slug: 'asc' }],
+      orderBy: [{ kind: 'asc' }, { name: 'asc' }],
     });
   }
+}
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('timed out')), ms);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }

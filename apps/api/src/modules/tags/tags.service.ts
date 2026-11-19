@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { TAXONOMY, TAXONOMY_VERSION, type TagList } from '@devbrief/shared';
-import { LruCache } from '../../common/cache/lru.cache.js';
+import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 
-const CACHE_TTL_MS = 60_000;
 const CACHE_KEY = 'tags';
 const WINDOW_DAYS = 7;
 const DAY_MS = 86_400_000;

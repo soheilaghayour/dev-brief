@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { encodeCursor, type FeedPage, type FeedQuery } from '@devbrief/shared';
-import { LruCache } from '../../common/cache/lru.cache.js';
+import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { feedCacheKey, parseKeyset, topWindowStart, type Keyset } from './feedQuery.js';
 
-const CACHE_TTL_MS = 60_000;
 
 type PageRow = { id: string; publishedAt: Date; rankScore: number };
 

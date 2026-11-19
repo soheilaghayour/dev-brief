@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { HealthSchema } from '@devbrief/shared';
+import { ApiErrorSchema, HealthSchema } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../src/common/prisma/prisma.service.js';
@@ -44,7 +44,27 @@ describe('GET /api/v1/health', () => {
       .mockRejectedValueOnce(new Error('connection refused'));
     const response = await request(app.getHttpServer()).get('/api/v1/health');
     expect(response.status).toBe(503);
-    expect(response.body.error.code).toBe('UPSTREAM_UNAVAILABLE');
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('UPSTREAM_UNAVAILABLE');
     spy.mockRestore();
   });
+
+  it('answers 503 when the database fails after the connectivity check', async () => {
+    const spy = vi
+      .spyOn(app.get(PrismaService).source, 'findMany')
+      .mockRejectedValueOnce(new Error('connection reset'));
+    const response = await request(app.getHttpServer()).get('/api/v1/health');
+    expect(response.status).toBe(503);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('UPSTREAM_UNAVAILABLE');
+    spy.mockRestore();
+  });
+
+  it('answers 503 instead of hanging when the database never responds', async () => {
+    const spy = vi
+      .spyOn(app.get(PrismaService), '$queryRaw')
+      .mockImplementationOnce(() => new Promise(() => {}) as never);
+    const response = await request(app.getHttpServer()).get('/api/v1/health');
+    expect(response.status).toBe(503);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('UPSTREAM_UNAVAILABLE');
+    spy.mockRestore();
+  }, 10_000);
 });

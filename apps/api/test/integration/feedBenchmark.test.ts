@@ -19,7 +19,8 @@ describe('feed benchmark (reported, not a gate)', () => {
       INSERT INTO "Story" ("id", "canonicalUrl", "url", "domain", "title", "normalizedTitle",
         "publishedAt", "rankScore", "tags", "taggerVersion")
       SELECT 'bench' || n, 'https://example.com/' || n, 'https://example.com/' || n, 'example.com',
-        'Benchmark story ' || n, 'benchmark story ' || n,
+        'Benchmark ' || (ARRAY['bun','deno','node'])[1 + n % 3] || ' story ' || n,
+        'benchmark story ' || n,
         now() - (n % 168) * interval '1 hour', random() * 100,
         ARRAY[(ARRAY['react','rust','go','python'])[1 + n % 4]], 1
       FROM generate_series(1, ${STORY_COUNT}) AS n`;
@@ -33,20 +34,25 @@ describe('feed benchmark (reported, not a gate)', () => {
 
   afterAll(() => app.close());
 
-  it('prints the feed p95 server time at 40k stories', async () => {
+  it('prints the feed p95 server time per query shape at 40k stories', async () => {
     const cache = app.get(LruCache);
-    const durations: number[] = [];
-    for (let sample = 0; sample < SAMPLES; sample += 1) {
-      cache.clear();
-      const started = performance.now();
-      const response = await request(app.getHttpServer())
-        .get('/api/v1/feed')
-        .query({ tags: ['react', 'rust'][sample % 2] ?? 'react' });
-      durations.push(performance.now() - started);
-      expect(response.status).toBe(200);
+    const shapes = {
+      'top + tags': { tags: 'react' },
+      'search (q)': { q: 'bun story' },
+      'latest + tags': { sort: 'latest', tags: 'rust' },
+    };
+    for (const [name, query] of Object.entries(shapes)) {
+      const durations: number[] = [];
+      for (let sample = 0; sample < SAMPLES; sample += 1) {
+        cache.clear();
+        const started = performance.now();
+        const response = await request(app.getHttpServer()).get('/api/v1/feed').query(query);
+        durations.push(performance.now() - started);
+        expect(response.status).toBe(200);
+      }
+      durations.sort((a, b) => a - b);
+      const p95 = durations[Math.floor(SAMPLES * 0.95) - 1] ?? 0;
+      console.info(`feed p95 (${name}) at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`);
     }
-    durations.sort((a, b) => a - b);
-    const p95 = durations[Math.floor(SAMPLES * 0.95) - 1] ?? 0;
-    console.info(`feed p95 at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`);
   }, 120_000);
 });
