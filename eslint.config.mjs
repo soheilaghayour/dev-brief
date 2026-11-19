@@ -10,4 +10,8 @@ export default tseslint.config(
     ...jsxA11y.flatConfigs.recommended,
     files: ['apps/web/**/*.{ts,tsx}'],
   },
+  {
+    files: ['apps/web/scripts/**/*.mjs'],
+    languageOptions: { globals: { console: 'readonly', process: 'readonly', URL: 'readonly' } },
+  },
 );
