@@ -14,12 +14,18 @@ describe('normalizeTitle', () => {
     ['collapses whitespace', '  many   spaces\tand\nlines ', 'many spaces and lines'],
     ['keeps digits', 'Go 1.24 released', 'go 1 24 released'],
     ['keeps non-ASCII letters', 'Über café', 'über café'],
+    ['folds fullwidth letters', 'ＦＵＬＬ width', 'full width'],
     ['returns empty for punctuation only', '!!! ???', ''],
   ])('%s', (_name, title, expected) => {
     expect(normalizeTitle(title)).toBe(expected);
   });
 
-  it('AC-1.2.5 gives identical results for punctuation, case and prefix variants of one title', () => {
+  it('gives NFC and NFD forms of one title the same result', () => {
+    const nfc = 'Ünïcödé café'.normalize('NFC');
+    expect(normalizeTitle(nfc.normalize('NFD'))).toBe(normalizeTitle(nfc));
+  });
+
+  it('gives identical results for punctuation, case and prefix variants of one title', () => {
     const variants = ['Show HN: Fast  CLI tool!', 'fast cli tool', '  FAST, CLI... tool '];
     expect(new Set(variants.map(normalizeTitle)).size).toBe(1);
   });
