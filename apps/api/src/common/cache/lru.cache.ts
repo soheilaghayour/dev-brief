@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 export const CACHE_MAX_ENTRIES = 500;
 
+/** How long feed, tags and sources responses stay in the LRU (PRD §8.4). */
+export const CACHE_TTL_MS = 60_000;
+
 type Entry = { value: unknown; expiresAt: number };
 
 /** An in-memory LRU with a per-entry TTL, for feed, tags and sources responses. */
