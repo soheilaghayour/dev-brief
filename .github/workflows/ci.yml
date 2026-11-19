@@ -49,3 +49,6 @@ jobs:
         run: pnpm --filter api exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm --filter api db:seed
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e

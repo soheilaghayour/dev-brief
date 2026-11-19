@@ -7,12 +7,15 @@
     "dev": "pnpm --filter @devbrief/shared build && concurrently -n web,api -c blue,green \"pnpm --filter web dev\" \"pnpm --filter api dev\"",
     "build": "pnpm -r build",
     "lint": "eslint .",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck && tsc -p e2e",
     "test": "vitest run --coverage",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "e2e": "dotenv -e .env -e .env.example -- playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.1.1",
     "concurrently": "^10.0.7",
     "dotenv-cli": "^11.1.0",

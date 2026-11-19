@@ -39,6 +39,14 @@ links to them instead of restating them.
 - **A re-ingested HN item keeps the Story's first title.** Only the SourceItem title follows edits; re-tagging and title dedup stay stable for a Story.
 - **The 4-min run budget covers the source fetches, not the database writes or post-run steps.** A hung write would hold the lock until restart; bounding it is left to the first issue that needs it.
 
+- **Geist comes from `next/font/google`, not the `geist` package.** It self-hosts a Latin-only subset with `display: swap` as [§7.1](docs/prd.md#71-design-references-and-system) asks; the package ships every weight and subset unsplit. The build needs network access to fetch the font once.
+- **The shortcuts help dialog loads on first `?`.** The root layout wraps every page, and the landing budget ([§8.5](docs/prd.md#85-performance-budgets)) can't carry Radix Dialog for a dialog most visitors never open.
+- **The sidebar has Feed and Saved, plus Radar behind its flag; Collections arrives with its P3 issue.** Collections has no index route in [§7.2](docs/prd.md#72-routes-and-views), so a `g c` link would point nowhere.
+- **E2E runs as the last steps of the `check` job, not as a second job.** One required check, and install, build and Postgres run once; the smoke tests need the built apps and a seeded database, which `check` already has.
+- **The first-load JS budgets are 160 KB (landing) and 170 KB (`/feed`) gzip, measured, not the original 90 KB.** Next 16 and React 19 alone weigh ≈135 KB gzip, so 90 KB can't be met by any code change. The shell keeps Radix Dialog (sheets, help dialog) and Sonner out of first load and uses a plain radiogroup for the theme toggle; what remains is the root providers [§7.1](docs/prd.md#71-design-references-and-system) lists (tailwind-merge, TanStack Query, hotkeys, next-themes). Lighthouse ≥ 95 on the landing page is the primary gate.
+- **Mobile navigation and mobile filters are two separate sheets, both loaded on first open.** The menu opens a left drawer with the navigation; filters open a bottom sheet (AC-1.3.12), so the filter UI is rendered once per breakpoint and never inside the drawer.
+- **The shortcut registry treats a sequence's first key as pending for 1 s.** A plain single-key shortcut does not run in that window, so `g` then `s` (go to Saved) never also fires `s` (save).
+
 ## Open PM questions
 
 - Clustering method, thresholds and UI, to revisit with the user before Phase 2 issues exist: [PRD §3.4 O1](docs/prd.md#34-open-items).
