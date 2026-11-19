@@ -15,9 +15,9 @@ links to them instead of restating them.
 - **TypeScript stays on 6.0.x.** `typescript-eslint` doesn't support 7 yet; raise it when it does.
 - **The `zod` advisory GHSA-mrhx-c7xc-m3w5 is ignored in `pnpm audit`; every request-input `z.array()` gets `.max()`.** Only 4.6.6 fixes it, and the PRD pins Zod 3.25 for `@a2ui/react` ([§4.1](docs/prd.md#41-system-diagram)); request bodies are capped at 100 KB ([§8.6](docs/prd.md#86-security-basics)). Remove the ignore when the pin lifts.
 - **Local env lives in one root `.env`, loaded by `dotenv-cli` in each app's `dev` and `build` scripts; `dev` falls back to `.env.example`, so a fresh clone runs without a `.env`.** Next only reads its own folder's `.env`, and Node refuses `--env-file` in `NODE_OPTIONS`; a missing variable still fails fast at boot.
-- **`tagStory` also tags from the URL host and path, and an `exclude` phrase vetoes a tag even when a source tag names it.** [Appendix A](docs/prd.md#appendix-a--tag-taxonomy-v1) step 1 makes URL tokens text; a "Rust Belt" post tagged `rust` by Dev.to is still not about Rust.
-- **`canonicalizeUrl` throws on a string that is not a URL.** Adapters parse upstream items with Zod and drop invalid ones ([CLAUDE.md](CLAUDE.md)); a silent fallback would let a broken URL become a dedup key.
-- **`percentile` counts the item itself in its window, and `rankScore` treats a future `publishedAt` as age 0.** The mid-rank formula in [Appendix B](docs/prd.md#appendix-b--ranking-formula) needs the item in `n`; clock skew in an upstream date must not inflate a score.
+- **An `exclude` phrase vetoes a tag even when a source tag names it.** [Appendix A](docs/prd.md#appendix-a--tag-taxonomy-v1) runs excludes after source tags; a "Rust Belt" post tagged `rust` by Dev.to is still not about Rust.
+- **`canonicalizeUrl` throws on a string that is not an http(s) URL.** Adapters parse upstream items with Zod and drop invalid ones ([CLAUDE.md](CLAUDE.md)); a silent fallback would let a broken URL become a dedup key.
+- **`percentile` counts the item itself in its window.** The mid-rank formula in [Appendix B](docs/prd.md#appendix-b--ranking-formula) needs the item in `n`, which keeps p in (0, 1).
 
 ## Open PM questions
 
