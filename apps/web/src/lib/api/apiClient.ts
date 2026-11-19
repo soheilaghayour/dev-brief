@@ -72,6 +72,8 @@ export function createApiClient({
     const response = await fetchImpl(buildUrl(baseUrl ?? defaultBaseUrl(), path, query), {
       method,
       credentials: 'include',
+      // The API's own cache keeps server-side reads fresh; Next must not add a second one.
+      cache: typeof window === 'undefined' ? 'no-store' : undefined,
       headers: requestHeaders(body !== undefined, internalToken),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
