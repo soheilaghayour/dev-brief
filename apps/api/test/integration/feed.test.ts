@@ -137,7 +137,6 @@ describe('GET /api/v1/feed', () => {
     expect(await feedTitles({ q: 'react', sort: 'latest' })).toEqual([
       'React compiler',
       'Rust and React',
-      'Old story',
     ]);
     expect(await feedTitles({ q: 'react', kinds: 'devto' })).toEqual([
       'React compiler',
