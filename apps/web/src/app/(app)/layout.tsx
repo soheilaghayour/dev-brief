@@ -1,6 +1,42 @@
 import type { ReactNode } from 'react';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { AppShell } from '@/components/layout/AppShell';
+import { FeedFilters } from '@/components/feed/FeedFilters';
+import { FeedOnly } from '@/components/feed/FeedOnly';
+import { MobileFeedBar } from '@/components/feed/MobileFeedBar';
+import { SearchInput } from '@/components/feed/SearchInput';
+import { SortToggle } from '@/components/feed/SortToggle';
+
+// nuqs reads the search params on every render, which a prerendered page cannot supply.
+export const dynamic = 'force-dynamic';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  return <AppShell>{children}</AppShell>;
+  return (
+    <NuqsAdapter>
+      <AppShell
+        searchSlot={
+          <FeedOnly>
+            <SearchInput />
+          </FeedOnly>
+        }
+        sortSlot={
+          <FeedOnly>
+            <SortToggle className="max-md:hidden" />
+          </FeedOnly>
+        }
+        filtersSlot={
+          <FeedOnly>
+            <FeedFilters />
+          </FeedOnly>
+        }
+        mobileBarSlot={
+          <FeedOnly>
+            <MobileFeedBar />
+          </FeedOnly>
+        }
+      >
+        {children}
+      </AppShell>
+    </NuqsAdapter>
+  );
 }
