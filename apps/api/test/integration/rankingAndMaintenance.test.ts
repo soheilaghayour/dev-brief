@@ -1,10 +1,11 @@
 import 'reflect-metadata';
-import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { itemEngagement, itemPercentile, rankScore, RSS_BASELINE } from '@devbrief/shared';
 import { describe, expect, it, vi } from 'vitest';
+import { CacheModule } from '../../src/common/cache/cache.module.js';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
 import { EnvModule } from '../../src/common/env/env.module.js';
+import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
 import { IngestionModule } from '../../src/modules/ingestion/ingestion.module.js';
@@ -24,16 +25,11 @@ describe('rank recompute and daily job', () => {
   const prisma = useTestDatabase();
 
   async function createApp(cache = new LruCache()) {
-    // CommonModule provides the cache globally in the app; the test supplies its own instance.
-    @Global()
-    @Module({ providers: [{ provide: LruCache, useValue: cache }], exports: [LruCache] })
-    class TestCacheModule {}
-
     const moduleRef = await Test.createTestingModule({
       imports: [
         EnvModule,
         PrismaModule,
-        TestCacheModule,
+        CacheModule,
         IngestionModule,
         RankingModule,
         MaintenanceModule,
@@ -41,6 +37,8 @@ describe('rank recompute and daily job', () => {
     })
       .overrideProvider(SOURCE_ADAPTERS)
       .useValue([])
+      .overrideProvider(LruCache)
+      .useValue(cache)
       .compile();
     await moduleRef.init();
     return moduleRef;
@@ -124,6 +122,8 @@ describe('rank recompute and daily job', () => {
     const app = await createApp(cache);
     const order: string[] = [];
     vi.spyOn(app.get(RankingService), 'recompute').mockImplementation(async () => {
+      // Pushed after an await, so a clear() that does not wait for the recompute would come first.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       order.push('recompute');
     });
     vi.spyOn(cache, 'clear').mockImplementation(() => {
@@ -133,6 +133,32 @@ describe('rank recompute and daily job', () => {
     await app.get(IngestionService).run();
 
     expect(order).toEqual(['recompute', 'clear']);
+    await app.close();
+  });
+
+  it('AC-1.2.10 clears the feed cache even when the recompute fails', async () => {
+    const cache = new LruCache();
+    const app = await createApp(cache);
+    vi.spyOn(app.get(RankingService), 'recompute').mockRejectedValue(new Error('batch failed'));
+    const clear = vi.spyOn(cache, 'clear');
+
+    await expect(app.get(RankingService).run({ now: NOW })).rejects.toThrow('batch failed');
+
+    expect(clear).toHaveBeenCalledOnce();
+    await app.close();
+  });
+
+  it('AC-1.2.10 skips writes for scores that did not change', async () => {
+    const hn = await createSource(prisma, 'skip-hn', 'hn');
+    await addStory('skip', daysAgo(1), [{ sourceId: hn.id, points: 5 }]);
+    const app = await createApp();
+    const ranking = app.get(RankingService);
+    await ranking.recompute(NOW);
+    const transaction = vi.spyOn(app.get(PrismaService), '$transaction');
+
+    await ranking.recompute(NOW);
+
+    expect(transaction).not.toHaveBeenCalled();
     await app.close();
   });
 
@@ -156,7 +182,7 @@ describe('rank recompute and daily job', () => {
     await app.close();
   });
 
-  it('AC-1.7.3 upserts TagDailyStat for the last 3 UTC days idempotently', async () => {
+  it('AC-1.7.3 recomputes TagDailyStat for the last 3 UTC days idempotently', async () => {
     const source = await createSource(prisma, 'stat-hn', 'hn');
     await addStory(
       'stat-1',
@@ -190,6 +216,62 @@ describe('rank recompute and daily job', () => {
       storyCount: 2,
       engagementSum: 40,
     });
+    await app.close();
+  });
+
+  it('AC-1.7.3 drops a tag-day row whose only story lost the tag', async () => {
+    const source = await createSource(prisma, 'ghost-hn', 'hn');
+    const story = await addStory(
+      'ghost',
+      new Date('2026-03-09T02:00:00Z'),
+      [{ sourceId: source.id }],
+      ['go'],
+    );
+    const app = await createApp();
+    const maintenance = app.get(MaintenanceService);
+    await maintenance.runDaily(NOW);
+
+    await prisma.story.update({ where: { id: story.id }, data: { tags: ['rust'] } });
+    await maintenance.runDaily(NOW);
+
+    const rows = await prisma.tagDailyStat.findMany();
+    expect(rows.map(({ tag, storyCount }) => ({ tag, storyCount }))).toEqual([
+      { tag: 'rust', storyCount: 1 },
+    ]);
+    await app.close();
+  });
+
+  it('AC-1.7.3 buckets days in UTC when the process runs in another time zone', async () => {
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'Europe/Berlin';
+    try {
+      const source = await createSource(prisma, 'tz-hn', 'hn');
+      await addStory('tz', new Date('2026-03-09T23:30:00Z'), [{ sourceId: source.id }], ['rust']);
+      const app = await createApp();
+
+      await app.get(MaintenanceService).runDaily(NOW);
+
+      const rows = await prisma.tagDailyStat.findMany();
+      expect(rows.map((row) => row.day)).toEqual([new Date('2026-03-09T00:00:00Z')]);
+      await app.close();
+    } finally {
+      if (previousZone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousZone;
+    }
+  });
+
+  it('AC-1.7.3 keeps running the later steps when one step fails', async () => {
+    await prisma.user.create({ data: { id: 'u3', name: 'U3', email: 'u3@example.com' } });
+    await prisma.session.create({
+      data: { id: 's-expired', token: 't3', userId: 'u3', expiresAt: daysAgo(1) },
+    });
+    const app = await createApp();
+    const maintenance = app.get(MaintenanceService);
+    vi.spyOn(app.get(PrismaService).story, 'findMany').mockRejectedValue(new Error('db hiccup'));
+
+    await maintenance.runDaily(NOW);
+
+    expect(await prisma.session.count({ where: { id: 's-expired' } })).toBe(0);
     await app.close();
   });
 
