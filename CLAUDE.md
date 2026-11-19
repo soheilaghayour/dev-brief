@@ -40,6 +40,7 @@ pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm e2e                                                 # Playwright smoke tests in e2e/
 pnpm --filter api db:migrate --create-only               # new migration: only in an issue that declares one
 pnpm --filter api db:deploy                              # apply migrations
+pnpm --filter api db:generate                            # regenerate the Prisma client (also runs on install and build)
 pnpm --filter api db:seed                                # seed sources (idempotent)
 pnpm --filter api ingest:once                            # one full ingestion run
 ```
