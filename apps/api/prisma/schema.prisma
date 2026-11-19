@@ -137,6 +137,7 @@ model SourceItem {
   source         Source   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   externalId     String
   url            String
+  canonicalUrl   String
   discussionUrl  String?
   title          String
   author         String?
@@ -154,6 +155,7 @@ model SourceItem {
   @@unique([sourceId, externalId])
   @@index([storyId])
   @@index([sourceId, publishedAt(sort: Desc)])
+  @@index([canonicalUrl])
 }
 
 enum IngestionStatus {

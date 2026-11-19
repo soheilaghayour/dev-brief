@@ -123,7 +123,7 @@ a category name like `common/` is its specific name.
 - Colors only by role (`bg-background`, `text-muted-foreground`, `border-border`, `bg-accent`); palette values exist only in the shadcn CSS variables: design changes stay one-line.
 - `components/ui/` is the design system: shadcn primitives that know nothing about stories or sources. App components build on it and never use raw form controls (`<input>`, `<button>`, `<textarea>`, `<select>`); labels and fieldsets are structure, not controls. A2UI catalog components are thin adapters over the same app components (`StoryCard`, `TagBadge`, …), not separate UIs.
 - A feature behind an off phase flag is absent from the HTML, and its API routes return 404 `FEATURE_DISABLED`.
-- Only the issue that declares a schema change creates a Prisma migration; in Phase 1 that is P1-02 alone: parallel branches can't produce conflicting migration histories.
+- Only the issue that declares a schema change creates a Prisma migration: parallel branches can't produce conflicting migration histories.
 - Tests use recorded fixtures: no test makes a live network call and CI never calls the live LLM.
 - Don't abstract until code is duplicated three times, and no wrapper component that only forwards props: wrong abstractions cost more than duplication.
 - Implement only what the current issue asks: scope creep hides review surface.
