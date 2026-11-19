@@ -13,6 +13,12 @@ function sha256(value: string) {
   return createHash('sha256').update(value).digest();
 }
 
+/** True when the request carries the web server's internal token. */
+export function hasInternalToken(request: Request, internalToken: string) {
+  const supplied = request.headers[INTERNAL_TOKEN_HEADER];
+  return typeof supplied === 'string' && timingSafeEqual(sha256(supplied), sha256(internalToken));
+}
+
 /** Throttles per client IP and sends the `RateLimit-*` headers PRD §6.1 names instead of the library's `X-RateLimit-*`. */
 @Injectable()
 export class RateLimitGuard extends ThrottlerGuard {
@@ -22,10 +28,9 @@ export class RateLimitGuard extends ThrottlerGuard {
 
   // Server-side calls from the web app carry no visitor IP, so they would all share one bucket.
   protected override async shouldSkip(context: ExecutionContext) {
-    const supplied = context.switchToHttp().getRequest<Request>().headers[INTERNAL_TOKEN_HEADER];
-    return (
-      typeof supplied === 'string' &&
-      timingSafeEqual(sha256(supplied), sha256(this.env.INTERNAL_API_TOKEN))
+    return hasInternalToken(
+      context.switchToHttp().getRequest<Request>(),
+      this.env.INTERNAL_API_TOKEN,
     );
   }
 }

@@ -50,6 +50,11 @@ links to them instead of restating them.
 - **An Atom entry's `<id>` is its guid, so `externalId = sha1(guid ?? id ?? link)`.** `<id>` is Atom's permanent identifier, unlike a link that can change scheme or path.
 - **Markup-like text in a feed title or excerpt is stripped as HTML, while `a < b` stays.** §8.6 says all HTML is stripped, so an escaped `<Suspense>` goes too; only a `<` followed by a letter, `/` or `!` starts a tag.
 
+- **Better Auth is pinned to 1.7.26 and gets Zod 4 through a scoped pnpm override.** Its code uses the Zod 4 API and crashes on the workspace's Zod 3.25 pin ([CLAUDE.md](CLAUDE.md) item 21); the override covers only `better-auth`, `@better-auth/core` and `better-call`, so app code stays on Zod 3.
+- **`/api/auth/*` is limited by a small Express middleware, not Better Auth's limiter.** Better Auth keys its limit per IP and path and trusts the first `X-Forwarded-For` entry, which a client can forge; the middleware counts all auth paths together on `req.ip` (one trusted hop, [§8.6](docs/prd.md#86-security-basics)) and skips requests with the internal token like the global limit.
+- **The test-mode sign-in route is a Better Auth plugin, registered only when `AUTH_TEST_MODE=true`.** With the flag off the route does not exist (404); the plugin creates the session through Better Auth's own cookie code, so tests exercise the real cookie settings.
+- **Next rewrites `/api/*` to the API in every environment, not only in dev.** The Playwright run uses production builds without Traefik; in production the proxy answers `/api/*` before Next sees it, so the rewrite is never reached.
+
 - **Geist comes from `next/font/google`, not the `geist` package.** It self-hosts a Latin-only subset with `display: swap` as [§7.1](docs/prd.md#71-design-references-and-system) asks; the package ships every weight and subset unsplit. The build needs network access to fetch the font once.
 - **The shortcuts help dialog loads on first `?`.** The root layout wraps every page, and the landing budget ([§8.5](docs/prd.md#85-performance-budgets)) can't carry Radix Dialog for a dialog most visitors never open.
 - **The sidebar has Feed and Saved, plus Radar behind its flag; Collections arrives with its P3 issue.** Collections has no index route in [§7.2](docs/prd.md#72-routes-and-views), so a `g c` link would point nowhere.

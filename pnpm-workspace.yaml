@@ -13,6 +13,10 @@ allowBuilds:
   prisma: true
 overrides:
   zod: 'catalog:'
+  # Better Auth is written against the Zod 4 API; the app code stays on the pinned 3.25.
+  better-auth>zod: ^4.5.4
+  '@better-auth/core>zod': ^4.5.4
+  better-call>zod: ^4.0.0
 auditConfig:
   ignoreGhsas:
     - GHSA-mrhx-c7xc-m3w5

@@ -12,6 +12,7 @@
   "dependencies": {
     "@devbrief/shared": "workspace:*",
     "@tanstack/react-query": "^5.108.0",
+    "better-auth": "1.7.26",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.75.0",

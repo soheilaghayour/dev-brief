@@ -1,7 +1,12 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { toNodeHandler } from 'better-auth/node';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { assignRequestId } from './common/logging/requestId.js';
+import { ENV, type Env } from './common/env/env.module.js';
+import { AUTH } from './modules/auth/auth.constants.js';
+import type { Auth } from './modules/auth/auth.js';
+import { createAuthRateLimit } from './modules/auth/authRateLimit.js';
 import { setupOpenApi } from './common/openapi/openapi.js';
 
 /** Applies the HTTP setup main.ts and the integration tests share; the app must be created with `bodyParser: false`. */
@@ -23,6 +28,11 @@ export function configureApp(app: NestExpressApplication) {
     next();
   });
   // Better Auth is mounted here, before the JSON parser: it needs the raw body.
+  app.use(
+    '/api/auth',
+    createAuthRateLimit(app.get<Env>(ENV).INTERNAL_API_TOKEN),
+    toNodeHandler(app.get<Auth>(AUTH)),
+  );
   // /me/merge registers its 512 KB express.json() above this line; the global parser skips a body already parsed.
   app.use(express.json({ limit: '100kb' }));
   app.setGlobalPrefix('api/v1');
