@@ -26,7 +26,7 @@ const FeedItemSchema = z.object({
   summary: z.string().optional().catch(undefined),
   creator: z.string().optional().catch(undefined),
   author: z.string().optional().catch(undefined),
-  rawCategories: z.array(CategorySchema.catch('')).catch([]).optional(),
+  rawCategories: z.array(CategorySchema.catch('')).catch([]),
 });
 
 interface AtomEntryParser {
@@ -96,7 +96,7 @@ function toRawItem(
     points: null,
     commentsCount: null,
     reactionsCount: null,
-    sourceTags: (item.rawCategories ?? []).map((tag) => tag.trim()).filter(Boolean),
+    sourceTags: item.rawCategories.map((tag) => tag.trim()).filter(Boolean),
     excerpt: body ? toPlainText(body, EXCERPT_MAX_LENGTH) || null : null,
     readingTimeMinutes: null,
   };
