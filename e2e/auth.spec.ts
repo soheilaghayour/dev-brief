@@ -111,3 +111,57 @@ test('AC-1.6.2 deleting the account needs the word delete, then returns to the l
   await expect(page).toHaveURL(`${APP_URL}/`);
   await expect(page.getByText('Your account was deleted.')).toBeVisible();
 });
+
+test('AC-1.5.5 AC-1.5.7 a guest save is merged on sign-in, then read from the server on /saved', async ({
+  page,
+}) => {
+  await page.goto('/feed?sort=latest');
+  await page.waitForLoadState('networkidle');
+  const card = page.locator('article[data-story-id]').first();
+  const id = (await card.getAttribute('data-story-id')) ?? '';
+  const title = (await card.locator('h2 a').textContent()) ?? '';
+  await card.getByRole('button', { name: 'Save story' }).click();
+  await expect(card.getByRole('button', { name: 'Save story' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  await signInThroughTestRoute(page);
+  await page.goto('/feed?sort=latest');
+
+  await expect(page.getByText('1 saved story synced')).toBeVisible();
+  const stored = await page.evaluate((key) => localStorage.getItem(key), GUEST_STORAGE_KEY);
+  expect(JSON.parse(stored ?? '{}')).toMatchObject({ saves: [], pendingMerge: false });
+  await expect(
+    page.locator(`article[data-story-id="${id}"]`).getByRole('button', { name: 'Save story' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+
+  // The device no longer holds the save, so the page can only get it from GET /me/saves.
+  await page.getByRole('link', { name: 'Saved' }).first().click();
+  await expect(page).toHaveURL(/\/saved$/);
+  await expect(page.locator('article[data-story-id]')).toHaveCount(1);
+  await expect(page.locator('article[data-story-id] h2 a')).toHaveText(title);
+});
+
+test('AC-1.5.4 a signed-in user unsaves on /saved and the save stays gone after a reload', async ({
+  page,
+}) => {
+  await signInThroughTestRoute(page);
+  await page.goto('/feed?sort=latest');
+  await page.waitForLoadState('networkidle');
+  const save = page
+    .locator('article[data-story-id]')
+    .first()
+    .getByRole('button', { name: 'Save story' });
+  await save.click();
+  await expect(save).toHaveAttribute('aria-pressed', 'true');
+
+  await page.goto('/saved');
+  const cards = page.locator('article[data-story-id]');
+  await expect(cards).toHaveCount(1);
+  await cards.first().getByRole('button', { name: 'Save story' }).click();
+  await expect(cards).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByText('Nothing saved yet')).toBeVisible();
+});
