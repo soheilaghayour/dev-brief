@@ -17,13 +17,20 @@ function escapeRegExp(text: string) {
 const WORD_START = '(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]\\.)';
 const WORD_END = '(?![a-zA-Z0-9_]|\\.[a-zA-Z0-9_])';
 
-/** Whole-word matcher; a boundary is added only on a side where the alias starts or ends with a word character, so "Go 1." matches "Go 1.24". */
-function wordMatcher(alias: string, flags: string) {
-  const start = /^\w/.test(alias) ? WORD_START : '';
-  const end = /\w$/.test(alias) ? WORD_END : '';
-  // URL slugs join words with "-" or "_": "rust-belt" is the phrase "rust belt".
-  const phrase = escapeRegExp(alias).replace(/[ -]/g, '[\\s_-]');
-  return new RegExp(`${start}${phrase}${end}`, flags);
+const matcherCache = new Map<string, RegExp>();
+
+/** Whole-word matcher, compiled once per alias; a boundary is added only on a side where the alias starts or ends with a word character, so "Go 1." matches "Go 1.24". */
+function wordMatcher(alias: string) {
+  let matcher = matcherCache.get(alias);
+  if (!matcher) {
+    const start = /^\w/.test(alias) ? WORD_START : '';
+    const end = /\w$/.test(alias) ? WORD_END : '';
+    // URL slugs join words with "-" or "_": "rust-belt" is the phrase "rust belt".
+    const phrase = escapeRegExp(alias).replace(/[ -]/g, '[\\s_-]');
+    matcher = new RegExp(`${start}${phrase}${end}`);
+    matcherCache.set(alias, matcher);
+  }
+  return matcher;
 }
 
 // Dev.to tags carry no separators ("reactnative"), so separators are dropped on both sides.
@@ -38,10 +45,10 @@ function urlTokens(rawUrl: string) {
 }
 
 function matchesInText(definition: TagDefinition, title: string, text: string) {
-  const hasWord = (alias: string) => wordMatcher(alias, '').test(text);
+  const hasWord = (alias: string) => wordMatcher(alias).test(text);
   return (
     definition.aliases.some(hasWord) ||
-    (definition.caseSensitiveAliases ?? []).some((alias) => wordMatcher(alias, '').test(title)) ||
+    (definition.caseSensitiveAliases ?? []).some((alias) => wordMatcher(alias).test(title)) ||
     (definition.conditionalAliases ?? []).some(
       ({ alias, requiresAny }) => hasWord(alias) && requiresAny.some(hasWord),
     ) ||
@@ -59,7 +66,7 @@ function matchesSourceTag(definition: TagDefinition, sourceTagSlugs: ReadonlySet
 }
 
 function isExcluded(definition: TagDefinition, text: string) {
-  return (definition.exclude ?? []).some((phrase) => wordMatcher(phrase, '').test(text));
+  return (definition.exclude ?? []).some((phrase) => wordMatcher(phrase).test(text));
 }
 
 /** Returns the taxonomy tags for a story: deduplicated, in taxonomy order, at most 5. */
