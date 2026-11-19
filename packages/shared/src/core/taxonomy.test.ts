@@ -190,6 +190,8 @@ describe('tagStory', () => {
 
   it.each([
     ['10x faster', true],
+    ['10× faster', true],
+    ['Top 10 faster cars', false],
     ['30% faster', true],
     ['2 times faster', true],
     ['2.5x faster', true],
@@ -209,7 +211,33 @@ describe('tagStory', () => {
     expect(tagWith({ title: 'Reacting to Vue' })).toEqual(['vue']);
   });
 
-  it('treats . and / as word characters inside tokens', () => {
+  it('matches Dev.to tags written without separators', () => {
+    expect(tagWith({ sourceTags: ['reactnative'] })).toEqual(['react', 'mobile']);
+    expect(tagWith({ sourceTags: ['machinelearning'] })).toEqual(['ai-llms']);
+    expect(tagWith({ sourceTags: ['githubactions'] })).toEqual(['devops']);
+    expect(tagWith({ categories: ['react-native'] })).toEqual(['react', 'mobile']);
+  });
+
+  it('matches phrases joined by hyphens in titles and URL slugs', () => {
+    expect(tagWith({ title: 'Rust-belt towns rebound' })).toEqual([]);
+    expect(tagWith({ title: 'The economy', url: 'https://example.com/rust-belt-revival' })).toEqual(
+      [],
+    );
+    expect(tagWith({ title: 'A primer', url: 'https://example.com/system-design-primer' })).toEqual(
+      ['system-design'],
+    );
+    expect(tagWith({ title: 'Tips', url: 'https://example.com/react-native-tips' })).toEqual([
+      'react',
+      'mobile',
+    ]);
+  });
+
+  it('matches an alias next to a slash', () => {
+    expect(tagWith({ title: 'React/Vue comparison' })).toEqual(['react', 'vue']);
+    expect(tagWith({ title: 'Postgres/MySQL tips' })).toEqual(['databases']);
+  });
+
+  it('treats . as a word character inside tokens', () => {
     expect(tagWith({ title: 'Learn Node.js today' })).toEqual(['javascript']);
     expect(tagWith({ title: 'CI/CD pipelines' })).toEqual(['devops']);
     expect(tagWith({ title: 'Just use js. It works' })).toEqual(['javascript']);

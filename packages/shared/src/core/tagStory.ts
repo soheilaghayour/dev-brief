@@ -13,22 +13,22 @@ function escapeRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// `.` and `/` count as word characters inside a token ("node.js", "ci/cd") but not at its end ("I like js.").
-const WORD_START = '(?<![a-zA-Z0-9_]|[a-zA-Z0-9_][./])';
-const WORD_END = '(?![a-zA-Z0-9_]|[./][a-zA-Z0-9_])';
+// `.` counts as a word character inside a token ("node.js") but not at its end ("I like js.").
+const WORD_START = '(?<![a-zA-Z0-9_]|[a-zA-Z0-9_]\\.)';
+const WORD_END = '(?![a-zA-Z0-9_]|\\.[a-zA-Z0-9_])';
 
 /** Whole-word matcher; a boundary is added only on a side where the alias starts or ends with a word character, so "Go 1." matches "Go 1.24". */
 function wordMatcher(alias: string, flags: string) {
   const start = /^\w/.test(alias) ? WORD_START : '';
   const end = /\w$/.test(alias) ? WORD_END : '';
-  return new RegExp(`${start}${escapeRegExp(alias)}${end}`, flags);
+  // URL slugs join words with "-" or "_": "rust-belt" is the phrase "rust belt".
+  const phrase = escapeRegExp(alias).replace(/[ -]/g, '[\\s_-]');
+  return new RegExp(`${start}${phrase}${end}`, flags);
 }
 
+// Dev.to tags carry no separators ("reactnative"), so separators are dropped on both sides.
 function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
 function urlTokens(rawUrl: string) {

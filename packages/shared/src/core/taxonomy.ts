@@ -40,9 +40,8 @@ export interface TagDefinition {
   exclude?: readonly string[];
 }
 
-export const TAXONOMY: readonly TagDefinition[] = [
-  {
-    slug: 'react',
+const TAG_DEFINITIONS = {
+  react: {
     label: 'React',
     aliases: [
       'reactjs',
@@ -60,19 +59,16 @@ export const TAXONOMY: readonly TagDefinition[] = [
     caseSensitiveAliases: ['React'],
     exclude: ['react to', 'reacting'],
   },
-  {
-    slug: 'vue',
+  vue: {
     label: 'Vue',
     aliases: ['vue', 'vuejs', 'vue.js', 'nuxt', 'pinia', 'vite plugin vue'],
   },
-  {
-    slug: 'typescript',
+  typescript: {
     label: 'TypeScript',
     aliases: ['typescript', 'tsc', 'tsconfig', 'deno', 'type-level', 'zod'],
     sourceTagOnlyAliases: ['ts'],
   },
-  {
-    slug: 'javascript',
+  javascript: {
     label: 'JavaScript',
     aliases: [
       'javascript',
@@ -87,8 +83,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'v8',
     ],
   },
-  {
-    slug: 'ai-llms',
+  'ai-llms': {
     label: 'AI/LLMs',
     aliases: [
       'llm',
@@ -114,8 +109,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       { alias: 'agents', requiresAny: ['ai', 'llm', 'llms'] },
     ],
   },
-  {
-    slug: 'system-design',
+  'system-design': {
     label: 'System Design',
     aliases: [
       'system design',
@@ -131,8 +125,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'caching strategy',
     ],
   },
-  {
-    slug: 'databases',
+  databases: {
     label: 'Databases',
     aliases: [
       'postgres',
@@ -152,8 +145,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
     ],
     conditionalAliases: [{ alias: 'index', requiresAny: ['sql', 'database'] }],
   },
-  {
-    slug: 'devops',
+  devops: {
     label: 'DevOps',
     aliases: [
       'devops',
@@ -170,8 +162,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'deploy',
     ],
   },
-  {
-    slug: 'security',
+  security: {
     label: 'Security',
     aliases: [
       'security',
@@ -187,8 +178,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'zero-day',
     ],
   },
-  {
-    slug: 'performance',
+  performance: {
     label: 'Performance',
     aliases: [
       'performance',
@@ -202,10 +192,9 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'throughput',
     ],
     // "faster" counts only after a number: "10x faster", "30% faster", "2 times faster".
-    patterns: ['\\d(?:x|%|\\s+times)?\\s+faster\\b'],
+    patterns: ['(?<![\\w.])\\d+(?:\\.\\d+)?\\s*(?:x|×|%|times)\\s+faster\\b'],
   },
-  {
-    slug: 'css',
+  css: {
     label: 'CSS',
     aliases: [
       'css',
@@ -218,26 +207,22 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'view transitions',
     ],
   },
-  {
-    slug: 'rust',
+  rust: {
     label: 'Rust',
     aliases: ['rust', 'rustlang', 'cargo', 'crates.io', 'tokio', 'wasm-bindgen'],
     exclude: ['rust belt'],
   },
-  {
-    slug: 'go',
+  go: {
     label: 'Go',
-    aliases: ['golang', 'go.dev', 'goroutine'],
+    aliases: ['golang', 'go.dev', 'goroutine', 'goroutines'],
     caseSensitiveAliases: ['Go 1.'],
     sourceTagOnlyAliases: ['go'],
   },
-  {
-    slug: 'python',
+  python: {
     label: 'Python',
     aliases: ['python', 'pypi', 'django', 'flask', 'fastapi', 'pandas', 'uv', 'pip'],
   },
-  {
-    slug: 'testing',
+  testing: {
     label: 'Testing',
     aliases: [
       'testing',
@@ -251,8 +236,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'test coverage',
     ],
   },
-  {
-    slug: 'web-platform',
+  'web-platform': {
     label: 'Web Platform',
     aliases: [
       'web platform',
@@ -270,8 +254,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'wasm',
     ],
   },
-  {
-    slug: 'mobile',
+  mobile: {
     label: 'Mobile',
     aliases: [
       'ios',
@@ -284,8 +267,7 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'jetpack compose',
     ],
   },
-  {
-    slug: 'career',
+  career: {
     label: 'Career',
     aliases: [
       'career',
@@ -300,4 +282,9 @@ export const TAXONOMY: readonly TagDefinition[] = [
       'remote work',
     ],
   },
-];
+} satisfies Record<TagSlug, Omit<TagDefinition, 'slug'>>;
+
+export const TAXONOMY: readonly TagDefinition[] = TAG_SLUGS.map((slug) => ({
+  slug,
+  ...TAG_DEFINITIONS[slug],
+}));
