@@ -22,13 +22,14 @@ FROM node:26-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production PORT=3001
-ARG APP_VERSION=dev
-ENV APP_VERSION=$APP_VERSION
 WORKDIR /app
 COPY --from=build --chown=node:node /out/package.json /out/prisma.config.ts ./
 COPY --from=build --chown=node:node /out/node_modules ./node_modules
 COPY --from=build --chown=node:node /out/prisma ./prisma
 COPY --from=build --chown=node:node /out/dist ./dist
+# Coolify passes the deployed commit as SOURCE_COMMIT; it is the release Sentry and /health report.
+ARG SOURCE_COMMIT=dev
+ENV APP_VERSION=$SOURCE_COMMIT
 USER node
 EXPOSE 3001
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \

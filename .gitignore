@@ -13,3 +13,4 @@ next-env.d.ts
 apps/api/src/generated
 test-results
 playwright-report
+.env.production

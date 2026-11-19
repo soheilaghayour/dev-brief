@@ -38,6 +38,7 @@ pnpm dev                                                 # web + api in watch mo
 pnpm test                                                # Vitest: unit + API integration against real Postgres
 pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm e2e                                                 # Playwright smoke tests in e2e/
+SMOKE_BASE_URL=<url> pnpm smoke:prod                     # public-flow smoke suite against a deployed site
 pnpm --filter api db:migrate --create-only               # new migration: only in an issue that declares one
 pnpm --filter api db:deploy                              # apply migrations
 pnpm --filter api db:generate                            # regenerate the Prisma client (also runs on install and build)
@@ -76,8 +77,9 @@ packages/shared/
   src/core/                     # pure decision functions: canonicalizeUrl, normalizeTitle, taxonomy, tagStory, ranking, …
   src/a2ui/                     # DevBrief catalog prop schemas, BriefingPlan, catalog.v1.json (P3)
 e2e/                            # Playwright specs + config
-docs/                           # the PRD and the docs in the table above
+docs/                           # the PRD and the docs in the table above; provision.sh: the one-off production setup wizard
 .github/                        # workflows/ci.yml, ISSUE_TEMPLATE/
+# apps/api/Dockerfile and apps/web/Dockerfile build from the repo root (docs/operations.md)
 ```
 
 `apps/*` import from `packages/shared`, never from each other. There is no top-level

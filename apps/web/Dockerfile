@@ -13,9 +13,10 @@ RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
-# Public values the Next build inlines into the client bundle; the source-map upload runs only with a token.
+# Public values the Next build inlines into the client bundle (SOURCE_COMMIT is the release); the source-map upload runs only with a token.
+ARG SOURCE_COMMIT=dev
+ENV NEXT_PUBLIC_APP_VERSION=$SOURCE_COMMIT
 ARG NEXT_PUBLIC_SENTRY_DSN
-ARG NEXT_PUBLIC_APP_VERSION
 ARG SENTRY_AUTH_TOKEN
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT
