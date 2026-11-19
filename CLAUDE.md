@@ -1,5 +1,7 @@
 # DevBrief
 
+Next 16 differs from training data: read `apps/web/node_modules/next/dist/docs/` before writing web code.
+
 Read order: this file → the `docs/prd.md` sections your issue cites → `DECISIONS.md`.
 Authority: `docs/prd.md` (the contract) > `DECISIONS.md` > `CLAUDE.md`: the higher wins;
 the lower is corrected in the same commit. In code, the API contract's single source is
@@ -11,19 +13,19 @@ Every fact lives in one place; every other place links to it, never copies it. C
 constants have one source (tag slugs in `core/taxonomy.ts`, LLM caps in `llm/budget.ts`,
 phase flags in `config/features.ts`).
 
-| Place                                | Its one job                                                                                                         |
-| :----------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
-| the contract (`docs/prd.md`)         | requirements with stable IDs (`F1.3`, `AC-1.3.4`, `P1-08`), architecture, schema, API, budgets                      |
-| `packages/shared/src/contracts`      | the API contract in code: every request/response Zod schema and its inferred type                                   |
-| `DECISIONS.md`                       | judgment calls (a one-sentence bold headline, then its reason), open PM questions, rejected and left-out approaches |
-| `README.md`                          | what the app is and how to run it (P1-01)                                                                           |
-| `CLAUDE.md`                          | how to work in this repo (`AGENTS.md` is a one-line pointer here)                                                   |
-| `docs/architecture.md` (P1-01 stub)  | the system as built, including the AI pipeline                                                                      |
-| `docs/development.md` (P1-01 stub)   | local setup and dev workflows                                                                                       |
-| `docs/operations.md` (P1-01 stub)    | deploy, OAuth app setup, backups and the restore runbook                                                            |
-| `docs/changelog.md` (P1-01 stub)     | user-visible changes per release                                                                                    |
-| git commits, GitHub issues and PRs   | the history: what was done and why                                                                                  |
-| code comments                        | only a _why_ the code can't show                                                                                    |
+| Place                               | Its one job                                                                                                         |
+| :---------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| the contract (`docs/prd.md`)        | requirements with stable IDs (`F1.3`, `AC-1.3.4`, `P1-08`), architecture, schema, API, budgets                      |
+| `packages/shared/src/contracts`     | the API contract in code: every request/response Zod schema and its inferred type                                   |
+| `DECISIONS.md`                      | judgment calls (a one-sentence bold headline, then its reason), open PM questions, rejected and left-out approaches |
+| `README.md`                         | what the app is and how to run it (P1-01)                                                                           |
+| `CLAUDE.md`                         | how to work in this repo (`AGENTS.md` is a one-line pointer here)                                                   |
+| `docs/architecture.md` (P1-01 stub) | the system as built, including the AI pipeline                                                                      |
+| `docs/development.md` (P1-01 stub)  | local setup and dev workflows                                                                                       |
+| `docs/operations.md` (P1-01 stub)   | deploy, OAuth app setup, backups and the restore runbook                                                            |
+| `docs/changelog.md` (P1-01 stub)    | user-visible changes per release                                                                                    |
+| git commits, GitHub issues and PRs  | the history: what was done and why                                                                                  |
+| code comments                       | only a _why_ the code can't show                                                                                    |
 
 ## Commands
 
@@ -32,7 +34,7 @@ changed script updates this list in the same commit.
 
 ```
 docker compose up -d                                     # local Postgres (dev and integration tests need it)
-pnpm dev                                                 # web :3000 + api :3001; /api/* is rewritten to the api
+pnpm dev                                                 # web + api in watch mode
 pnpm test                                                # Vitest: unit + API integration against real Postgres
 pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm e2e                                                 # Playwright smoke tests in e2e/
@@ -81,19 +83,19 @@ docs/                           # the PRD and the docs in the table above
 
 ## Naming conventions
 
-| What                     | Style                                          | Example                                                 |
-| :----------------------- | :--------------------------------------------- | :------------------------------------------------------ |
-| Folders                  | lowercase / kebab-case                         | `components/ui`, `story-detail`                         |
-| React component files    | PascalCase = the component's name, shadcn/ui included (rename generated files) | `StoryCard.tsx`, `FeedPage.tsx`, `components/ui/Button.tsx` |
-| Other TS files           | camelCase                                      | `canonicalizeUrl.ts`, `briefingPlan.ts`, `ingestOnce.ts` |
-| Nest files               | `<name>.<role>.ts`, camelCase stem             | `feed.controller.ts`, `sourceHealth.service.ts`, `feed.module.ts`, `hn.adapter.ts` |
-| Next.js reserved files   | the framework's required name                  | `page.tsx`, `layout.tsx`, `route.ts`, `not-found.tsx`, `opengraph-image.tsx` |
-| Tests                    | next to the file, same name; API integration in `apps/api/test/integration/` | `canonicalizeUrl.test.ts`, `test/integration/feed.test.ts` |
-| Variables / functions    | camelCase                                      | `canonicalizeUrl`, `storyId`                            |
-| Types / components / Nest classes | PascalCase                            | `FeedPage`, `StoryCard`, `FeedController`               |
-| Zod schemas              | `XxxSchema` + `type Xxx = z.infer<…>`          | `FeedPageSchema` / `FeedPage`                           |
-| Constants / env vars     | UPPER_SNAKE_CASE                               | `TAXONOMY_VERSION`, `RANK_GRAVITY`, `LLM_CAP_GLOBAL_USD_DAY` |
-| Prisma models / fields   | PascalCase singular / camelCase                | `SourceItem.reactionsCount`                             |
+| What                              | Style                                                                          | Example                                                                            |
+| :-------------------------------- | :----------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
+| Folders                           | lowercase / kebab-case                                                         | `components/ui`, `story-detail`                                                    |
+| React component files             | PascalCase = the component's name, shadcn/ui included (rename generated files) | `StoryCard.tsx`, `FeedPage.tsx`, `components/ui/Button.tsx`                        |
+| Other TS files                    | camelCase                                                                      | `canonicalizeUrl.ts`, `briefingPlan.ts`, `ingestOnce.ts`                           |
+| Nest files                        | `<name>.<role>.ts`, camelCase stem                                             | `feed.controller.ts`, `sourceHealth.service.ts`, `feed.module.ts`, `hn.adapter.ts` |
+| Next.js reserved files            | the framework's required name                                                  | `page.tsx`, `layout.tsx`, `route.ts`, `not-found.tsx`, `opengraph-image.tsx`       |
+| Tests                             | next to the file, same name; API integration in `apps/api/test/integration/`   | `canonicalizeUrl.test.ts`, `test/integration/feed.test.ts`                         |
+| Variables / functions             | camelCase                                                                      | `canonicalizeUrl`, `storyId`                                                       |
+| Types / components / Nest classes | PascalCase                                                                     | `FeedPage`, `StoryCard`, `FeedController`                                          |
+| Zod schemas                       | `XxxSchema` + `type Xxx = z.infer<…>`                                          | `FeedPageSchema` / `FeedPage`                                                      |
+| Constants / env vars              | UPPER_SNAKE_CASE                                                               | `TAXONOMY_VERSION`, `RANK_GRAVITY`, `LLM_CAP_GLOBAL_USD_DAY`                       |
+| Prisma models / fields            | PascalCase singular / camelCase                                                | `SourceItem.reactionsCount`                                                        |
 
 **Import aliases:** `@/*` → `src/*` inside each app; `packages/shared` by its package name
 `@devbrief/shared`. Relative imports only within the same folder.

@@ -2,6 +2,5 @@ pnpm-lock.yaml
 .next
 dist
 coverage
+# frozen: changes only in PRD-amending PRs
 docs/prd.md
-CLAUDE.md
-DECISIONS.md

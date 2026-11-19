@@ -14,11 +14,12 @@ logic, PostgreSQL. Details in [`docs/architecture.md`](docs/architecture.md) and
 Needs Node from `.nvmrc`, pnpm and Docker.
 
 ```
-cp .env.example .env
 docker compose up -d
 pnpm i
 pnpm dev
 ```
+
+Settings come from `.env.example`; copy it to `.env` to override any value.
 
 The web app runs on http://localhost:3000 and the API on http://localhost:3001; `/api/*` on
 the web origin is rewritten to the API. More in [`docs/development.md`](docs/development.md).

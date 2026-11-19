@@ -2,18 +2,12 @@
 
 ## Local setup
 
-```
-cp .env.example .env
-docker compose up -d
-pnpm i
-pnpm dev
-```
+Quickstart: [`README.md`](../README.md#run-locally).
 
-`pnpm dev` builds `packages/shared`, then starts the web app (:3000) and the API (:3001).
-The root `.env` is loaded by the `dev` and `build` scripts of both apps. Rebuild the shared
-package with `pnpm --filter @devbrief/shared build` after changing it while `pnpm dev` runs.
+`pnpm dev` builds `packages/shared` first. Rebuild it with `pnpm --filter @devbrief/shared build`
+after changing it while `pnpm dev` runs.
 
-Commands are listed in [`CLAUDE.md`](../CLAUDE.md#commands).
+The `dev` scripts load the root `.env` over `.env.example`; `build` loads only `.env`. Commands are listed in [`CLAUDE.md`](../CLAUDE.md#commands).
 
 ## CI
 
