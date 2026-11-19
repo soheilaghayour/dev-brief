@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'vitest';
+import {
+  aggregateTagStats,
+  ingestionRunCutoff,
+  storyCutoff,
+  tagStatWindowStart,
+} from './dailyRules.js';
+
+describe('dailyRules', () => {
+  it('AC-1.7.3 recomputes the last 3 UTC days, today included', () => {
+    expect(tagStatWindowStart(new Date('2026-03-10T03:15:00Z')).toISOString()).toBe(
+      '2026-03-08T00:00:00.000Z',
+    );
+  });
+
+  it('AC-1.7.3 puts the cutoffs at 90 and 30 days before now', () => {
+    const now = new Date('2026-06-01T00:00:00Z');
+    expect(storyCutoff(now).toISOString()).toBe('2026-03-03T00:00:00.000Z');
+    expect(ingestionRunCutoff(now).toISOString()).toBe('2026-05-02T00:00:00.000Z');
+  });
+
+  it('AC-1.7.3 buckets by UTC publish day and sums the max item engagement per story', () => {
+    const rows = aggregateTagStats([
+      {
+        publishedAt: new Date('2026-03-09T23:30:00Z'),
+        tags: ['rust', 'rust', 'go'],
+        engagementPercentile: 0.8,
+        itemEngagements: [10, 40],
+      },
+      {
+        publishedAt: new Date('2026-03-09T01:00:00Z'),
+        tags: ['rust'],
+        engagementPercentile: 0.4,
+        itemEngagements: [5],
+      },
+      {
+        publishedAt: new Date('2026-03-10T00:00:00Z'),
+        tags: ['rust'],
+        engagementPercentile: 0.5,
+        itemEngagements: [],
+      },
+    ]);
+    const rust = rows.find((row) => row.tag === 'rust' && row.day.getUTCDate() === 9);
+    expect(rust).toMatchObject({ storyCount: 2, engagementSum: 45 });
+    expect(rust?.avgPercentile).toBeCloseTo(0.6);
+    expect(rows).toHaveLength(3);
+  });
+});
