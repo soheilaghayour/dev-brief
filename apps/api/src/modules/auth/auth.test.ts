@@ -39,7 +39,7 @@ describe('the Better Auth configuration', () => {
       secure: true,
       sameSite: 'lax',
     });
-    expect(options.advanced?.crossSubDomainCookies).toBeUndefined();
+    expect(options.advanced).not.toHaveProperty('crossSubDomainCookies');
     expect(options.baseURL).toBe(env.APP_URL);
     expect(options.trustedOrigins).toEqual([env.APP_URL]);
   });

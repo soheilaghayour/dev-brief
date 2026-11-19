@@ -89,8 +89,12 @@ describe('authentication', () => {
     const story = await prisma.story.create({
       data: {
         canonicalUrl: 'https://example.com/doomed',
+        url: 'https://example.com/doomed',
+        domain: 'example.com',
         title: 'Doomed',
-        titleNormalized: 'doomed',
+        normalizedTitle: 'doomed',
+        publishedAt: new Date(),
+        taggerVersion: 1,
       },
     });
     await prisma.save.create({ data: { userId, storyId: story.id } });
