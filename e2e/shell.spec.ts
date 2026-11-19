@@ -17,7 +17,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-test('the shell has no horizontal scroll at 360 px and 1280 px', async ({ page }) => {
+test('AC-1.3.12 the shell has no horizontal scroll at 360 px and 1280 px', async ({ page }) => {
   for (const width of [360, 1280]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/feed');
@@ -26,7 +26,7 @@ test('the shell has no horizontal scroll at 360 px and 1280 px', async ({ page }
   }
 });
 
-test('the sidebar moves into a sheet below 768 px', async ({ page }) => {
+test('AC-1.3.12 the navigation moves into a sheet below 768 px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/feed');
   await expect(page.getByRole('complementary')).toBeHidden();
@@ -57,18 +57,20 @@ test('with the OS in dark mode and no stored theme, the first paint is dark', as
 }) => {
   const context = await browser.newContext({ colorScheme: 'dark' });
   const page = await context.newPage();
-  // Captured at the earliest moment the document exists, before hydration could repaint it.
-  await page.addInitScript(() => {
-    document.addEventListener('DOMContentLoaded', () => {
-      (window as unknown as { themeAtParse: string }).themeAtParse =
-        document.documentElement.className;
-    });
-  });
+  // Without any script chunk, only the inline theme script can have set the class: a flash is
+  // what a blocked inline script (e.g. by a CSP without a nonce) would show.
+  await page.route('**/_next/static/chunks/**/*.js', (route) => route.abort());
   await page.goto('/feed');
-  const themeAtParse = await page.evaluate(
-    () => (window as unknown as { themeAtParse: string }).themeAtParse,
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe(
+    'dark',
   );
-  expect(themeAtParse).toContain('dark');
+  const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const luminance = background
+    .match(/\d+(\.\d+)?/g)
+    ?.slice(0, 3)
+    .map(Number) ?? [255, 255, 255];
+  expect(Math.max(...luminance)).toBeLessThan(80);
   await context.close();
 });
 

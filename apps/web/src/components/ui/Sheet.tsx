@@ -1,21 +1,33 @@
 import type { ComponentProps } from 'react';
 import { Dialog as SheetPrimitive } from 'radix-ui';
+import { cva, type VariantProps } from 'class-variance-authority';
 import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
+
+const sheetVariants = cva(
+  'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col shadow-xl duration-200',
+  {
+    variants: {
+      side: {
+        left: 'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-dvh w-72 max-w-[85vw] border-r',
+        bottom:
+          'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 max-h-[85dvh] rounded-t-lg border-t',
+      },
+    },
+    defaultVariants: { side: 'left' },
+  },
+);
 
 function Sheet(props: ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
-function SheetTrigger(props: ComponentProps<typeof SheetPrimitive.Trigger>) {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
-}
-
 function SheetContent({
   className,
   children,
+  side,
   ...props
-}: ComponentProps<typeof SheetPrimitive.Content>) {
+}: ComponentProps<typeof SheetPrimitive.Content> & VariantProps<typeof sheetVariants>) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay
@@ -24,10 +36,7 @@ function SheetContent({
       />
       <SheetPrimitive.Content
         data-slot="sheet-content"
-        className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed inset-y-0 left-0 z-50 flex h-dvh w-72 max-w-[85vw] flex-col border-r shadow-xl duration-200',
-          className,
-        )}
+        className={cn(sheetVariants({ side }), className)}
         {...props}
       >
         {children}
@@ -64,4 +73,4 @@ function SheetDescription(props: ComponentProps<typeof SheetPrimitive.Descriptio
   return <SheetPrimitive.Description data-slot="sheet-description" {...props} />;
 }
 
-export { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription };
+export { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription };

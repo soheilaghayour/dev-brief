@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
+import { FilterIcon } from 'lucide-react';
 import { AppHeader } from './AppHeader';
 import { GoToShortcuts } from './GoToShortcuts';
+import { SheetLauncher } from './SheetLauncher';
 import { SidebarContent } from './SidebarContent';
 
 type AppShellProps = {
@@ -15,7 +17,24 @@ type AppShellProps = {
 export function AppShell({ children, filtersSlot, ...headerSlots }: AppShellProps) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <AppHeader filtersSlot={filtersSlot} {...headerSlots} />
+      <AppHeader {...headerSlots} />
+      {filtersSlot && (
+        <div className="border-b px-3 py-2 md:hidden">
+          <SheetLauncher
+            side="bottom"
+            title="Filters"
+            description="Filter stories by tag and source"
+            trigger={
+              <>
+                <FilterIcon /> Filters
+              </>
+            }
+            triggerProps={{ variant: 'outline', size: 'sm' }}
+          >
+            {filtersSlot}
+          </SheetLauncher>
+        </div>
+      )}
       <div className="flex w-full flex-1">
         <aside
           aria-label="Sidebar"

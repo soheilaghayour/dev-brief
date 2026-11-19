@@ -23,9 +23,23 @@ function isSingleKey(keys: string) {
   return !parts.some((part) => MODIFIERS.includes(part) || ESCAPE_KEYS.includes(part));
 }
 
-/** Single-key shortcuts stay quiet while the user types; Esc and modifier combos always run. */
-export function shouldRunShortcut(keys: string, target: EventTarget | null) {
-  return !isSingleKey(keys) || !isEditableTarget(target);
+/** How long after a sequence's first key its second key still counts (the hook's default). */
+export const SEQUENCE_TIMEOUT_MS = 1000;
+
+/** True when some registered sequence starts with this key, e.g. `g` for `g>s`. */
+export function isSequenceLeader(key: string, shortcuts: readonly Shortcut[]) {
+  const leader = `${key.toLowerCase()}>`;
+  return shortcuts.some(({ keys }) => keys.toLowerCase().startsWith(leader));
+}
+
+/**
+ * Single-key shortcuts stay quiet while the user types or while a sequence is half typed
+ * (`g` then `s` must not also fire a plain `s`); Esc, modifier combos and sequences always run.
+ */
+export function shouldRunShortcut(keys: string, target: EventTarget | null, leaderPending = false) {
+  if (!isSingleKey(keys)) return true;
+  if (isEditableTarget(target)) return false;
+  return isSequence(keys) || !leaderPending;
 }
 
 /** Splits a shortcut into the key caps to show, e.g. `g>f` becomes `['g', 'f']`. */

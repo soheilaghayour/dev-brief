@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
-import { Toaster } from '@/components/ui/Toaster';
+import { LazyToaster } from '@/components/layout/LazyToaster';
 import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import './globals.css';
 
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <QueryProvider>
             <HotkeysProvider>
               {children}
-              <Toaster />
+              <LazyToaster />
             </HotkeysProvider>
           </QueryProvider>
         </ThemeProvider>

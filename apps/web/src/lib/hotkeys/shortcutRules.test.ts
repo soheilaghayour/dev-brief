@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { displayKeys, isSequence, shouldRunShortcut } from './shortcutRules';
+import { displayKeys, isSequence, isSequenceLeader, shouldRunShortcut } from './shortcutRules';
 
 function element(markup: string) {
   const host = document.createElement('div');
@@ -32,6 +32,26 @@ describe('shouldRunShortcut', () => {
     expect(shouldRunShortcut('j', element('<button></button>'))).toBe(true);
     expect(shouldRunShortcut('j', document.body)).toBe(true);
     expect(shouldRunShortcut('j', null)).toBe(true);
+  });
+});
+
+describe('sequence leaders', () => {
+  const shortcuts = [
+    { id: 'saved', keys: 'g>s', description: 'Go to Saved', scope: 'Go to' },
+    { id: 'save', keys: 's', description: 'Save', scope: 'Feed' },
+  ];
+
+  it('knows which keys start a registered sequence', () => {
+    expect(isSequenceLeader('g', shortcuts)).toBe(true);
+    expect(isSequenceLeader('G', shortcuts)).toBe(true);
+    expect(isSequenceLeader('s', shortcuts)).toBe(false);
+  });
+
+  it('AC-1.3.8 a single key right after a sequence leader does not run', () => {
+    expect(shouldRunShortcut('s', document.body, true)).toBe(false);
+    expect(shouldRunShortcut('g>s', document.body, true)).toBe(true);
+    expect(shouldRunShortcut('esc', document.body, true)).toBe(true);
+    expect(shouldRunShortcut('s', document.body, false)).toBe(true);
   });
 });
 
