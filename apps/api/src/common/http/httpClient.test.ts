@@ -22,6 +22,7 @@ describe('parseRetryAfterMs', () => {
   it('returns undefined when absent or malformed', () => {
     expect(parseRetryAfterMs(null, 0)).toBeUndefined();
     expect(parseRetryAfterMs('soon', 0)).toBeUndefined();
+    expect(parseRetryAfterMs('1.5', 0)).toBeUndefined();
   });
 });
 

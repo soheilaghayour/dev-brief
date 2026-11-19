@@ -18,7 +18,7 @@ const HnItemSchema = z.object({
   id: z.number().int(),
   type: z.string(),
   by: z.string().optional(),
-  time: z.number().int(),
+  time: z.number().int().optional(),
   title: z.string().min(1).optional(),
   url: z.string().min(1).optional(),
   score: z.number().int().optional(),
@@ -30,7 +30,7 @@ type HnItem = z.infer<typeof HnItemSchema>;
 
 type ItemResult = { kind: 'story'; item: RawItem } | { kind: 'skipped' } | { kind: 'failed' };
 
-function toRawItem(item: HnItem & { title: string }): RawItem {
+function toRawItem(item: HnItem & { title: string; time: number }): RawItem {
   const discussionUrl = `${HN_ITEM_PAGE}${item.id}`;
   return {
     externalId: String(item.id),
@@ -111,7 +111,7 @@ export class HnAdapter implements SourceAdapter {
     if (!parsed.success) return { kind: 'failed' };
     const item = parsed.data;
     if (item.type !== 'story' || item.dead || item.deleted) return { kind: 'skipped' };
-    if (item.title === undefined) return { kind: 'failed' };
-    return { kind: 'story', item: toRawItem({ ...item, title: item.title }) };
+    if (item.title === undefined || item.time === undefined) return { kind: 'failed' };
+    return { kind: 'story', item: toRawItem({ ...item, title: item.title, time: item.time }) };
   }
 }

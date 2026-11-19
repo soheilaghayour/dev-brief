@@ -1,0 +1,1 @@
+Recorded once from the live HN Firebase API (`/v0/item/<id>.json`, topstories, jobstories); `topstories.json` is composed: 95 front-page stories, 3 jobs and 2 dead/deleted items, so the counts are exact.

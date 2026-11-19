@@ -13,7 +13,7 @@
     "db:migrate": "dotenv -e ../../.env -e ../../.env.example -- prisma migrate dev",
     "db:deploy": "dotenv -e ../../.env -e ../../.env.example -- prisma migrate deploy",
     "db:seed": "dotenv -e ../../.env -e ../../.env.example -- prisma db seed",
-    "ingest:once": "nest build && dotenv -e ../../.env -e ../../.env.example -- node dist/cli/ingestOnce.js"
+    "ingest:once": "pnpm --filter @devbrief/shared build && nest build && dotenv -e ../../.env -e ../../.env.example -- node dist/cli/ingestOnce.js"
   },
   "dependencies": {
     "@devbrief/shared": "workspace:*",

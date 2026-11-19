@@ -1,4 +1,10 @@
-import { TAXONOMY_VERSION, canonicalizeUrl, normalizeTitle, tagStory } from '@devbrief/shared';
+import {
+  TAXONOMY_VERSION,
+  canonicalizeUrl,
+  itemEngagement,
+  normalizeTitle,
+  tagStory,
+} from '@devbrief/shared';
 import type { SourceKind } from '../../generated/prisma/client.js';
 import type { RawItem } from './sourceAdapter.js';
 
@@ -6,7 +12,7 @@ export const FAILURES_TO_OPEN_CIRCUIT = 3;
 export const CIRCUIT_OPEN_MS = 6 * 60 * 60 * 1000;
 export const TITLE_DEDUP_WINDOW_MS = 72 * 60 * 60 * 1000;
 export const MAX_ERROR_LENGTH = 500;
-export const RUN_BUDGET_MESSAGE = 'Run budget of 4 min exceeded; source aborted';
+export const RUN_BUDGET_MESSAGE = 'Run budget exceeded; source aborted';
 
 export type SourceOutcome = 'success' | 'failed' | 'skipped';
 
@@ -17,14 +23,6 @@ export interface MappedItem {
   engagement: number;
 }
 
-// Engagement per source kind, Appendix B; RSS has none and ranks by its baseline.
-const ENGAGEMENT_BY_KIND = {
-  hn: (item) => item.points ?? 0,
-  devto: (item) => (item.reactionsCount ?? 0) + (item.commentsCount ?? 0),
-  rss: () => 0,
-  github: () => 0,
-} satisfies Record<SourceKind, (item: RawItem) => number>;
-
 /** Derives the dedup keys and engagement of a raw item; throws when its URL is not http(s). */
 export function mapRawItem(kind: SourceKind, item: RawItem): MappedItem {
   const canonicalUrl = canonicalizeUrl(item.url);
@@ -32,7 +30,7 @@ export function mapRawItem(kind: SourceKind, item: RawItem): MappedItem {
     canonicalUrl,
     domain: new URL(canonicalUrl).hostname,
     normalizedTitle: normalizeTitle(item.title),
-    engagement: ENGAGEMENT_BY_KIND[kind](item),
+    engagement: itemEngagement({ kind, ...item }),
   };
 }
 
@@ -77,16 +75,48 @@ export function nextSourceHealth(
   };
 }
 
-/** The overall run status: failed only when every source that ran failed, partial when some did. */
+/** The overall run status: failed only when every source that ran failed, partial when some did, skipped when none ran. */
 export function overallStatus(outcomes: readonly SourceOutcome[]) {
-  const failed = outcomes.filter((outcome) => outcome === 'failed').length;
+  const ran = outcomes.filter((outcome) => outcome !== 'skipped');
+  if (ran.length === 0) return 'skipped' as const;
+  const failed = ran.filter((outcome) => outcome === 'failed').length;
   if (failed === 0) return 'success' as const;
-  return failed === outcomes.filter((outcome) => outcome !== 'skipped').length
-    ? ('failed' as const)
-    : ('partial' as const);
+  return failed === ran.length ? ('failed' as const) : ('partial' as const);
 }
 
 export function describeFailure(error: unknown, budgetExceeded: boolean) {
   if (budgetExceeded) return RUN_BUDGET_MESSAGE;
   return error instanceof Error ? error.message : String(error);
+}
+
+interface StoryState {
+  tags: string[];
+  taggerVersion: number;
+  publishedAt: Date;
+  excerpt: string | null;
+  readingTimeMinutes: number | null;
+}
+
+/** The Story fields that depend on all its items; null when nothing changed. */
+export function nextStoryFields(
+  story: StoryState & { title: string; canonicalUrl: string },
+  items: readonly { sourceTags: readonly string[]; publishedAt: Date }[],
+  raw: Pick<RawItem, 'excerpt' | 'readingTimeMinutes'>,
+) {
+  const { tags, taggerVersion } = storyTags(
+    story.title,
+    story.canonicalUrl,
+    items.flatMap(({ sourceTags }) => sourceTags),
+  );
+  const publishedAt = new Date(Math.min(...items.map((item) => item.publishedAt.getTime())));
+  const excerpt = story.excerpt ?? raw.excerpt;
+  const readingTimeMinutes = story.readingTimeMinutes ?? raw.readingTimeMinutes;
+
+  const unchanged =
+    taggerVersion === story.taggerVersion &&
+    tags.join() === story.tags.join() &&
+    publishedAt.getTime() === story.publishedAt.getTime() &&
+    excerpt === story.excerpt &&
+    readingTimeMinutes === story.readingTimeMinutes;
+  return unchanged ? null : { tags, taggerVersion, publishedAt, excerpt, readingTimeMinutes };
 }

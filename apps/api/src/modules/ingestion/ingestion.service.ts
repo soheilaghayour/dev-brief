@@ -10,6 +10,7 @@ import {
   isCircuitOpen,
   mapRawItem,
   nextSourceHealth,
+  nextStoryFields,
   overallStatus,
   storyTags,
   titleDedupWindow,
@@ -146,8 +147,10 @@ export class IngestionService {
       return this.recordSkipped(source, runId, startedAt, `No adapter for ${source.kind}`);
     }
 
+    let fetching = true;
     try {
       const rawItems = await adapter.fetch(source, { signal });
+      fetching = false;
       const counts = await this.serialized(() => this.storeItems(source, rawItems, startedAt));
       await this.prisma.source.update({
         where: { id: source.id },
@@ -156,7 +159,7 @@ export class IngestionService {
       await this.recordRun(source, runId, startedAt, 'success', counts);
       return { ...counts, outcome: 'success' } satisfies SourceResult;
     } catch (error) {
-      const message = describeFailure(error, signal.aborted);
+      const message = describeFailure(error, fetching && signal.aborted);
       this.logger.warn(`Source ${source.slug} failed: ${message}`);
       await this.prisma.source.update({
         where: { id: source.id },
@@ -303,28 +306,7 @@ export class IngestionService {
       where: { id: storyId },
       include: { items: { select: { sourceTags: true, publishedAt: true } } },
     });
-    const { tags, taggerVersion } = storyTags(
-      story.title,
-      story.canonicalUrl,
-      story.items.flatMap(({ sourceTags }) => sourceTags),
-    );
-    const publishedAt = new Date(
-      Math.min(...story.items.map((item) => item.publishedAt.getTime())),
-    );
-    const excerpt = story.excerpt ?? raw.excerpt;
-    const readingTimeMinutes = story.readingTimeMinutes ?? raw.readingTimeMinutes;
-
-    const unchanged =
-      taggerVersion === story.taggerVersion &&
-      tags.join() === story.tags.join() &&
-      publishedAt.getTime() === story.publishedAt.getTime() &&
-      excerpt === story.excerpt &&
-      readingTimeMinutes === story.readingTimeMinutes;
-    if (unchanged) return;
-
-    await this.prisma.story.update({
-      where: { id: storyId },
-      data: { tags, taggerVersion, publishedAt, excerpt, readingTimeMinutes },
-    });
+    const fields = nextStoryFields(story, story.items, raw);
+    if (fields) await this.prisma.story.update({ where: { id: storyId }, data: fields });
   }
 }

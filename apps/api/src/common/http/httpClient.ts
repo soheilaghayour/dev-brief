@@ -3,13 +3,12 @@ import { Injectable } from '@nestjs/common';
 export const USER_AGENT = 'DevBriefBot/1.0 (+https://devbrief.dev)';
 
 const DEFAULT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-const DEFAULT_MAX_RETRY_AFTER_MS = 30_000;
 
 export interface HttpRequestOptions {
   timeoutMs: number;
   /** Upper bound of the wait before each retry; the number of entries is the number of retries. */
   retryBackoffMs?: readonly number[];
-  /** A `Retry-After` longer than this is not waited for; the request fails instead. */
+  /** A `Retry-After` longer than this is not waited for; the request fails instead. Unset: no cap. */
   maxRetryAfterMs?: number;
   maxResponseBytes?: number;
   headers?: Record<string, string>;
@@ -41,6 +40,8 @@ export function jitteredDelayMs(stepMs: number, random: number) {
 export function parseRetryAfterMs(value: string | null, nowMs: number) {
   if (value === null) return undefined;
   if (/^\d+$/.test(value.trim())) return Number(value) * 1000;
+  // RFC 9110 allows only integer seconds or an IMF-fixdate; Date.parse alone would read '1.5' as a year.
+  if (!value.includes('GMT')) return undefined;
   const date = Date.parse(value);
   return Number.isNaN(date) ? undefined : Math.max(0, date - nowMs);
 }
@@ -105,7 +106,7 @@ export class HttpClient {
 
   async get(url: string, options: HttpRequestOptions): Promise<HttpResponse> {
     const backoff = options.retryBackoffMs ?? [];
-    const maxRetryAfterMs = options.maxRetryAfterMs ?? DEFAULT_MAX_RETRY_AFTER_MS;
+    const maxRetryAfterMs = options.maxRetryAfterMs ?? Infinity;
     for (let attempt = 0; ; attempt++) {
       try {
         return await this.attempt(url, options);

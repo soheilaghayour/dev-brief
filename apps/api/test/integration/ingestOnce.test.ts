@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { describe, expect, it } from 'vitest';
 import { HttpClient } from '../../src/common/http/httpClient.js';
-import { IngestOnceModule, runIngestOnce } from '../../src/cli/ingestOnce.js';
+import { IngestOnceModule, runIngestOnce } from '../../src/cli/ingestOnce.module.js';
 import { HnAdapter } from '../../src/modules/ingestion/adapters/hn.adapter.js';
 import { SOURCE_ADAPTERS } from '../../src/modules/ingestion/sourceAdapter.js';
 import { hnFixtureFetch } from '../hnFixtureFetch.js';
