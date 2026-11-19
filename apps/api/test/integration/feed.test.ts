@@ -37,7 +37,7 @@ describe('GET /api/v1/feed', () => {
         title: 'Bun runtime news',
         hours: 50,
         rank: 1,
-        tags: ['node'],
+        tags: ['javascript'],
         sources: [blog.id],
         excerpt: 'Fast javascript runtime',
       },

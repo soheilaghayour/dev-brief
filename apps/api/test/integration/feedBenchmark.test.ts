@@ -21,7 +21,7 @@ describe('feed benchmark (reported, not a gate)', () => {
       SELECT 'bench' || n, 'https://example.com/' || n, 'https://example.com/' || n, 'example.com',
         'Benchmark story ' || n, 'benchmark story ' || n,
         now() - (n % 168) * interval '1 hour', random() * 100,
-        ARRAY[(ARRAY['react','rust','go','node'])[1 + n % 4]], 1
+        ARRAY[(ARRAY['react','rust','go','python'])[1 + n % 4]], 1
       FROM generate_series(1, ${STORY_COUNT}) AS n`;
     await prisma.$executeRaw`
       INSERT INTO "SourceItem" ("id", "storyId", "sourceId", "externalId", "url", "title", "publishedAt", "lastSeenAt")
