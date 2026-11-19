@@ -1,7 +1,12 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
-import { FeedPageSchema, FeedQuerySchema, StoryLookupRequestSchema } from '@devbrief/shared';
+import {
+  decodeCursor,
+  FeedPageSchema,
+  FeedQuerySchema,
+  StoryLookupRequestSchema,
+} from '@devbrief/shared';
 import type { FeedQuery, StoryLookupRequest } from '@devbrief/shared';
-import { PublicCache } from '../../src/common/cache/cacheControl.js';
+import { PrivateNoStore, PublicCache } from '../../src/common/cache/cacheControl.js';
 import { Contract } from '../../src/common/zod/contract.decorator.js';
 import { ZodPipe } from '../../src/common/zod/zod.pipe.js';
 
@@ -12,7 +17,14 @@ export class ProbeController {
   @PublicCache()
   @Contract({ query: FeedQuerySchema, response: FeedPageSchema })
   feed(@Query(new ZodPipe(FeedQuerySchema)) query: FeedQuery) {
+    if (query.cursor) decodeCursor(query.cursor, query.sort);
     return { items: [], nextCursor: query.q ?? null };
+  }
+
+  @Get('private')
+  @PrivateNoStore()
+  privateRead() {
+    return {};
   }
 
   @Get('bad-output')

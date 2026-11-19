@@ -4,6 +4,7 @@ import { loadEnv } from './env.js';
 const validEnv = {
   APP_URL: 'http://localhost:3000',
   DATABASE_URL: 'postgresql://devbrief:devbrief@localhost:5432/devbrief',
+  INTERNAL_API_TOKEN: 'local-internal-token',
 };
 
 describe('loadEnv', () => {

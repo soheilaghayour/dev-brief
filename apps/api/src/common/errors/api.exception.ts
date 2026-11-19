@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import type { ApiErrorBody, ApiErrorCode } from '@devbrief/shared';
+import type { ApiError, ApiErrorCode } from '@devbrief/shared';
 
 export const API_ERROR_STATUS = {
   VALIDATION_FAILED: 400,
@@ -16,7 +16,7 @@ export const API_ERROR_STATUS = {
   INTERNAL: 500,
 } as const satisfies Record<ApiErrorCode, number>;
 
-type ApiErrorExtras = Pick<ApiErrorBody['error'], 'details' | 'resetsAt'>;
+type ApiErrorExtras = Pick<ApiError['error'], 'details' | 'resetsAt'>;
 
 /** An error with a contract code; the filter renders it as ApiErrorSchema with the matching status. */
 export class ApiException extends HttpException {

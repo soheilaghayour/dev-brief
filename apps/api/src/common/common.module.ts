@@ -6,7 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { LruCache } from './cache/lru.cache.js';
 import { ENV, EnvModule, type Env } from './env/env.module.js';
 import { ApiErrorFilter } from './errors/apiError.filter.js';
-import { resolveRequestId } from './logging/requestId.js';
+import { pinoHttpOptions } from './logging/pinoHttpOptions.js';
 import { OriginGuard } from './origin-guard/origin.guard.js';
 import { RATE_LIMIT_PER_MINUTE, RateLimitGuard } from './rate-limit/rateLimit.guard.js';
 import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.js';
@@ -18,10 +18,7 @@ import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.
     LoggerModule.forRootAsync({
       inject: [ENV],
       useFactory: (env: Env) => ({
-        pinoHttp: {
-          level: env.NODE_ENV === 'test' ? 'silent' : 'info',
-          genReqId: resolveRequestId,
-        },
+        pinoHttp: pinoHttpOptions(env),
       }),
     }),
     ThrottlerModule.forRoot({

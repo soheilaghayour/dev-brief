@@ -14,12 +14,23 @@ type RequestOptions = {
 
 type ApiClientConfig = {
   baseUrl?: string;
+  internalToken?: string;
   fetch?: typeof fetch;
 };
 
 // The server reaches the API directly; the browser uses same-origin paths that the proxy routes.
 function defaultBaseUrl() {
   return typeof window === 'undefined' ? loadEnv().API_INTERNAL_URL : '';
+}
+
+// Server-side calls carry no visitor IP, so they identify themselves to skip the per-IP rate limit.
+function requestHeaders(hasBody: boolean, internalToken?: string) {
+  const headers: Record<string, string> = {};
+  if (hasBody) headers['Content-Type'] = 'application/json';
+  if (typeof window === 'undefined') {
+    headers['x-internal-token'] = internalToken ?? loadEnv().INTERNAL_API_TOKEN;
+  }
+  return headers;
 }
 
 function buildUrl(baseUrl: string, path: string, query: Query = {}) {
@@ -52,12 +63,16 @@ async function toApiError(response: Response) {
 }
 
 /** Creates the typed client: every response is parsed with its shared schema, every error becomes an ApiError. */
-export function createApiClient({ baseUrl, fetch: fetchImpl = fetch }: ApiClientConfig = {}) {
+export function createApiClient({
+  baseUrl,
+  internalToken,
+  fetch: fetchImpl = fetch,
+}: ApiClientConfig = {}) {
   async function send({ method = 'GET', path, query, body }: RequestOptions) {
     const response = await fetchImpl(buildUrl(baseUrl ?? defaultBaseUrl(), path, query), {
       method,
       credentials: 'include',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: requestHeaders(body !== undefined, internalToken),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!response.ok) throw await toApiError(response);

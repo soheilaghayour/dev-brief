@@ -3,7 +3,10 @@ import type { Request } from 'express';
 import { ENV, type Env } from '../env/env.module.js';
 import { ApiException } from '../errors/api.exception.js';
 
-/** Rejects every non-GET request whose Origin is not APP_URL (CSRF defence on top of SameSite=Lax). */
+// Express answers HEAD with the GET handler.
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Rejects every state-changing request whose Origin is not APP_URL (CSRF defence on top of SameSite=Lax). */
 @Injectable()
 export class OriginGuard implements CanActivate {
   private readonly appOrigin: string;
@@ -14,7 +17,7 @@ export class OriginGuard implements CanActivate {
 
   canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
-    if (request.method === 'GET' || request.headers.origin === this.appOrigin) return true;
+    if (SAFE_METHODS.has(request.method) || request.headers.origin === this.appOrigin) return true;
     throw new ApiException('FORBIDDEN_ORIGIN', 'Requests must come from the app origin.');
   }
 }

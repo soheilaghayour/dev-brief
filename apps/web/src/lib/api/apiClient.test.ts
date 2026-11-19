@@ -1,11 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApiClient } from './apiClient';
 import { ApiError, ApiResponseError } from './apiError';
 import { FeedPageSchema } from '@devbrief/shared';
 
 function clientAnswering(body: unknown, init: ResponseInit = { status: 200 }) {
   const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), init));
-  return { fetchMock, client: createApiClient({ baseUrl: 'http://api.test', fetch: fetchMock }) };
+  return {
+    fetchMock,
+    client: createApiClient({
+      baseUrl: 'http://api.test',
+      internalToken: 'test-internal-token',
+      fetch: fetchMock,
+    }),
+  };
 }
 
 describe('createApiClient', () => {
@@ -53,11 +60,38 @@ describe('createApiClient', () => {
 
   it('sends a JSON body and resolves on 204 for requestNoContent', async () => {
     const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
-    const client = createApiClient({ baseUrl: 'http://api.test', fetch: fetchMock });
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      internalToken: 'test-internal-token',
+      fetch: fetchMock,
+    });
     await client.requestNoContent({ method: 'DELETE', path: '/me' });
     expect(fetchMock).toHaveBeenCalledWith(
       'http://api.test/api/v1/me',
       expect.objectContaining({ method: 'DELETE' }),
     );
+  });
+
+  describe('internal token', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('sends x-internal-token when running on the server', async () => {
+      const { client, fetchMock } = clientAnswering({ items: [], nextCursor: null });
+      await client.request({ path: '/feed' }, FeedPageSchema);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ headers: { 'x-internal-token': 'test-internal-token' } }),
+      );
+    });
+
+    it('never sends x-internal-token from the browser', async () => {
+      vi.stubGlobal('window', {});
+      const { client, fetchMock } = clientAnswering({ items: [], nextCursor: null });
+      await client.request({ path: '/feed' }, FeedPageSchema);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ headers: {} }),
+      );
+    });
   });
 });

@@ -1,11 +1,13 @@
 import type { INestApplication } from '@nestjs/common';
-import { ApiErrorSchema } from '@devbrief/shared';
+import { ApiErrorSchema, encodeCursor } from '@devbrief/shared';
 import request from 'supertest';
+import { loadEnv } from '../../src/env.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from './createTestApp.js';
 import { ProbeController } from './probe.controller.js';
 
-const APP_ORIGIN = 'http://localhost:3000';
+const APP_ORIGIN = loadEnv().APP_URL;
+const STORY_ID = 'cm0abcdefghijklmnopqrstuv';
 
 describe('API conventions', () => {
   let app: INestApplication;
@@ -44,21 +46,77 @@ describe('API conventions', () => {
     const crossOrigin = await request(server())
       .post('/api/v1/probe/lookup')
       .set('Origin', 'https://evil.example')
-      .send({ ids: ['a'] });
+      .send({ ids: [STORY_ID] });
     expect(crossOrigin.status).toBe(403);
     expect(ApiErrorSchema.parse(crossOrigin.body).error.code).toBe('FORBIDDEN_ORIGIN');
 
     const noOrigin = await request(server())
       .post('/api/v1/probe/lookup')
-      .send({ ids: ['a'] });
+      .send({ ids: [STORY_ID] });
     expect(noOrigin.status).toBe(403);
 
     const sameOrigin = await request(server())
       .post('/api/v1/probe/lookup')
       .set('Origin', APP_ORIGIN)
-      .send({ ids: ['a'] });
+      .send({ ids: [STORY_ID] });
     expect(sameOrigin.status).toBe(200);
-    expect(sameOrigin.body).toEqual({ ids: ['a'] });
+    expect(sameOrigin.body).toEqual({ ids: [STORY_ID] });
+  });
+
+  it('rejects a lookup id that is not a cuid', async () => {
+    const response = await request(server())
+      .post('/api/v1/probe/lookup')
+      .set('Origin', APP_ORIGIN)
+      .send({ ids: ['a'] });
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('answers malformed JSON with a 400 VALIDATION_FAILED envelope carrying the request id', async () => {
+    const response = await request(server())
+      .post('/api/v1/probe/lookup')
+      .set('Origin', APP_ORIGIN)
+      .set('Content-Type', 'application/json')
+      .send('{bad');
+    expect(response.status).toBe(400);
+    const { error } = ApiErrorSchema.parse(response.body);
+    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.requestId).toBe(response.headers['x-request-id']);
+    expect(response.text).not.toMatch(/\sat\s.+\.(ts|js)/);
+  });
+
+  it('answers a body over 100 KB with a 400 VALIDATION_FAILED envelope', async () => {
+    const response = await request(server())
+      .post('/api/v1/probe/lookup')
+      .set('Origin', APP_ORIGIN)
+      .send({ ids: [STORY_ID], pad: 'x'.repeat(101 * 1024) });
+    expect(response.status).toBe(400);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
+  });
+
+  it('answers a malformed or mismatched cursor with 400 INVALID_CURSOR', async () => {
+    const malformed = await request(server()).get('/api/v1/probe/feed?cursor=garbage');
+    expect(malformed.status).toBe(400);
+    expect(ApiErrorSchema.parse(malformed.body).error.code).toBe('INVALID_CURSOR');
+    const otherSort = encodeCursor('latest', 5, STORY_ID);
+    const mismatch = await request(server()).get(`/api/v1/probe/feed?sort=top&cursor=${otherSort}`);
+    expect(mismatch.body.error.code).toBe('INVALID_CURSOR');
+  });
+
+  it('never lets an error response inherit the public Cache-Control header', async () => {
+    const response = await request(server()).get('/api/v1/probe/feed?q=a');
+    expect(response.status).toBe(400);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+  });
+
+  it('sets private, no-store through PrivateNoStore', async () => {
+    const response = await request(server()).get('/api/v1/probe/private');
+    expect(response.headers['cache-control']).toBe('private, no-store');
+  });
+
+  it('answers HEAD like GET without the Origin header', async () => {
+    const response = await request(server()).head('/api/v1/health');
+    expect(response.status).toBe(200);
   });
 
   it('echoes a supplied x-request-id on the response and in the error body', async () => {
@@ -107,6 +165,8 @@ describe('API conventions', () => {
     expect(response.headers['strict-transport-security']).toBeDefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');
     expect(response.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(response.headers['content-security-policy']).toContain("default-src 'self'");
+    expect(response.headers['permissions-policy']).toContain('camera=()');
   });
 
   it('AC-1.7.2 serves the OpenAPI 3.1 document generated from the contracts', async () => {
@@ -125,5 +185,6 @@ describe('API conventions', () => {
     const response = await request(server()).get('/api/v1/docs');
     expect(response.status).toBe(200);
     expect(response.text).toContain('swagger-ui');
+    expect(response.headers['content-security-policy']).toContain("script-src 'self'");
   });
 });

@@ -3,6 +3,7 @@ import { ApiErrorSchema } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RATE_LIMIT_PER_MINUTE } from '../../src/common/rate-limit/rateLimit.guard.js';
+import { loadEnv } from '../../src/env.js';
 import { createTestApp } from './createTestApp.js';
 
 describe('rate limiting', () => {
@@ -28,6 +29,18 @@ describe('rate limiting', () => {
     expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
 
     expect((await get('10.0.0.2')).status).toBe(200);
+  });
+
+  it('skips the limit for a request carrying the internal token, and not for a wrong one', async () => {
+    const send = (token: string) =>
+      request(app.getHttpServer())
+        .get('/api/v1/health')
+        .set('X-Forwarded-For', '10.0.0.1')
+        .set('x-internal-token', token);
+    // 10.0.0.1 is already past its limit from the test above.
+    expect((await send(loadEnv().INTERNAL_API_TOKEN)).status).toBe(200);
+    expect((await send('wrong-token-wrong-token')).status).toBe(429);
+    expect((await send('short')).status).toBe(429);
   });
 
   it('trusts exactly one proxy hop, so a spoofed leading X-Forwarded-For entry does not escape the limit', async () => {

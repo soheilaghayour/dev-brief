@@ -1,5 +1,12 @@
 import { applyDecorators, SetMetadata } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiQuery, type ApiBodyOptions } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiDefaultResponse,
+  ApiOkResponse,
+  ApiQuery,
+  type ApiBodyOptions,
+} from '@nestjs/swagger';
+import { ApiErrorSchema } from '@devbrief/shared';
 import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
@@ -37,6 +44,7 @@ function queryParameterDecorators(query: z.AnyZodObject) {
 /** Documents a route in OpenAPI from its shared schemas and makes the output interceptor check the response against `response`. */
 export function Contract({ query, body, response }: Contract) {
   return applyDecorators(
+    ApiDefaultResponse({ description: 'Error', schema: toOpenApiSchema(ApiErrorSchema) }),
     ...(query ? queryParameterDecorators(query) : []),
     ...(body ? [ApiBody({ schema: toOpenApiSchema(body) })] : []),
     ...(response
