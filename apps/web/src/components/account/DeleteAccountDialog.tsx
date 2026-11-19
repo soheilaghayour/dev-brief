@@ -21,16 +21,28 @@ import { clearGuestData } from '@/lib/guest/clear';
 const CONFIRMATION_WORD = 'delete';
 
 export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete account</DialogTitle>
+          <DialogDescription>
+            This permanently deletes your account, your sessions and your saved stories. Type{' '}
+            <strong>{CONFIRMATION_WORD}</strong> to confirm.
+          </DialogDescription>
+        </DialogHeader>
+        {/* Radix unmounts closed content, so every reopen starts with an empty, unarmed form. */}
+        <DeleteAccountForm />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteAccountForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [typed, setTyped] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // A reopened dialog starts unarmed, even if `delete` was typed before it closed.
-  function changeOpen(isOpen: boolean) {
-    if (!isOpen) setTyped('');
-    onOpenChange(isOpen);
-  }
 
   function changeTyped(event: ChangeEvent<HTMLInputElement>) {
     setTyped(event.target.value);
@@ -52,30 +64,21 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
   }
 
   return (
-    <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete account</DialogTitle>
-          <DialogDescription>
-            This permanently deletes your account, your sessions and your saved stories. Type{' '}
-            <strong>{CONFIRMATION_WORD}</strong> to confirm.
-          </DialogDescription>
-        </DialogHeader>
-        <Input
-          aria-label={`Type ${CONFIRMATION_WORD} to confirm`}
-          value={typed}
-          onChange={changeTyped}
-          autoComplete="off"
-        />
-        <Button
-          variant="destructive"
-          disabled={typed !== CONFIRMATION_WORD || isDeleting}
-          onClick={() => void deleteAccount()}
-        >
-          Delete my account
-        </Button>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Input
+        aria-label={`Type ${CONFIRMATION_WORD} to confirm`}
+        value={typed}
+        onChange={changeTyped}
+        autoComplete="off"
+      />
+      <Button
+        variant="destructive"
+        disabled={typed !== CONFIRMATION_WORD || isDeleting}
+        onClick={() => void deleteAccount()}
+      >
+        Delete my account
+      </Button>
+    </>
   );
 }
 

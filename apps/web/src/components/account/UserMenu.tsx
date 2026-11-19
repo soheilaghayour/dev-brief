@@ -34,7 +34,7 @@ export function UserMenu({ user }: { user: Me }) {
   if (!hasOpened) return avatarButton;
   return (
     <Suspense fallback={avatarButton}>
-      <UserMenuDropdown user={user} />
+      <UserMenuDropdown user={user} trigger={avatarButton} />
     </Suspense>
   );
 }

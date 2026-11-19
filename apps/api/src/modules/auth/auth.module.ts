@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { ENV, type Env } from '../../common/env/env.module.js';
+import { ENV } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { AUTH } from './auth.constants.js';
 import { AuthGuard } from './auth.guard.js';
@@ -15,7 +15,7 @@ import { MeService } from './me.service.js';
     {
       provide: AUTH,
       inject: [ENV, PrismaService],
-      useFactory: (env: Env, prisma: PrismaService) => createAuth(env, prisma),
+      useFactory: createAuth,
     },
     AuthGuard,
     MeService,

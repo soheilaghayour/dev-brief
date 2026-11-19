@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
 const APP_URL = 'http://localhost:3000';
+// The guest store's key (`GUEST_STORAGE_KEY` in apps/web/src/lib/guest/clear.ts).
+const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
 
 // The test-mode route needs AUTH_TEST_MODE=true on the API; the Origin header passes Better Auth's CSRF check.
 async function signInThroughTestRoute(page: Page) {
@@ -29,17 +31,17 @@ test('a guest sees Sign in, which keeps the current URL as callbackURL', async (
   await expect(page.getByRole('banner').getByRole('button', { name: 'Sign in' })).toHaveCount(0);
 });
 
+const SOCIAL_SIGN_IN = '**/api/auth/sign-in/social';
+
 // Stops the click at Better Auth's sign-in call and returns the body the page sent.
 async function socialSignInBody(page: Page, signInUrl: string) {
-  const body = new Promise<{ callbackURL: string; errorCallbackURL: string }>((resolve) => {
-    void page.route('**/api/auth/sign-in/social', async (route) => {
-      resolve(route.request().postDataJSON() as { callbackURL: string; errorCallbackURL: string });
-      await route.abort();
-    });
-  });
+  await page.route(SOCIAL_SIGN_IN, (route) => route.abort());
   await page.goto(signInUrl);
-  await page.getByRole('button', { name: 'Continue with GitHub' }).click();
-  return body;
+  const [request] = await Promise.all([
+    page.waitForRequest(SOCIAL_SIGN_IN),
+    page.getByRole('button', { name: 'Continue with GitHub' }).click(),
+  ]);
+  return request.postDataJSON() as unknown;
 }
 
 test('AC-1.5.2 sign-in passes a same-origin callbackURL to OAuth and replaces an external one', async ({
@@ -53,8 +55,8 @@ test('AC-1.5.2 sign-in passes a same-origin callbackURL to OAuth and replaces an
     errorCallbackURL: '/sign-in?callbackURL=%2Ffeed%3Fsort%3Dlatest',
   });
   expect(
-    (await socialSignInBody(page, '/sign-in?callbackURL=https%3A%2F%2Fevil.example')).callbackURL,
-  ).toBe('/feed');
+    await socialSignInBody(page, '/sign-in?callbackURL=https%3A%2F%2Fevil.example'),
+  ).toMatchObject({ callbackURL: '/feed' });
 });
 
 test('a sign-in that failed at the provider explains why on /sign-in', async ({ page }) => {
@@ -76,11 +78,11 @@ test('AC-1.5.8 signing out returns the app to guest mode with an empty local sto
 }) => {
   await signInThroughTestRoute(page);
   await page.goto('/feed');
-  await page.evaluate(() => localStorage.setItem('devbrief:guest:v1', '{}'));
+  await page.evaluate((key) => localStorage.setItem(key, '{}'), GUEST_STORAGE_KEY);
   await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByRole('banner').getByRole('button', { name: 'Sign in' })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('devbrief:guest:v1'))).toBeNull();
+  expect(await page.evaluate((key) => localStorage.getItem(key), GUEST_STORAGE_KEY)).toBeNull();
 });
 
 test('AC-1.6.2 deleting the account needs the word delete, then returns to the landing page', async ({

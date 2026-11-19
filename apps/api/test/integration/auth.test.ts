@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { loadEnv } from '../../src/env.js';
 import { AUTH_RATE_LIMIT_PER_MINUTE } from '../../src/modules/auth/authRateLimit.js';
 import { createTestApp } from './createTestApp.js';
+import { createStory } from './seedStories.js';
 import { useTestDatabase } from './testDatabase.js';
 
 const env = loadEnv();
@@ -24,19 +25,28 @@ function freshClientIp() {
 }
 
 function setCookiesOf(response: request.Response) {
-  return (response.headers['set-cookie'] as unknown as string[] | undefined) ?? [];
+  return response.get('Set-Cookie') ?? [];
 }
 
 function cookieHeader(setCookies: string[]) {
   return setCookies.map((cookie) => cookie.split(';')[0]).join('; ');
 }
 
+// A same-origin POST to /api/auth/* from one client.
+function authPost(app: INestApplication, path: string, clientIp = freshClientIp()) {
+  return withApp(app).post(path).set('Origin', env.APP_URL).set('X-Forwarded-For', clientIp);
+}
+
+function startGitHubSignIn(app: INestApplication, callbackURL: string, clientIp = freshClientIp()) {
+  return authPost(app, '/api/auth/sign-in/social', clientIp).send({
+    provider: 'github',
+    callbackURL,
+    disableRedirect: true,
+  });
+}
+
 async function signIn(app: INestApplication, body: object = {}, clientIp = freshClientIp()) {
-  const response = await withApp(app)
-    .post(SIGN_IN_PATH)
-    .set('Origin', env.APP_URL)
-    .set('X-Forwarded-For', clientIp)
-    .send(body);
+  const response = await authPost(app, SIGN_IN_PATH, clientIp).send(body);
   expect(response.status).toBe(200);
   const setCookies = setCookiesOf(response);
   return {
@@ -76,11 +86,7 @@ function stubGitHub(email: string, verified: boolean) {
 
 async function signInWithGitHub(app: INestApplication) {
   const clientIp = freshClientIp();
-  const start = await withApp(app)
-    .post('/api/auth/sign-in/social')
-    .set('Origin', env.APP_URL)
-    .set('X-Forwarded-For', clientIp)
-    .send({ provider: 'github', callbackURL: '/feed', disableRedirect: true });
+  const start = await startGitHubSignIn(app, '/feed', clientIp);
   expect(start.status).toBe(200);
   const state = new URL((start.body as { url: string }).url).searchParams.get('state');
   return withApp(app)
@@ -139,11 +145,7 @@ describe('authentication', () => {
   });
 
   it('AC-1.5.1 GitHub asks for exactly the user:email scope', async () => {
-    const response = await withApp(app)
-      .post('/api/auth/sign-in/social')
-      .set('Origin', env.APP_URL)
-      .set('X-Forwarded-For', freshClientIp())
-      .send({ provider: 'github', callbackURL: '/feed', disableRedirect: true });
+    const response = await startGitHubSignIn(app, '/feed');
     expect(response.status).toBe(200);
     const authorizeUrl = new URL((response.body as { url: string }).url);
     expect(authorizeUrl.origin + authorizeUrl.pathname).toBe(
@@ -153,11 +155,7 @@ describe('authentication', () => {
   });
 
   it('refuses an off-site callbackURL even under NODE_ENV=test', async () => {
-    const response = await withApp(app)
-      .post('/api/auth/sign-in/social')
-      .set('Origin', env.APP_URL)
-      .set('X-Forwarded-For', freshClientIp())
-      .send({ provider: 'github', callbackURL: 'https://evil.example', disableRedirect: true });
+    const response = await startGitHubSignIn(app, 'https://evil.example');
     expect(response.status).toBe(403);
   });
 
@@ -199,11 +197,7 @@ describe('authentication', () => {
     await signIn(app, { email: 'again@example.com' });
     expect(await prisma.account.count({ where: { userId } })).toBe(1);
 
-    const invalid = await withApp(app)
-      .post(SIGN_IN_PATH)
-      .set('Origin', env.APP_URL)
-      .set('X-Forwarded-For', freshClientIp())
-      .send({ email: 'not-an-email' });
+    const invalid = await authPost(app, SIGN_IN_PATH).send({ email: 'not-an-email' });
     expect(invalid.status).toBe(400);
   });
 
@@ -242,16 +236,10 @@ describe('authentication', () => {
   it('AC-1.6.2 DELETE /me removes the user, sessions, accounts and saves, and expires the cookie', async () => {
     const { cookie, userId } = await signIn(app, { email: 'doomed@example.com' });
     await signIn(app, { email: 'doomed@example.com' });
-    const story = await prisma.story.create({
-      data: {
-        canonicalUrl: 'https://example.com/doomed',
-        url: 'https://example.com/doomed',
-        domain: 'example.com',
-        title: 'Doomed',
-        normalizedTitle: 'doomed',
-        publishedAt: new Date(),
-        taggerVersion: 1,
-      },
+    const story = await createStory(prisma, {
+      title: 'Doomed',
+      publishedAt: new Date(),
+      itemSourceIds: [],
     });
     await prisma.save.create({ data: { userId, storyId: story.id } });
 
@@ -272,11 +260,7 @@ describe('authentication', () => {
   it('AC-1.5.8 after sign-out the session no longer authenticates', async () => {
     const clientIp = freshClientIp();
     const { cookie } = await signIn(app, { email: 'leaving@example.com' }, clientIp);
-    const signOut = await withApp(app)
-      .post('/api/auth/sign-out')
-      .set('Cookie', cookie)
-      .set('Origin', env.APP_URL)
-      .set('X-Forwarded-For', clientIp);
+    const signOut = await authPost(app, '/api/auth/sign-out', clientIp).set('Cookie', cookie);
     expect(signOut.status).toBe(200);
     expect((await withApp(app).get('/api/v1/me').set('Cookie', cookie)).status).toBe(401);
   });
@@ -300,11 +284,7 @@ describe('the test-only sign-in route', () => {
     process.env.AUTH_TEST_MODE = 'false';
     const app = await createTestApp();
     try {
-      const response = await withApp(app)
-        .post(SIGN_IN_PATH)
-        .set('Origin', env.APP_URL)
-        .set('X-Forwarded-For', freshClientIp())
-        .send({});
+      const response = await authPost(app, SIGN_IN_PATH).send({});
       expect(response.status).toBe(404);
     } finally {
       await app.close();

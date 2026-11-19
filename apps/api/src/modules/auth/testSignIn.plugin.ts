@@ -29,7 +29,7 @@ export function testSignInPlugin() {
           ));
         // A repeated sign-in must not add a second Account row for a provider the user already has.
         const linked = new Set(existing?.accounts.map((account) => account.providerId));
-        for (const providerId of providers.filter((provider) => !linked.has(provider))) {
+        for (const providerId of new Set(providers.filter((provider) => !linked.has(provider)))) {
           await internalAdapter.linkAccount({
             userId: user.id,
             providerId,

@@ -16,10 +16,6 @@ export function AccountSection({ user }: { user: Me }) {
     setIsDeleteOpen(true);
   }
 
-  function handleSignOut() {
-    void signOut();
-  }
-
   return (
     <section aria-labelledby="account-heading" className="flex flex-col gap-3">
       <h2 id="account-heading" className="text-sm font-medium">
@@ -33,13 +29,10 @@ export function AccountSection({ user }: { user: Me }) {
         </div>
       </div>
       <p className="text-sm">
-        Linked providers:{' '}
-        {user.providers.length > 0
-          ? user.providers.map((provider) => PROVIDER_LABELS[provider]).join(', ')
-          : 'none'}
+        Linked providers: {user.providers.map((provider) => PROVIDER_LABELS[provider]).join(', ')}
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={handleSignOut}>
+        <Button variant="outline" onClick={signOut}>
           Sign out
         </Button>
         <Button variant="destructive" onClick={openDelete}>

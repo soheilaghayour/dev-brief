@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import type { Me } from '@devbrief/shared';
+import { MeSchema, type Me } from '@devbrief/shared';
 import { Button } from '@/components/ui/Button';
 import { authClient } from '@/lib/auth/authClient';
 import { safeCallbackUrl } from '@/lib/auth/safeCallbackUrl';
@@ -10,7 +10,7 @@ import { PROVIDER_LABELS } from './providerLabels';
 
 type Provider = Me['providers'][number];
 
-const PROVIDERS = Object.keys(PROVIDER_LABELS) as Provider[];
+const PROVIDERS = MeSchema.shape.providers.element.options;
 
 // Better Auth appends `?error=<code>` to errorCallbackURL when the provider round trip fails.
 const SIGN_IN_ERRORS: Record<string, string> = {

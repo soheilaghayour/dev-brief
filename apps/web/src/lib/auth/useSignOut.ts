@@ -10,7 +10,7 @@ import { ME_QUERY_KEY } from './useMe';
 export function useSignOut() {
   const queryClient = useQueryClient();
 
-  return async function signOut() {
+  async function signOutAndForget() {
     const { error } = await authClient.signOut();
     if (error) {
       toast.error('Could not sign out. Try again.');
@@ -18,5 +18,9 @@ export function useSignOut() {
     }
     clearGuestData();
     queryClient.setQueryData(ME_QUERY_KEY, null);
+  }
+
+  return function signOut() {
+    void signOutAndForget();
   };
 }

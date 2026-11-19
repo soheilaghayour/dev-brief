@@ -1,5 +1,5 @@
 import { MeSchema } from '@devbrief/shared';
-import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { betterAuth, type ValidateUserInfoResult, type ValidateUserInfoSource } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import type { Env } from '../../common/env/env.module.js';
 import type { PrismaClient } from '../../generated/prisma/client.js';
@@ -11,10 +11,14 @@ const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 /** The OAuth providers a user can sign in with; the `/me` contract is their one home. */
 export const SIGN_IN_PROVIDERS = MeSchema.shape.providers.element.options;
 
-type ValidateUserInfo = NonNullable<NonNullable<BetterAuthOptions['user']>['validateUserInfo']>;
-
 /** Refuses to create a user or link an account from an OAuth email its provider has not verified. */
-export const rejectUnverifiedOAuthEmail: ValidateUserInfo = ({ user, source }) => {
+export function rejectUnverifiedOAuthEmail({
+  user,
+  source,
+}: {
+  user: { emailVerified?: boolean };
+  source: ValidateUserInfoSource;
+}): ValidateUserInfoResult | undefined {
   if (source.method !== 'oauth' || source.action === 'sign-in' || user.emailVerified === true) {
     return;
   }
@@ -22,7 +26,7 @@ export const rejectUnverifiedOAuthEmail: ValidateUserInfo = ({ user, source }) =
     error: 'email_not_verified',
     errorDescription: 'Verify this email with GitHub or Google first.',
   };
-};
+}
 
 /** Creates the Better Auth instance: OAuth-only sign-in, DB sessions in secure host-only cookies. */
 export function createAuth(env: Env, prisma: PrismaClient) {
