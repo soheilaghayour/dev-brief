@@ -26,6 +26,7 @@ describe('source seed', () => {
     await seedSources(prisma);
     const after = await prisma.source.findMany({ orderBy: { slug: 'asc' } });
 
-    expect(after).toEqual(before);
+    // Upsert touches @updatedAt even when nothing changed; every other column must stay equal.
+    expect(after).toEqual(before.map((source) => ({ ...source, updatedAt: expect.any(Date) })));
   });
 });
