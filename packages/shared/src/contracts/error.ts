@@ -25,4 +25,4 @@ export const ApiErrorSchema = z.object({
     resetsAt: z.string().datetime().optional(),
   }),
 });
-export type ApiErrorBody = z.infer<typeof ApiErrorSchema>;
+export type ApiError = z.infer<typeof ApiErrorSchema>;

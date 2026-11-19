@@ -5,6 +5,9 @@ import { TAG_SLUGS } from '../core/taxonomy.js';
 export const SourceKindSchema = z.enum(SOURCE_KINDS);
 export const TagSlugSchema = z.enum(TAG_SLUGS);
 
+/** A story id in request input; Prisma generates cuids, and ids are validated by format (§8.6). */
+export const StoryIdSchema = z.string().cuid();
+
 export const SourceRefSchema = z.object({
   kind: SourceKindSchema,
   slug: z.string(),
@@ -44,7 +47,7 @@ export const StoryDetailSchema = StoryCardSchema.extend({
 export type StoryDetail = z.infer<typeof StoryDetailSchema>;
 
 export const StoryLookupRequestSchema = z.object({
-  ids: z.array(z.string()).min(1).max(100),
+  ids: z.array(StoryIdSchema).min(1).max(100),
 });
 export type StoryLookupRequest = z.infer<typeof StoryLookupRequestSchema>;
 

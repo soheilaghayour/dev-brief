@@ -21,12 +21,7 @@ import { createApiClient } from './apiClient';
 
 const apiClient = createApiClient();
 
-// Input types are z.input-shaped on purpose: callers pass lists and omit defaults; csv params are joined here.
-type FeedParams = Partial<Omit<FeedQuery, 'tags' | 'kinds' | 'sources'>> & {
-  tags?: string[];
-  kinds?: string[];
-  sources?: string[];
-};
+type FeedParams = Partial<FeedQuery>;
 
 export function getHealth() {
   return apiClient.request({ path: '/health' }, HealthSchema);

@@ -1,4 +1,4 @@
-import type { ApiErrorBody, ApiErrorCode } from '@devbrief/shared';
+import type { ApiError as ApiErrorBody, ApiErrorCode } from '@devbrief/shared';
 
 /** An error response from the API, carrying the contract's code and request id. */
 export class ApiError extends Error {

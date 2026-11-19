@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { StoryCardSchema } from './story.js';
+import { StoryCardSchema, StoryIdSchema } from './story.js';
 
 export const SaveSchema = z.object({
-  storyId: z.string(),
+  storyId: StoryIdSchema,
   savedAt: z.string().datetime(),
 });
 export type Save = z.infer<typeof SaveSchema>;
