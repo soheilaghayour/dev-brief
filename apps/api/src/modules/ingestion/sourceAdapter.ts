@@ -17,10 +17,22 @@ export interface RawItem {
   readingTimeMinutes: number | null;
 }
 
+/** The cache validators a conditional GET sends next time; stored on the Source once its items are saved. */
+export interface CacheValidators {
+  etag: string | null;
+  lastModified: string | null;
+}
+
+export interface FetchContext {
+  signal: AbortSignal;
+  /** Asks the engine to store these on the Source after the run's items are saved. */
+  rememberValidators?: (validators: CacheValidators) => void;
+}
+
 export interface SourceAdapter {
   readonly kind: SourceKind;
   /** Fetches and parses one source; throws when the source as a whole failed. */
-  fetch(source: Source, context: { signal: AbortSignal }): Promise<RawItem[]>;
+  fetch(source: Source, context: FetchContext): Promise<RawItem[]>;
 }
 
 export const SOURCE_ADAPTERS = Symbol('SOURCE_ADAPTERS');
