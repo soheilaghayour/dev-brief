@@ -6,6 +6,9 @@ import { FeedList } from './FeedList';
 const query = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 
 vi.mock('@tanstack/react-query', () => ({ useInfiniteQuery: () => query.current }));
+vi.mock('@/components/saves/useSaves', () => ({
+  useSaves: () => ({ isSaved: () => false, toggle: () => {} }),
+}));
 vi.mock('./feedQueries', () => ({ feedQueryOptions: () => ({}) }));
 vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
 vi.mock('./useFeedFilters', () => ({

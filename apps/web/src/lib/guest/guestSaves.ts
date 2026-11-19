@@ -17,3 +17,14 @@ export function removeGuestSaves(storyIds: readonly string[]) {
   loadLatest();
   return useGuestStore.getState().removeSaves(storyIds);
 }
+
+export function setGuestPendingMerge(pending: boolean) {
+  loadLatest();
+  useGuestStore.getState().setPendingMerge(pending);
+}
+
+/** The latest stored guest data, read after loading what any tab stored. */
+export function latestGuestData() {
+  loadLatest();
+  return useGuestStore.getState();
+}

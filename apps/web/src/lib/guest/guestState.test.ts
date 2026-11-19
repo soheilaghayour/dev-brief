@@ -64,6 +64,7 @@ describe('stored text', () => {
       deviceId: DEVICE_ID,
       saves: [],
       hintDismissed: false,
+      pendingMerge: false,
     });
   });
 
