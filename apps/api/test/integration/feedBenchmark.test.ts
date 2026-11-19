@@ -52,7 +52,9 @@ describe('feed benchmark (reported, not a gate)', () => {
       }
       durations.sort((a, b) => a - b);
       const p95 = durations[Math.floor(SAMPLES * 0.95) - 1] ?? 0;
-      console.info(`feed p95 (${name}) at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`);
+      console.info(
+        `feed p95 (${name}) at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`,
+      );
     }
   }, 120_000);
 });

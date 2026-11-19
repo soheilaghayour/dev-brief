@@ -6,7 +6,6 @@ import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.m
 import { Prisma } from '../../generated/prisma/client.js';
 import { feedCacheKey, parseKeyset, topWindowStart, type Keyset } from './feedQuery.js';
 
-
 type PageRow = { id: string; publishedAt: Date; rankScore: number };
 
 @Injectable()
