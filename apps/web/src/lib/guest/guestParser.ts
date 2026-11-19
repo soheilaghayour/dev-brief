@@ -31,6 +31,7 @@ export function migrateGuestData(stored: unknown, version: number): Partial<Gues
     ...(deviceId.success && { deviceId: deviceId.data }),
     saves: salvageSaves(fields.saves),
     hintDismissed: fields.hintDismissed === true,
+    pendingMerge: fields.pendingMerge === true,
   };
 }
 

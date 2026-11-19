@@ -25,6 +25,7 @@ describe('migrateGuestData', () => {
     expect(migrateGuestData(older, 0)).toEqual({
       saves: [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }],
       hintDismissed: false,
+      pendingMerge: false,
     });
   });
 

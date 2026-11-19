@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { BookmarkIcon } from 'lucide-react';
 import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
+import { InfiniteSentinel } from '@/components/feed/InfiniteSentinel';
 import {
   isEnterOnInteractiveElement,
   discussionUrl,
@@ -133,6 +134,15 @@ export function SavedList() {
           isActive={story.id === activeId}
         />
       ))}
+      {saved.loadMoreFailed && (
+        <FeedError message="Couldn't load more saved stories." onRetry={saved.loadMore} />
+      )}
+      {saved.isLoadingMore && <FeedSkeleton />}
+      <InfiniteSentinel
+        onVisible={saved.loadMore}
+        disabled={!saved.hasMore || saved.isLoadingMore || saved.loadMoreFailed}
+        loadedCount={stories.length}
+      />
     </div>
   );
 }

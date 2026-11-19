@@ -34,7 +34,8 @@ export function configureApp(app: NestExpressApplication) {
   });
   // Better Auth is mounted here, before the JSON parser: it needs the raw body.
   app.use('/api/auth', noStore, createAuthRateLimit(), toNodeHandler(app.get<Auth>(AUTH)));
-  // /me/merge registers its 512 KB express.json() above this line; the global parser skips a body already parsed.
+  // A merge carries up to 500 saves; the global parser below skips a body already parsed here.
+  app.use('/api/v1/me/merge', express.json({ limit: '512kb' }));
   app.use(express.json({ limit: '100kb' }));
   app.setGlobalPrefix('api/v1');
   setupOpenApi(app);

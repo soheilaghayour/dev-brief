@@ -1,25 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { StoryCard } from '@devbrief/shared';
-import { lookupStories } from '@/lib/api/endpoints';
+import { getSaves, lookupStories } from '@/lib/api/endpoints';
+import { SAVE_LIST_KEY } from './accountSaves';
 import { notify } from './notify';
 import { lookupInChunks, orderSavedStories, unavailableNotice } from './savedStories';
+import { useGuestSaves } from './useGuestSaves';
 import { useSaves } from './useSaves';
 
-export type SavedStories =
-  | { status: 'loading' }
-  | { status: 'error'; retry: () => void }
-  | { status: 'ready'; stories: StoryCard[] };
+type ReadyStories = {
+  status: 'ready';
+  stories: StoryCard[];
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  loadMoreFailed: boolean;
+  loadMore: () => void;
+};
 
-/** The saved stories for the Saved page; guest mode looks the stored ids up, account mode will list them from the API. */
+export type SavedStories =
+  { status: 'loading' } | { status: 'error'; retry: () => void } | ReadyStories;
+
+const noMore = {
+  hasMore: false,
+  isLoadingMore: false,
+  loadMoreFailed: false,
+  loadMore: () => {},
+} satisfies Partial<ReadyStories>;
+
+/** The saved stories for the Saved page: the account's saves from the API, or the stored ids looked up for a guest. */
 export function useSavedStories(): SavedStories {
-  const saves = useSaves();
-  const { isReady, removeUnavailable } = saves;
+  const { mode, isReady } = useSaves();
+  const guest = useGuestSaves();
+  const guestLookup = useGuestLookup(mode === 'guest' && isReady, guest);
+  const account = useInfiniteQuery({
+    queryKey: SAVE_LIST_KEY,
+    queryFn: ({ pageParam }) => getSaves({ cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    enabled: mode === 'account',
+  });
+  const { fetchNextPage } = account;
+  const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
+
+  if (mode === 'guest') return guestLookup;
+  function retry() {
+    void account.refetch();
+  }
+  if (account.isError && !account.data) return { status: 'error', retry };
+  if (!account.data) return { status: 'loading' };
+  return {
+    status: 'ready',
+    stories: account.data.pages.flatMap((page) => page.items.map((item) => item.story)),
+    hasMore: account.hasNextPage,
+    isLoadingMore: account.isFetchingNextPage,
+    loadMoreFailed: account.isFetchNextPageError,
+    loadMore,
+  };
+}
+
+function useGuestLookup(enabled: boolean, guest: ReturnType<typeof useGuestSaves>): SavedStories {
+  const { removeUnavailable } = guest;
   // Fixed when the store first loads, so unsaving here neither refetches nor reorders the page.
   const [lookupIds, setLookupIds] = useState<readonly string[] | null>(null);
-  if (isReady && lookupIds === null) setLookupIds(saves.ids);
+  if (enabled && lookupIds === null) setLookupIds(guest.ids);
 
   const query = useQuery({
     queryKey: ['saves', 'guestLookup', lookupIds],
@@ -40,8 +85,8 @@ export function useSavedStories(): SavedStories {
   }
 
   if (lookupIds === null) return { status: 'loading' };
-  if (lookupIds.length === 0) return { status: 'ready', stories: [] };
+  if (lookupIds.length === 0) return { status: 'ready', stories: [], ...noMore };
   if (query.isError) return { status: 'error', retry };
   if (!data) return { status: 'loading' };
-  return { status: 'ready', stories: orderSavedStories(saves.list, data.items) };
+  return { status: 'ready', stories: orderSavedStories(guest.list, data.items), ...noMore };
 }

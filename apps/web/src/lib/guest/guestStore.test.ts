@@ -45,6 +45,7 @@ describe('guest store', () => {
       deviceId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       saves: [{ storyId: A, savedAt: NOW.toISOString() }],
       hintDismissed: false,
+      pendingMerge: false,
     });
 
     const reloaded = await loadStore({ localStorage });

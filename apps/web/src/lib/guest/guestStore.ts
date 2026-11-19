@@ -21,6 +21,7 @@ type GuestActions = {
   toggleSave: (storyId: string, now: Date) => ReturnType<typeof toggleSave>['outcome'];
   removeSaves: (storyIds: readonly string[]) => number;
   dismissHint: () => void;
+  setPendingMerge: (pending: boolean) => void;
   reset: () => void;
 };
 export type GuestStore = GuestData & GuestActions;
@@ -73,6 +74,7 @@ export const useGuestStore = create<GuestStore>()(
         return removed;
       },
       dismissHint: () => set({ hintDismissed: true }),
+      setPendingMerge: (pendingMerge) => set({ pendingMerge }),
       reset: () => set(freshGuestData()),
     }),
     {
@@ -81,7 +83,12 @@ export const useGuestStore = create<GuestStore>()(
       storage: flatStorage,
       // Hydrating after mount keeps the server HTML and the first client render equal.
       skipHydration: true,
-      partialize: ({ deviceId, saves, hintDismissed }) => ({ deviceId, saves, hintDismissed }),
+      partialize: ({ deviceId, saves, hintDismissed, pendingMerge }) => ({
+        deviceId,
+        saves,
+        hintDismissed,
+        pendingMerge,
+      }),
       // `merge` fills the fields the migration left out, so the partial value is safe here.
       migrate: (stored, version) => migrateGuestData(stored, version) as GuestData,
       merge: (stored, current) => ({ ...current, ...mergeStoredGuest(stored, current) }),

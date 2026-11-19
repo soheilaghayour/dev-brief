@@ -59,6 +59,8 @@ function DeleteAccountForm() {
     }
     clearGuestData();
     queryClient.setQueryData(ME_QUERY_KEY, null);
+    // The next sign-in must not see this account's saves.
+    queryClient.removeQueries({ queryKey: ['saves'] });
     toast.success('Your account was deleted.');
     router.push('/');
   }

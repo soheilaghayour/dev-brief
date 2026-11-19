@@ -1,40 +1,22 @@
 'use client';
 
-import { useMemo } from 'react';
-import { removeGuestSaves, toggleGuestSave } from '@/lib/guest/guestSaves';
-import { sortSavesNewestFirst, type ToggleOutcome } from '@/lib/guest/guestState';
-import { guestStorage, useGuestStore } from '@/lib/guest/guestStore';
-import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
-import { saveNotice } from '@/lib/guest/saveNotice';
-import { markNoticeShown, shownNotices } from '@/lib/guest/sessionNotices';
-import { notify } from './notify';
+import { useMe } from '@/lib/auth/useMe';
+import { useAccountSaves } from './useAccountSaves';
+import { useGuestSaves } from './useGuestSaves';
 
-function announceSave(outcome: ToggleOutcome) {
-  const notice = saveNotice({
-    outcome,
-    memoryOnly: guestStorage.isMemoryOnly(),
-    alreadyShown: shownNotices(),
-  });
-  if (!notice) return;
-  markNoticeShown(notice.kind);
-  void notify(notice.message);
-}
-
-function toggle(storyId: string) {
-  announceSave(toggleGuestSave(storyId, new Date()));
-}
-
-/** The one way components read and change saves; guest mode today, account mode behind the same shape later. */
+/** The one way components read and change saves: the account when signed in, this device otherwise. */
 export function useSaves() {
-  const saves = useGuestStore((state) => state.saves);
-  const isReady = useGuestReady((state) => state.ready);
-  const list = useMemo(() => sortSavesNewestFirst(saves), [saves]);
-  const ids = useMemo(() => list.map((save) => save.storyId), [list]);
-  const savedIds = useMemo(() => new Set(ids), [ids]);
+  const { data: user, isPending } = useMe();
+  const guest = useGuestSaves();
+  const account = useAccountSaves(Boolean(user));
 
-  function isSaved(storyId: string) {
-    return savedIds.has(storyId);
-  }
-
-  return { ids, list, isReady, isSaved, toggle, removeUnavailable: removeGuestSaves };
+  if (user) return { mode: 'account' as const, isReady: true, ...account };
+  // Waiting for /me avoids treating someone about to be recognised as signed in as a guest.
+  return {
+    mode: 'guest' as const,
+    isReady: guest.isReady && !isPending,
+    ids: guest.ids,
+    isSaved: guest.isSaved,
+    toggle: guest.toggle,
+  };
 }

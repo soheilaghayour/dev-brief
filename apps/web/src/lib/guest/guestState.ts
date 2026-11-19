@@ -8,12 +8,14 @@ export type GuestData = {
   deviceId: string;
   saves: Save[];
   hintDismissed: boolean;
+  /** Set while a guest → account merge has started and not yet been confirmed by the server. */
+  pendingMerge: boolean;
 };
 
 export type ToggleOutcome = 'added' | 'removed' | 'full';
 
 export function createGuestData(deviceId: string): GuestData {
-  return { deviceId, saves: [], hintDismissed: false };
+  return { deviceId, saves: [], hintDismissed: false, pendingMerge: false };
 }
 
 /** Adds the story, or removes it when saved already; a full list refuses new saves rather than dropping old ones. */
