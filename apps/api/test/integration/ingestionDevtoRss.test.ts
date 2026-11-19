@@ -184,7 +184,7 @@ describe('ingestion of Dev.to and RSS', () => {
       consecutiveFailures: 1,
       lastError: `HTTP 500 from ${DEVTO_FIRST_REQUEST}`,
     });
-  });
+  }, 20_000); // Dev.to's two retries wait at least 2.5 s each
 
   it('stores the feed etag and lastModified, re-sends them, and counts a 304 as a success with 0 items', async () => {
     await createSources('rss');

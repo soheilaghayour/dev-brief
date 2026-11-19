@@ -120,6 +120,39 @@ describe('HttpClient', () => {
     expect(stub).toHaveBeenCalledTimes(1);
   });
 
+  it('fails without retrying a 429 without Retry-After when a cap is set', async () => {
+    const stub = vi.fn<typeof fetch>(async () => new Response('', { status: 429 }));
+    await expect(
+      clientWith(stub).getJson('https://example.com/a', {
+        timeoutMs: 1000,
+        retryBackoffMs: [10],
+        maxRetryAfterMs: 30_000,
+      }),
+    ).rejects.toThrow('HTTP 429');
+    expect(stub).toHaveBeenCalledTimes(1);
+  });
+
+  it('never retries sooner than minRetryDelayMs', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const stub = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(new Response('', { status: 500 }))
+        .mockResolvedValueOnce(jsonResponse({ ok: true }));
+      const pending = clientWith(stub).getJson('https://example.com/a', {
+        timeoutMs: 1000,
+        retryBackoffMs: [1000],
+        minRetryDelayMs: 2500,
+      });
+      await vi.advanceTimersByTimeAsync(2499);
+      expect(stub).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(pending).resolves.toEqual({ ok: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('aborts a request that exceeds the timeout', async () => {
     const stub = vi.fn<typeof fetch>(
       (_url, init) =>

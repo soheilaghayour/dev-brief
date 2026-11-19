@@ -15,6 +15,7 @@ const REQUEST_OPTIONS = {
   timeoutMs: 8000,
   retryBackoffMs: [1000, 3000],
   maxRetryAfterMs: MAX_RETRY_AFTER_MS,
+  minRetryDelayMs: DEVTO_REQUEST_GAP_MS,
   headers: { Accept: 'application/vnd.forem.api-v1+json' },
 };
 
@@ -22,14 +23,20 @@ const DevtoArticleSchema = z.object({
   id: z.number().int(),
   title: z.string().min(1),
   description: z.string().nullish(),
-  url: z.string().min(1),
-  canonical_url: z.string().min(1).nullish(),
+  url: z
+    .string()
+    .url()
+    .refine((value) => /^https?:\/\//.test(value)),
+  canonical_url: z.string().min(1).nullish().catch(null),
   published_at: z.string().datetime({ offset: true }),
   comments_count: z.number().int(),
   public_reactions_count: z.number().int(),
   reading_time_minutes: z.number().int().nullish(),
   tag_list: z.array(z.string()),
-  user: z.object({ name: z.string().min(1) }).nullish(),
+  user: z
+    .object({ name: z.string().min(1) })
+    .nullish()
+    .catch(null),
 });
 type DevtoArticle = z.infer<typeof DevtoArticleSchema>;
 

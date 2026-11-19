@@ -127,10 +127,43 @@ describe('DevtoAdapter', () => {
     expect(stub).toHaveBeenCalledTimes(1);
   });
 
-  it('fails after the first request and its 2 retries answer HTTP 500', async () => {
+  it('aborts the source on a 429 without Retry-After, without retrying', async () => {
+    const stub = vi.fn<typeof fetch>(async () => new Response('', { status: 429 }));
+    await expect(adapterWith(stub).adapter.fetch(source, { signal })).rejects.toThrow('HTTP 429');
+    expect(stub).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails after the first request and its 2 retries answer HTTP 500, each retry at least 2.5 s after the last request', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
     const stub = vi.fn<typeof fetch>(async () => new Response('', { status: 500 }));
-    await expect(adapterWith(stub).adapter.fetch(source, { signal })).rejects.toThrow('HTTP 500');
+    const result = adapterWith(stub).adapter.fetch(source, { signal });
+    const failed = expect(result).rejects.toThrow('HTTP 500');
+
+    await vi.advanceTimersByTimeAsync(2499);
+    expect(stub).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(stub).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(2499);
+    expect(stub).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await failed;
     expect(stub).toHaveBeenCalledTimes(3);
+  });
+
+  it('drops an article whose url is not http(s), and keeps one with an empty canonical_url or user name', async () => {
+    const [article] = fixtureTopArticles as { url: string }[];
+    const lists = [
+      [
+        { ...article, id: 1, url: 'javascript:alert(1)' },
+        { ...article, id: 2, canonical_url: '', user: { name: '' } },
+      ],
+      [],
+    ];
+    let call = 0;
+    const stub: typeof fetch = async () => Response.json(lists[call++]);
+    const items = await adapterWith(stub).adapter.fetch(source, { signal });
+    expect(items.map((item) => item.externalId)).toEqual(['2']);
+    expect(items[0]).toMatchObject({ url: article?.url, author: null });
   });
 
   it('fails when a list is not an array', async () => {
