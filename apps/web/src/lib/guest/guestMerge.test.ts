@@ -14,8 +14,9 @@ describe('planGuestMerge', () => {
     });
   });
 
-  it('AC-1.5.6 retries a pending merge that still has local saves', () => {
+  it('merges any remaining local saves, pending flag or not', () => {
     expect(planGuestMerge({ saves: [save('a')], pendingMerge: true }).action).toBe('merge');
+    expect(planGuestMerge({ saves: [save('a')], pendingMerge: false }).action).toBe('merge');
   });
 
   it('does nothing without saves, and only clears a stale pending flag', () => {

@@ -43,6 +43,8 @@ export function saveMutationOptions(
 ): MutationOptions<unknown, Error, ToggleVariables, Snapshot> {
   return {
     mutationKey: SAVE_MUTATION_KEY,
+    // One scope runs the mutations in order, so a quick save then unsave can't reach the server reversed.
+    scope: { id: 'saves' },
     mutationFn: ({ storyId, save }) => (save ? putSave(storyId) : deleteSave(storyId)),
     onMutate: async (variables) => {
       await Promise.all([
@@ -57,6 +59,7 @@ export function saveMutationOptions(
       queryClient.setQueryData<SavedList>(SAVE_LIST_KEY, (list) => patchSavedList(list, variables));
       return snapshot;
     },
+    // A rollback restores the snapshot from before any toggle still pending; the refetch in onSettled puts that toggle back.
     onError: (_error, _variables, snapshot) => {
       if (snapshot) {
         queryClient.setQueryData(SAVE_IDS_KEY, snapshot.ids);

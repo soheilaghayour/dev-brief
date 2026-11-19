@@ -31,6 +31,9 @@ function toSave(save: { storyId: string; savedAt: Date }): Save {
   return { storyId: save.storyId, savedAt: save.savedAt.toISOString() };
 }
 
+/** Room for the worst case: every one of 500 saves moves earlier, one round trip each. */
+const MERGE_TRANSACTION_TIMEOUT_MS = 15_000;
+
 @Injectable()
 export class SavesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -95,35 +98,44 @@ export class SavesService {
 
   async merge(userId: string, { saves }: MergeRequest): Promise<MergeResponse> {
     const storyIds = [...new Set(saves.map((save) => save.storyId))];
-    const plan = await this.prisma.$transaction(async (tx) => {
-      const stories = await tx.story.findMany({
-        where: { id: { in: storyIds } },
-        select: { id: true },
-      });
-      const existing = await tx.save.findMany({ where: { userId, storyId: { in: storyIds } } });
-      const mergePlan = planSaveMerge({
-        incoming: saves,
-        existing: new Map(existing.map((row) => [row.storyId, row.savedAt.toISOString()])),
-        knownStoryIds: new Set(stories.map((story) => story.id)),
-      });
-      // A concurrent merge may create the same row first; the conditional update below still lets the earliest date win.
-      await tx.save.createMany({
-        data: mergePlan.toCreate.map((save) => ({
-          userId,
-          storyId: save.storyId,
-          savedAt: new Date(save.savedAt),
-        })),
-        skipDuplicates: true,
-      });
-      for (const save of [...mergePlan.toCreate, ...mergePlan.toMoveEarlier]) {
-        const savedAt = new Date(save.savedAt);
-        await tx.save.updateMany({
-          where: { userId, storyId: save.storyId, savedAt: { gt: savedAt } },
-          data: { savedAt },
+    const plan = await this.prisma.$transaction(
+      async (tx) => {
+        const stories = await tx.story.findMany({
+          where: { id: { in: storyIds } },
+          select: { id: true },
         });
-      }
-      return mergePlan;
-    });
+        const existing = await tx.save.findMany({ where: { userId, storyId: { in: storyIds } } });
+        const mergePlan = planSaveMerge({
+          incoming: saves,
+          existing: new Map(existing.map((row) => [row.storyId, row.savedAt.toISOString()])),
+          knownStoryIds: new Set(stories.map((story) => story.id)),
+        });
+        // Sorted so two concurrent merges insert in the same order and can't deadlock.
+        const byStoryId = (a: { storyId: string }, b: { storyId: string }) =>
+          a.storyId.localeCompare(b.storyId);
+        const toCreate = [...mergePlan.toCreate].sort(byStoryId);
+        const { count } = await tx.save.createMany({
+          data: toCreate.map((save) => ({
+            userId,
+            storyId: save.storyId,
+            savedAt: new Date(save.savedAt),
+          })),
+          skipDuplicates: true,
+        });
+        // Rows a concurrent merge created first were skipped; the conditional update still lets the earliest date win.
+        const raced = count < toCreate.length ? toCreate : [];
+        const toMoveEarlier = [...mergePlan.toMoveEarlier].sort(byStoryId);
+        for (const save of [...raced, ...toMoveEarlier]) {
+          const savedAt = new Date(save.savedAt);
+          await tx.save.updateMany({
+            where: { userId, storyId: save.storyId, savedAt: { gt: savedAt } },
+            data: { savedAt },
+          });
+        }
+        return mergePlan;
+      },
+      { timeout: MERGE_TRANSACTION_TIMEOUT_MS },
+    );
     return {
       merged: { saves: plan.mergedCount },
       skipped: { saves: plan.missingStoryIds.length },

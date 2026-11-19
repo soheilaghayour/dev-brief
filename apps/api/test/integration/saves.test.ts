@@ -108,7 +108,7 @@ describe('account saves', () => {
     expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(0);
   });
 
-  it('PUT answers 404 NOT_FOUND for an unknown story and 400 for a malformed id', async () => {
+  it('PUT answers 404 NOT_FOUND for an unknown story; PUT and DELETE answer 400 for a malformed id', async () => {
     const user = await signIn();
     const missing = await user.put(`/api/v1/me/saves/${UNKNOWN_STORY_ID}`);
     expect(missing.status).toBe(404);
@@ -117,6 +117,10 @@ describe('account saves', () => {
     const malformed = await user.put('/api/v1/me/saves/not-an-id');
     expect(malformed.status).toBe(400);
     expect(ApiErrorSchema.parse(malformed.body).error.code).toBe('VALIDATION_FAILED');
+
+    const malformedDelete = await user.del('/api/v1/me/saves/not-an-id');
+    expect(malformedDelete.status).toBe(400);
+    expect(ApiErrorSchema.parse(malformedDelete.body).error.code).toBe('VALIDATION_FAILED');
   });
 
   it('every saves route answers 401 UNAUTHENTICATED without a session', async () => {
@@ -277,6 +281,36 @@ describe('account saves', () => {
     expect(response.status).toBe(400);
     expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
     expect((await user.merge({ version: 1, saves: saves.slice(0, 500) })).status).toBe(200);
+  });
+
+  it('AC-1.5.5 a merge of 500 distinct stories succeeds and a repeat changes nothing', async () => {
+    const bulk = Array.from({ length: 500 }, (_, index) => ({
+      canonicalUrl: `https://example.com/bulk-${index}`,
+      url: `https://example.com/bulk-${index}`,
+      domain: 'example.com',
+      title: `Bulk ${index}`,
+      normalizedTitle: `bulk ${index}`,
+      publishedAt: new Date(Date.UTC(2026, 0, 1)),
+      taggerVersion: 1,
+    }));
+    await prisma.story.createMany({ data: bulk });
+    const rows = await prisma.story.findMany({
+      where: { title: { startsWith: 'Bulk ' } },
+      select: { id: true },
+    });
+    expect(rows).toHaveLength(500);
+
+    const user = await signIn();
+    const body = { version: 1, saves: rows.map((row) => ({ storyId: row.id, savedAt: LATE })) };
+    const first = await user.merge(body);
+    expect(first.status).toBe(200);
+    expect(MergeResponseSchema.parse(first.body).merged.saves).toBe(500);
+    expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(500);
+
+    const second = await user.merge(body);
+    expect(second.status).toBe(200);
+    expect(MergeResponseSchema.parse(second.body).merged.saves).toBe(500);
+    expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(500);
   });
 
   it('the merge route accepts a body past 100 KB and rejects one past 512 KB', async () => {

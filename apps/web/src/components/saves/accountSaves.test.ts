@@ -92,4 +92,21 @@ describe('saveMutationOptions', () => {
     expect(queryClient.getQueryState(SAVE_IDS_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(SAVE_LIST_KEY)?.isInvalidated).toBe(true);
   });
+
+  it('AC-1.5.4 sends a quick save then unsave in order, so the server ends on the last intent', async () => {
+    let finishPut: () => void = () => {};
+    const putSave = vi.fn(
+      () => new Promise<never>((resolve) => (finishPut = () => resolve(undefined as never))),
+    );
+    const { deleteSave, observer } = setup({ putSave, deleteSave: () => Promise.resolve() });
+
+    const put = observer.mutate({ storyId: 'b', save: true });
+    const del = observer.mutate({ storyId: 'b', save: false });
+    await vi.waitFor(() => expect(putSave).toHaveBeenCalledWith('b'));
+    expect(deleteSave).not.toHaveBeenCalled();
+
+    finishPut();
+    await Promise.all([put, del]);
+    expect(deleteSave).toHaveBeenCalledWith('b');
+  });
 });

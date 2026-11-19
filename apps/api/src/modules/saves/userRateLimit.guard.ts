@@ -2,7 +2,7 @@ import { Injectable, SetMetadata, type CanActivate, type ExecutionContext } from
 import { Reflector } from '@nestjs/core';
 import { ThrottlerException } from '@nestjs/throttler';
 import type { Response } from 'express';
-import type { AuthenticatedRequest } from '../../modules/auth/auth.guard.js';
+import type { AuthenticatedRequest } from '../auth/auth.guard.js';
 
 const WINDOW_MS = 60_000;
 const LIMIT_KEY = 'rateLimit:perUser';

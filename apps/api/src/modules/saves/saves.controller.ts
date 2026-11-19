@@ -21,7 +21,7 @@ import {
 } from '@devbrief/shared';
 import type { MergeRequest, PaginationQuery } from '@devbrief/shared';
 import { PrivateNoStore } from '../../common/cache/cacheControl.js';
-import { UserRateLimit, UserRateLimitGuard } from '../../common/rate-limit/userRateLimit.guard.js';
+import { UserRateLimit, UserRateLimitGuard } from './userRateLimit.guard.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
 import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { AuthGuard, type CurrentUserData } from '../auth/auth.guard.js';
