@@ -10,6 +10,7 @@
     "typecheck": "pnpm -r typecheck && tsc -p e2e",
     "test": "vitest run --coverage",
     "format:check": "prettier --check .",
+    "smoke:prod": "playwright test -c e2e/playwright.prod.config.ts",
     "e2e": "dotenv -e .env -e .env.example -- playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
