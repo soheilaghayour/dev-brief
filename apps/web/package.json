@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@devbrief/shared": "workspace:*",
+    "@sentry/nextjs": "^10.78.0",
     "@tanstack/react-query": "^5.108.0",
     "better-auth": "1.7.26",
     "class-variance-authority": "^0.7.1",

@@ -75,6 +75,11 @@ export function nextSourceHealth(
   };
 }
 
+/** True on the failure that reaches the threshold, once per streak: later retries stay out of Sentry (§8.3). */
+export function reportsSourceFailure(consecutiveFailures: number) {
+  return consecutiveFailures === FAILURES_TO_OPEN_CIRCUIT;
+}
+
 /** The overall run status: failed only when every source that ran failed, partial when some did, skipped when none ran. */
 export function overallStatus(outcomes: readonly SourceOutcome[]) {
   const ran = outcomes.filter((outcome) => outcome !== 'skipped');

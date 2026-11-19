@@ -2,6 +2,7 @@ import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '
 import { ThrottlerException } from '@nestjs/throttler';
 import { InvalidCursorError, type ApiError } from '@devbrief/shared';
 import type { Request, Response } from 'express';
+import * as Sentry from '@sentry/nestjs';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PRIVATE_NO_STORE } from '../cache/cacheControl.js';
 import { API_ERROR_STATUS, ApiException } from './api.exception.js';
@@ -59,6 +60,7 @@ export class ApiErrorFilter implements ExceptionFilter {
     const requestId = String(request.id);
     if (detail.code === 'INTERNAL') {
       this.logger.error({ err: exception, requestId }, 'Unhandled error');
+      Sentry.captureException(exception, { tags: { requestId } });
     }
     const body: ApiError = { error: { ...detail, requestId } };
     // A handler may have set a public Cache-Control before it threw; an error must never be cached.

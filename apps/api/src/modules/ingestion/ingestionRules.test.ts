@@ -6,6 +6,7 @@ import {
   nextSourceHealth,
   nextStoryFields,
   overallStatus,
+  reportsSourceFailure,
   storyTags,
   titleDedupWindow,
 } from './ingestionRules.js';
@@ -96,6 +97,12 @@ describe('nextSourceHealth', () => {
       now,
     );
     expect(health.lastError).toHaveLength(500);
+  });
+});
+
+describe('reportsSourceFailure', () => {
+  it('AC-1.7.6 reports the third consecutive failure only, not every retry', () => {
+    expect([1, 2, 3, 4, 5].filter(reportsSourceFailure)).toEqual([3]);
   });
 });
 
