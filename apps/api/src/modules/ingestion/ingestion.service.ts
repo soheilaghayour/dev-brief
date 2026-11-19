@@ -309,7 +309,7 @@ export class IngestionService {
     // A story joined by title keeps only its first item's URL; the others live on their items.
     const byItemUrl = await this.prisma.sourceItem.findFirst({
       where: { canonicalUrl },
-      orderBy: { firstSeenAt: 'asc' },
+      orderBy: [{ firstSeenAt: 'asc' }, { id: 'asc' }],
       select: { story: true },
     });
     return byItemUrl?.story ?? null;
