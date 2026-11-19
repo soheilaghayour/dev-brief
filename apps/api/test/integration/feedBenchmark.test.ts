@@ -46,7 +46,10 @@ describe('feed benchmark (reported, not a gate)', () => {
       for (let sample = 0; sample < SAMPLES; sample += 1) {
         cache.clear();
         const started = performance.now();
-        const response = await request(app.getHttpServer()).get('/api/v1/feed').query(query);
+        const response = await request(app.getHttpServer())
+          .get('/api/v1/feed')
+          .set('x-internal-token', process.env.INTERNAL_API_TOKEN ?? '')
+          .query(query);
         durations.push(performance.now() - started);
         expect(response.status).toBe(200);
       }
