@@ -34,7 +34,16 @@ export function createGuestStorage(getBackend: () => StorageBackend | null) {
     },
     removeItem(key: string) {
       memory.delete(key);
-      useBackend((backend) => backend.removeItem(key));
+      // Removing still works after a failed write, and stale guest data must not come back.
+      try {
+        getBackend()?.removeItem(key);
+      } catch {
+        usesMemory = true;
+      }
+    },
+    /** Stops writing to the real storage, so what it holds stays untouched. */
+    useMemoryOnly() {
+      usesMemory = true;
     },
     /** True once saves can no longer survive a reload. */
     isMemoryOnly: () => usesMemory,

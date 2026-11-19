@@ -1,4 +1,4 @@
-import { isHttpUrl } from './feedNavigation';
+import { isHttpUrl } from '@/components/feed/feedNavigation';
 
 export function openInNewTab(url: string) {
   if (isHttpUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');

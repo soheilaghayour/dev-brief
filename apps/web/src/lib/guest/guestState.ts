@@ -36,7 +36,7 @@ export function removeSaves(saves: readonly Save[], storyIds: readonly string[])
 
 /** Newest-saved first; the stored order is insertion order. */
 export function sortSavesNewestFirst(saves: readonly Save[]) {
-  return [...saves].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  return [...saves].sort((a, b) => (b.savedAt < a.savedAt ? -1 : b.savedAt > a.savedAt ? 1 : 0));
 }
 
 /** Reads the stored text; invalid JSON counts as nothing stored. */

@@ -76,6 +76,12 @@ links to them instead of restating them.
 - **Filter changes use nuqs' shallow `history.replaceState`, not `router.replace`.** A non-shallow replace would re-run the dynamic feed page on the server and prefetch twice; the URL stays the single source of truth.
 - **The server prefetch for `/feed` never retries, and the search input stops at 100 characters.** A failing API must not delay the HTML by the retry back-off (the browser retries), and the contract's `q` maximum is 100, so the UI can't produce a 400.
 - **Playwright sends `x-internal-token` on every browser request.** One test run is one visitor, so the per-IP limiter is not exercised by e2e.
+- **A guest can keep 500 saves, and a full list refuses new ones with a toast instead of dropping old ones.** 500 is what one `POST /me/merge` accepts ([§6.2](docs/prd.md#62-rest-endpoints--phase-1)), so every local save can reach the account; silently evicting a save would lose data the guest chose to keep.
+- **The "Saved on this device" toast and the storage-unavailable warning each show once per tab session, tracked in `sessionStorage` with a memory fallback.** [AC-1.4.1](docs/prd.md#f14-guest-saves) and [AC-1.4.4](docs/prd.md#f14-guest-saves) say "once" without defining the scope; when storage is unavailable, the warning replaces the first save toast.
+- **`/saved` fixes its list of ids when it first shows; saves made there change what is shown but trigger no new lookup.** Unsaving a card removes it at once and moves the active card to its neighbour; a re-save happens in the feed.
+- **The guest hint is a fixed banner at the bottom of the screen, shown to guests only.** It appears after hydration, so in the page flow it would push the feed down ([AC-1.3.9](docs/prd.md#f13-feed-and-story-page) holds CLS under 0.05); a signed-in user never sees guest copy.
+- **Open tabs follow each other through the `storage` event, and every save re-reads storage before changing it.** Each tab would otherwise write its whole list over the other's.
+- **Guest data written by a newer app version is left untouched: the store runs in memory instead.** After a rollback, overwriting it with the older shape would erase saves.
 
 ## Open PM questions
 
@@ -96,7 +102,3 @@ links to them instead of restating them.
 - **A separate worker process, queues, Redis:** one API process serves REST, SSE and cron ([§1.5](docs/prd.md#15-product-principles)).
 - **An A2UI adapter layer or in-house fallback renderer:** `@a2ui/react` is pinned to an exact version and upgraded like any dependency.
 - **LLM tagging in Phase 1:** the deterministic taxonomy is pure and testable ([Appendix A](docs/prd.md#appendix-a--tag-taxonomy-v1)); LLM tags are an optional Phase 2 add-on (F2.7).
-- **A guest can keep 500 saves, and a full list refuses new ones with a toast instead of dropping old ones.** 500 is what one `POST /me/merge` accepts ([§6.2](docs/prd.md#62-rest-endpoints--phase-1)), so every local save can reach the account; silently evicting a save would lose data the guest chose to keep.
-- **The guest store's Zod parser loads on demand, after mount.** Zod is not in `/feed` first-load JS today and costs ≈12 KB gzip; loading the parser with the first hydration keeps `/feed` at 189.4 KB, under the 190 KB budget ([§8.5](docs/prd.md#85-performance-budgets)), while the store still parses everything it reads from `localStorage`. Saved state appears after hydration, so the server HTML shows every card unsaved.
-- **The "Saved on this device" toast and the storage-unavailable warning each show once per browser session, tracked in `sessionStorage` with a memory fallback.** [AC-1.4.1](docs/prd.md#f14-guest-saves) and [AC-1.4.4](docs/prd.md#f14-guest-saves) say "once" without defining the scope; when storage is unavailable, the warning replaces the first save toast.
-- **`/saved` fixes its list of ids when it first shows; saves made there change what is shown but trigger no new lookup.** Unsaving a card removes it at once from the stored ids, and the cards already loaded stay in memory so a re-save keeps working.

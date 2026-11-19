@@ -55,4 +55,31 @@ describe('createGuestStorage', () => {
     expect(storage.getItem('k')).toBe('v');
     expect(storage.isMemoryOnly()).toBe(true);
   });
+
+  it('removes the stored key even after a failed write', () => {
+    const { backend, items } = workingBackend();
+    items.set('k', 'old');
+    const full = {
+      ...backend,
+      setItem: () => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      },
+    };
+    const storage = createGuestStorage(() => full);
+    storage.setItem('k', 'new');
+    expect(storage.isMemoryOnly()).toBe(true);
+
+    storage.removeItem('k');
+
+    expect(items.has('k')).toBe(false);
+  });
+
+  it('stops writing to the backend once switched to memory only', () => {
+    const { backend, items } = workingBackend();
+    const storage = createGuestStorage(() => backend);
+    storage.useMemoryOnly();
+    storage.setItem('k', 'v');
+    expect(items.has('k')).toBe(false);
+    expect(storage.getItem('k')).toBe('v');
+  });
 });

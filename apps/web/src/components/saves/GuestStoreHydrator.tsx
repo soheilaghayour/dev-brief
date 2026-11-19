@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
-import { hydrateGuestStore } from '@/lib/guest/hydrateGuestStore';
+import { followOtherTabs, hydrateGuestStore } from '@/lib/guest/hydrateGuestStore';
 
-/** Loads the guest store in the browser; renders nothing. */
+function loadAndFollow() {
+  hydrateGuestStore();
+  return followOtherTabs();
+}
+
+/** Loads the guest store in the browser and keeps it in step with other tabs; renders nothing. */
 export function GuestStoreHydrator() {
-  useEffect(() => {
-    void hydrateGuestStore();
-  }, []);
+  useEffect(loadAndFollow, []);
   return null;
 }

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { BookmarkIcon } from 'lucide-react';
 import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
@@ -11,13 +10,11 @@ import {
   moveActiveId,
 } from '@/components/feed/feedNavigation';
 import { StoryCard } from '@/components/feed/StoryCard';
-import { focusStory, openInNewTab, scrollToStory } from '@/components/feed/storyListDom';
-import { lookupStories } from '@/lib/api/endpoints';
+import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
-import { notify } from './notify';
-import { lookupInChunks, orderSavedStories, unavailableNotice } from './savedStories';
 import { useSaves } from './useSaves';
+import { useSavedStories } from './useSavedStories';
 
 const NEXT_STORY = {
   id: 'saved-next',
@@ -69,26 +66,12 @@ function SavedEmpty() {
   );
 }
 
-// Mounted once the guest store is loaded, so the ids it looks up are the saved ones.
-function SavedStories() {
+export function SavedList() {
   const saves = useSaves();
-  const { removeUnavailable } = saves;
-  const [lookupIds] = useState(saves.ids);
+  const saved = useSavedStories();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const query = useQuery({
-    queryKey: ['saves', 'list', lookupIds],
-    queryFn: () => lookupInChunks(lookupIds, lookupStories),
-    enabled: lookupIds.length > 0,
-  });
-  const { data } = query;
-  const stories = orderSavedStories(saves.list, data?.items ?? []);
+  const stories = saved.status === 'ready' ? saved.stories : [];
   const activeStory = stories.find(({ id }) => id === activeId);
-
-  useEffect(() => {
-    if (!data || data.missingIds.length === 0) return;
-    removeUnavailable(data.missingIds);
-    void notify(unavailableNotice(data.missingIds.length));
-  }, [data, removeUnavailable]);
 
   function moveActive(step: 1 | -1) {
     const nextId = moveActiveId(stories, activeId, step);
@@ -113,11 +96,18 @@ function SavedStories() {
     const url = activeStory && discussionUrl(activeStory);
     if (url) openInNewTab(url);
   }
-  function toggleActiveSave() {
-    if (activeStory) saves.toggle(activeStory.id);
+  // An unsaved card leaves the list, so the active card and focus move to its neighbour first.
+  function toggleStory(storyId: string) {
+    if (storyId === activeId) {
+      const index = stories.findIndex(({ id }) => id === storyId);
+      const neighbourId = (stories[index + 1] ?? stories[index - 1])?.id ?? null;
+      setActiveId(neighbourId);
+      if (neighbourId) focusStory(neighbourId);
+    }
+    saves.toggle(storyId);
   }
-  function retry() {
-    void query.refetch();
+  function toggleActiveSave() {
+    if (activeStory) toggleStory(activeStory.id);
   }
 
   useShortcut(NEXT_STORY, goToNext);
@@ -127,10 +117,9 @@ function SavedStories() {
   useShortcut(OPEN_DISCUSSION, openDiscussion);
   useShortcut(SAVE_STORY, toggleActiveSave);
 
-  if (lookupIds.length === 0 || saves.ids.length === 0) return <SavedEmpty />;
-  if (query.isError)
-    return <FeedError message="Couldn't load your saved stories." onRetry={retry} />;
-  if (!data) return <FeedSkeleton />;
+  if (saved.status === 'loading') return <FeedSkeleton />;
+  if (saved.status === 'error')
+    return <FeedError message="Couldn't load your saved stories." onRetry={saved.retry} />;
   if (stories.length === 0) return <SavedEmpty />;
 
   return (
@@ -140,15 +129,10 @@ function SavedStories() {
           key={story.id}
           story={story}
           isSaved={saves.isSaved(story.id)}
-          onToggleSave={() => saves.toggle(story.id)}
+          onToggleSave={() => toggleStory(story.id)}
           isActive={story.id === activeId}
         />
       ))}
     </div>
   );
-}
-
-export function SavedList() {
-  const { isReady } = useSaves();
-  return isReady ? <SavedStories /> : <FeedSkeleton />;
 }

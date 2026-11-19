@@ -47,9 +47,12 @@ test('? opens the shortcuts help from the registry and Esc closes it', async ({ 
 
 test('g then s navigates to Saved', async ({ page }) => {
   await page.goto('/feed');
+  await page.keyboard.press('j');
   await page.keyboard.press('g');
   await page.keyboard.press('s');
   await expect(page).toHaveURL(/\/saved$/);
+  // The `s` that completes the sequence must not also save the active story.
+  await expect(page.getByText('Nothing saved yet')).toBeVisible();
 });
 
 test('with the OS in dark mode and no stored theme, the first paint is dark', async ({

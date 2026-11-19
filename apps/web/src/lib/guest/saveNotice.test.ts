@@ -20,13 +20,11 @@ describe('saveNotice', () => {
     expect(saveNotice({ outcome: 'removed', memoryOnly: false, alreadyShown: NONE })).toBeNull();
   });
 
-  it('AC-1.4.4 warns once that storage is unavailable, then falls back to the normal notice', () => {
+  it('AC-1.4.4 warns once that storage is unavailable, then stays quiet instead of claiming a device save', () => {
     const first = saveNotice({ outcome: 'added', memoryOnly: true, alreadyShown: NONE });
     expect(first?.kind).toBe('storage-unavailable');
     const shown = new Set<SaveNoticeKind>(['storage-unavailable']);
-    expect(saveNotice({ outcome: 'added', memoryOnly: true, alreadyShown: shown })?.kind).toBe(
-      'saved-on-device',
-    );
+    expect(saveNotice({ outcome: 'added', memoryOnly: true, alreadyShown: shown })).toBeNull();
   });
 
   it('always explains a refused save', () => {

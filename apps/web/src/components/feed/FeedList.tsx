@@ -18,7 +18,7 @@ import {
 } from './feedNavigation';
 import { feedQueryOptions } from './feedQueries';
 import { InfiniteSentinel } from './InfiniteSentinel';
-import { focusStory, openInNewTab, scrollToStory } from './storyListDom';
+import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { StoryCard } from './StoryCard';
 import { useFeedFilters } from './useFeedFilters';
 

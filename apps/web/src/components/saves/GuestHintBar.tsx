@@ -16,7 +16,8 @@ export function GuestHintBar() {
   return (
     <section
       aria-label="Guest hint"
-      className="bg-accent/50 text-muted-foreground mb-4 flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
+      // Fixed, so showing it after hydration cannot shift the page.
+      className="bg-accent text-muted-foreground fixed inset-x-4 bottom-4 z-40 flex items-center gap-2 rounded-md border px-3 py-2 text-xs shadow-sm md:left-auto md:max-w-md"
     >
       <p className="flex-1">
         You&apos;re browsing as a guest. Saves stay on this device.{' '}

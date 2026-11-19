@@ -36,6 +36,6 @@ function pickKind(
 ): SaveNoticeKind | null {
   if (outcome === 'removed') return null;
   if (outcome === 'full') return 'full';
-  if (memoryOnly && !alreadyShown.has('storage-unavailable')) return 'storage-unavailable';
+  if (memoryOnly) return alreadyShown.has('storage-unavailable') ? null : 'storage-unavailable';
   return alreadyShown.has('saved-on-device') ? null : 'saved-on-device';
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { removeGuestSaves, toggleGuestSave } from '@/lib/guest/guestSaves';
 import { sortSavesNewestFirst, type ToggleOutcome } from '@/lib/guest/guestState';
 import { guestStorage, useGuestStore } from '@/lib/guest/guestStore';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
@@ -20,11 +21,7 @@ function announceSave(outcome: ToggleOutcome) {
 }
 
 function toggle(storyId: string) {
-  announceSave(useGuestStore.getState().toggleSave(storyId, new Date()));
-}
-
-function removeUnavailable(storyIds: readonly string[]) {
-  useGuestStore.getState().removeSaves(storyIds);
+  announceSave(toggleGuestSave(storyId, new Date()));
 }
 
 /** The one way components read and change saves; guest mode today, account mode behind the same shape later. */
@@ -39,5 +36,5 @@ export function useSaves() {
     return savedIds.has(storyId);
   }
 
-  return { ids, list, isReady, isSaved, toggle, removeUnavailable };
+  return { ids, list, isReady, isSaved, toggle, removeUnavailable: removeGuestSaves };
 }

@@ -42,7 +42,9 @@ test('AC-1.4.1 AC-1.4.2 AC-1.4.3 a guest filters by tag, saves, reloads and find
   await expect(cards(page).first().locator('h2 a')).toHaveText(title);
 });
 
-test('AC-1.4.1 s saves the active card and the toast shows once per session', async ({ page }) => {
+test('AC-1.3.8 AC-1.4.1 s saves the active card and the toast shows once per session', async ({
+  page,
+}) => {
   await openFeed(page, '?sort=latest');
   await page.keyboard.press('j');
   await page.keyboard.press('s');
@@ -122,11 +124,60 @@ test('the guest hint links to sign-in with the current URL and stays dismissed a
     '/sign-in?callbackURL=%2Ffeed%3Ftags%3Dreact',
   );
 
+  const card = cards(page).first();
+  await saveButton(card).click();
   await hint.getByRole('button', { name: 'Dismiss' }).click();
   await expect(hint).toBeHidden();
   await page.reload();
   await page.waitForLoadState('networkidle');
+  // A pressed Save shows the store has loaded, so the hidden hint is the stored dismissal.
+  await expect(saveButton(cards(page).first())).toHaveAttribute('aria-pressed', 'true');
   await expect(hint).toBeHidden();
+});
+
+test('AC-1.3.9 the guest hint appears without moving the feed', async ({ page }) => {
+  await page.goto('/feed?sort=latest');
+  const firstCard = cards(page).first();
+  await expect(firstCard).toBeVisible();
+  const before = await firstCard.boundingBox();
+  const hint = page.getByRole('region', { name: 'Guest hint' });
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveCSS('position', 'fixed');
+  expect((await firstCard.boundingBox())?.y).toBe(before?.y);
+});
+
+test("AC-1.4.2 two open tabs keep each other's saves", async ({ context }) => {
+  const first = await context.newPage();
+  const second = await context.newPage();
+  await openFeed(first, '?sort=latest');
+  await openFeed(second, '?sort=latest');
+
+  await saveButton(cards(first).nth(0)).click();
+  await expect(saveButton(cards(first).nth(0))).toHaveAttribute('aria-pressed', 'true');
+  await saveButton(cards(second).nth(1)).click();
+  await expect(saveButton(cards(second).nth(1))).toHaveAttribute('aria-pressed', 'true');
+
+  await first.reload();
+  await first.waitForLoadState('networkidle');
+  await expect(saveButton(cards(first).nth(0))).toHaveAttribute('aria-pressed', 'true');
+  await expect(saveButton(cards(first).nth(1))).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('j and s on /saved move through the list and unsave the active story', async ({ page }) => {
+  await openFeed(page, '?sort=latest');
+  await saveButton(cards(page).nth(0)).click();
+  await expect(saveButton(cards(page).nth(0))).toHaveAttribute('aria-pressed', 'true');
+  await saveButton(cards(page).nth(1)).click();
+  await expect(saveButton(cards(page).nth(1))).toHaveAttribute('aria-pressed', 'true');
+
+  await page.goto('/saved');
+  await expect(cards(page)).toHaveCount(2);
+  await page.keyboard.press('j');
+  await page.keyboard.press('s');
+
+  await expect(cards(page)).toHaveCount(1);
+  const stored = await page.evaluate(() => localStorage.getItem('devbrief:guest:v1'));
+  expect(JSON.parse(stored ?? '{}').saves).toHaveLength(1);
 });
 
 test('AC-1.3.7 the story page Save button reflects and toggles the saved state', async ({
