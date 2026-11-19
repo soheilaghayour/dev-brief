@@ -1,12 +1,22 @@
 import { readFileSync } from 'node:fs';
 
 const fixtureDir = new URL('./fixtures/hn/', import.meta.url);
-const topStories = JSON.parse(
+export const fixtureTopStories = JSON.parse(
   readFileSync(new URL('topstories.json', fixtureDir), 'utf8'),
 ) as number[];
-const items = JSON.parse(readFileSync(new URL('items.json', fixtureDir), 'utf8')) as Record<
+export const fixtureItems = JSON.parse(
+  readFileSync(new URL('items.json', fixtureDir), 'utf8'),
+) as Record<
   string,
-  unknown
+  {
+    id: number;
+    type: string;
+    score?: number;
+    descendants?: number;
+    time: number;
+    url?: string;
+    title?: string;
+  }
 >;
 
 interface FixtureOptions {
@@ -24,17 +34,17 @@ export function hnFixtureFetch({
   failingItems = 0,
   garbledItems = 0,
 }: FixtureOptions = {}): typeof fetch {
-  const failing = new Set(topStories.slice(0, failingItems));
-  const garbled = new Set(garbledItems > 0 ? topStories.slice(-garbledItems) : []);
+  const failing = new Set(fixtureTopStories.slice(0, failingItems));
+  const garbled = new Set(garbledItems > 0 ? fixtureTopStories.slice(-garbledItems) : []);
 
   return async (input) => {
     const url = String(input);
     if (url.endsWith('/topstories.json')) {
-      return Response.json([...topStories, ...extraIds]);
+      return Response.json([...fixtureTopStories, ...extraIds]);
     }
     const id = Number(/\/item\/(\d+)\.json$/.exec(url)?.[1]);
     if (failing.has(id)) return new Response('', { status: 500 });
     if (garbled.has(id)) return Response.json({ nonsense: true });
-    return Response.json(items[String(id)] ?? null);
+    return Response.json(fixtureItems[String(id)] ?? null);
   };
 }

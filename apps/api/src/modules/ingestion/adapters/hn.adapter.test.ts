@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { HttpClient } from '../../../common/http/httpClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
-import { hnFixtureFetch } from '../../../../test/hnFixtureFetch.js';
+import { fixtureItems, hnFixtureFetch } from '../../../../test/hnFixtureFetch.js';
 import { HnAdapter } from './hn.adapter.js';
 
 const source = { slug: 'hn', kind: 'hn' } as Source;
@@ -20,22 +20,33 @@ describe('HnAdapter', () => {
   });
 
   it('maps score, descendants, time and the HN item page', async () => {
-    const items = await adapterWith(hnFixtureFetch()).fetch(source, { signal });
-    const first = items[0];
+    const [first] = await adapterWith(hnFixtureFetch()).fetch(source, { signal });
+    const payload = fixtureItems[first?.externalId ?? ''];
     expect(first).toMatchObject({
-      points: 400,
-      commentsCount: 0,
+      points: payload?.score,
+      commentsCount: payload?.descendants,
       reactionsCount: null,
-      publishedAt: new Date(1_767_225_600 * 1000),
+      publishedAt: new Date((payload?.time ?? 0) * 1000),
       discussionUrl: `https://news.ycombinator.com/item?id=${first?.externalId}`,
     });
   });
 
-  it('gives an Ask HN item without a url the HN item URL', async () => {
+  it('gives a recorded story without a url the HN item URL', async () => {
     const items = await adapterWith(hnFixtureFetch()).fetch(source, { signal });
-    const askHn = items.find((item) => item.title.startsWith('Ask HN'));
-    expect(askHn?.url).toBe(askHn?.discussionUrl);
-    expect(askHn?.url).toMatch(/^https:\/\/news\.ycombinator\.com\/item\?id=\d+$/);
+    const withoutUrl = items.filter((item) => fixtureItems[item.externalId]?.url === undefined);
+    expect(withoutUrl).toHaveLength(3);
+    for (const item of withoutUrl) {
+      expect(item.url).toBe(item.discussionUrl);
+      expect(item.url).toMatch(/^https:\/\/news\.ycombinator\.com\/item\?id=\d+$/);
+    }
+  });
+
+  it('skips a deleted item shell that has no time instead of counting it as failed', async () => {
+    const stub: typeof fetch = async (input) =>
+      String(input).endsWith('/topstories.json')
+        ? Response.json([1])
+        : Response.json({ id: 1, type: 'story', deleted: true });
+    expect(await adapterWith(stub).fetch(source, { signal })).toEqual([]);
   });
 
   it('AC-1.2.11 reads the recorded fixtures through a stubbed fetch: the first 100 ids, 101 requests, bot User-Agent', async () => {

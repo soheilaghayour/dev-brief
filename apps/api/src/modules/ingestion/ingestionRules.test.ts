@@ -4,6 +4,7 @@ import {
   isCircuitOpen,
   mapRawItem,
   nextSourceHealth,
+  nextStoryFields,
   overallStatus,
   storyTags,
   titleDedupWindow,
@@ -111,11 +112,54 @@ describe('overallStatus', () => {
     expect(overallStatus(['success', 'skipped'])).toBe('success');
   });
 
+  it('is skipped when no source ran, so an outage never records as success', () => {
+    expect(overallStatus(['skipped', 'skipped'])).toBe('skipped');
+    expect(overallStatus([])).toBe('skipped');
+  });
+
   it('is partial when some failed and some did not', () => {
     expect(overallStatus(['success', 'failed'])).toBe('partial');
   });
 
   it('is failed when every source that ran failed', () => {
     expect(overallStatus(['failed', 'failed', 'skipped'])).toBe('failed');
+  });
+});
+
+describe('nextStoryFields', () => {
+  const story = {
+    title: 'A post',
+    canonicalUrl: 'https://example.com/a',
+    tags: [] as string[],
+    taggerVersion: storyTags('A post', 'https://example.com/a', []).taggerVersion,
+    publishedAt: now,
+    excerpt: null,
+    readingTimeMinutes: null,
+  };
+  const noExtras = { excerpt: null, readingTimeMinutes: null };
+
+  it('is null when nothing changed', () => {
+    expect(nextStoryFields(story, [{ sourceTags: [], publishedAt: now }], noExtras)).toBeNull();
+  });
+
+  it('adds the source tags of a title-joined item to the Story tags', () => {
+    const items = [
+      { sourceTags: [], publishedAt: now },
+      { sourceTags: ['rust'], publishedAt: now },
+    ];
+    expect(nextStoryFields(story, items, noExtras)?.tags).toContain('rust');
+  });
+
+  it('moves publishedAt to the earliest item and fills a missing excerpt', () => {
+    const earlier = new Date(now.getTime() - 3600_000);
+    const fields = nextStoryFields(
+      story,
+      [
+        { sourceTags: [], publishedAt: now },
+        { sourceTags: [], publishedAt: earlier },
+      ],
+      { excerpt: 'Intro', readingTimeMinutes: 4 },
+    );
+    expect(fields).toMatchObject({ publishedAt: earlier, excerpt: 'Intro', readingTimeMinutes: 4 });
   });
 });

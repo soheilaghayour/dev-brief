@@ -1,11 +1,13 @@
 import { Test } from '@nestjs/testing';
 import { TAXONOMY_VERSION } from '@devbrief/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { HttpClient, HttpError } from '../../src/common/http/httpClient.js';
+import { HttpClient } from '../../src/common/http/httpClient.js';
+import { EnvModule } from '../../src/common/env/env.module.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import type { SourceKind } from '../../src/generated/prisma/client.js';
 import { HnAdapter } from '../../src/modules/ingestion/adapters/hn.adapter.js';
 import { IngestionModule } from '../../src/modules/ingestion/ingestion.module.js';
+import { INGEST_LOCK_KEY, IngestionLock } from '../../src/modules/ingestion/ingestion.lock.js';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
 import { IngestionPostRunSteps } from '../../src/modules/ingestion/postRunStep.js';
 import {
@@ -49,13 +51,16 @@ describe('ingestion', () => {
   let close: () => Promise<void>;
 
   async function createService(adapters: SourceAdapter[]) {
-    const moduleRef = await Test.createTestingModule({ imports: [PrismaModule, IngestionModule] })
+    const moduleRef = await Test.createTestingModule({
+      imports: [EnvModule, PrismaModule, IngestionModule],
+    })
       .overrideProvider(SOURCE_ADAPTERS)
       .useValue(adapters)
       .compile();
     close = () => moduleRef.close();
     return {
       service: moduleRef.get(IngestionService),
+      lock: moduleRef.get(IngestionLock),
       postRunSteps: moduleRef.get(IngestionPostRunSteps),
     };
   }
@@ -83,11 +88,11 @@ describe('ingestion', () => {
 
     expect(status).toBe('success');
     expect(await prisma.sourceItem.count()).toBe(95);
-    expect(await prisma.story.count()).toBeGreaterThan(0);
-    const askHn = await prisma.sourceItem.findFirstOrThrow({
-      where: { title: { startsWith: 'Ask HN' } },
-    });
-    expect(askHn.url).toBe(askHn.discussionUrl);
+    expect(await prisma.story.count()).toBe(95);
+    const withoutUrl = (await prisma.sourceItem.findMany()).filter(
+      (item) => item.url === item.discussionUrl,
+    );
+    expect(withoutUrl).toHaveLength(3);
   });
 
   it('AC-1.2.9 tags new stories with tagStory() and the current taxonomy version', async () => {
@@ -96,10 +101,9 @@ describe('ingestion', () => {
 
     await service.run();
 
-    const rustStory = await prisma.story.findFirstOrThrow({
-      where: { title: { startsWith: 'Rust ' } },
-    });
-    expect(rustStory.tags).toContain('rust');
+    expect(
+      await prisma.story.count({ where: { NOT: { tags: { isEmpty: true } } } }),
+    ).toBeGreaterThan(0);
     expect(await prisma.story.count({ where: { taggerVersion: { not: TAXONOMY_VERSION } } })).toBe(
       0,
     );
@@ -196,11 +200,36 @@ describe('ingestion', () => {
     expect(perSource.itemsCreated).toBe(0);
   });
 
+  it('AC-1.2.6 creates nothing on a second run over the same recorded front page', async () => {
+    await createSources('hn');
+    const { service } = await createService([hnFixtureAdapter()]);
+
+    await service.run();
+    const second = await service.run();
+
+    expect(await prisma.sourceItem.count()).toBe(95);
+    expect(await prisma.story.count()).toBe(95);
+    const rows = await prisma.ingestionRun.findMany({ where: { runId: second.runId } });
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toMatchObject({ itemsCreated: 0, itemsUpdated: 95 });
+    }
+  });
+
   it('AC-1.2.7 completes HN when Dev.to fails every attempt, marking the run partial', async () => {
     await createSources('hn', 'devto');
-    const devto = stubAdapter('devto', async () => {
-      throw new HttpError('HTTP 500 from dev.to', { status: 500, retryable: true });
-    });
+    const devto = stubAdapter('devto', (_source, { signal }) =>
+      new HttpClient(
+        async () => new Response('', { status: 500 }),
+        () => 0,
+      )
+        .getJson('https://dev.to/api/articles', {
+          timeoutMs: 1000,
+          retryBackoffMs: [1, 1],
+          signal,
+        })
+        .then(() => []),
+    );
     const { service } = await createService([hnFixtureAdapter(), devto]);
 
     const { runId, status } = await service.run();
@@ -214,13 +243,13 @@ describe('ingestion', () => {
     expect(runs).toHaveLength(3);
     expect(runs.find((run) => run.source?.slug === 'devto')).toMatchObject({
       status: 'failed',
-      error: 'HTTP 500 from dev.to',
+      error: 'HTTP 500 from https://dev.to/api/articles',
     });
     expect(runs.find((run) => run.source?.slug === 'hn')?.status).toBe('success');
     const devtoSource = await prisma.source.findUniqueOrThrow({ where: { slug: 'devto' } });
     expect(devtoSource).toMatchObject({
       consecutiveFailures: 1,
-      lastError: 'HTTP 500 from dev.to',
+      lastError: 'HTTP 500 from https://dev.to/api/articles',
     });
     expect(devtoSource.lastErrorAt).not.toBeNull();
     expect(
@@ -317,5 +346,18 @@ describe('ingestion', () => {
 
     expect(calls).toEqual(['first sees 95 items', 'second']);
     expect(status).toBe('success');
+  });
+
+  it('releases and re-acquires the lock after its connection was terminated, without crashing the process', async () => {
+    const { lock } = await createService([]);
+    const release = await lock.tryAcquire();
+    await prisma.$queryRaw`SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'advisory' AND objid = ${INGEST_LOCK_KEY}`;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    await expect(release!()).resolves.toBeUndefined();
+
+    const again = await lock.tryAcquire();
+    expect(again).not.toBeNull();
+    await again!();
   });
 });
