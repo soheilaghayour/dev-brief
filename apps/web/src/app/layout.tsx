@@ -3,14 +3,14 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
-import { Toaster } from '@/components/ui/Sonner';
+import { Toaster } from '@/components/ui/Toaster';
 import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import './globals.css';
 
 const fontSans = Geist({ subsets: ['latin'], display: 'swap', variable: '--font-geist-sans' });
 const fontMono = Geist_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-geist-mono' });
 
-export const metadata: Metadata = { title: 'DevBrief' };
+export const metadata: Metadata = { title: { default: 'DevBrief', template: '%s · DevBrief' } };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -5,7 +5,7 @@ import { SidebarContent } from './SidebarContent';
 
 type AppShellProps = {
   children: ReactNode;
-  /** Filled by the feed (search, sort), account (user menu) and filter issues. */
+  /** Slots for the search, sort, account and filter components. */
   searchSlot?: ReactNode;
   sortSlot?: ReactNode;
   accountSlot?: ReactNode;

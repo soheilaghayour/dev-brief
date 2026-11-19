@@ -1,4 +1,4 @@
-export const metadata = { title: 'Saved · DevBrief' };
+export const metadata = { title: 'Saved' };
 
 export default function SavedPage() {
   return (

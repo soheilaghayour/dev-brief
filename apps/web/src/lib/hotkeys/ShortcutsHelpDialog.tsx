@@ -26,7 +26,7 @@ function ShortcutKeys({ keys }: { keys: string }) {
   return (
     <span className="text-muted-foreground flex items-center gap-1 text-xs">
       {caps.map((cap, index) => (
-        <Fragment key={cap}>
+        <Fragment key={index}>
           {index > 0 && <span>{separator}</span>}
           <Kbd>{cap}</Kbd>
         </Fragment>

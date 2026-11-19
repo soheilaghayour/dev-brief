@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { Features } from '@/config/features';
 import { Kbd } from '@/components/ui/Kbd';
 import { cn } from '@/lib/cn';
+import { displayKeys } from '@/lib/hotkeys/shortcutRules';
 import { getNavItems } from './navItems';
 
 export function NavLinks({ features }: { features?: Features }) {
@@ -15,7 +16,6 @@ export function NavLinks({ features }: { features?: Features }) {
     <nav aria-label="Main" className="grid gap-0.5">
       {items.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const hint = item.shortcut.keys.split('>');
         return (
           <Link
             key={item.href}
@@ -29,8 +29,8 @@ export function NavLinks({ features }: { features?: Features }) {
             <item.Icon className="size-4" />
             <span className="flex-1">{item.label}</span>
             <span className="flex gap-0.5" aria-hidden="true">
-              {hint.map((key) => (
-                <Kbd key={key} className="h-4 min-w-4 text-[10px]">
+              {displayKeys(item.shortcut.keys).map((key, index) => (
+                <Kbd key={index} size="sm">
                   {key}
                 </Kbd>
               ))}

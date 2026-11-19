@@ -1,4 +1,4 @@
-export const metadata = { title: 'Feed · DevBrief' };
+export const metadata = { title: 'Feed' };
 
 export default function FeedPage() {
   return (

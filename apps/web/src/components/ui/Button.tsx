@@ -12,7 +12,7 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
-        destructive: 'bg-destructive text-primary-foreground hover:bg-destructive/90',
+        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
       },
       size: {
         default: 'h-8 px-3',
@@ -39,4 +39,4 @@ function Button({ className, variant, size, asChild = false, ...props }: ButtonP
   );
 }
 
-export { Button, buttonVariants };
+export { Button };
