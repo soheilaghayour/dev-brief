@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
@@ -11,6 +11,8 @@ import { RATE_LIMIT_PER_MINUTE, RateLimitGuard } from './rate-limit/rateLimit.gu
 import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.js';
 
 /** Wires the cross-cutting conventions every feature module relies on. */
+// Global so feature modules inject the shared LruCache without importing this module.
+@Global()
 @Module({
   imports: [
     EnvModule,
