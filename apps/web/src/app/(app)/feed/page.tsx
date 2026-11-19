@@ -9,7 +9,7 @@ export const metadata = { title: 'Feed' };
 
 export default async function FeedPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const filters = toFeedFilters(loadFeedSearchParams(await searchParams));
-  // Awaited, so the first page is in the HTML; a failed fetch leaves the client to retry.
+  // Awaited, so the first page is in the HTML; a failed fetch (no server retry) leaves the client to retry.
   await getServerQueryClient().prefetchInfiniteQuery(feedQueryOptions(filters));
 
   return (

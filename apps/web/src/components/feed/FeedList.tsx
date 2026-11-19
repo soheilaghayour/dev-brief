@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
@@ -13,6 +13,7 @@ import {
   flattenPages,
   focusableId,
   isEnterOnInteractiveElement,
+  isHttpUrl,
   moveActiveId,
 } from './feedNavigation';
 import { feedQueryOptions } from './feedQueries';
@@ -60,13 +61,20 @@ const TOGGLE_SORT = {
 function ignoreSave() {}
 
 function openInNewTab(url: string) {
-  window.open(url, '_blank', 'noopener,noreferrer');
+  if (isHttpUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function findStoryElement(id: string) {
+  return document.querySelector(`[data-story-id="${CSS.escape(id)}"]`);
 }
 
 function scrollToStory(id: string, block: ScrollLogicalPosition) {
-  document
-    .querySelector(`[data-story-id="${CSS.escape(id)}"]`)
-    ?.scrollIntoView({ block, behavior: 'instant' });
+  findStoryElement(id)?.scrollIntoView({ block, behavior: 'instant' });
+}
+
+// Moving DOM focus to the title link tells screen readers which card is active and gives a native focus ring.
+function focusStory(id: string) {
+  findStoryElement(id)?.querySelector('a')?.focus({ preventScroll: true });
 }
 
 export function FeedList() {
@@ -88,6 +96,7 @@ export function FeedList() {
     const nextId = moveActiveId(stories, activeId, step);
     if (!nextId) return;
     setActiveId(nextId);
+    focusStory(nextId);
     scrollToStory(nextId, 'nearest');
   }
   function goToNext() {
@@ -106,9 +115,10 @@ export function FeedList() {
     const url = activeStory && discussionUrl(activeStory);
     if (url) openInNewTab(url);
   }
-  function loadNextPage() {
+  // Stable, so the sentinel's observer isn't rebuilt on every j/k press.
+  const loadNextPage = useCallback(() => {
     void fetchNextPage();
-  }
+  }, [fetchNextPage]);
   function retry() {
     void query.refetch();
   }
@@ -127,7 +137,7 @@ export function FeedList() {
   }
 
   return (
-    <div>
+    <div role="feed" aria-busy={isFetchingNextPage} aria-label="Stories">
       {stories.map((story) => (
         <StoryCard
           key={story.id}

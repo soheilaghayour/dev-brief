@@ -10,6 +10,10 @@ describe('makeQueryClient', () => {
     expect(defaults.mutations?.retry).toBe(0);
   });
 
+  it('lets the server client turn query retries off', () => {
+    expect(makeQueryClient({ retry: 0 }).getDefaultOptions().queries?.retry).toBe(0);
+  });
+
   it('dehydrates a pending query so server prefetches can stream', () => {
     const client = makeQueryClient();
     void client.prefetchQuery({ queryKey: ['feed'], queryFn: () => new Promise(() => {}) });

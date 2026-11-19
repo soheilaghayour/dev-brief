@@ -10,6 +10,8 @@ type RequestOptions = {
   path: string;
   query?: Query;
   body?: unknown;
+  /** Next's fetch cache mode; `'no-store'` makes the calling route render per request. */
+  cache?: RequestCache;
 };
 
 type ApiClientConfig = {
@@ -68,12 +70,11 @@ export function createApiClient({
   internalToken,
   fetch: fetchImpl = fetch,
 }: ApiClientConfig = {}) {
-  async function send({ method = 'GET', path, query, body }: RequestOptions) {
+  async function send({ method = 'GET', path, query, body, cache }: RequestOptions) {
     const response = await fetchImpl(buildUrl(baseUrl ?? defaultBaseUrl(), path, query), {
       method,
       credentials: 'include',
-      // The API's own cache keeps server-side reads fresh; Next must not add a second one.
-      cache: typeof window === 'undefined' ? 'no-store' : undefined,
+      cache,
       headers: requestHeaders(body !== undefined, internalToken),
       body: body === undefined ? undefined : JSON.stringify(body),
     });

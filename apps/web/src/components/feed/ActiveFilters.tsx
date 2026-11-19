@@ -4,20 +4,14 @@ import { XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { hasActiveFilters } from './feedParams';
 import { SOURCE_KIND_LABELS } from './sourceKinds';
-import { tagLabel } from './tagLabel';
+import { TAG_LABELS } from '@devbrief/shared';
 import { useFeedFilters } from './useFeedFilters';
 
 type Chip = { key: string; label: string; remove: () => void };
 
 function FilterChip({ label, remove }: Omit<Chip, 'key'>) {
   return (
-    <Button
-      variant="secondary"
-      size="sm"
-      className="h-6 gap-1 px-2"
-      aria-label={`Remove filter ${label}`}
-      onClick={remove}
-    >
+    <Button variant="secondary" size="xs" aria-label={`Remove filter ${label}`} onClick={remove}>
       {label}
       <XIcon className="size-3" aria-hidden="true" />
     </Button>
@@ -36,7 +30,7 @@ export function ActiveFilters() {
   const chips: Chip[] = [
     ...filters.tags.map((tag) => ({
       key: `tag:${tag}`,
-      label: tagLabel(tag),
+      label: TAG_LABELS[tag],
       remove: () => toggleTag(tag),
     })),
     ...filters.kinds.map((kind) => ({
@@ -54,19 +48,15 @@ export function ActiveFilters() {
 
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2"
+      role="group"
       aria-label="Active filters"
+      className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2"
     >
       <span className="text-muted-foreground mr-1 text-xs">Filters</span>
       {chips.map(({ key, ...chip }) => (
         <FilterChip key={key} {...chip} />
       ))}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground ml-auto h-6"
-        onClick={clearAll}
-      >
+      <Button variant="ghost" size="xs" className="ml-auto" onClick={clearAll}>
         Clear all
       </Button>
     </div>

@@ -34,11 +34,15 @@ export function getFeed({ tags, kinds, sources, ...rest }: FeedParams = {}) {
     kinds: kinds?.join(','),
     sources: sources?.join(','),
   };
-  return apiClient.request({ path: '/feed', query }, FeedPageSchema);
+  // Per request: the feed's first page renders from fresh API data (PRD §8.4).
+  return apiClient.request({ path: '/feed', query, cache: 'no-store' }, FeedPageSchema);
 }
 
 export function getStory(id: string) {
-  return apiClient.request({ path: `/stories/${encodeURIComponent(id)}` }, StoryDetailSchema);
+  return apiClient.request(
+    { path: `/stories/${encodeURIComponent(id)}`, cache: 'no-store' },
+    StoryDetailSchema,
+  );
 }
 
 export function lookupStories(body: StoryLookupRequest) {

@@ -27,7 +27,8 @@ function mount(element: React.ReactElement) {
 describe('FeedSkeleton', () => {
   it('AC-1.3.9 renders fixed-height placeholder rows announced as loading', () => {
     const html = renderToStaticMarkup(<FeedSkeleton />);
-    expect(html).toContain('aria-label="Loading stories"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('Loading stories…');
     expect(html.match(/h-\[76px\]/g)?.length).toBeGreaterThanOrEqual(6);
   });
 });

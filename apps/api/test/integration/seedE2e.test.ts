@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TAG_SLUGS } from '@devbrief/shared';
-import { seedE2e } from '../../prisma/seedE2e.js';
+import { assertDestructiveSeedAllowed, seedE2e } from '../../prisma/seedE2e.js';
 import { useTestDatabase } from './testDatabase.js';
 
 describe('end-to-end seed', () => {
@@ -51,11 +51,44 @@ describe('end-to-end seed', () => {
     expect(await counts()).toEqual(before);
   });
 
+  it('succeeds when a save exists and closes a source whose circuit is open', async () => {
+    await seedE2e(prisma, now);
+    const story = await prisma.story.findFirstOrThrow();
+    await prisma.user.create({ data: { id: 'u1', name: 'U', email: 'u@example.com' } });
+    await prisma.save.create({ data: { userId: 'u1', storyId: story.id } });
+    await prisma.source.updateMany({
+      data: { circuitOpenUntil: new Date(now.getTime() + 3_600_000), consecutiveFailures: 5 },
+    });
+
+    await seedE2e(prisma, now);
+
+    expect(await prisma.save.count()).toBe(0);
+    const sources = await prisma.source.findMany();
+    expect(sources.every(({ circuitOpenUntil }) => circuitOpenUntil === null)).toBe(true);
+    expect(sources.every(({ consecutiveFailures }) => consecutiveFailures === 0)).toBe(true);
+  });
+
   it('marks every source healthy', async () => {
     await seedE2e(prisma, now);
     const sources = await prisma.source.findMany();
     expect(sources.every(({ lastSuccessAt }) => lastSuccessAt?.getTime() === now.getTime())).toBe(
       true,
     );
+  });
+});
+
+describe('assertDestructiveSeedAllowed', () => {
+  const url = (name: string) => `postgresql://u:p@localhost:5432/${name}`;
+
+  it('refuses a database that is not marked as a throwaway one', () => {
+    expect(() => assertDestructiveSeedAllowed(url('devbrief'), false)).toThrow(
+      /not an e2e database/,
+    );
+  });
+
+  it('allows names ending in _test or e2e, or an explicit opt-in', () => {
+    expect(() => assertDestructiveSeedAllowed(url('devbrief_test'), false)).not.toThrow();
+    expect(() => assertDestructiveSeedAllowed(url('devbrief_e2e'), false)).not.toThrow();
+    expect(() => assertDestructiveSeedAllowed(url('devbrief'), true)).not.toThrow();
   });
 });

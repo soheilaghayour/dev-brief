@@ -13,9 +13,16 @@ const buttonVariants = cva(
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+        toggle:
+          'text-muted-foreground hover:bg-accent hover:text-accent-foreground aria-pressed:text-primary aria-pressed:[&_svg]:fill-current',
+        toggleOutline:
+          'border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground aria-pressed:text-primary aria-pressed:[&_svg]:fill-current',
+        segment:
+          'rounded-sm text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm',
       },
       size: {
         default: 'h-8 px-3',
+        xs: 'h-6 gap-1 px-2 text-xs',
         sm: 'h-7 px-2.5 text-xs',
         lg: 'h-10 px-5',
         icon: 'size-8',

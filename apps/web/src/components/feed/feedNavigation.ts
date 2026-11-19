@@ -34,3 +34,8 @@ export function focusableId(focus: string | null, firstPage: FeedPage | undefine
 export function isEnterOnInteractiveElement(key: string, target: EventTarget | null) {
   return key === 'Enter' && target instanceof Element && target.closest('a, button') !== null;
 }
+
+/** Only http(s) URLs may be opened from a shortcut; React blocks `javascript:` in hrefs but not in `window.open`. */
+export function isHttpUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}

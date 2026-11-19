@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { SearchIcon } from 'lucide-react';
+import { FEED_QUERY_MAX } from '@devbrief/shared';
 import { Input } from '@/components/ui/Input';
 import { Kbd } from '@/components/ui/Kbd';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
@@ -64,6 +65,7 @@ export function SearchInput() {
         aria-label="Search stories"
         placeholder="Search stories…"
         value={draft}
+        maxLength={FEED_QUERY_MAX}
         onChange={updateDraft}
         className="pr-8 pl-8"
       />

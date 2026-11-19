@@ -15,7 +15,7 @@ export function TagFilterList() {
 
   return (
     <fieldset className="min-w-0">
-      <legend className="text-muted-foreground flex w-full justify-between px-2 pb-1 text-[11px] font-medium tracking-wide uppercase">
+      <legend className="text-muted-foreground flex w-full justify-between px-2 pb-1 text-xs font-medium tracking-wide uppercase">
         <span>Tags</span>
         <span>7d</span>
       </legend>

@@ -15,7 +15,7 @@ export function SourceItemList({ items }: { items: StoryDetail['items'] }) {
       <ul className="divide-y rounded-lg border">
         {items.map((item) => (
           <li
-            key={item.itemUrl}
+            key={`${item.slug}:${item.itemUrl}`}
             className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5"
           >
             <SourceBadge source={item} />

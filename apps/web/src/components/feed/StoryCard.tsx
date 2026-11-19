@@ -38,22 +38,22 @@ export function StoryCard({
       )}
     >
       <div className="min-w-0 flex-1">
-        <h3 className="leading-snug">
+        <h2 className="leading-snug">
           <a
             href={story.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-foreground rounded-sm text-[15px] font-medium hover:underline"
+            className="text-foreground rounded-sm text-base font-medium hover:underline"
           >
             {story.title}
           </a>
           <span className="text-muted-foreground ml-2 text-xs whitespace-nowrap">
             {story.domain}
           </span>
-        </h3>
+        </h2>
         <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           {story.sources.map((source) => (
-            <SourceBadge key={source.slug} source={source} />
+            <SourceBadge key={`${source.slug}:${source.itemUrl}`} source={source} />
           ))}
           <RelativeTime iso={story.publishedAt} />
           {!compact && story.readingTimeMinutes !== null && (

@@ -114,18 +114,32 @@ async function seedStory(prisma: PrismaClient, seed: StorySeed) {
   }
 }
 
-/** Replaces all stories with the fixture ones and marks every source as freshly fetched; only for e2e databases. */
+/** Throws unless the database is marked as a throwaway one (name ends in `_test` or `e2e`) or the run opts in. */
+export function assertDestructiveSeedAllowed(databaseUrl: string, allowDestructive: boolean) {
+  const databaseName = new URL(databaseUrl).pathname.slice(1);
+  if (allowDestructive || /(_test|e2e)$/.test(databaseName)) return;
+  throw new Error(
+    `db:seed:e2e deletes every story and save, and "${databaseName}" is not an e2e database (its name must end in "_test" or "e2e"). Set ALLOW_DESTRUCTIVE_SEED=1 to run it anyway.`,
+  );
+}
+
+/** Replaces all stories and saves with the fixture ones and resets every source to freshly fetched and closed. */
 export async function seedE2e(prisma: PrismaClient, now = new Date()) {
   await seedSources(prisma);
   // Leftovers (e.g. from integration tests sharing the CI database) would break the exact counts specs rely on.
-  await prisma.story.deleteMany();
+  // Saves go first: they restrict deleting their story.
+  await prisma.$transaction([prisma.save.deleteMany(), prisma.story.deleteMany()]);
   for (const seed of buildStorySeeds(now)) await seedStory(prisma, seed);
-  await prisma.source.updateMany({ data: { lastSuccessAt: now, consecutiveFailures: 0 } });
+  await prisma.source.updateMany({
+    data: { lastSuccessAt: now, consecutiveFailures: 0, circuitOpenUntil: null },
+  });
 }
 
 async function main() {
+  const env = loadEnv();
+  assertDestructiveSeedAllowed(env.DATABASE_URL, env.ALLOW_DESTRUCTIVE_SEED);
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: loadEnv().DATABASE_URL }),
+    adapter: new PrismaPg({ connectionString: env.DATABASE_URL }),
   });
   try {
     await seedE2e(prisma);

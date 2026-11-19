@@ -1,21 +1,28 @@
 import { z } from 'zod';
+import {
+  FEED_LIST_MAX,
+  FEED_QUERY_MAX,
+  FEED_QUERY_MIN,
+  FEED_SORTS,
+  FEED_SOURCE_SLUG_MAX,
+} from './feedLimits.js';
 import { PaginationQuerySchema } from './pagination.js';
 import { SourceKindSchema, StoryCardSchema, TagSlugSchema } from './story.js';
 
-/** A comma-separated query value, parsed to a list of at most 20 items. */
+/** A comma-separated query value, parsed to a list of at most `FEED_LIST_MAX` items. */
 const csv = <T extends z.ZodTypeAny>(item: T) =>
   z
     .string()
     .transform((value) => value.split(',').filter(Boolean))
-    .pipe(z.array(item).max(20))
+    .pipe(z.array(item).max(FEED_LIST_MAX))
     .describe('Comma-separated list');
 
 export const FeedQuerySchema = PaginationQuerySchema.extend({
-  sort: z.enum(['top', 'latest']).default('top'),
+  sort: z.enum(FEED_SORTS).default('top'),
   tags: csv(TagSlugSchema).optional(),
   kinds: csv(SourceKindSchema).optional(),
-  sources: csv(z.string().max(64)).optional(),
-  q: z.string().trim().min(2).max(100).optional(),
+  sources: csv(z.string().max(FEED_SOURCE_SLUG_MAX)).optional(),
+  q: z.string().trim().min(FEED_QUERY_MIN).max(FEED_QUERY_MAX).optional(),
 });
 export type FeedQuery = z.infer<typeof FeedQuerySchema>;
 

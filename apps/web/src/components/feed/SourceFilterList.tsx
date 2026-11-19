@@ -21,20 +21,23 @@ export function SourceFilterList() {
 
   return (
     <fieldset className="min-w-0">
-      <legend className="text-muted-foreground px-2 pb-1 text-[11px] font-medium tracking-wide uppercase">
+      <legend className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
         Sources
       </legend>
       {FILTER_KINDS.map((kind) => {
         const health = data ? kindHealth(data.sources, kind) : null;
         return (
-          <label
+          <div
             key={kind}
-            className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1"
+            data-kind={kind}
+            className="hover:bg-accent flex items-center gap-2 rounded-md px-2 py-1"
           >
-            <Checkbox checked={filters.kinds.includes(kind)} onChange={() => toggleKind(kind)} />
-            <span className="flex-1 truncate">{SOURCE_KIND_LABELS[kind]}</span>
+            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+              <Checkbox checked={filters.kinds.includes(kind)} onChange={() => toggleKind(kind)} />
+              <span className="flex-1 truncate">{SOURCE_KIND_LABELS[kind]}</span>
+            </label>
             {health && <HealthDot status={health.status} tooltip={tooltipFor(health)} />}
-          </label>
+          </div>
         );
       })}
     </fieldset>

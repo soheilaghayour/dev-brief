@@ -10,6 +10,11 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+  /** Lets `db:seed:e2e` wipe a database whose name does not mark it as a test one. */
+  ALLOW_DESTRUCTIVE_SEED: z
+    .enum(['0', '1'])
+    .default('0')
+    .transform((value) => value === '1'),
   APP_VERSION: z.string().min(1).default('dev'),
 });
 

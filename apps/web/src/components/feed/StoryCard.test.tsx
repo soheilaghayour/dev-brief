@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { StoryCard } from './StoryCard';
 
@@ -100,5 +100,17 @@ describe('StoryCard', () => {
       <StoryCard story={STORY} isSaved={false} onToggleSave={() => {}} isActive />,
     );
     expect(html).toContain('data-active="true"');
+  });
+
+  it('keys two items of the same source apart, as an HN repost produces', () => {
+    const [hn] = STORY.sources;
+    if (!hn) throw new Error('fixture has sources');
+    const repost = { ...hn, itemUrl: 'https://news.ycombinator.com/item?id=2' };
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render({ ...STORY, sources: [hn, repost] });
+
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 });

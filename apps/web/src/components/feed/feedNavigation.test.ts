@@ -6,6 +6,7 @@ import {
   flattenPages,
   focusableId,
   isEnterOnInteractiveElement,
+  isHttpUrl,
   moveActiveId,
 } from './feedNavigation';
 
@@ -109,5 +110,15 @@ describe('isEnterOnInteractiveElement', () => {
   it('is false on the page body or for other keys', () => {
     expect(isEnterOnInteractiveElement('Enter', document.body)).toBe(false);
     expect(isEnterOnInteractiveElement('o', document.createElement('a'))).toBe(false);
+  });
+});
+
+describe('isHttpUrl', () => {
+  it('accepts http and https URLs only', () => {
+    expect(isHttpUrl('https://example.com/a')).toBe(true);
+    expect(isHttpUrl('HTTP://example.com')).toBe(true);
+    expect(isHttpUrl('javascript:alert(1)')).toBe(false);
+    expect(isHttpUrl('data:text/html,x')).toBe(false);
+    expect(isHttpUrl('/relative')).toBe(false);
   });
 });

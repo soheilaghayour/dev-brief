@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FEED_QUERY_MAX } from '@devbrief/shared';
 import {
   countActiveFilters,
   hasActiveFilters,
@@ -42,6 +43,10 @@ describe('toFeedFilters', () => {
     });
   });
 
+  it('caps the search at the contract maximum so the API never answers 400', () => {
+    expect(toFeedFilters({ ...NONE, q: 'x'.repeat(150) }).q).toHaveLength(FEED_QUERY_MAX);
+  });
+
   it('trims the search text', () => {
     expect(toFeedFilters({ ...NONE, q: '  bun runtime ' }).q).toBe('bun runtime');
   });
@@ -71,6 +76,10 @@ describe('filter counts', () => {
   it('treats a search as an active filter', () => {
     expect(hasActiveFilters({ ...NONE, q: 'bun' })).toBe(true);
     expect(hasActiveFilters({ ...NONE })).toBe(false);
+  });
+
+  it('does not count a 1-character search, which is never sent', () => {
+    expect(hasActiveFilters({ ...NONE, q: 'b' })).toBe(false);
   });
 });
 

@@ -13,7 +13,7 @@ async function openFeed(page: Page, search = '') {
 }
 
 async function cardTitles(page: Page) {
-  return cards(page).locator('h3 a').allTextContents();
+  return cards(page).locator('h2 a').allTextContents();
 }
 
 test('AC-1.3.1 the first 20 cards are in the server-rendered HTML', async ({ page }) => {
@@ -232,8 +232,8 @@ test('AC-1.3.11 the sidebar lists tags with 7-day counts and sources with health
   await openFeed(page);
   const sidebar = page.getByRole('complementary');
   await expect(sidebar.getByRole('checkbox', { name: /^React\b.*\d+$/ })).toBeVisible();
-  for (const name of ['Hacker News', 'Dev.to', 'Blogs']) {
-    const row = sidebar.locator('label', { hasText: name });
+  for (const kind of ['hn', 'devto', 'rss']) {
+    const row = sidebar.locator(`[data-kind="${kind}"]`);
     await expect(row.locator('[data-status="healthy"]')).toHaveAttribute('title', /^Last updated /);
   }
 });
