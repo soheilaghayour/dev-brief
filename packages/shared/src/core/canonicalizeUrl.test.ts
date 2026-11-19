@@ -51,7 +51,7 @@ describe('canonicalizeUrl', () => {
     expect(canonicalizeUrl('  https://example.com/post  ')).toBe('https://example.com/post');
   });
 
-  it('AC-1.2.4 canonicalises two variants of one article URL equal', () => {
+  it('canonicalises two variants of one article URL equal', () => {
     expect(canonicalizeUrl('https://www.Example.com/post/?utm_source=x#top')).toBe(
       canonicalizeUrl('https://example.com/post'),
     );
@@ -60,6 +60,11 @@ describe('canonicalizeUrl', () => {
   it('is idempotent', () => {
     const once = canonicalizeUrl('https://www.Example.com/a/?b=1&utm_x=2&a=3#f');
     expect(canonicalizeUrl(once)).toBe(once);
+  });
+
+  it('throws on a URL that is not http(s)', () => {
+    expect(() => canonicalizeUrl('mailto:a@b.com')).toThrow();
+    expect(() => canonicalizeUrl('javascript:alert(1)')).toThrow();
   });
 
   it('throws on a string that is not a URL', () => {

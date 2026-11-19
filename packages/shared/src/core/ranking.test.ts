@@ -10,7 +10,6 @@ import {
   percentile,
   rankScore,
   storyPercentile,
-  type SourceKind,
 } from './ranking.js';
 
 const NOW = new Date('2026-06-01T12:00:00Z');
@@ -149,7 +148,7 @@ describe('rankScore', () => {
         percentile: p,
         publishedAt: hoursAgo(hours),
         now: NOW,
-        sourceKinds: kinds as readonly SourceKind[],
+        sourceKinds: kinds,
       });
       expect(Math.abs(score - expected)).toBeLessThan(0.01);
     },

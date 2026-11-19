@@ -12,6 +12,9 @@ function compare(a: string, b: string) {
 /** Returns the identity of a URL: tracking params, `www.`, trailing slash and fragment removed, host lowercased, query sorted. */
 export function canonicalizeUrl(rawUrl: string) {
   const url = new URL(rawUrl.trim());
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new TypeError(`Not an http(s) URL: ${rawUrl}`);
+  }
 
   const params = [...url.searchParams].filter(([name]) => !isTrackingParam(name));
   // Sorting by value too gives repeated keys (`a=2&a=1`) one fixed order.
