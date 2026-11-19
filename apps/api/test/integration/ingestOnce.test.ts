@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HttpClient } from '../../src/common/http/httpClient.js';
 import { IngestOnceModule, runIngestOnce } from '../../src/cli/ingestOnce.module.js';
 import { HnAdapter } from '../../src/modules/ingestion/adapters/hn.adapter.js';
+import { RankingService } from '../../src/modules/ranking/ranking.service.js';
 import { SOURCE_ADAPTERS } from '../../src/modules/ingestion/sourceAdapter.js';
 import { hnFixtureFetch } from '../hnFixtureFetch.js';
 import { useTestDatabase } from './testDatabase.js';
@@ -24,11 +25,13 @@ describe('ingest:once CLI', () => {
       .useValue([new HnAdapter(new HttpClient(hnFixtureFetch(), () => 0))])
       .compile();
 
+    const recompute = vi.spyOn(app.get(RankingService), 'recompute');
+
     const status = await runIngestOnce(app);
     await app.close();
 
     expect(status).toBe('success');
     expect(await prisma.sourceItem.count()).toBe(95);
-    expect(await prisma.story.count({ where: { rankedAt: null } })).toBe(0);
+    expect(recompute).toHaveBeenCalledOnce();
   });
 });

@@ -220,6 +220,8 @@ describe('rank recompute and daily job', () => {
   });
 
   it('AC-1.7.3 drops a tag-day row whose only story lost the tag', async () => {
+    await prisma.story.deleteMany();
+    await prisma.tagDailyStat.deleteMany();
     const source = await createSource(prisma, 'ghost-hn', 'hn');
     const story = await addStory(
       'ghost',
@@ -245,6 +247,8 @@ describe('rank recompute and daily job', () => {
     const previousZone = process.env.TZ;
     process.env.TZ = 'Europe/Berlin';
     try {
+      await prisma.story.deleteMany();
+      await prisma.tagDailyStat.deleteMany();
       const source = await createSource(prisma, 'tz-hn', 'hn');
       await addStory('tz', new Date('2026-03-09T23:30:00Z'), [{ sourceId: source.id }], ['rust']);
       const app = await createApp();
