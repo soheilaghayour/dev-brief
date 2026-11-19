@@ -174,8 +174,6 @@ banner "DevBrief production setup"
 stage "Domain"
 say "DevBrief needs one domain; the web app and the API share it."
 step "Buy or pick a domain at any registrar (PRD O2: not chosen yet)."
-DOMAIN=$(_existing APP_URL || true); DOMAIN=${DOMAIN#https://}
-[[ -n "$DOMAIN" ]] && write_env DOMAIN "$DOMAIN"
 ask DOMAIN "Domain, without https:// (for example devbrief.example):"
 DOMAIN=${DOMAIN#http*://}; DOMAIN=${DOMAIN%/}
 write_env DOMAIN "$DOMAIN"
