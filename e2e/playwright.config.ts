@@ -9,7 +9,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
-  use: { baseURL: WEB_URL, trace: 'retain-on-failure' },
+  use: {
+    baseURL: WEB_URL,
+    trace: 'retain-on-failure',
+    // Browser calls skip the per-IP rate limit like the web server's own: one test run is one "visitor".
+    extraHTTPHeaders: { 'x-internal-token': process.env.INTERNAL_API_TOKEN ?? '' },
+  },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
