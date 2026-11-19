@@ -59,6 +59,11 @@ links to them instead of restating them.
 - **The shortcut registry treats a sequence's first key as pending for 1 s.** A plain single-key shortcut does not run in that window, so `g` then `s` (go to Saved) never also fires `s` (save).
 - **The rank recompute loads the 7-day window into memory and writes it in transactions of 500 updates through Prisma.** About 3k stories plus their items fit comfortably; raw bulk SQL would break the rule that only the feed query uses `$queryRaw`.
 - **The daily `TagDailyStat` window is today plus the two UTC days before it, and a story counts once per tag on its UTC publish day.** [AC-1.7.3](docs/prd.md#f17-platform) says "last 3 UTC days" without saying whether today counts; including it lets `count7d` in `GET /tags`, which sums the 7 UTC days ending today, count today's stories. Today's row stays partial until the next run.
+- **The `(app)` routes render per request (`dynamic = 'force-dynamic'`), and `NuqsAdapter` lives in their layout, not the root layout.** nuqs reads the search params on every render, which a prerendered page cannot supply and the landing page must not pay for ([§7.2](docs/prd.md#72-routes-and-views): feed and story are SSR, saved is personal).
+- **`next start` rewrites `/api/*` to the API like `next dev`.** Playwright runs the built app without the production proxy; behind the real proxy the rewrite is never reached.
+- **Web code loads `lib/api/endpoints` on first use (`import()` inside the query functions) and `@devbrief/shared` is `sideEffects: false`.** Together they keep Zod and every contract out of first-load JS; `/feed` still exceeds its 170 KB budget (P1-10 reports the size), because the shell alone was at 170.8 KB before the feed existed.
+- **The search, sort and filter slots render on `/feed` only, and the mobile "Filters (n)" bar is a slot of the shell.** On Saved and Story they would edit URL params that page does not read.
+- **The e2e seed sets every source's `lastSuccessAt` to now and uses fixed story ids.** Health dots and `focus` deep links are then deterministic; it lives in `apps/api/prisma/seedE2e.ts` and CI runs it before Playwright.
 
 ## Open PM questions
 

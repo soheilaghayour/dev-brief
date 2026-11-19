@@ -1,5 +1,5 @@
 import { createLoader, parseAsArrayOf, parseAsString, parseAsStringLiteral } from 'nuqs/server';
-import { SourceKindSchema, TagSlugSchema } from '@devbrief/shared';
+import { SOURCE_KINDS, TAG_SLUGS } from '@devbrief/shared';
 import type { FeedQuery, SourceKind, TagSlug } from '@devbrief/shared';
 
 /** The URL is the only source of truth for filters; defaults are omitted from it. */
@@ -38,22 +38,16 @@ function unique<T>(values: T[]) {
   return [...new Set(values)].slice(0, MAX_LIST_LENGTH);
 }
 
+function isOneOf<T extends string>(allowed: readonly T[], value: string): value is T {
+  return (allowed as readonly string[]).includes(value);
+}
+
 /** Drops URL values the API would reject, so a hand-edited URL never produces a 400. */
 export function toFeedFilters(raw: RawFeedFilters): FeedFilters {
   return {
     sort: raw.sort,
-    tags: unique(
-      raw.tags.flatMap((tag) => {
-        const parsed = TagSlugSchema.safeParse(tag);
-        return parsed.success ? [parsed.data] : [];
-      }),
-    ),
-    kinds: unique(
-      raw.kinds.flatMap((kind) => {
-        const parsed = SourceKindSchema.safeParse(kind);
-        return parsed.success ? [parsed.data] : [];
-      }),
-    ),
+    tags: unique(raw.tags.filter((tag) => isOneOf(TAG_SLUGS, tag))),
+    kinds: unique(raw.kinds.filter((kind) => isOneOf(SOURCE_KINDS, kind))),
     sources: unique(raw.sources.filter((slug) => slug.length <= MAX_SOURCE_SLUG_LENGTH)),
     q: raw.q.trim(),
   };
