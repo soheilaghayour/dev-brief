@@ -1,11 +1,11 @@
 const MS_PER_DAY = 86_400_000;
 
-export const TAG_STAT_DAYS = 3;
-export const STORY_RETENTION_DAYS = 90;
-export const INGESTION_RUN_RETENTION_DAYS = 30;
+const TAG_STAT_DAYS = 3;
+const STORY_RETENTION_DAYS = 90;
+const INGESTION_RUN_RETENTION_DAYS = 30;
 export const PURGE_BATCH_SIZE = 1000;
 
-export function startOfUtcDay(date: Date) {
+function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
@@ -40,7 +40,7 @@ export interface TagStatRow {
 }
 
 /** Aggregates Stories into one row per (UTC publish day, tag), from scratch so reruns give the same rows. */
-export function aggregateTagStats(stories: readonly TagStatStory[]): TagStatRow[] {
+export function aggregateTagStats(stories: readonly TagStatStory[]) {
   const sums = new Map<string, TagStatRow & { percentileSum: number }>();
   for (const story of stories) {
     const day = startOfUtcDay(story.publishedAt);

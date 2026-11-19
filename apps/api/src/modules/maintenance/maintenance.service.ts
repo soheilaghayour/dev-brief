@@ -25,19 +25,40 @@ export class MaintenanceService {
     }
   }
 
+  /** Runs the steps in order; a failing step is logged and does not skip the ones after it. */
   async runDaily(now: Date) {
-    await this.upsertTagDailyStats(now);
-    await this.purgeStories(now);
-    await this.prisma.ingestionRun.deleteMany({
-      where: { startedAt: { lt: ingestionRunCutoff(now) } },
-    });
-    await this.prisma.session.deleteMany({ where: { expiresAt: { lt: now } } });
-    await this.prisma.verification.deleteMany({ where: { expiresAt: { lt: now } } });
+    const steps = [
+      ['tag rollup', () => this.recomputeTagDailyStats(now)],
+      ['story purge', () => this.purgeStories(now)],
+      [
+        'ingestion run purge',
+        () =>
+          this.prisma.ingestionRun.deleteMany({
+            where: { startedAt: { lt: ingestionRunCutoff(now) } },
+          }),
+      ],
+      [
+        'session purge',
+        () => this.prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+      ],
+      [
+        'verification purge',
+        () => this.prisma.verification.deleteMany({ where: { expiresAt: { lt: now } } }),
+      ],
+    ] as const;
+    for (const [name, step] of steps) {
+      try {
+        await step();
+      } catch (error) {
+        this.logger.error(`Daily step "${name}" failed: ${String(error)}`);
+      }
+    }
   }
 
-  private async upsertTagDailyStats(now: Date) {
+  private async recomputeTagDailyStats(now: Date) {
+    const windowStart = tagStatWindowStart(now);
     const stories = await this.prisma.story.findMany({
-      where: { publishedAt: { gte: tagStatWindowStart(now), lte: now } },
+      where: { publishedAt: { gte: windowStart, lte: now } },
       select: {
         publishedAt: true,
         tags: true,
@@ -51,15 +72,11 @@ export class MaintenanceService {
         itemEngagements: items.map((item) => item.engagement),
       })),
     );
-    await this.prisma.$transaction(
-      rows.map(({ day, tag, ...values }) =>
-        this.prisma.tagDailyStat.upsert({
-          where: { day_tag: { day, tag } },
-          create: { day, tag, ...values },
-          update: values,
-        }),
-      ),
-    );
+    // Replaced, not upserted: a (day, tag) whose stories moved day or lost the tag must disappear.
+    await this.prisma.$transaction([
+      this.prisma.tagDailyStat.deleteMany({ where: { day: { gte: windowStart } } }),
+      this.prisma.tagDailyStat.createMany({ data: rows }),
+    ]);
   }
 
   // Stories with a Save are skipped: Save.storyId is onDelete Restrict, and saved stories outlive retention.
@@ -71,7 +88,10 @@ export class MaintenanceService {
         take: PURGE_BATCH_SIZE,
       });
       if (batch.length === 0) return;
-      await this.prisma.story.deleteMany({ where: { id: { in: batch.map(({ id }) => id) } } });
+      await this.prisma.story.deleteMany({
+        // Repeats the Save guard: a Save may land between the lookup and the delete.
+        where: { id: { in: batch.map(({ id }) => id) }, saves: { none: {} } },
+      });
     }
   }
 }
