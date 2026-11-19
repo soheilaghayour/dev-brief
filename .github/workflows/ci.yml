@@ -32,6 +32,11 @@ jobs:
       INTERNAL_API_TOKEN: ci-internal-token-0123
       DATABASE_URL: postgresql://devbrief:devbrief@localhost:5432/devbrief
       DATABASE_URL_TEST: postgresql://devbrief:devbrief@localhost:5432/devbrief
+      BETTER_AUTH_SECRET: ci-better-auth-secret-0123456789abcdef
+      GITHUB_CLIENT_ID: ci-github-client-id
+      GITHUB_CLIENT_SECRET: ci-github-client-secret
+      GOOGLE_CLIENT_ID: ci-google-client-id
+      GOOGLE_CLIENT_SECRET: ci-google-client-secret
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

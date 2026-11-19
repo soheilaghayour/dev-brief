@@ -161,7 +161,7 @@ a category name like `common/` is its specific name.
 14. **Keyset pagination needs a tiebreaker.** Every order ends with `id desc`; the cursor encodes its sort, and a cursor from another sort gives 400 `INVALID_CURSOR`.
 15. **Every non-GET checks `Origin`.** A request without `Origin: APP_URL` gets 403 `FORBIDDEN_ORIGIN` (AC-1.5.9), so integration tests that mutate send that header.
 16. **Better Auth needs the raw body.** Mount `/api/auth` with `toNodeHandler(auth)` before Nest's JSON parser: create the app with `bodyParser: false` (§4.2).
-17. **The test sign-in route exists only with `AUTH_TEST_MODE=true`,** and env validation rejects that flag when `NODE_ENV=production`.
+17. **The test sign-in route exists only with `AUTH_TEST_MODE=true`,** and env validation rejects that flag when `NODE_ENV=production` or `APP_URL` is not a loopback host.
 18. **Guest → account merge is idempotent.** Repeating `POST /me/merge` creates no rows, duplicates keep the earliest `savedAt`, and a failed merge keeps local data and retries on next load (AC-1.5.5, AC-1.5.6).
 19. **Prisma 7 moved the connection URL.** It lives in `prisma.config.ts`, and the client uses `@prisma/adapter-pg`.
 20. **`searchVector` is a generated column Prisma can't express.** Its migration is hand-edited after `--create-only`; a following `prisma migrate dev` reports no drift, and no code writes the column (§5.2).

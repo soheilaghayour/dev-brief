@@ -478,7 +478,7 @@ flowchart LR
 ```
 
 **Key properties**
-- **One origin.** The proxy routes `/api/*` to `api` and everything else to `web`. Cookies are first-party and there is no CORS. Locally, `next.config.ts` rewrites `/api/:path*` to `http://localhost:3001/api/:path*` (dev only) to mimic the proxy.
+- **One origin.** The proxy routes `/api/*` to `api` and everything else to `web`. Cookies are first-party and there is no CORS. Locally, `next.config.ts` rewrites `/api/:path*` to `http://localhost:3001/api/:path*` (dev and the CI e2e build only, when `API_PROXY_URL` is set) to mimic the proxy.
 - **One always-on API process** serves REST, the auth handler, SSE and cron jobs. There is no worker, queue or Redis. Rate-limit counters that must survive restarts live in Postgres. Short-window throttling is in-memory, which is fine for a single instance.
 - **Three containers:** `web` (Next.js `output: "standalone"`), `api` (NestJS on Node LTS) and `postgres` (Coolify-managed, current stable major, pinned).
 - **VPS:** the smallest Hetzner shared-vCPU plan with ≥ 4 GB RAM, about €4–6 per month.

@@ -5,6 +5,11 @@ const validEnv = {
   APP_URL: 'http://localhost:3000',
   DATABASE_URL: 'postgresql://devbrief:devbrief@localhost:5432/devbrief',
   INTERNAL_API_TOKEN: 'local-internal-token',
+  BETTER_AUTH_SECRET: 'local-dev-better-auth-secret-0123456789',
+  GITHUB_CLIENT_ID: 'github-id',
+  GITHUB_CLIENT_SECRET: 'github-secret',
+  GOOGLE_CLIENT_ID: 'google-id',
+  GOOGLE_CLIENT_SECRET: 'google-secret',
 };
 
 describe('loadEnv', () => {
@@ -28,5 +33,41 @@ describe('loadEnv', () => {
 
   it('rejects an invalid value', () => {
     expect(() => loadEnv({ ...validEnv, NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
+  });
+
+  it('requires the Better Auth secret and both OAuth credentials', () => {
+    expect(() => loadEnv({ ...validEnv, BETTER_AUTH_SECRET: 'short' })).toThrow(
+      /BETTER_AUTH_SECRET/,
+    );
+    expect(() => loadEnv({ ...validEnv, GITHUB_CLIENT_ID: undefined })).toThrow(/GITHUB_CLIENT_ID/);
+    expect(() => loadEnv({ ...validEnv, GOOGLE_CLIENT_SECRET: undefined })).toThrow(
+      /GOOGLE_CLIENT_SECRET/,
+    );
+  });
+
+  it('accepts AUTH_TEST_MODE=true on a loopback APP_URL and defaults it to false', () => {
+    expect(loadEnv(validEnv).AUTH_TEST_MODE).toBe(false);
+    for (const APP_URL of ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
+      expect(loadEnv({ ...validEnv, APP_URL, AUTH_TEST_MODE: 'true' }).AUTH_TEST_MODE).toBe(true);
+    }
+  });
+
+  it('rejects AUTH_TEST_MODE=true on a public APP_URL, whatever NODE_ENV says', () => {
+    const publicTestMode = { ...validEnv, APP_URL: 'https://devbrief.dev', AUTH_TEST_MODE: 'true' };
+    expect(() => loadEnv(publicTestMode)).toThrow(/AUTH_TEST_MODE: may be true only/);
+    for (const NODE_ENV of ['development', 'test', 'production']) {
+      expect(() => loadEnv({ ...publicTestMode, NODE_ENV })).toThrow(/AUTH_TEST_MODE/);
+    }
+    // A host that only starts with "localhost" is not loopback.
+    expect(() => loadEnv({ ...publicTestMode, APP_URL: 'https://localhost.devbrief.dev' })).toThrow(
+      /AUTH_TEST_MODE/,
+    );
+  });
+
+  it('rejects AUTH_TEST_MODE=true when NODE_ENV is production', () => {
+    expect(() => loadEnv({ ...validEnv, NODE_ENV: 'production', AUTH_TEST_MODE: 'true' })).toThrow(
+      /AUTH_TEST_MODE/,
+    );
+    expect(loadEnv({ ...validEnv, NODE_ENV: 'production' }).AUTH_TEST_MODE).toBe(false);
   });
 });
