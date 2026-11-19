@@ -98,6 +98,7 @@ async function seedStory(prisma: PrismaClient, seed: StorySeed) {
     const itemFields = {
       storyId: story.id,
       url,
+      canonicalUrl: url,
       discussionUrl: isDiscussion ? `https://${source.slug}.example.com/${slug}` : null,
       title: seed.title,
       author: 'e2e-author',
