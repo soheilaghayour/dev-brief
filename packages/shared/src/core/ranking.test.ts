@@ -10,6 +10,7 @@ import {
   percentile,
   rankScore,
   storyPercentile,
+  topWindowStart,
 } from './ranking.js';
 
 const NOW = new Date('2026-06-01T12:00:00Z');
@@ -182,6 +183,14 @@ describe('rankScore', () => {
     const input = { percentile: 0.7, now: NOW, sourceKinds: ['hn'] as const };
     expect(rankScore({ ...input, publishedAt: hoursAgo(1) })).toBeGreaterThan(
       rankScore({ ...input, publishedAt: hoursAgo(30) }),
+    );
+  });
+});
+
+describe('topWindowStart', () => {
+  it('is seven days before now', () => {
+    expect(topWindowStart(new Date('2026-06-08T00:00:00Z')).toISOString()).toBe(
+      '2026-06-01T00:00:00.000Z',
     );
   });
 });

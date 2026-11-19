@@ -8,6 +8,12 @@ export const TOP_WINDOW_DAYS = 7;
 export const MIN_SAMPLE = 10;
 
 const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+
+/** The oldest `publishedAt` the Top sort shows; the rank recompute scores the same window. */
+export function topWindowStart(now: Date) {
+  return new Date(now.getTime() - TOP_WINDOW_DAYS * MS_PER_DAY);
+}
 
 interface ItemCounts {
   kind: SourceKind;

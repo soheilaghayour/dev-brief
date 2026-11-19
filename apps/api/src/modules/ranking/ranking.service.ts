@@ -1,22 +1,21 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
-import { TOP_WINDOW_DAYS } from '@devbrief/shared';
+import { topWindowStart } from '@devbrief/shared';
 import { LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { IngestionPostRunSteps, type IngestionPostRunStep } from '../ingestion/postRunStep.js';
 import { planRankUpdates, type RankItem } from './rankPlan.js';
 
-const MS_PER_DAY = 86_400_000;
 const WRITE_BATCH_SIZE = 500;
 
-type LoadedItem = Prisma.SourceItemGetPayload<{ include: { source: true } }>;
+const itemWithSource = { source: { select: { kind: true, baselinePercentile: true } } };
+type LoadedItem = Prisma.SourceItemGetPayload<{ include: typeof itemWithSource }>;
 
 function toRankItem(item: LoadedItem): RankItem {
   return {
     id: item.id,
     kind: item.source.kind,
     baselinePercentile: item.source.baselinePercentile,
-    publishedAt: item.publishedAt,
     points: item.points,
     commentsCount: item.commentsCount,
     reactionsCount: item.reactionsCount,
@@ -40,20 +39,31 @@ export class RankingService implements IngestionPostRunStep, OnModuleInit {
   }
 
   async run({ now }: { now: Date }) {
-    await this.recompute(now);
-    this.cache.clear();
+    try {
+      await this.recompute(now);
+    } finally {
+      // Batches commit one by one, so a partial failure still changed scores readers may cache.
+      this.cache.clear();
+    }
   }
 
-  /** Scores the Stories published in the last TOP_WINDOW_DAYS; older Stories keep their last score. */
+  /** Scores the Stories published in the Top window; older Stories keep their last score. */
   async recompute(now: Date) {
-    const since = new Date(now.getTime() - TOP_WINDOW_DAYS * MS_PER_DAY);
+    const since = topWindowStart(now);
     const windowStories = await this.prisma.story.findMany({
       where: { publishedAt: { gte: since } },
-      select: { id: true, publishedAt: true, items: { include: { source: true } } },
+      select: {
+        id: true,
+        publishedAt: true,
+        engagementPercentile: true,
+        rankScore: true,
+        rankedAt: true,
+        items: { include: itemWithSource },
+      },
     });
     const populationItems = await this.prisma.sourceItem.findMany({
       where: { publishedAt: { gte: since } },
-      include: { source: true },
+      include: itemWithSource,
     });
 
     const plan = planRankUpdates({
@@ -62,13 +72,31 @@ export class RankingService implements IngestionPostRunStep, OnModuleInit {
       now,
     });
 
+    const currentItems = new Map(
+      windowStories.flatMap((story) => story.items).map((item) => [item.id, item]),
+    );
+    const currentStories = new Map(windowStories.map((story) => [story.id, story]));
     const updates = [
-      ...plan.items.map(({ id, engagement, percentile }) =>
-        this.prisma.sourceItem.update({ where: { id }, data: { engagement, percentile } }),
-      ),
-      ...plan.stories.map(({ id, ...scores }) =>
-        this.prisma.story.update({ where: { id }, data: { ...scores, rankedAt: now } }),
-      ),
+      ...plan.items
+        .filter(({ id, engagement, percentile }) => {
+          const current = currentItems.get(id);
+          return current?.engagement !== engagement || current.percentile !== percentile;
+        })
+        .map(({ id, engagement, percentile }) =>
+          this.prisma.sourceItem.update({ where: { id }, data: { engagement, percentile } }),
+        ),
+      ...plan.stories
+        .filter(({ id, engagementPercentile, rankScore }) => {
+          const current = currentStories.get(id);
+          return (
+            current?.rankedAt === null ||
+            current?.engagementPercentile !== engagementPercentile ||
+            current.rankScore !== rankScore
+          );
+        })
+        .map(({ id, ...scores }) =>
+          this.prisma.story.update({ where: { id }, data: { ...scores, rankedAt: now } }),
+        ),
     ];
     for (let start = 0; start < updates.length; start += WRITE_BATCH_SIZE) {
       await this.prisma.$transaction(updates.slice(start, start + WRITE_BATCH_SIZE));

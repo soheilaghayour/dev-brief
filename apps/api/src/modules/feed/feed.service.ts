@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { encodeCursor, type FeedPage, type FeedQuery } from '@devbrief/shared';
+import { encodeCursor, topWindowStart, type FeedPage, type FeedQuery } from '@devbrief/shared';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
-import { feedCacheKey, parseKeyset, topWindowStart, type Keyset } from './feedQuery.js';
+import { feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
 
 type PageRow = { id: string; publishedAt: Date; rankScore: number };
 

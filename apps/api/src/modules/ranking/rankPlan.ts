@@ -10,7 +10,6 @@ export interface RankItem {
   id: string;
   kind: SourceKind;
   baselinePercentile: number | null;
-  publishedAt: Date;
   points: number | null;
   commentsCount: number | null;
   reactionsCount: number | null;

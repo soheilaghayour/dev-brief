@@ -10,7 +10,6 @@ function item(id: string, overrides: Partial<RankItem> = {}): RankItem {
     id,
     kind: 'hn',
     baselinePercentile: null,
-    publishedAt: PUBLISHED,
     points: 0,
     commentsCount: null,
     reactionsCount: null,
