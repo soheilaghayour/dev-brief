@@ -43,6 +43,9 @@ links to them instead of restating them.
 - **`POST /stories/lookup` drops repeated ids, keeping the first occurrence.** Order is the input order; a card twice in the result would only be noise.
 - **Top keyset cursors are not snapshot-stable across a rank recompute.** A story whose score moves past the cursor may be skipped or repeated in an open scroll; the client dedups by id (AC-1.3.5) and a reload starts fresh.
 - **Health is never cached and the API version comes from `APP_VERSION` (default `dev`).** A cached health answer would hide an outage.
+- **An RSS adapter hands its etag and Last-Modified to the engine, which stores them on the Source after the run's items are saved.** Saving them at fetch time would let a failed write be hidden by a 304 on the next run, and the feed's items would never arrive.
+- **An RSS item without a title or a usable link is dropped like one without a date; a relative link resolves against the feed URL.** F1.2 names neither case; a Story needs a title and an http(s) URL, and a feed's own address is the only base a relative link has.
+- **A Dev.to 429 without `Retry-After` is retried with the normal backoff; only a `Retry-After` over 30 s aborts the source.** [§8.3](docs/prd.md#83-external-sources-timeouts-retries-circuit-breaking) says "else abort", but a bare 429 carries no wait to honour, and the two retries bound the cost.
 
 - **Geist comes from `next/font/google`, not the `geist` package.** It self-hosts a Latin-only subset with `display: swap` as [§7.1](docs/prd.md#71-design-references-and-system) asks; the package ships every weight and subset unsplit. The build needs network access to fetch the font once.
 - **The shortcuts help dialog loads on first `?`.** The root layout wraps every page, and the landing budget ([§8.5](docs/prd.md#85-performance-budgets)) can't carry Radix Dialog for a dialog most visitors never open.

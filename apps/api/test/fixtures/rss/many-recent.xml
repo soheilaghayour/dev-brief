@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>Many recent</title>
+<link>https://blog.example.com/</link>
+<description>Hand-made</description>
+<item><title>Recent post 0</title><link>https://blog.example.com/posts/0</link><guid>post-0</guid><pubDate>Thu, 19 Nov 2026 20:00:00 GMT</pubDate><description>Post 0</description></item>
+<item><title>Recent post 1</title><link>https://blog.example.com/posts/1</link><guid>post-1</guid><pubDate>Thu, 19 Nov 2026 19:00:00 GMT</pubDate><description>Post 1</description></item>
+<item><title>Recent post 2</title><link>https://blog.example.com/posts/2</link><guid>post-2</guid><pubDate>Thu, 19 Nov 2026 18:00:00 GMT</pubDate><description>Post 2</description></item>
+<item><title>Recent post 3</title><link>https://blog.example.com/posts/3</link><guid>post-3</guid><pubDate>Thu, 19 Nov 2026 17:00:00 GMT</pubDate><description>Post 3</description></item>
+<item><title>Recent post 4</title><link>https://blog.example.com/posts/4</link><guid>post-4</guid><pubDate>Thu, 19 Nov 2026 16:00:00 GMT</pubDate><description>Post 4</description></item>
+<item><title>Recent post 5</title><link>https://blog.example.com/posts/5</link><guid>post-5</guid><pubDate>Thu, 19 Nov 2026 15:00:00 GMT</pubDate><description>Post 5</description></item>
+<item><title>Recent post 6</title><link>https://blog.example.com/posts/6</link><guid>post-6</guid><pubDate>Thu, 19 Nov 2026 14:00:00 GMT</pubDate><description>Post 6</description></item>
+<item><title>Recent post 7</title><link>https://blog.example.com/posts/7</link><guid>post-7</guid><pubDate>Thu, 19 Nov 2026 13:00:00 GMT</pubDate><description>Post 7</description></item>
+<item><title>Recent post 8</title><link>https://blog.example.com/posts/8</link><guid>post-8</guid><pubDate>Thu, 19 Nov 2026 12:00:00 GMT</pubDate><description>Post 8</description></item>
+<item><title>Recent post 9</title><link>https://blog.example.com/posts/9</link><guid>post-9</guid><pubDate>Thu, 19 Nov 2026 11:00:00 GMT</pubDate><description>Post 9</description></item>
+<item><title>Recent post 10</title><link>https://blog.example.com/posts/10</link><guid>post-10</guid><pubDate>Thu, 19 Nov 2026 10:00:00 GMT</pubDate><description>Post 10</description></item>
+<item><title>Recent post 11</title><link>https://blog.example.com/posts/11</link><guid>post-11</guid><pubDate>Thu, 19 Nov 2026 09:00:00 GMT</pubDate><description>Post 11</description></item>
+<item><title>Recent post 12</title><link>https://blog.example.com/posts/12</link><guid>post-12</guid><pubDate>Thu, 19 Nov 2026 08:00:00 GMT</pubDate><description>Post 12</description></item>
+<item><title>Recent post 13</title><link>https://blog.example.com/posts/13</link><guid>post-13</guid><pubDate>Thu, 19 Nov 2026 07:00:00 GMT</pubDate><description>Post 13</description></item>
+<item><title>Recent post 14</title><link>https://blog.example.com/posts/14</link><guid>post-14</guid><pubDate>Thu, 19 Nov 2026 06:00:00 GMT</pubDate><description>Post 14</description></item>
+<item><title>Recent post 15</title><link>https://blog.example.com/posts/15</link><guid>post-15</guid><pubDate>Thu, 19 Nov 2026 05:00:00 GMT</pubDate><description>Post 15</description></item>
+<item><title>Recent post 16</title><link>https://blog.example.com/posts/16</link><guid>post-16</guid><pubDate>Thu, 19 Nov 2026 04:00:00 GMT</pubDate><description>Post 16</description></item>
+<item><title>Recent post 17</title><link>https://blog.example.com/posts/17</link><guid>post-17</guid><pubDate>Thu, 19 Nov 2026 03:00:00 GMT</pubDate><description>Post 17</description></item>
+<item><title>Recent post 18</title><link>https://blog.example.com/posts/18</link><guid>post-18</guid><pubDate>Thu, 19 Nov 2026 02:00:00 GMT</pubDate><description>Post 18</description></item>
+<item><title>Recent post 19</title><link>https://blog.example.com/posts/19</link><guid>post-19</guid><pubDate>Thu, 19 Nov 2026 01:00:00 GMT</pubDate><description>Post 19</description></item>
+<item><title>Recent post 20</title><link>https://blog.example.com/posts/20</link><guid>post-20</guid><pubDate>Thu, 19 Nov 2026 00:00:00 GMT</pubDate><description>Post 20</description></item>
+<item><title>Recent post 21</title><link>https://blog.example.com/posts/21</link><guid>post-21</guid><pubDate>Wed, 18 Nov 2026 23:00:00 GMT</pubDate><description>Post 21</description></item>
+<item><title>Recent post 22</title><link>https://blog.example.com/posts/22</link><guid>post-22</guid><pubDate>Wed, 18 Nov 2026 22:00:00 GMT</pubDate><description>Post 22</description></item>
+<item><title>Recent post 23</title><link>https://blog.example.com/posts/23</link><guid>post-23</guid><pubDate>Wed, 18 Nov 2026 21:00:00 GMT</pubDate><description>Post 23</description></item>
+<item><title>Recent post 24</title><link>https://blog.example.com/posts/24</link><guid>post-24</guid><pubDate>Wed, 18 Nov 2026 20:00:00 GMT</pubDate><description>Post 24</description></item>
+<item><title>Old post</title><link>https://blog.example.com/posts/old</link><guid>post-old</guid><pubDate>Tue, 20 Oct 2026 21:00:00 GMT</pubDate></item>
+</channel>
+</rss>

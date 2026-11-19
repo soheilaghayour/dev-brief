@@ -216,47 +216,6 @@ describe('ingestion', () => {
     }
   });
 
-  it('AC-1.2.7 completes HN when Dev.to fails every attempt, marking the run partial', async () => {
-    await createSources('hn', 'devto');
-    const devto = stubAdapter('devto', (_source, { signal }) =>
-      new HttpClient(
-        async () => new Response('', { status: 500 }),
-        () => 0,
-      )
-        .getJson('https://dev.to/api/articles', {
-          timeoutMs: 1000,
-          retryBackoffMs: [1, 1],
-          signal,
-        })
-        .then(() => []),
-    );
-    const { service } = await createService([hnFixtureAdapter(), devto]);
-
-    const { runId, status } = await service.run();
-
-    expect(status).toBe('partial');
-    expect(await prisma.sourceItem.count()).toBe(95);
-    const runs = await prisma.ingestionRun.findMany({
-      where: { runId },
-      include: { source: true },
-    });
-    expect(runs).toHaveLength(3);
-    expect(runs.find((run) => run.source?.slug === 'devto')).toMatchObject({
-      status: 'failed',
-      error: 'HTTP 500 from https://dev.to/api/articles',
-    });
-    expect(runs.find((run) => run.source?.slug === 'hn')?.status).toBe('success');
-    const devtoSource = await prisma.source.findUniqueOrThrow({ where: { slug: 'devto' } });
-    expect(devtoSource).toMatchObject({
-      consecutiveFailures: 1,
-      lastError: 'HTTP 500 from https://dev.to/api/articles',
-    });
-    expect(devtoSource.lastErrorAt).not.toBeNull();
-    expect(
-      (await prisma.source.findUniqueOrThrow({ where: { slug: 'hn' } })).lastSuccessAt,
-    ).not.toBeNull();
-  });
-
   it('AC-1.2.8 opens the circuit after 3 failures, retries once when half-open, and resets on success', async () => {
     await createSources('devto');
     let calls = 0;

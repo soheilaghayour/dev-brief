@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>Edge cases</title>
+<link>https://blog.example.com/</link>
+<description>Hand-made</description>
+<item><title>Normal post</title><link>https://blog.example.com/posts/normal</link><guid>guid-normal</guid><pubDate>Wed, 18 Nov 2026 21:00:00 GMT</pubDate><category>react</category><category>typescript</category><creator>Ada</creator><description><![CDATA[<p>Hello <b>world</b> &amp; <a href="https://x.test">friends</a></p><script>alert(1)</script>]]></description></item>
+<item><title>No guid post</title><link>https://blog.example.com/posts/no-guid</link><pubDate>Tue, 17 Nov 2026 21:00:00 GMT</pubDate></item>
+<item><title><![CDATA[<b>Bold</b> title &amp; <i>more</i>]]></title><link>/posts/relative-link</link><guid>guid-relative</guid><pubDate>Tue, 17 Nov 2026 21:00:00 GMT</pubDate></item>
+<item><title>Missing date</title><link>https://blog.example.com/posts/missing-date</link><guid>guid-missing-date</guid></item>
+<item><title>Malformed date</title><link>https://blog.example.com/posts/bad-date</link><guid>guid-bad-date</guid><pubDate>sometime last week</pubDate></item>
+<item><title>Old post</title><link>https://blog.example.com/posts/old</link><guid>guid-old</guid><pubDate>Wed, 11 Nov 2026 21:00:00 GMT</pubDate></item>
+<item><title>No link post</title><guid>guid-no-link</guid><pubDate>Wed, 18 Nov 2026 21:00:00 GMT</pubDate></item>
+<item><title>Long description</title><link>https://blog.example.com/posts/long</link><guid>guid-long</guid><pubDate>Thu, 19 Nov 2026 16:00:00 GMT</pubDate><description><![CDATA[<div>Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. Long sentence. </div>]]></description></item>
+</channel>
+</rss>
