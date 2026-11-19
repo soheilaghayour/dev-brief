@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -27,10 +29,17 @@ const EnvSchema = z
       .default('false')
       .transform((value) => value === 'true'),
   })
-  .refine((env) => !(env.AUTH_TEST_MODE && env.NODE_ENV === 'production'), {
-    path: ['AUTH_TEST_MODE'],
-    message: 'must not be true when NODE_ENV is production',
-  });
+  // Fails closed on the public origin too: an unset NODE_ENV defaults to development.
+  .refine(
+    (env) =>
+      !env.AUTH_TEST_MODE ||
+      (env.NODE_ENV !== 'production' && LOOPBACK_HOSTS.has(new URL(env.APP_URL).hostname)),
+    {
+      path: ['AUTH_TEST_MODE'],
+      message:
+        'may be true only outside production with a loopback APP_URL (localhost, 127.0.0.1, ::1)',
+    },
+  );
 
 /** Parses the environment and throws one readable error listing every invalid variable. */
 export function loadEnv(source: Record<string, string | undefined> = process.env) {

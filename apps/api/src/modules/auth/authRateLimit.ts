@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from 'express';
-import { hasInternalToken } from '../../common/rate-limit/rateLimit.guard.js';
 
 export const AUTH_RATE_LIMIT_PER_MINUTE = 10;
 const WINDOW_MS = 60_000;
@@ -7,11 +6,10 @@ const WINDOW_MS = 60_000;
 type Window = { startedAt: number; count: number };
 
 /** Limits all of /api/auth/* to 10 requests per client IP per minute; Nest's throttler never sees this raw middleware. */
-export function createAuthRateLimit(internalToken: string, now: () => number = Date.now) {
+export function createAuthRateLimit(now: () => number = Date.now) {
   const windows = new Map<string, Window>();
 
   return (request: Request, response: Response, next: NextFunction) => {
-    if (hasInternalToken(request, internalToken)) return next();
     const currentTime = now();
     const key = request.ip ?? 'unknown';
     let window = windows.get(key);
@@ -24,12 +22,15 @@ export function createAuthRateLimit(internalToken: string, now: () => number = D
       }
     }
     window.count += 1;
-    if (window.count <= AUTH_RATE_LIMIT_PER_MINUTE) return next();
+    const secondsToReset = String(Math.ceil((window.startedAt + WINDOW_MS - currentTime) / 1000));
+    response.setHeader('RateLimit-Limit', String(AUTH_RATE_LIMIT_PER_MINUTE));
     response.setHeader(
-      'Retry-After',
-      String(Math.ceil((window.startedAt + WINDOW_MS - currentTime) / 1000)),
+      'RateLimit-Remaining',
+      String(Math.max(0, AUTH_RATE_LIMIT_PER_MINUTE - window.count)),
     );
-    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('RateLimit-Reset', secondsToReset);
+    if (window.count <= AUTH_RATE_LIMIT_PER_MINUTE) return next();
+    response.setHeader('Retry-After', secondsToReset);
     response.status(429).json({
       error: {
         code: 'RATE_LIMITED',

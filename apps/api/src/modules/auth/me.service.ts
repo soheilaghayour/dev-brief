@@ -5,9 +5,7 @@ import type { IncomingHttpHeaders } from 'node:http';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { AUTH } from './auth.constants.js';
-import type { Auth } from './auth.js';
-
-const SIGN_IN_PROVIDERS = ['github', 'google'] as const;
+import { SIGN_IN_PROVIDERS, type Auth } from './auth.js';
 
 @Injectable()
 export class MeService {
@@ -35,12 +33,12 @@ export class MeService {
 
   /** Deletes the user (sessions, accounts and saves cascade) and returns the headers that expire the session cookie. */
   async deleteMe(userId: string, requestHeaders: IncomingHttpHeaders) {
-    // Signing out first, because it needs the session that the delete removes.
+    // Deleting first, so a failed delete leaves the user signed in; signOut tolerates the session the cascade removed.
+    await this.prisma.user.delete({ where: { id: userId } });
     const { headers } = await this.auth.api.signOut({
       headers: fromNodeHeaders(requestHeaders),
       returnHeaders: true,
     });
-    await this.prisma.user.delete({ where: { id: userId } });
     return headers;
   }
 }
