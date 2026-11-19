@@ -58,9 +58,7 @@ links to them instead of restating them.
 - **Mobile navigation and mobile filters are two separate sheets, both loaded on first open.** The menu opens a left drawer with the navigation; filters open a bottom sheet (AC-1.3.12), so the filter UI is rendered once per breakpoint and never inside the drawer.
 - **The shortcut registry treats a sequence's first key as pending for 1 s.** A plain single-key shortcut does not run in that window, so `g` then `s` (go to Saved) never also fires `s` (save).
 - **The rank recompute loads the 7-day window into memory and writes it in transactions of 500 updates through Prisma.** About 3k stories plus their items fit comfortably; raw bulk SQL would break the rule that only the feed query uses `$queryRaw`.
-- **The percentile sample is every item published in the trailing 7 days, and the recompute rescoring covers every item of a Story published in that window.** [Appendix B](docs/prd.md#appendix-b--ranking-formula) states the sample per source kind and the Story window separately; an item older than 7 days on a recent Story is ranked against the recent sample.
-- **The daily `TagDailyStat` window is today plus the two UTC days before it, and a story counts once per tag on its UTC publish day.** [AC-1.7.3](docs/prd.md#f17-platform) says "last 3 UTC days" without saying whether today counts; including it keeps the current day's chart point fresh.
-- **The `ingest:once` CLI does not recompute ranks.** The recompute is a post-run step of the API process, which also owns the feed cache it clears; the CLI's module leaves both out.
+- **The daily `TagDailyStat` window is today plus the two UTC days before it, and a story counts once per tag on its UTC publish day.** [AC-1.7.3](docs/prd.md#f17-platform) says "last 3 UTC days" without saying whether today counts; including it lets `count7d` in `GET /tags`, which sums the 7 UTC days ending today, count today's stories. Today's row stays partial until the next run.
 
 ## Open PM questions
 

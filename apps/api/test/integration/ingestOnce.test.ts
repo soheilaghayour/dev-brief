@@ -29,5 +29,6 @@ describe('ingest:once CLI', () => {
 
     expect(status).toBe('success');
     expect(await prisma.sourceItem.count()).toBe(95);
+    expect(await prisma.story.count({ where: { rankedAt: null } })).toBe(0);
   });
 });
