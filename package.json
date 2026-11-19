@@ -8,11 +8,12 @@
     "build": "pnpm -r build",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^5.1.1",
     "concurrently": "^10.0.7",
     "dotenv-cli": "^11.1.0",
     "eslint": "^10.15.0",
