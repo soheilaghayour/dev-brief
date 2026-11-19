@@ -10,6 +10,7 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+  APP_VERSION: z.string().default('dev'),
 });
 
 /** Parses the environment and throws one readable error listing every invalid variable. */
