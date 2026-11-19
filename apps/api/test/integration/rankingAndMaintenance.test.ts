@@ -66,6 +66,7 @@ describe('rank recompute and daily job', () => {
             sourceId,
             externalId: `${slug}-${index}`,
             url,
+            canonicalUrl: url,
             title: slug,
             publishedAt,
             points,
