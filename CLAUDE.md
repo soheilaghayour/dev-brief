@@ -16,7 +16,8 @@ phase flags in `config/features.ts`).
 | the contract (`docs/prd.md`)         | requirements with stable IDs (`F1.3`, `AC-1.3.4`, `P1-08`), architecture, schema, API, budgets                      |
 | `packages/shared/src/contracts`      | the API contract in code: every request/response Zod schema and its inferred type                                   |
 | `DECISIONS.md`                       | judgment calls (a one-sentence bold headline, then its reason), open PM questions, rejected and left-out approaches |
-| `CLAUDE.md`                          | how to work in this repo (`AGENTS.md` only points here)                                                             |
+| `README.md`                          | what the app is and how to run it (P1-01)                                                                           |
+| `CLAUDE.md`                          | how to work in this repo (`AGENTS.md` is a one-line pointer here)                                                   |
 | `docs/architecture.md` (P1-01 stub)  | the system as built, including the AI pipeline                                                                      |
 | `docs/development.md` (P1-01 stub)   | local setup and dev workflows                                                                                       |
 | `docs/operations.md` (P1-01 stub)    | deploy, OAuth app setup, backups and the restore runbook                                                            |
@@ -63,7 +64,7 @@ apps/
     src/common/                 # cross-cutting: http, errors, zod, rate-limit, origin-guard, cache, logging
     src/modules/<resource>/     # one Nest module per resource: health, auth, feed, stories, sources, saves, ingestion, ranking, maintenance; P2/P3 modules per PRD §4.2
     src/modules/ingestion/adapters/  # one adapter per source: hn, devto, rss, github (P2)
-    src/cli/                    # ingest-once.ts; generate-example-briefings.ts (P3)
+    src/cli/                    # ingestOnce.ts; generate-example-briefings.ts (P3)
     test/integration/           # API integration tests (Supertest + real Postgres)
     test/fixtures/              # recorded upstream responses; cluster-pairs.json (P2)
 packages/shared/
@@ -82,10 +83,12 @@ docs/                           # the PRD and the docs in the table above
 
 | What                     | Style                                          | Example                                                 |
 | :----------------------- | :--------------------------------------------- | :------------------------------------------------------ |
-| Folders and files        | kebab-case                                     | `components/feed`, `story-card.tsx`, `canonicalize-url.ts` |
-| Nest files               | `<name>.<role>.ts`                             | `feed.controller.ts`, `feed.service.ts`, `feed.module.ts`, `hn.adapter.ts` |
-| Framework-reserved files | the framework's spelling (already kebab-case)  | `page.tsx`, `layout.tsx`, `opengraph-image.tsx`         |
-| Tests                    | next to the file, same name; API integration in `apps/api/test/integration/` | `canonicalize-url.test.ts`, `test/integration/feed.test.ts` |
+| Folders                  | lowercase / kebab-case                         | `components/ui`, `story-detail`                         |
+| React component files    | PascalCase = the component's name, shadcn/ui included (rename generated files) | `StoryCard.tsx`, `FeedPage.tsx`, `components/ui/Button.tsx` |
+| Other TS files           | camelCase                                      | `canonicalizeUrl.ts`, `briefingPlan.ts`, `ingestOnce.ts` |
+| Nest files               | `<name>.<role>.ts`, camelCase stem             | `feed.controller.ts`, `sourceHealth.service.ts`, `feed.module.ts`, `hn.adapter.ts` |
+| Next.js reserved files   | the framework's required name                  | `page.tsx`, `layout.tsx`, `route.ts`, `not-found.tsx`, `opengraph-image.tsx` |
+| Tests                    | next to the file, same name; API integration in `apps/api/test/integration/` | `canonicalizeUrl.test.ts`, `test/integration/feed.test.ts` |
 | Variables / functions    | camelCase                                      | `canonicalizeUrl`, `storyId`                            |
 | Types / components / Nest classes | PascalCase                            | `FeedPage`, `StoryCard`, `FeedController`               |
 | Zod schemas              | `XxxSchema` + `type Xxx = z.infer<…>`          | `FeedPageSchema` / `FeedPage`                           |

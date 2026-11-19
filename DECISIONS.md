@@ -8,9 +8,8 @@ links to them instead of restating them.
 - **When two tools fit, pick the one German product-startup job ads ask for.** DevBrief is a portfolio piece; every extra piece of complexity needs a stated reason, here or in the PRD.
 - **GitHub Issues are the backlog.** One home for planned work; a `backlog.md` would copy it and drift.
 - **`CLAUDE.md` is the one home for agent rules; `AGENTS.md` only points to it.** PRD §4.2 asks for both files; two copies of the same rules drift apart.
-- **Every file name is kebab-case; the symbol it exports keeps its own case** (`story-card.tsx` exports `StoryCard`). One rule covers shadcn's generated files, Next.js reserved files, Nest's `feed.controller.ts` and the files the PRD already names (`compile-briefing.ts`, `briefing-plan.ts`).
 - **`@/*` maps to `src/*` inside each app, and `packages/shared` is imported as `@devbrief/shared`.** The PRD names neither; one import style in both apps keeps moves cheap.
-- **An RSS item without a parseable publish date is skipped.** F1.2 doesn't cover the case, and substituting the fetch time would rank an old post as fresh.
+- **RSS items with a missing or unparseable date are skipped.** F1.2 doesn't cover the case, and substituting the fetch time would rank old posts as fresh.
 
 ## Open PM questions
 
