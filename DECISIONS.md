@@ -23,6 +23,10 @@ links to them instead of restating them.
 - **An `exclude` phrase vetoes a tag even when a source tag names it.** [Appendix A](docs/prd.md#appendix-a--tag-taxonomy-v1) runs excludes after source tags; a "Rust Belt" post tagged `rust` by Dev.to is still not about Rust.
 - **`canonicalizeUrl` throws on a string that is not an http(s) URL.** Adapters parse upstream items with Zod and drop invalid ones ([CLAUDE.md](CLAUDE.md)); a silent fallback would let a broken URL become a dedup key.
 - **`percentile` counts the item itself in its window.** The mid-rank formula in [Appendix B](docs/prd.md#appendix-b--ranking-formula) needs the item in `n`, which keeps p in (0, 1).
+- **The API hand-rolls a small Zod pipe and generates OpenAPI with `zod-to-json-schema` instead of using `nestjs-zod`.** `nestjs-zod` declares peers up to Nest 11 and the API runs Nest 12; the pipe is 15 lines and `@nestjs/swagger` still serves the document.
+- **The API sets no Content-Security-Policy.** It serves JSON, Swagger UI needs inline scripts, and the app's CSP is set by the web headers ([§8.6](docs/prd.md#86-security-basics)).
+- **The throttler counts one bucket per client IP across all routes.** The library's default key includes the route, which would turn the 120 req/min global limit into a per-route limit.
+- **The Origin guard exempts only `GET`.** [§6.1](docs/prd.md#61-conventions) says "every non-GET request", so `HEAD` and `OPTIONS` are checked too.
 
 ## Open PM questions
 

@@ -6,6 +6,8 @@ catalog:
   zod: 3.25.76
 allowBuilds:
   '@prisma/engines': true
+  # swagger-ui-dist's install-time telemetry; nothing needs it
+  '@scarf/scarf': false
   '@swc/core': true
   esbuild: true
   prisma: true
