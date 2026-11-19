@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { useSaves } from '@/components/saves/useSaves';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { FeedEmpty } from './FeedEmpty';
@@ -13,11 +14,11 @@ import {
   flattenPages,
   focusableId,
   isEnterOnInteractiveElement,
-  isHttpUrl,
   moveActiveId,
 } from './feedNavigation';
 import { feedQueryOptions } from './feedQueries';
 import { InfiniteSentinel } from './InfiniteSentinel';
+import { focusStory, openInNewTab, scrollToStory } from './storyListDom';
 import { StoryCard } from './StoryCard';
 import { useFeedFilters } from './useFeedFilters';
 
@@ -50,6 +51,12 @@ const OPEN_DISCUSSION = {
   description: 'Open the discussion in a new tab',
   scope: 'Feed',
 } satisfies Shortcut;
+const SAVE_STORY = {
+  id: 'feed-save',
+  keys: 's',
+  description: 'Save or unsave the story',
+  scope: 'Feed',
+} satisfies Shortcut;
 const TOGGLE_SORT = {
   id: 'feed-sort',
   keys: 't',
@@ -57,28 +64,9 @@ const TOGGLE_SORT = {
   scope: 'Feed',
 } satisfies Shortcut;
 
-// Saving arrives with the saves module; until then every card is unsaved and the button does nothing.
-function ignoreSave() {}
-
-function openInNewTab(url: string) {
-  if (isHttpUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-function findStoryElement(id: string) {
-  return document.querySelector(`[data-story-id="${CSS.escape(id)}"]`);
-}
-
-function scrollToStory(id: string, block: ScrollLogicalPosition) {
-  findStoryElement(id)?.scrollIntoView({ block, behavior: 'instant' });
-}
-
-// Moving DOM focus to the title link tells screen readers which card is active and gives a native focus ring.
-function focusStory(id: string) {
-  findStoryElement(id)?.querySelector('a')?.focus({ preventScroll: true });
-}
-
 export function FeedList() {
   const { filters, focus, toggleSort, clearAll } = useFeedFilters();
+  const saves = useSaves();
   const query = useInfiniteQuery(feedQueryOptions(filters));
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const stories = useMemo(() => flattenPages(data?.pages ?? []), [data]);
@@ -115,6 +103,9 @@ export function FeedList() {
     const url = activeStory && discussionUrl(activeStory);
     if (url) openInNewTab(url);
   }
+  function toggleActiveSave() {
+    if (activeStory) saves.toggle(activeStory.id);
+  }
   // Stable, so the sentinel's observer isn't rebuilt on every j/k press.
   const loadNextPage = useCallback(() => {
     void fetchNextPage();
@@ -128,6 +119,7 @@ export function FeedList() {
   useShortcut(OPEN_ORIGINAL, openOriginal);
   useShortcut(OPEN_ORIGINAL_ENTER, openOriginalOnEnter);
   useShortcut(OPEN_DISCUSSION, openDiscussion);
+  useShortcut(SAVE_STORY, toggleActiveSave);
   useShortcut(TOGGLE_SORT, toggleSort);
 
   if (query.isPending) return <FeedSkeleton />;
@@ -142,8 +134,8 @@ export function FeedList() {
         <StoryCard
           key={story.id}
           story={story}
-          isSaved={false}
-          onToggleSave={ignoreSave}
+          isSaved={saves.isSaved(story.id)}
+          onToggleSave={() => saves.toggle(story.id)}
           isActive={story.id === activeId}
         />
       ))}

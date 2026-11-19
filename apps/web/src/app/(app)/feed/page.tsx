@@ -1,6 +1,8 @@
 import type { SearchParams } from 'nuqs/server';
+import { Suspense } from 'react';
 import { ActiveFilters } from '@/components/feed/ActiveFilters';
 import { FeedList } from '@/components/feed/FeedList';
+import { GuestHintBar } from '@/components/saves/GuestHintBar';
 import { loadFeedSearchParams, toFeedFilters } from '@/components/feed/feedParams';
 import { feedQueryOptions } from '@/components/feed/feedQueries';
 import { getServerQueryClient, PrefetchedQueries } from '@/lib/query/PrefetchedQueries';
@@ -15,6 +17,9 @@ export default async function FeedPage({ searchParams }: { searchParams: Promise
   return (
     <PrefetchedQueries>
       <h1 className="sr-only">Feed</h1>
+      <Suspense fallback={null}>
+        <GuestHintBar />
+      </Suspense>
       <ActiveFilters />
       <FeedList />
     </PrefetchedQueries>

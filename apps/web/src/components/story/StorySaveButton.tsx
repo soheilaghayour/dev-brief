@@ -1,11 +1,15 @@
 'use client';
 
-import { SaveButton } from '@/components/feed/SaveButton';
+import { SaveButton } from '@/components/saves/SaveButton';
+import { useSaves } from '@/components/saves/useSaves';
 
-// Saving arrives with the saves module; until then the story is unsaved and the button does nothing.
-function ignoreSave() {}
+/** The story page's Save button; the client boundary exists because it reads the saves. */
+export function StorySaveButton({ storyId }: { storyId: string }) {
+  const saves = useSaves();
 
-/** The story page's Save button; the client boundary exists because it hands the button a handler. */
-export function StorySaveButton() {
-  return <SaveButton isSaved={false} onToggleSave={ignoreSave} withLabel />;
+  function toggleSave() {
+    saves.toggle(storyId);
+  }
+
+  return <SaveButton isSaved={saves.isSaved(storyId)} onToggleSave={toggleSave} withLabel />;
 }
