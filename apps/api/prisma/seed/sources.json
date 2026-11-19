@@ -1,0 +1,74 @@
+[
+  { "slug": "hn", "kind": "hn", "name": "Hacker News", "siteUrl": "https://news.ycombinator.com" },
+  { "slug": "devto", "kind": "devto", "name": "Dev.to", "siteUrl": "https://dev.to" },
+  {
+    "slug": "rss-react-blog",
+    "kind": "rss",
+    "name": "React Blog",
+    "siteUrl": "https://react.dev/blog",
+    "feedUrl": "https://react.dev/rss.xml"
+  },
+  {
+    "slug": "rss-typescript-blog",
+    "kind": "rss",
+    "name": "TypeScript Blog",
+    "siteUrl": "https://devblogs.microsoft.com/typescript/",
+    "feedUrl": "https://devblogs.microsoft.com/typescript/feed/"
+  },
+  {
+    "slug": "rss-vercel-blog",
+    "kind": "rss",
+    "name": "Vercel Blog",
+    "siteUrl": "https://vercel.com/blog",
+    "feedUrl": "https://vercel.com/atom"
+  },
+  {
+    "slug": "rss-cloudflare-blog",
+    "kind": "rss",
+    "name": "Cloudflare Blog",
+    "siteUrl": "https://blog.cloudflare.com",
+    "feedUrl": "https://blog.cloudflare.com/rss/"
+  },
+  {
+    "slug": "rss-netflix-tech-blog",
+    "kind": "rss",
+    "name": "Netflix Tech Blog",
+    "siteUrl": "https://netflixtechblog.com",
+    "feedUrl": "https://netflixtechblog.com/feed"
+  },
+  {
+    "slug": "rss-shopify-engineering",
+    "kind": "rss",
+    "name": "Shopify Engineering",
+    "siteUrl": "https://shopify.engineering",
+    "feedUrl": "https://shopify.engineering/blog.atom"
+  },
+  {
+    "slug": "rss-simon-willison",
+    "kind": "rss",
+    "name": "Simon Willison",
+    "siteUrl": "https://simonwillison.net",
+    "feedUrl": "https://simonwillison.net/atom/everything/"
+  },
+  {
+    "slug": "rss-josh-comeau",
+    "kind": "rss",
+    "name": "Josh Comeau",
+    "siteUrl": "https://www.joshwcomeau.com",
+    "feedUrl": "https://www.joshwcomeau.com/rss.xml"
+  },
+  {
+    "slug": "rss-web-dev",
+    "kind": "rss",
+    "name": "web.dev",
+    "siteUrl": "https://web.dev",
+    "feedUrl": "https://web.dev/feed.xml"
+  },
+  {
+    "slug": "rss-nodejs-blog",
+    "kind": "rss",
+    "name": "Node.js Blog",
+    "siteUrl": "https://nodejs.org/en/blog",
+    "feedUrl": "https://nodejs.org/en/feed/blog.xml"
+  }
+]
