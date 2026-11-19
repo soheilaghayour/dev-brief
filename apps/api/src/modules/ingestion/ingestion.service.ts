@@ -18,7 +18,7 @@ import {
 import { IngestionLock } from './ingestion.lock.js';
 import { IngestionPostRunSteps } from './postRunStep.js';
 import { startRunBudget } from './runBudget.js';
-import { AdapterRegistry, type RawItem } from './sourceAdapter.js';
+import { AdapterRegistry, type CacheValidators, type RawItem } from './sourceAdapter.js';
 
 const RETAG_BATCH_SIZE = 500;
 
@@ -148,13 +148,17 @@ export class IngestionService {
     }
 
     let fetching = true;
+    let validators: CacheValidators | undefined;
     try {
-      const rawItems = await adapter.fetch(source, { signal });
+      const rawItems = await adapter.fetch(source, {
+        signal,
+        rememberValidators: (fresh) => void (validators = fresh),
+      });
       fetching = false;
       const counts = await this.serialized(() => this.storeItems(source, rawItems, startedAt));
       await this.prisma.source.update({
         where: { id: source.id },
-        data: nextSourceHealth(source, { ok: true }, new Date()),
+        data: { ...nextSourceHealth(source, { ok: true }, new Date()), ...validators },
       });
       await this.recordRun(source, runId, startedAt, 'success', counts);
       return { ...counts, outcome: 'success' } satisfies SourceResult;

@@ -8,8 +8,10 @@ export interface HttpRequestOptions {
   timeoutMs: number;
   /** Upper bound of the wait before each retry; the number of entries is the number of retries. */
   retryBackoffMs?: readonly number[];
-  /** A `Retry-After` longer than this is not waited for; the request fails instead. Unset: no cap. */
+  /** A `Retry-After` longer than this is not waited for; the request fails instead, and so does a 429 without one. Unset: no cap. */
   maxRetryAfterMs?: number;
+  /** Lower bound of every wait before a retry, `Retry-After` included. */
+  minRetryDelayMs?: number;
   maxResponseBytes?: number;
   headers?: Record<string, string>;
   signal?: AbortSignal;
@@ -115,8 +117,13 @@ export class HttpClient {
         if (options.signal?.aborted || step === undefined || !isRetryable(error)) throw error;
 
         const retryAfterMs = error instanceof HttpError ? error.options.retryAfterMs : undefined;
+        const throttled = error instanceof HttpError && error.options.status === 429;
+        if (options.maxRetryAfterMs !== undefined && throttled && retryAfterMs === undefined) {
+          throw error;
+        }
         if (retryAfterMs !== undefined && retryAfterMs > maxRetryAfterMs) throw error;
-        await sleep(retryAfterMs ?? jitteredDelayMs(step, this.random()), options.signal);
+        const waitMs = retryAfterMs ?? jitteredDelayMs(step, this.random());
+        await sleep(Math.max(options.minRetryDelayMs ?? 0, waitMs), options.signal);
       }
     }
   }

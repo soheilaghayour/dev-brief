@@ -4,3 +4,6 @@ dist
 coverage
 # frozen: changes only in PRD-amending PRs
 docs/prd.md
+
+# frozen: recorded upstream responses, byte for byte
+apps/api/test/fixtures/

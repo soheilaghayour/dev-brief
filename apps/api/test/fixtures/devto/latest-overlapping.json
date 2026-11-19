@@ -1,0 +1,98 @@
+[
+  {
+    "type_of": "article",
+    "id": 5069884,
+    "title": "Stratagems #36: They Finished Their Coffee. The AI Still Has No Answer.",
+    "description": "Know When to Walk Away  The Thirty-Six Stratagems, Stratagem 36               Open as Usual   When...",
+    "url": "https://dev.to/xulingfeng/stratagems-36-they-finished-their-coffee-the-ai-still-has-no-answer-4igh",
+    "canonical_url": "https://dev.to/xulingfeng/stratagems-36-they-finished-their-coffee-the-ai-still-has-no-answer-4igh",
+    "published_at": "2026-11-19T03:35:10Z",
+    "comments_count": 42,
+    "public_reactions_count": 98,
+    "reading_time_minutes": 11,
+    "tag_list": ["discuss", "ai", "career", "programming"],
+    "user": {
+      "name": "xulingfeng",
+      "username": "xulingfeng",
+      "twitter_username": "levelksk",
+      "github_username": "levelksk",
+      "user_id": 3941526,
+      "website_url": "https://amazon.com/author/xulingfeng",
+      "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3941526%2Faae40319-0a84-40c7-8434-832b0e75c708.gif",
+      "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3941526%2Faae40319-0a84-40c7-8434-832b0e75c708.gif"
+    }
+  },
+  {
+    "type_of": "article",
+    "id": 5068712,
+    "title": "My Linux Course Put Me to Sleep, So I Built Something That Wouldn\u2019t",
+    "description": "Confession time. I signed up for the free Introduction to Linux course from the Linux Foundation....",
+    "url": "https://dev.to/maame-codes/my-linux-course-put-me-to-sleep-so-i-built-something-that-wouldnt-5g4k",
+    "canonical_url": "https://dev.to/maame-codes/my-linux-course-put-me-to-sleep-so-i-built-something-that-wouldnt-5g4k",
+    "published_at": "2026-11-18T22:37:18Z",
+    "comments_count": 3,
+    "public_reactions_count": 65,
+    "reading_time_minutes": 4,
+    "tag_list": ["beginners", "learning", "linux", "showdev"],
+    "user": {
+      "name": "Maame Afua A. P. Fordjour ",
+      "username": "maame-codes",
+      "twitter_username": "maame_codes",
+      "github_username": "Maame-codes",
+      "user_id": 870724,
+      "website_url": "https://buymeacoffee.com/maame_codes",
+      "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F870724%2Fe7722a3a-8b1f-47b6-a26d-777bfaf22abc.jpg",
+      "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F870724%2Fe7722a3a-8b1f-47b6-a26d-777bfaf22abc.jpg"
+    }
+  },
+  {
+    "type_of": "article",
+    "id": 9000001,
+    "title": "Why we moved our rendering to the edge (cross-post)",
+    "description": "<p>Cross-posted from the <b>Cloudflare</b> blog &amp; friends.</p>",
+    "url": "https://dev.to/example/why-we-moved-our-rendering-to-the-edge-1abc",
+    "canonical_url": "https://blog.cloudflare.com/internet-traffic-2026-us-election/?utm_source=devto",
+    "published_at": "2026-11-19T15:30:00Z",
+    "comments_count": 42,
+    "public_reactions_count": 98,
+    "reading_time_minutes": 11,
+    "tag_list": ["cloudflare", "webdev"],
+    "user": {
+      "name": "xulingfeng",
+      "username": "xulingfeng",
+      "twitter_username": "levelksk",
+      "github_username": "levelksk",
+      "user_id": 3941526,
+      "website_url": "https://amazon.com/author/xulingfeng",
+      "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3941526%2Faae40319-0a84-40c7-8434-832b0e75c708.gif",
+      "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3941526%2Faae40319-0a84-40c7-8434-832b0e75c708.gif"
+    }
+  },
+  {
+    "type_of": "article",
+    "id": 9000002,
+    "title": "A hand-made fresh article",
+    "description": "Plain description.",
+    "url": "https://dev.to/example/fresh-9000002",
+    "canonical_url": "https://dev.to/example/fresh-9000002",
+    "published_at": "2026-11-19T16:00:00Z",
+    "comments_count": 3,
+    "public_reactions_count": 65,
+    "reading_time_minutes": 4,
+    "tag_list": ["beginners", "learning", "linux", "showdev"],
+    "user": {
+      "name": "Maame Afua A. P. Fordjour ",
+      "username": "maame-codes",
+      "twitter_username": "maame_codes",
+      "github_username": "Maame-codes",
+      "user_id": 870724,
+      "website_url": "https://buymeacoffee.com/maame_codes",
+      "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F870724%2Fe7722a3a-8b1f-47b6-a26d-777bfaf22abc.jpg",
+      "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F870724%2Fe7722a3a-8b1f-47b6-a26d-777bfaf22abc.jpg"
+    }
+  },
+  {
+    "id": "not-a-number",
+    "title": "Broken article"
+  }
+]
