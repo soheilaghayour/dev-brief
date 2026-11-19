@@ -1,0 +1,132 @@
+import { describe, expect, it } from 'vitest';
+import { mergeStoredGuest, migrateGuestData } from './guestParser';
+import {
+  createGuestData,
+  MAX_GUEST_SAVES,
+  parseStoredGuest,
+  removeSaves,
+  serializeGuest,
+  sortSavesNewestFirst,
+  toggleSave,
+} from './guestState';
+
+const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
+const A = 'cstoryaaaaaaaaaaaaaaaaaa';
+const NOW = new Date('2026-05-01T10:00:00.000Z');
+
+describe('toggleSave', () => {
+  it('AC-1.4.2 adds a story with its savedAt', () => {
+    expect(toggleSave([], 'a', NOW)).toEqual({
+      outcome: 'added',
+      saves: [{ storyId: 'a', savedAt: '2026-05-01T10:00:00.000Z' }],
+    });
+  });
+
+  it('removes a story that is saved already, so a story is never saved twice', () => {
+    const saves = [{ storyId: 'a', savedAt: '2026-04-01T00:00:00.000Z' }];
+    expect(toggleSave(saves, 'a', NOW)).toEqual({ outcome: 'removed', saves: [] });
+  });
+
+  it('refuses a new save at the cap and keeps the old ones', () => {
+    const saves = Array.from({ length: MAX_GUEST_SAVES }, (_, index) => ({
+      storyId: `s${index}`,
+      savedAt: '2026-04-01T00:00:00.000Z',
+    }));
+    const result = toggleSave(saves, 'new', NOW);
+    expect(result.outcome).toBe('full');
+    expect(result.saves).toHaveLength(MAX_GUEST_SAVES);
+    expect(toggleSave(saves, 's0', NOW).outcome).toBe('removed');
+  });
+});
+
+describe('removeSaves and sortSavesNewestFirst', () => {
+  const saves = [
+    { storyId: 'a', savedAt: '2026-04-01T00:00:00.000Z' },
+    { storyId: 'b', savedAt: '2026-04-03T00:00:00.000Z' },
+    { storyId: 'c', savedAt: '2026-04-02T00:00:00.000Z' },
+  ];
+
+  it('drops the given ids', () => {
+    expect(removeSaves(saves, ['a', 'zzz']).map((save) => save.storyId)).toEqual(['b', 'c']);
+  });
+
+  it('AC-1.4.3 orders newest-saved first without touching the input', () => {
+    expect(sortSavesNewestFirst(saves).map((save) => save.storyId)).toEqual(['b', 'c', 'a']);
+    expect(saves[0]?.storyId).toBe('a');
+  });
+});
+
+describe('migrateGuestData', () => {
+  it('keeps a valid current value as it is', () => {
+    const data = { ...createGuestData(DEVICE_ID), hintDismissed: true };
+    expect(migrateGuestData(data, 1)).toEqual(data);
+  });
+
+  it('migrates an older value, keeping what is usable', () => {
+    const older = {
+      deviceId: 'not-a-uuid',
+      saves: [
+        { storyId: A, savedAt: '2026-04-01T00:00:00.000Z' },
+        { storyId: A, savedAt: '2026-04-02T00:00:00.000Z' },
+        { storyId: 7, savedAt: 'yesterday' },
+        'junk',
+      ],
+      hintDismissed: 'yes',
+    };
+    expect(migrateGuestData(older, 0)).toEqual({
+      saves: [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }],
+      hintDismissed: false,
+    });
+  });
+
+  it.each([null, 'text', 42, [], undefined])('rejects the garbage value %j', (garbage) => {
+    expect(migrateGuestData(garbage, 1)).toBeNull();
+  });
+
+  it('rejects data from a newer version instead of guessing', () => {
+    expect(migrateGuestData({ deviceId: DEVICE_ID, saves: [] }, 2)).toBeNull();
+  });
+
+  it('caps an oversized list', () => {
+    const saves = Array.from({ length: MAX_GUEST_SAVES + 20 }, (_, index) => ({
+      storyId: `c${String(index).padStart(24, '0')}`,
+      savedAt: '2026-04-01T00:00:00.000Z',
+    }));
+    expect(migrateGuestData({ saves }, 1)?.saves).toHaveLength(MAX_GUEST_SAVES);
+  });
+});
+
+describe('stored text', () => {
+  it('AC-1.4.2 serializes the flat shape with the version', () => {
+    const data = createGuestData(DEVICE_ID);
+    expect(JSON.parse(serializeGuest(data))).toEqual({
+      version: 1,
+      deviceId: DEVICE_ID,
+      saves: [],
+      hintDismissed: false,
+    });
+  });
+
+  it('round-trips through parse and merge', () => {
+    const data = {
+      ...createGuestData(DEVICE_ID),
+      saves: [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }],
+    };
+    const stored = parseStoredGuest(serializeGuest(data));
+    expect(stored?.version).toBe(1);
+    expect(
+      mergeStoredGuest(stored?.state, createGuestData('11111111-1111-4111-8111-111111111111')),
+    ).toEqual(data);
+  });
+
+  it('treats invalid JSON as nothing stored and a missing version as 0', () => {
+    expect(parseStoredGuest('{oops')).toBeNull();
+    expect(parseStoredGuest(null)).toBeNull();
+    expect(parseStoredGuest('{"saves":[]}')?.version).toBe(0);
+  });
+
+  it('keeps the current state when the stored value is garbage', () => {
+    const current = createGuestData(DEVICE_ID);
+    expect(mergeStoredGuest('garbage', current)).toEqual(current);
+  });
+});
