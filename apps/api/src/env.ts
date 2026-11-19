@@ -7,10 +7,8 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().url(),
 });
 
-export type Env = z.infer<typeof EnvSchema>;
-
 /** Parses the environment and throws one readable error listing every invalid variable. */
-export function loadEnv(source: Record<string, string | undefined> = process.env): Env {
+export function loadEnv(source: Record<string, string | undefined> = process.env) {
   const result = EnvSchema.safeParse(source);
   if (result.success) return result.data;
   const problems = result.error.issues.map(

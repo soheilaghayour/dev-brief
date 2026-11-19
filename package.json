@@ -3,9 +3,6 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.21.0",
-  "engines": {
-    "node": ">=24"
-  },
   "scripts": {
     "dev": "pnpm --filter @devbrief/shared build && concurrently -n web,api -c blue,green \"pnpm --filter web dev\" \"pnpm --filter api dev\"",
     "build": "pnpm -r build",
@@ -21,7 +18,7 @@
     "eslint": "^10.15.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "prettier": "^3.10.1",
-    "typescript": "~6.0.3",
+    "typescript": "catalog:",
     "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.1"
   }
