@@ -48,6 +48,7 @@ export async function createStory(prisma: PrismaClient, options: StoryOptions) {
           sourceId,
           externalId: `${slug}-${sourceId}`,
           url,
+          canonicalUrl: url,
           discussionUrl: `https://discuss.example.com/${slug}`,
           title: options.title,
           publishedAt: options.publishedAt,

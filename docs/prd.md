@@ -1064,7 +1064,7 @@ CREATE INDEX "Story_normalizedTitle_trgm_idx" ON "Story" USING GIN ("normalizedT
 ```
 Workflow: create the migration with `prisma migrate dev --create-only`. In the generated SQL, replace Prisma's plain `ADD COLUMN "searchVector" tsvector` with the generated-column DDL above. Then confirm that a subsequent `prisma migrate dev` reports no drift.
 
-Migration rule: in Phase 1 **only work item P1-02 creates migrations**. Any later item that needs a schema change must say so in its issue and be sequenced explicitly, so parallel branches do not produce conflicting migration histories.
+Migration rule: in Phase 1 **work item P1-02 creates the initial migrations**. Any later item that needs a schema change must say so in its issue and be sequenced explicitly, so parallel branches do not produce conflicting migration histories.
 
 ### 5.3 Retention and data lifecycle
 | Data | Retention | Mechanism |
@@ -1880,7 +1880,7 @@ Constants (`RANK_GRAVITY`, `RSS_BASELINE`, `MULTI_SOURCE_BONUS`, `TOP_WINDOW_DAY
 
 ## Appendix C — Phase 1 work items (vertical slices → GitHub issues)
 
-Each item is one PR from one agent in its own worktree. **Done when** means the cited ACs pass in CI, plus docs are updated where noted. Only P1-02 creates Prisma migrations.
+Each item is one PR from one agent in its own worktree. **Done when** means the cited ACs pass in CI, plus docs are updated where noted. P1-02 creates the initial Prisma migrations; later schema changes follow the §5.2 migration rule.
 
 | ID | Title | Depends on | Scope summary | Done when |
 |---|---|---|---|---|

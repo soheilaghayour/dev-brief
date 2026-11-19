@@ -174,6 +174,47 @@ describe('ingestion', () => {
     expect(await prisma.story.count()).toBe(2);
   });
 
+  it('AC-1.2.5 matches a later item to a title-joined Story by the joined item’s URL', async () => {
+    await createSources('rss', 'hn');
+    const publishedAt = new Date('2026-02-01T00:00:00Z');
+    const rss = [
+      rawItem({ externalId: 'a', url: 'https://one.example/x', publishedAt }),
+      rawItem({
+        externalId: 'b',
+        url: 'https://two.example/y?utm_source=feed',
+        publishedAt: new Date(publishedAt.getTime() + HOUR_MS),
+      }),
+    ];
+    const hn = [
+      rawItem({
+        externalId: 'c',
+        url: 'https://www.two.example/y/',
+        title: 'Show HN: a different title',
+        publishedAt: new Date(publishedAt.getTime() + 2 * HOUR_MS),
+      }),
+    ];
+    let hnItems: RawItem[] = [];
+    const { service } = await createService([
+      stubAdapter('rss', async () => rss),
+      stubAdapter('hn', async () => hnItems),
+    ]);
+
+    await service.run();
+    hnItems = hn;
+    await service.run();
+
+    const story = await prisma.story.findFirstOrThrow();
+    expect(await prisma.story.count()).toBe(1);
+    expect(story.canonicalUrl).toBe('https://one.example/x');
+    const items = await prisma.sourceItem.findMany({ orderBy: { externalId: 'asc' } });
+    expect(items.map(({ storyId }) => storyId)).toEqual([story.id, story.id, story.id]);
+    expect(items.map(({ canonicalUrl }) => canonicalUrl)).toEqual([
+      'https://one.example/x',
+      'https://two.example/y',
+      'https://two.example/y',
+    ]);
+  });
+
   it('AC-1.2.6 creates nothing on a second run and refreshes engagement and lastSeenAt', async () => {
     await createSources('hn');
     let points = 10;
