@@ -1744,9 +1744,9 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 |---|---|---|
 | Landing Lighthouse (mobile): Perf / A11y / BP / SEO | ≥ 95 each | Lighthouse CI (`@lhci/cli`) in GitHub Actions, failing PRs |
 | Landing LCP / CLS / TBT (Lighthouse mobile) | ≤ 1.8 s / ≤ 0.05 / ≤ 150 ms | Lighthouse CI assertions |
-| Landing first-load JS | ≤ 160 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `size-limit` check on build output |
-| `/feed` first-load JS | ≤ 190 KB gzip (shell included) | `size-limit` |
-| Lazy chunks | Recharts, A2UI renderer and Markdown editor are never in landing or feed first-load | `size-limit` plus a bundle-analyzer report on PRs |
+| Landing first-load JS | ≤ 160 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
+| `/feed`, `/saved`, `/story/[id]` first-load JS | ≤ 200 KB gzip each (shell included) | `pnpm --filter web size` |
+| Lazy chunks | Recharts, A2UI renderer and Markdown editor are never in landing or feed first-load | `pnpm --filter web size` plus a bundle-analyzer report on PRs |
 | Feed API p95 server time | ≤ 150 ms at 40k stories | Integration benchmark on seeded data (non-blocking, reported) |
 | `/feed` SSR TTFB (prod) | ≤ 400 ms | Post-deploy smoke |
 | Images | None on cards. The OG image is generated at build time. | Code review |
@@ -1784,10 +1784,10 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 | API integration | Vitest + Supertest + real PostgreSQL (GitHub Actions service container), `prisma migrate deploy` per run, truncation between files | Every endpoint in §6 (happy path, validation error, auth error), ingestion with recorded fixtures, retention, merge idempotency | All pass |
 | Contract | Vitest | Every API response in integration tests is parsed with its shared Zod schema. (P3) Every fixture A2UI message is processed by the real `MessageProcessor`. | All pass |
 | E2E smoke | Playwright (Chromium) against the built web + api + Postgres | (1) Landing renders and the CTA reaches the feed. (2) A guest filters by tag, saves, reloads, and the save persists on `/saved`. (3) Sign-in via the test-mode route shows the user menu. (4) A guest saves, signs in, the save is merged, and it appears in `/saved` from the server. | All pass |
-| Performance | Lighthouse CI on `/` (3 runs, median), `size-limit` | §8.5 | Fails below budget |
+| Performance | Lighthouse CI on `/` (3 runs, median), `pnpm --filter web size` | §8.5 | Fails below budget |
 | Static | ESLint (flat config, `typescript-eslint`, `jsx-a11y`), Prettier check, `tsc -b` | All packages | Zero errors |
 
-**CI workflow (`.github/workflows/ci.yml`) on every PR and on push to `main`:** setup (pnpm and Node from `.nvmrc`, with cache) → lint → typecheck → unit → integration (Postgres service) → build → E2E smoke → Lighthouse and size-limit. A PR needs all checks green. Merge is by squash, through the orchestrator. Coolify deploys from `main` after the push.
+**CI workflow (`.github/workflows/ci.yml`) on every PR and on push to `main`:** setup (pnpm and Node from `.nvmrc`, with cache) → lint → typecheck → unit → integration (Postgres service) → build → size check → E2E smoke → Lighthouse. A PR needs all checks green. Merge is by squash, through the orchestrator. Coolify deploys from `main` after the push.
 
 **Agent rules (also stated in `AGENTS.md`):** one issue per PR. Each PR lists the AC IDs it covers and adds tests for each one. Agents must not change `packages/shared/src/contracts` without updating every consumer in the same PR. Migrations are created only by issues that declare them. PRs touching `docs/` keep this PRD consistent.
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
-import { AccountSlot } from '@/components/account/AccountSlot';
+import { LazyAccountSlot } from '@/components/account/LazyAccountSlot';
 import { GuestStoreHydrator } from '@/components/saves/GuestStoreHydrator';
 import { AppShell } from '@/components/layout/AppShell';
 import { FeedFilters } from '@/components/feed/FeedFilters';
@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <SearchInput />
           </FeedOnly>
         }
-        accountSlot={<AccountSlot />}
+        accountSlot={<LazyAccountSlot />}
         sortSlot={
           <FeedOnly>
             <SortToggle className="max-md:hidden" />

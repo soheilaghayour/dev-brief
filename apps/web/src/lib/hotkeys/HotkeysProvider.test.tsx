@@ -33,7 +33,7 @@ function press(key: string) {
 let unmount = () => {};
 afterEach(() => unmount());
 
-function mount() {
+async function mount() {
   const onSave = vi.fn();
   const onGoToSaved = vi.fn();
   const container = document.createElement('div');
@@ -46,20 +46,24 @@ function mount() {
     ),
   );
   unmount = () => act(() => root.unmount());
+  // The key bindings load lazily, after the first render.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
   return { onSave, onGoToSaved };
 }
 
 describe('HotkeysProvider', () => {
-  it('AC-1.3.8 a single key typed after a sequence leader does not run the plain handler', () => {
-    const { onSave, onGoToSaved } = mount();
+  it('AC-1.3.8 a single key typed after a sequence leader does not run the plain handler', async () => {
+    const { onSave, onGoToSaved } = await mount();
     press('g');
     press('s');
     expect(onGoToSaved).toHaveBeenCalledTimes(1);
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('AC-1.3.8 the plain handler still runs when no leader came first', () => {
-    const { onSave, onGoToSaved } = mount();
+  it('AC-1.3.8 the plain handler still runs when no leader came first', async () => {
+    const { onSave, onGoToSaved } = await mount();
     press('s');
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onGoToSaved).not.toHaveBeenCalled();
