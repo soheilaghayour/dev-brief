@@ -5,12 +5,8 @@ import type { Me } from '@devbrief/shared';
 import { Button } from '@/components/ui/Button';
 import { useSignOut } from '@/lib/auth/useSignOut';
 import { DeleteAccountDialog } from './DeleteAccountDialog';
+import { PROVIDER_LABELS } from './providerLabels';
 import { UserAvatar } from './UserAvatar';
-
-const PROVIDER_LABELS = { github: 'GitHub', google: 'Google' } as const satisfies Record<
-  Me['providers'][number],
-  string
->;
 
 export function AccountSection({ user }: { user: Me }) {
   const signOut = useSignOut();

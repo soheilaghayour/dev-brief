@@ -26,6 +26,12 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
   const [typed, setTyped] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // A reopened dialog starts unarmed, even if `delete` was typed before it closed.
+  function changeOpen(isOpen: boolean) {
+    if (!isOpen) setTyped('');
+    onOpenChange(isOpen);
+  }
+
   function changeTyped(event: ChangeEvent<HTMLInputElement>) {
     setTyped(event.target.value);
   }
@@ -46,7 +52,7 @@ export function DeleteAccountDialog({ open, onOpenChange }: DeleteAccountDialogP
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete account</DialogTitle>

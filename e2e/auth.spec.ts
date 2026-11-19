@@ -25,6 +25,41 @@ test('a guest sees Sign in, which keeps the current URL as callbackURL', async (
   await page.goto('/feed?sort=latest');
   await page.getByRole('banner').getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/sign-in\?callbackURL=%2Ffeed%3Fsort%3Dlatest$/);
+  // On /sign-in the header button would nest this callbackURL inside a new one.
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Sign in' })).toHaveCount(0);
+});
+
+// Stops the click at Better Auth's sign-in call and returns the body the page sent.
+async function socialSignInBody(page: Page, signInUrl: string) {
+  const body = new Promise<{ callbackURL: string; errorCallbackURL: string }>((resolve) => {
+    void page.route('**/api/auth/sign-in/social', async (route) => {
+      resolve(route.request().postDataJSON() as { callbackURL: string; errorCallbackURL: string });
+      await route.abort();
+    });
+  });
+  await page.goto(signInUrl);
+  await page.getByRole('button', { name: 'Continue with GitHub' }).click();
+  return body;
+}
+
+test('AC-1.5.2 sign-in passes a same-origin callbackURL to OAuth and replaces an external one', async ({
+  page,
+}) => {
+  expect(
+    await socialSignInBody(page, '/sign-in?callbackURL=%2Ffeed%3Fsort%3Dlatest'),
+  ).toMatchObject({
+    provider: 'github',
+    callbackURL: '/feed?sort=latest',
+    errorCallbackURL: '/sign-in?callbackURL=%2Ffeed%3Fsort%3Dlatest',
+  });
+  expect(
+    (await socialSignInBody(page, '/sign-in?callbackURL=https%3A%2F%2Fevil.example')).callbackURL,
+  ).toBe('/feed');
+});
+
+test('a sign-in that failed at the provider explains why on /sign-in', async ({ page }) => {
+  await page.goto('/sign-in?error=email_not_verified');
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText(/Verify your email/);
 });
 
 test('sign-in via the test-mode route shows the user menu', async ({ page }) => {
@@ -36,12 +71,16 @@ test('sign-in via the test-mode route shows the user menu', async ({ page }) => 
   await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
 });
 
-test('AC-1.5.8 signing out returns the app to guest mode', async ({ page }) => {
+test('AC-1.5.8 signing out returns the app to guest mode with an empty local store', async ({
+  page,
+}) => {
   await signInThroughTestRoute(page);
   await page.goto('/feed');
+  await page.evaluate(() => localStorage.setItem('devbrief:guest:v1', '{}'));
   await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByRole('banner').getByRole('button', { name: 'Sign in' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('devbrief:guest:v1'))).toBeNull();
 });
 
 test('AC-1.6.2 deleting the account needs the word delete, then returns to the landing page', async ({
@@ -49,10 +88,16 @@ test('AC-1.6.2 deleting the account needs the word delete, then returns to the l
 }) => {
   await signInThroughTestRoute(page);
   await page.goto('/settings');
-  await page.getByRole('button', { name: 'Delete account…' }).click();
+  const openDialog = page.getByRole('button', { name: 'Delete account…' });
   const confirm = page.getByRole('button', { name: 'Delete my account' });
+  await openDialog.click();
+  await page.getByLabel('Type delete to confirm').fill('delete');
+  // Closing disarms the dialog: a reopened one needs the word again.
+  await page.keyboard.press('Escape');
+  await openDialog.click();
   await expect(confirm).toBeDisabled();
   await page.getByLabel('Type delete to confirm').fill('delete');
   await confirm.click();
   await expect(page).toHaveURL(`${APP_URL}/`);
+  await expect(page.getByText('Your account was deleted.')).toBeVisible();
 });
