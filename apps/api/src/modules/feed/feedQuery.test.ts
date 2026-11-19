@@ -1,6 +1,6 @@
 import { encodeCursor, InvalidCursorError, type FeedQuery } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { feedCacheKey, parseKeyset, topWindowStart } from './feedQuery.js';
+import { feedCacheKey, parseKeyset } from './feedQuery.js';
 
 const baseQuery: FeedQuery = { sort: 'top', limit: 20 };
 
@@ -42,13 +42,5 @@ describe('feedCacheKey', () => {
   it('differs when any part of the query differs', () => {
     expect(feedCacheKey(baseQuery)).not.toBe(feedCacheKey({ ...baseQuery, sort: 'latest' }));
     expect(feedCacheKey(baseQuery)).not.toBe(feedCacheKey({ ...baseQuery, q: 'bun' }));
-  });
-});
-
-describe('topWindowStart', () => {
-  it('is seven days before now', () => {
-    expect(topWindowStart(new Date('2026-06-08T00:00:00Z')).toISOString()).toBe(
-      '2026-06-01T00:00:00.000Z',
-    );
   });
 });

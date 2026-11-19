@@ -1,7 +1,5 @@
 import { decodeCursor, InvalidCursorError, type FeedQuery } from '@devbrief/shared';
 
-export const TOP_WINDOW_DAYS = 7;
-
 export type Keyset = { sortKey: number | Date; id: string };
 
 /** Decodes a feed cursor into the typed keyset of its sort; throws InvalidCursorError when the key has the wrong type. */
@@ -30,9 +28,4 @@ export function feedCacheKey(query: FeedQuery) {
     query.cursor ?? null,
     query.limit,
   ]);
-}
-
-/** The oldest `publishedAt` the Top sort shows. */
-export function topWindowStart(now: Date) {
-  return new Date(now.getTime() - TOP_WINDOW_DAYS * 86_400_000);
 }
