@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { itemEngagement, itemPercentile, rankScore, RSS_BASELINE } from '@devbrief/shared';
 import { describe, expect, it, vi } from 'vitest';
@@ -23,9 +24,20 @@ describe('rank recompute and daily job', () => {
   const prisma = useTestDatabase();
 
   async function createApp(cache = new LruCache()) {
+    // CommonModule provides the cache globally in the app; the test supplies its own instance.
+    @Global()
+    @Module({ providers: [{ provide: LruCache, useValue: cache }], exports: [LruCache] })
+    class TestCacheModule {}
+
     const moduleRef = await Test.createTestingModule({
-      imports: [EnvModule, PrismaModule, IngestionModule, RankingModule, MaintenanceModule],
-      providers: [{ provide: LruCache, useValue: cache }],
+      imports: [
+        EnvModule,
+        PrismaModule,
+        TestCacheModule,
+        IngestionModule,
+        RankingModule,
+        MaintenanceModule,
+      ],
     })
       .overrideProvider(SOURCE_ADAPTERS)
       .useValue([])
