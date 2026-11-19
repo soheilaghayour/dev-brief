@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { createHash } from 'node:crypto';
 import { LoggerModule } from 'nestjs-pino';
 import { LruCache } from './cache/lru.cache.js';
 import { ENV, EnvModule, type Env } from './env/env.module.js';
@@ -24,7 +23,7 @@ import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.
     ThrottlerModule.forRoot({
       throttlers: [{ ttl: 60_000, limit: RATE_LIMIT_PER_MINUTE }],
       // The default key includes the route, which would make the limit per route instead of per IP.
-      generateKey: (_context, tracker) => createHash('sha256').update(tracker).digest('hex'),
+      generateKey: (_context, tracker) => tracker,
     }),
   ],
   providers: [
