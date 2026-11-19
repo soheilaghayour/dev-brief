@@ -10,6 +10,14 @@ const testEnv = { ...defaultEnv, ...process.env };
 
 // SWC emits the decorator metadata Nest's dependency injection reads; esbuild does not.
 export default defineConfig({
+  // Tests read the shared package from source, so they need no prior build of it.
+  resolve: {
+    alias: {
+      '@devbrief/shared': fileURLToPath(
+        new URL('../../packages/shared/src/index.ts', import.meta.url),
+      ),
+    },
+  },
   test: {
     name: 'api',
     // Test files share one database and truncate it, so they run one after another.
