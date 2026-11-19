@@ -50,5 +50,6 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm --filter api db:seed
+      - run: pnpm --filter api db:seed:e2e
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
