@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import pg from 'pg';
-import { loadEnv } from '../../env.js';
+import { ENV, type Env } from '../../common/env/env.module.js';
 
 export const INGEST_LOCK_KEY = 8_113_001;
 
@@ -9,10 +9,12 @@ export const INGEST_LOCK_KEY = 8_113_001;
 export class IngestionLock {
   private readonly logger = new Logger(IngestionLock.name);
 
+  constructor(@Inject(ENV) private readonly env: Env) {}
+
   /** Returns a release function, or null when another instance holds the lock. */
   async tryAcquire() {
     // A session-level lock must be released on the connection that took it, which a pooled client can't promise.
-    const client = new pg.Client({ connectionString: loadEnv().DATABASE_URL });
+    const client = new pg.Client({ connectionString: this.env.DATABASE_URL });
     // An idle client emits 'error' when its connection drops; unhandled, that would kill the process.
     client.on('error', (error) =>
       this.logger.warn(`Ingestion lock connection lost: ${error.message}`),

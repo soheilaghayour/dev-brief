@@ -7,13 +7,7 @@ import { IngestionModule } from './modules/ingestion/ingestion.module.js';
 import { IngestionScheduler } from './modules/ingestion/ingestion.scheduler.js';
 
 @Module({
-  imports: [
-    CommonModule,
-    PrismaModule,
-    HealthModule,
-    IngestionModule,
-    ScheduleModule.forRoot(),
-  ],
+  imports: [CommonModule, PrismaModule, HealthModule, IngestionModule, ScheduleModule.forRoot()],
   providers: [IngestionScheduler],
 })
 export class AppModule {}
