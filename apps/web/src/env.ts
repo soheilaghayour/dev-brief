@@ -4,6 +4,7 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_URL: z.string().url(),
   API_INTERNAL_URL: z.string().url(),
+  INTERNAL_API_TOKEN: z.string().min(16),
 });
 
 /** Parses the environment and throws one readable error listing every invalid variable. */

@@ -29,6 +29,7 @@ jobs:
     env:
       APP_URL: http://localhost:3000
       API_INTERNAL_URL: http://localhost:3001
+      INTERNAL_API_TOKEN: ci-internal-token-0123
       DATABASE_URL: postgresql://devbrief:devbrief@localhost:5432/devbrief
       DATABASE_URL_TEST: postgresql://devbrief:devbrief@localhost:5432/devbrief
     steps:

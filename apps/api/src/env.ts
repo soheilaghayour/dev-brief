@@ -5,6 +5,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   APP_URL: z.string().url(),
   DATABASE_URL: z.string().url(),
+  INTERNAL_API_TOKEN: z.string().min(16),
 });
 
 /** Parses the environment and throws one readable error listing every invalid variable. */

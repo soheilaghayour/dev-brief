@@ -4,6 +4,7 @@ import { loadEnv } from './env';
 const validEnv = {
   APP_URL: 'http://localhost:3000',
   API_INTERNAL_URL: 'http://localhost:3001',
+  INTERNAL_API_TOKEN: 'local-internal-token',
 };
 
 describe('loadEnv', () => {
