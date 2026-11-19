@@ -16,8 +16,22 @@ describe('toPlainText', () => {
     expect(toPlainText('&amp;lt;')).toBe('&lt;');
   });
 
-  it('keeps an unknown or out-of-range entity as written', () => {
-    expect(toPlainText('&bogus; &#1114112;')).toBe('&bogus; &#1114112;');
+  it('decodes named HTML entities beyond the XML five', () => {
+    expect(toPlainText('<p>It&rsquo;s &hellip; &mdash; done</p>')).toBe('It’s … — done');
+  });
+
+  it('keeps an unknown entity as written and replaces an out-of-range one', () => {
+    expect(toPlainText('&bogus; &#1114112;')).toBe('&bogus; �');
+  });
+
+  it('keeps text that only looks like markup', () => {
+    expect(toPlainText('Why a < b and c > d matters')).toBe('Why a < b and c > d matters');
+    expect(toPlainText('x<5 and y>3')).toBe('x<5 and y>3');
+  });
+
+  it('drops the body of an unclosed script and keeps words apart', () => {
+    expect(toPlainText('before<script>never closed <b>x</b> rest')).toBe('before');
+    expect(toPlainText('<p>one</p><p>two</p>')).toBe('one two');
   });
 
   it('cuts to the limit with an ellipsis inside it', () => {
