@@ -1,8 +1,9 @@
 # Build from the repository root: docker build -f apps/web/Dockerfile .
 FROM node:26-slim AS build
-RUN npm install --global pnpm@12.21.0
 WORKDIR /repo
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# package.json is the one home of the pnpm version.
+RUN npm install --global "$(node -p "require('./package.json').packageManager")"
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
@@ -14,7 +15,7 @@ COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 # Public values the Next build inlines into the client bundle (SOURCE_COMMIT is the release); the source-map upload runs only with a token.
-ARG SOURCE_COMMIT=dev
+ARG SOURCE_COMMIT=unknown
 ENV NEXT_PUBLIC_APP_VERSION=$SOURCE_COMMIT
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG SENTRY_AUTH_TOKEN

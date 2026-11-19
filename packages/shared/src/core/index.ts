@@ -4,3 +4,5 @@ export * from './normalizeTitle.js';
 export * from './ranking.js';
 export * from './tagStory.js';
 export * from './taxonomy.js';
+export * from './scrubSentryEvent.js';
+export * from './securityHeaders.js';

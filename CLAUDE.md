@@ -64,12 +64,12 @@ apps/
     src/content/                # landing-fixture.json: landing data when the API is unreachable at first build
     src/config/                 # features.ts: phase flags
   api/                          # NestJS (Express) + Prisma + scheduled ingestion
-    prisma/                     # schema.prisma, migrations/, seed.ts, seed/sources.json
+    prisma/                     # schema.prisma, migrations/, seed/sources.json
     src/                        # main.ts, app.module.ts, env.ts (Zod-validated env, fail fast)
     src/common/                 # cross-cutting: http, errors, zod, rate-limit, origin-guard, cache, logging
     src/modules/<resource>/     # one Nest module per resource: health, auth, feed, stories, sources, saves, ingestion, ranking, maintenance; P2/P3 modules per PRD §4.2
     src/modules/ingestion/adapters/  # one adapter per source: hn, devto, rss, github (P2)
-    src/cli/                    # ingestOnce.ts; generateExampleBriefings.ts (P3)
+    src/cli/                    # ingestOnce.ts, seed.ts; generateExampleBriefings.ts (P3)
     test/integration/           # API integration tests (Supertest + real Postgres)
     test/fixtures/              # recorded upstream responses; cluster-pairs.json (P2)
 packages/shared/
@@ -83,7 +83,7 @@ docs/                           # the PRD and the docs in the table above; provi
 ```
 
 `apps/*` import from `packages/shared`, never from each other. There is no top-level
-`scripts/` folder: seeds live in `apps/api/prisma/` and CLIs in `apps/api/src/cli/`.
+`scripts/` folder: seed data and the e2e seed live in `apps/api/prisma/`, and CLIs (including the seed) in `apps/api/src/cli/`.
 
 ## Naming conventions
 

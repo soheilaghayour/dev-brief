@@ -4,20 +4,21 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 
 ## First-time setup
 
-[`provision.sh`](provision.sh) is an interactive wizard for steps 1 to 6 and 8's secrets: it opens each provider page, says what to click and writes the values you copy to the git-ignored `.env.production`. Run `bash docs/provision.sh`, then enter the values in Coolify as listed below. Delete `.env.production` afterwards.
+[`provision.sh`](provision.sh) is an interactive wizard for steps 1 to 6 and 8's secrets: it opens each provider page, says what to click and writes the values you copy to a private file outside the repo (`~/.config/devbrief/production.env`, mode 600) and an application-only copy beside it, `production.coolify.env`. Run `bash docs/provision.sh`, then enter the values from the `.coolify.env` file in Coolify as listed below, and delete that copy afterwards. Re-running the wizard reuses every saved value; it asks before rotating a generated secret.
 
 1. **Domain.** Buy it and point an `A` record at the VPS.
-2. **VPS.** Hetzner Cloud, Ubuntu 24.04, the smallest shared-vCPU plan with at least 4 GB RAM.
+2. **VPS.** Hetzner Cloud, Ubuntu 24.04, the smallest shared-vCPU plan with at least 4 GB RAM. Coolify builds Next.js on this same machine, so add 2 GB of swap (`fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`, plus a line in `/etc/fstab`) so a build cannot push the running containers out of memory.
 3. **Coolify.** Install it on the VPS (`curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash` as root), open `http://<ip>:8000` and create the admin account at once.
 4. **Postgres.** In a Coolify project: New → Database → PostgreSQL, version 18 (pinned; never `latest`). Keep it internal (no public port). Copy its internal connection URL: it becomes the API's `DATABASE_URL`.
 5. **Backups.** See [Backups](#backups).
 6. **API application.** New → Application → this GitHub repository, branch `main`, build pack Dockerfile.
    - Base directory `/`, Dockerfile location `/apps/api/Dockerfile`, port `3001`.
    - Domains: `https://devbrief.example/api`. Turn **Strip Prefixes off**: the API serves `/api/v1/*` and `/api/auth/*` with the prefix intact. Traefik routes the longer path to the API and everything else to `web`.
-   - Health check: path `/api/v1/health`, port `3001`, enabled. Coolify then starts the new container beside the old one and switches only when it is healthy.
-   - Do not enable gzip/compression for this application: [`/api/v1/copilot/*`](prd.md#642-sse-wire-format-post-apiv1copilotask) (Phase 3) streams SSE and must not be compressed or buffered.
-   - Environment variables: the [API table](#environment-variables).
-7. **Web application.** Same repository and branch, Dockerfile `/apps/web/Dockerfile`, port `3000`, domain `https://devbrief.example`. Mark `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` as build variables (the DSN is baked into the client bundle). Environment: the [web table](#environment-variables).
+   - Health check: leave the Coolify toggle **off**. A dashboard check runs `curl` or `wget` inside the container, which the slim image does not have; with it off Coolify uses the image's own `HEALTHCHECK` (a `node -e "fetch(...)"` call to `/api/v1/health`), and starts the new container beside the old one and switches only when it reports healthy. On the first deploy confirm in the deployment log that Coolify waited for "healthy".
+   - Advanced → **Source commit availability → Available during build** (older Coolify: _Include Source Commit in Build_). Without it the build never sees `SOURCE_COMMIT`, the release is `unknown`, and Sentry and `smoke:prod` flag it.
+   - Advanced → **Gzip compression → Disabled**: [`/api/v1/copilot/*`](prd.md#642-sse-wire-format-post-apiv1copilotask) (Phase 3) streams SSE and must not be compressed or buffered.
+   - Environment variables: the [API table](#environment-variables). Untick "Available at Buildtime" for each secret; the image build needs none of them.
+7. **Web application.** Same repository and branch, Dockerfile `/apps/web/Dockerfile`, port `3000`, domain `https://devbrief.example`, health check toggle off (the image's `HEALTHCHECK` requests `/`), and the same **Available during build** source-commit setting as the API. Mark `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` as build variables (the DSN is baked into the client bundle). Environment: the [web table](#environment-variables).
 8. **Secrets.** Generate `BETTER_AUTH_SECRET` and `INTERNAL_API_TOKEN` (the wizard does); `INTERNAL_API_TOKEN` must be identical in `api` and `web`.
 9. **OAuth apps.** Register the production apps with the callbacks in [OAuth apps](#oauth-apps).
 10. **Auto-deploy.** On both applications enable automatic deployment from `main` (Coolify's GitHub App, or the webhook URL added to the repository). CI must be green before merging, as ever; Coolify deploys the push.
@@ -32,7 +33,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 | :------------------------------------------------------------------------------------- | :-- | :-- | :--------------------------------------------------------------------------------------------- |
 | `APP_URL`                                                                              | yes | yes | `https://devbrief.example`                                                                     |
 | `DATABASE_URL`                                                                         | yes |     | the Coolify Postgres internal URL                                                              |
-| `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same 16+ character secret in both                                                          |
+| `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same secret in both                                                                        |
 | `API_INTERNAL_URL`                                                                     |     | yes | `https://devbrief.example`: server-side calls go out and back in through the proxy (see below) |
 | `BETTER_AUTH_SECRET`                                                                   | yes |     | `openssl rand -base64 32`                                                                      |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | yes |     | the production OAuth apps                                                                      |
@@ -44,11 +45,20 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 | `PORT`, `NODE_ENV`, `APP_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `HOSTNAME`               |     |     | set by the Dockerfiles; do not set them. The release is Coolify's `SOURCE_COMMIT` (the commit) |
 | `API_PROXY_URL`                                                                        |     |     | leave unset: it bakes a dev rewrite into the web build                                         |
 
-`API_INTERNAL_URL` is the public URL because container names change on every Coolify deploy, so a fixed `http://api:3001` is not available; the web server's calls carry `INTERNAL_API_TOKEN` and skip the per-IP rate limit either way.
+`API_INTERNAL_URL` is the public URL: see [DECISIONS.md](../DECISIONS.md).
 
 ## Deploy and rollback
 
-A push to `main` makes Coolify build both images from the Dockerfiles and replace the containers. The API image's start command is `prisma migrate deploy && node dist/main.js`: a failed migration exits non-zero, the new container never turns healthy, and Coolify leaves the old container serving (the deployment shows as failed in Coolify). Fix forward with a new commit.
+A push to `main` makes Coolify build both images from the Dockerfiles and replace the containers. The API image's start command is `prisma migrate deploy && node dist/main.js`: a failed migration exits non-zero, the new container never turns healthy, and Coolify leaves the old container serving (the deployment shows as failed in Coolify).
+
+A failed migration blocks every later deploy (Prisma P3009) until it is resolved, so a fixing commit alone does not recover. Resolve it from the running (old) API container's Terminal in Coolify:
+
+1. Inspect: `node_modules/.bin/prisma migrate status` names the failed migration; the deployment log shows the SQL error.
+2. Undo whatever the failed migration changed before it stopped (connect with `psql` from the Postgres resource's terminal).
+3. Tell Prisma it is not applied: `node_modules/.bin/prisma migrate resolve --rolled-back <migration_folder_name>`. If you completed its changes by hand instead, use `--applied <migration_folder_name>`.
+4. Push the fixed migration (a new folder; an applied or failed folder is never edited) and let Coolify redeploy.
+
+The old container keeps serving while the new one migrates, so a migration must stay compatible with the previous release: add first, remove in a later release.
 
 Rollback: Coolify → the application → Deployments → pick the last good deployment → Rollback (or redeploy the previous commit). Migrations only move forward, so a rollback is safe only when the bad release added no migration; otherwise ship a new migration that undoes it.
 
@@ -58,11 +68,11 @@ Rollback: Coolify → the application → Deployments → pick the last good dep
 SMOKE_BASE_URL=https://devbrief.example pnpm smoke:prod
 ```
 
-It checks `/api/v1/health` (`db: ok`, a real release version), the landing page, the guest feed, the security headers on web and API responses, and `/feed` server TTFB at most 400 ms ([§8.5](prd.md#85-performance-budgets)). It runs only the public flows: the signed-in flows (smoke tests 3 and 4) use `AUTH_TEST_MODE`, which production refuses, so they run in CI only. The guest-save flow joins the suite when [F1.4](prd.md#f14-guest-saves) ships its smoke test.
+It checks `/api/v1/health` (`db: ok`, a real release version), the landing page, the guest feed, the security headers on web and API responses, and `/feed` server TTFB at most 400 ms ([§8.5](prd.md#85-performance-budgets)), measured from the machine that runs the smoke, network round trip included. It runs only the public flows: the signed-in flows (smoke tests 3 and 4) use `AUTH_TEST_MODE`, which production refuses, so they run in CI only. The guest-save flow joins the suite when [F1.4](prd.md#f14-guest-saves) ships its smoke test.
 
 ## Sentry
 
-Two projects, `devbrief-api` and `devbrief-web`. Both SDKs run with `sendDefaultPii: false` and tag every event with the release, the commit that Coolify passes as `SOURCE_COMMIT` (the same value `/api/v1/health` returns as `version`). The web build uploads source maps when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` are set as build variables and deletes them from the image afterwards. The API runs from compiled JavaScript without an upload step, so its stack traces point into `dist/`.
+Two projects, `devbrief-api` and `devbrief-web`. Both SDKs run with `sendDefaultPii: false`, strip cookies, `authorization`, `x-internal-token` and client IPs in `beforeSend`, and tag every event with the release, the commit that Coolify passes as `SOURCE_COMMIT` when "Available during build" is set (the same value `/api/v1/health` returns as `version`). The web build uploads source maps when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` are set as build variables and deletes them from the image afterwards. The API runs from compiled JavaScript without an upload step, so its stack traces point into `dist/` ([DECISIONS.md](../DECISIONS.md)).
 
 Beyond unhandled errors, the API sends one event when a source fails 3 times in a row ([§8.3](prd.md#83-external-sources-timeouts-retries-circuit-breaking)), not on every retry.
 
@@ -82,9 +92,9 @@ Coolify backs up its managed Postgres to S3-compatible object storage ([§5.3](p
 Do this once after the first backup, and note it in the log below. It restores into a throwaway container, never into production:
 
 1. Download the latest backup file from the bucket (any S3 client, for example `aws s3 cp --endpoint-url <endpoint> s3://<bucket>/<path> .`).
-2. Start a scratch database: `docker run --rm -d --name restore-test -e POSTGRES_PASSWORD=test -p 5433:5432 postgres:18`.
-3. Restore it. A custom-format dump (`.dmp`) restores with `pg_restore --no-owner -h localhost -p 5433 -U postgres -d postgres <file>`; a plain `.sql.gz` with `gunzip -c <file> | psql -h localhost -p 5433 -U postgres`. Use the database name the Coolify resource uses.
-4. Check it: `psql ... -c 'select count(*) from "Story"'` is non-zero, and `DATABASE_URL=postgresql://postgres:test@localhost:5433/postgres pnpm --filter api exec prisma migrate status` reports the schema up to date.
+2. Start a scratch database: `docker run --rm -d --name restore-test -e POSTGRES_PASSWORD=test postgres:18`. The tools run inside it, so their version always matches the dump.
+3. Restore it. A custom-format dump (`.dmp`): `docker cp <file> restore-test:/tmp/backup.dmp && docker exec restore-test pg_restore --no-owner -U postgres -d postgres /tmp/backup.dmp`; a plain `.sql.gz`: `gunzip -c <file> | docker exec -i restore-test psql -U postgres`. Use the database name the Coolify resource uses.
+4. Check it: `docker exec restore-test psql -U postgres -c 'select count(*) from "Story"'` is non-zero and `docker exec restore-test psql -U postgres -c 'select count(*) from _prisma_migrations'` matches the number of folders in `apps/api/prisma/migrations`.
 5. Stop the container (`docker stop restore-test`).
 
 To restore for real after data loss: create a new Postgres resource from the same steps, restore into it, point the API's `DATABASE_URL` at it and redeploy.
@@ -119,12 +129,6 @@ Sign-in uses a GitHub OAuth app and a Google OAuth client. Create one of each fo
 2. Under Credentials, create an OAuth client ID of type Web application.
 3. Add `APP_URL` as an authorized JavaScript origin and the Google callback above as an authorized redirect URI.
 4. Copy the client ID and secret to `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-
-### Other auth variables
-
-- `BETTER_AUTH_SECRET`: 32+ random characters; generate with `openssl rand -base64 32`. Changing it signs every user out.
-- `AUTH_TEST_MODE`: leave `false`. It exists for the Playwright run, and the API refuses to start with `true` in production or when `APP_URL` is not `localhost`, `127.0.0.1` or `::1`.
-- `API_PROXY_URL`: leave unset for production builds. It bakes a dev `/api/*` rewrite into the web build; in production Traefik routes `/api`.
 
 ### Manual check with real credentials
 

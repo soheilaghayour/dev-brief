@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { loadEnv } from '../src/env.js';
-import { seedSources } from './seed.js';
+import { seedSources } from '../src/cli/seedSources.js';
 
 const HOUR = 3_600_000;
 const STORY_COUNT = 45;

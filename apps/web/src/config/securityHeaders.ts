@@ -1,3 +1,8 @@
+// Not imported from @devbrief/shared: next.config.ts loads this file before the shared package is built; securityHeaders.test.ts keeps both in step.
+export const HSTS_MAX_AGE_SECONDS = 63_072_000;
+export const PERMISSIONS_POLICY =
+  'accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), xr-spatial-tracking=()';
+
 const SENTRY_INGEST =
   'https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io';
 
@@ -28,12 +33,12 @@ export function contentSecurityPolicy(nodeEnv: string | undefined) {
 export function securityHeaders(nodeEnv: string | undefined) {
   return [
     { key: 'Content-Security-Policy', value: contentSecurityPolicy(nodeEnv) },
-    { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+    {
+      key: 'Strict-Transport-Security',
+      value: `max-age=${HSTS_MAX_AGE_SECONDS}; includeSubDomains`,
+    },
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-    {
-      key: 'Permissions-Policy',
-      value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-    },
+    { key: 'Permissions-Policy', value: PERMISSIONS_POLICY },
   ];
 }

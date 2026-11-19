@@ -101,7 +101,7 @@ describe('nextSourceHealth', () => {
 });
 
 describe('reportsSourceFailure', () => {
-  it('AC-1.7.6 reports the third consecutive failure only, not every retry', () => {
+  it('reports the third consecutive failure only, not every retry (§8.3)', () => {
     expect([1, 2, 3, 4, 5].filter(reportsSourceFailure)).toEqual([3]);
   });
 });

@@ -1,5 +1,6 @@
 import type { captureRequestError } from '@sentry/nextjs';
 import { loadEnv } from './env';
+import { sentryOptions } from './lib/observability/sentryOptions';
 
 // Runs at server start, so a bad environment fails fast in the standalone production server too.
 export async function register() {
@@ -15,13 +16,7 @@ export async function register() {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (dsn && process.env.NEXT_RUNTIME === 'nodejs') {
     const Sentry = await import('@sentry/nextjs');
-    Sentry.init({
-      dsn,
-      release: process.env.NEXT_PUBLIC_APP_VERSION,
-      environment: process.env.NODE_ENV,
-      sendDefaultPii: false,
-      tracesSampleRate: 0,
-    });
+    Sentry.init(sentryOptions(dsn));
   }
 }
 

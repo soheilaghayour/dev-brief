@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seedSources } from '../../prisma/seed.js';
+import { seedSources } from '../../src/cli/seedSources.js';
 import { useTestDatabase } from './testDatabase.js';
 
 describe('source seed', () => {

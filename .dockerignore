@@ -6,9 +6,9 @@
 **/coverage
 **/*.tsbuildinfo
 apps/api/src/generated
-.env
-.env.*
-!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 e2e
 docs
 test-results

@@ -25,8 +25,6 @@ TOTAL_STAGES=0
 _STAGE_INDEX=0
 ENV_FILE="${ENV_FILE:-.env}"
 WRITTEN_ENV=()    # KEYs written to ENV_FILE this run
-WRITTEN_SECRET=() # secret NAMEs set this run
-SKIPPED=()        # things we couldn't do (e.g. gh missing)
 
 # _clear wipes the terminal so only the current step is on screen. No-op when
 # output isn't a terminal, so piped logs stay readable.
@@ -138,44 +136,14 @@ ask_secret() {
 # line) and sets $KEY. Idempotent. Creates ENV_FILE at mode 0600; writes through
 # a symlink and keeps an existing file's mode.
 write_env() {
-  local key="$1" value="$2" tmp sq="'\\''"
+  local key="$1" value="$2" others sq="'\\''"
   [[ -e "$ENV_FILE" ]] || (umask 077 && : > "$ENV_FILE")
-  tmp=$(mktemp)
-  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  printf "%s='%s'\n" "$key" "${value//\'/$sq}" >> "$tmp"
-  cat "$tmp" > "$ENV_FILE"
-  rm -f "$tmp"
+  # Held in memory, so no temp file with secrets is left behind on Ctrl-C.
+  others=$(grep -vE "^${key}=" "$ENV_FILE" || true)
+  { [[ -z "$others" ]] || printf '%s\n' "$others"; printf "%s='%s'\n" "$key" "${value//\'/$sq}"; } > "$ENV_FILE"
   printf -v "$key" '%s' "$value"
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
-}
-
-# set_secret NAME VALUE sets a GitHub Actions repo secret via gh. Falls back
-# to a warning (and records it) if gh is unavailable or unauthenticated.
-set_secret() {
-  local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    if printf '%s' "$value" | gh secret set "$name" >/dev/null 2>&1; then
-      WRITTEN_SECRET+=("$name")
-      printf '  %s✓ set%s GitHub secret %s\n' "$GREEN" "$RESET" "$name"
-      return
-    fi
-  fi
-  SKIPPED+=("GitHub secret $name (set it manually: gh secret set $name)")
-  warn "skipped GitHub secret $name: gh not ready; set it later"
-}
-
-# set_var NAME VALUE sets a GitHub Actions repo variable (non-secret).
-set_var() {
-  local name="$1" value="$2"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    if gh variable set "$name" --body "$value" >/dev/null 2>&1; then
-      printf '  %s✓ set%s GitHub variable %s\n' "$GREEN" "$RESET" "$name"
-      return
-    fi
-  fi
-  SKIPPED+=("GitHub variable $name")
-  warn "skipped GitHub variable $name, gh not ready; set it later"
 }
 
 # finish clears, then shows a closing summary of everything configured.
@@ -183,11 +151,6 @@ finish() {
   _clear
   printf '\n%s%s  ✓ Setup complete%s\n' "$BOLD" "$GREEN" "$RESET"
   (( ${#WRITTEN_ENV[@]} ))    && note "wrote ${#WRITTEN_ENV[@]} value(s) to $ENV_FILE: ${WRITTEN_ENV[*]}"
-  (( ${#WRITTEN_SECRET[@]} )) && note "set ${#WRITTEN_SECRET[@]} GitHub secret(s): ${WRITTEN_SECRET[*]}"
-  if (( ${#SKIPPED[@]} )); then
-    printf '\n'; warn "still to do by hand:"
-    for s in "${SKIPPED[@]}"; do note "  - $s"; done
-  fi
   printf '\n'
 }
 
@@ -199,16 +162,25 @@ run_wizard() {
 
 TOTAL_STAGES=8
 
-# The values land in a git-ignored file you paste into Coolify; never commit it.
-[[ "$ENV_FILE" == ".env" ]] && ENV_FILE=".env.production"
+# Every value is kept in a private file outside the repo, so a re-run reuses what it saved (secrets included).
+if [[ "$ENV_FILE" == ".env" ]]; then
+  ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/devbrief/production.env"
+fi
+(umask 077 && mkdir -p "$(dirname "$ENV_FILE")")
+chmod 600 "$ENV_FILE" 2>/dev/null || true
 
 banner "DevBrief production setup"
 
 stage "Domain"
 say "DevBrief needs one domain; the web app and the API share it."
 step "Buy or pick a domain at any registrar (PRD O2: not chosen yet)."
+DOMAIN=$(_existing APP_URL || true); DOMAIN=${DOMAIN#https://}
+[[ -n "$DOMAIN" ]] && write_env DOMAIN "$DOMAIN"
 ask DOMAIN "Domain, without https:// (for example devbrief.example):"
+DOMAIN=${DOMAIN#http*://}; DOMAIN=${DOMAIN%/}
+write_env DOMAIN "$DOMAIN"
 write_env APP_URL "https://${DOMAIN}"
+write_env API_INTERNAL_URL "https://${DOMAIN}"
 
 stage "Hetzner VPS"
 open_url "https://console.hetzner.cloud/"
@@ -281,16 +253,30 @@ write_env GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET"
 
 stage "Generated secrets"
 say "Random values for the app; nothing to copy from a website."
+# ensure_secret KEY GENERATOR: keeps a saved value unless the human agrees to rotate it.
+ensure_secret() {
+  local key="$1" generator="$2"
+  if [[ -n "$(_existing "$key" || true)" ]]; then
+    warn "$key already exists. Rotating it signs every user out or breaks web-to-api calls until Coolify has the new value."
+    confirm "Rotate $key?" || return 0
+  fi
+  write_env "$key" "$(eval "$generator")"
+}
 if command -v openssl >/dev/null 2>&1; then
-  write_env BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-  write_env INTERNAL_API_TOKEN "$(openssl rand -hex 24)"
+  ensure_secret BETTER_AUTH_SECRET "openssl rand -base64 32"
+  ensure_secret INTERNAL_API_TOKEN "openssl rand -hex 24"
 else
   warn "openssl not found; generate BETTER_AUTH_SECRET and INTERNAL_API_TOKEN yourself"
 fi
 write_env AUTH_TEST_MODE "false"
+write_env INGEST_ON_BOOT "true"
+
+# The Coolify file holds only application variables; the provider values stay in ENV_FILE.
+COOLIFY_FILE="${ENV_FILE%.env}.coolify.env"
+(umask 077 && grep -vE '^(DOMAIN|SERVER_IP|S3_[A-Z_]+)=' "$ENV_FILE" > "$COOLIFY_FILE")
 say ""
-say "Next: open docs/operations.md, 'First-time setup', and enter these values in Coolify."
-say "File to copy from: ${ENV_FILE} (git-ignored; delete it once Coolify has the values)."
+say "Next: open docs/operations.md, 'First-time setup', and enter the values from ${COOLIFY_FILE} in Coolify."
+say "That file and ${ENV_FILE} sit outside the repo (mode 600); keep ${ENV_FILE} so a re-run reuses the secrets. Delete ${COOLIFY_FILE} once Coolify has the values."
 
 finish
 }

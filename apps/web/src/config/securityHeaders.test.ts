@@ -1,5 +1,6 @@
+import * as shared from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { securityHeaders } from './securityHeaders';
+import { HSTS_MAX_AGE_SECONDS, PERMISSIONS_POLICY, securityHeaders } from './securityHeaders';
 
 function headerValue(nodeEnv: string, key: string) {
   return securityHeaders(nodeEnv).find((header) => header.key === key)?.value;
@@ -14,6 +15,11 @@ describe('securityHeaders', () => {
       'Referrer-Policy',
       'Permissions-Policy',
     ]);
+  });
+
+  it('sends the same HSTS lifetime and Permissions-Policy as the api', () => {
+    expect(HSTS_MAX_AGE_SECONDS).toBe(shared.HSTS_MAX_AGE_SECONDS);
+    expect(PERMISSIONS_POLICY).toBe(shared.PERMISSIONS_POLICY);
   });
 
   it('uses a nonce-free script policy so pages stay static', () => {

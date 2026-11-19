@@ -17,8 +17,8 @@ test('production health is ok', async ({ request }) => {
   const health = await response.json();
   expect(health.db).toBe('ok');
   expect(['ok', 'degraded']).toContain(health.status);
-  // "dev" means the deploy did not set APP_VERSION, so Sentry would tag errors with no release.
-  expect(health.version).not.toBe('dev');
+  // "dev" or "unknown" means the deploy did not get SOURCE_COMMIT, so Sentry would tag errors with no release.
+  expect(['dev', 'unknown']).not.toContain(health.version);
 });
 
 test('the landing page renders', async ({ page }) => {
