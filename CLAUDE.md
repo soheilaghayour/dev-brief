@@ -38,9 +38,9 @@ pnpm dev                                                 # web + api in watch mo
 pnpm test                                                # Vitest: unit + API integration against real Postgres
 pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm e2e                                                 # Playwright smoke tests in e2e/
-pnpm --filter api exec prisma migrate dev --create-only  # new migration: only in an issue that declares one
-pnpm --filter api exec prisma migrate deploy             # apply migrations
-pnpm --filter api exec prisma db seed                    # seed sources (idempotent)
+pnpm --filter api db:migrate --create-only               # new migration: only in an issue that declares one
+pnpm --filter api db:deploy                              # apply migrations
+pnpm --filter api db:seed                                # seed sources (idempotent)
 pnpm --filter api ingest:once                            # one full ingestion run
 ```
 
