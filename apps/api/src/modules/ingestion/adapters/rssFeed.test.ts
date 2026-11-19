@@ -110,6 +110,58 @@ describe('parseFeed', () => {
     for (const item of items) expect(item.excerpt ?? '').not.toMatch(/[<>]/);
   });
 
+  it('reads Atom categories as tags and <id> as the guid', async () => {
+    const { items } = await parseFeed(readRssFixture('simon-willison'), {
+      baseUrl: 'https://simonwillison.net/atom/everything/',
+      now: RSS_FIXTURE_NOW,
+    });
+    expect(items[0]?.sourceTags.length).toBeGreaterThan(0);
+    expect(items[0]?.externalId).toBe(sha1('https://simonwillison.net/2026/Nov/19/postgresql-19/'));
+  });
+
+  it('keeps the other entries of an Atom feed when one has a malformed date', async () => {
+    const feed = await parseFeed(readRssFixture('atom-edge-cases'), {
+      baseUrl,
+      now: RSS_FIXTURE_NOW,
+    });
+    expect(feed.skippedWithoutDate).toBe(1);
+    expect(feed.items.find((item) => item.url.endsWith('/valid'))).toMatchObject({
+      sourceTags: ['Databases'],
+      externalId: sha1('tag:blog.example.com,2026:valid'),
+    });
+  });
+
+  it('clamps an item dated in the future to now', async () => {
+    const { items } = await parseFeed(readRssFixture('atom-edge-cases'), {
+      baseUrl,
+      now: RSS_FIXTURE_NOW,
+    });
+    expect(items.find((item) => item.url.endsWith('/future'))?.publishedAt).toEqual(
+      RSS_FIXTURE_NOW,
+    );
+  });
+
+  it('keeps an item whose category and guid carry attributes', async () => {
+    const feed = await parseFeed(readRssFixture('rss-attribute-edge-cases'), {
+      baseUrl,
+      now: RSS_FIXTURE_NOW,
+    });
+    expect(feed.invalid).toBe(0);
+    expect(feed.items).toHaveLength(1);
+    expect(feed.items[0]).toMatchObject({
+      sourceTags: ['News'],
+      externalId: sha1('https://blog.example.com/posts/attributed'),
+    });
+  });
+
+  it('keeps text that only looks like markup in a title', async () => {
+    const { items } = await parseFeed(
+      '<rss version="2.0"><channel><title>t</title><item><title>Why a &lt; b and c &gt; d</title><link>https://blog.example.com/p</link><pubDate>Thu, 19 Nov 2026 10:00:00 GMT</pubDate></item></channel></rss>',
+      { baseUrl, now: RSS_FIXTURE_NOW },
+    );
+    expect(items[0]?.title).toBe('Why a < b and c > d');
+  });
+
   it('rejects a feed that is not well-formed XML', async () => {
     await expect(
       parseFeed(readRssFixture('broken'), { baseUrl, now: RSS_FIXTURE_NOW }),

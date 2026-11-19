@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Atom edge cases</title>
+  <link href="https://blog.example.com/" rel="alternate"/>
+  <id>https://blog.example.com/</id>
+  <updated>2026-11-19T20:00:00Z</updated>
+  <entry>
+    <title>Valid entry</title>
+    <link href="https://blog.example.com/posts/valid" rel="alternate"/>
+    <id>tag:blog.example.com,2026:valid</id>
+    <published>2026-11-19T10:00:00Z</published>
+    <category term="Databases"/>
+    <summary>Fine</summary>
+  </entry>
+  <entry>
+    <title>Bad date</title>
+    <link href="https://blog.example.com/posts/bad-date" rel="alternate"/>
+    <id>tag:blog.example.com,2026:bad-date</id>
+    <published>not a date</published>
+    <summary>Date is garbage</summary>
+  </entry>
+  <entry>
+    <title>From the future</title>
+    <link href="https://blog.example.com/posts/future" rel="alternate"/>
+    <id>tag:blog.example.com,2026:future</id>
+    <published>2099-01-01T00:00:00Z</published>
+    <summary>Typo in the year</summary>
+  </entry>
+</feed>

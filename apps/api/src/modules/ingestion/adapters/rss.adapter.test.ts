@@ -28,7 +28,7 @@ function xmlResponse(xml: string, headers: Record<string, string> = {}) {
 }
 
 describe('RssAdapter', () => {
-  it('reads the recorded feed: only items from the last 7 days', async () => {
+  it('AC-1.2.11 reads the recorded feed through a stubbed fetch: only items from the last 7 days', async () => {
     const stub = vi.fn<typeof fetch>(async () => xmlResponse(readRssFixture('cloudflare-blog')));
     const items = await adapterWith(stub).fetch(feedSource(), { signal });
     expect(items).toHaveLength(7);
@@ -113,21 +113,28 @@ describe('RssAdapter', () => {
   it('fetches at most 4 feeds at a time', async () => {
     let inFlight = 0;
     let peak = 0;
+    const waiting: (() => void)[] = [];
     const stub: typeof fetch = async () => {
       inFlight++;
       peak = Math.max(peak, inFlight);
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await new Promise<void>((resolve) => waiting.push(resolve));
       inFlight--;
       return xmlResponse(readRssFixture('edge-cases'));
     };
     const adapter = adapterWith(stub);
 
-    const feeds = Array.from({ length: 11 }, (_, index) =>
-      adapter.fetch(feedSource({ slug: `feed-${index}` }), { signal }),
-    );
-    const results = await Promise.all(feeds);
+    let finished = false;
+    const feeds = Promise.all(
+      Array.from({ length: 11 }, (_, index) =>
+        adapter.fetch(feedSource({ slug: `feed-${index}` }), { signal }),
+      ),
+    ).finally(() => (finished = true));
+    while (!finished) {
+      await new Promise((resolve) => setImmediate(resolve));
+      waiting.splice(0).forEach((release) => release());
+    }
 
-    expect(results).toHaveLength(11);
+    expect(await feeds).toHaveLength(11);
     expect(peak).toBe(4);
   });
 });

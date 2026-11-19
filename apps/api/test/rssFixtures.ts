@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs';
 const fixtureDir = new URL('./fixtures/rss/', import.meta.url);
 
 export type RssFixtureName =
-  'react-blog' | 'cloudflare-blog' | 'simon-willison' | 'edge-cases' | 'many-recent' | 'broken';
+  | 'react-blog'
+  | 'cloudflare-blog'
+  | 'simon-willison'
+  | 'edge-cases'
+  | 'atom-edge-cases'
+  | 'rss-attribute-edge-cases'
+  | 'many-recent'
+  | 'broken';
 
 export function readRssFixture(name: RssFixtureName) {
   return readFileSync(new URL(`${name}.xml`, fixtureDir), 'utf8');

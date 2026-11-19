@@ -7,18 +7,48 @@ import { EXCERPT_MAX_LENGTH, toPlainText } from './plainText.js';
 export const MAX_ITEMS_PER_FEED = 20;
 export const MAX_ITEM_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+// RSS gives "text" or { _: "text", $: { domain } }; Atom gives { $: { term } }.
+const CategorySchema = z.union([
+  z.string(),
+  z.object({ _: z.string() }).transform((category) => category._),
+  z.object({ $: z.object({ term: z.string() }) }).transform((category) => category.$.term),
+]);
+
+// Only title and link decide whether an item exists; a malformed optional field must not cost the item.
 const FeedItemSchema = z.object({
   title: z.string().optional(),
   link: z.string().optional(),
-  guid: z.string().optional(),
-  isoDate: z.string().optional(),
-  pubDate: z.string().optional(),
-  content: z.string().optional(),
-  summary: z.string().optional(),
-  creator: z.string().optional(),
-  author: z.string().optional(),
-  categories: z.array(z.string()).optional(),
+  guid: z.string().optional().catch(undefined),
+  id: z.string().optional().catch(undefined),
+  isoDate: z.string().optional().catch(undefined),
+  pubDate: z.string().optional().catch(undefined),
+  content: z.string().optional().catch(undefined),
+  summary: z.string().optional().catch(undefined),
+  creator: z.string().optional().catch(undefined),
+  author: z.string().optional().catch(undefined),
+  rawCategories: z.array(CategorySchema.catch('')).catch([]).optional(),
 });
+
+interface AtomEntryParser {
+  parseItemAtom(entry: Record<string, unknown>): unknown;
+}
+
+function createFeedParser() {
+  const parser = new Parser({
+    customFields: { item: [['category', 'rawCategories', { keepArray: true }]] },
+  });
+  const atom = parser as unknown as AtomEntryParser;
+  const parseEntry = atom.parseItemAtom.bind(parser);
+  // rss-parser formats an Atom <published>/<updated> with an unguarded toISOString(), so one bad date would fail the whole feed.
+  atom.parseItemAtom = (entry) => {
+    try {
+      return parseEntry(entry);
+    } catch {
+      return parseEntry({ ...entry, published: undefined, updated: undefined });
+    }
+  };
+  return parser;
+}
 
 export interface ParsedFeed {
   items: RawItem[];
@@ -56,7 +86,8 @@ function toRawItem(
 ): RawItem {
   const body = item.content ?? item.summary;
   return {
-    externalId: sha1(item.guid?.trim() || link),
+    // Atom's <id> is its guid.
+    externalId: sha1(item.guid?.trim() || item.id?.trim() || link),
     url: link,
     discussionUrl: null,
     title,
@@ -65,7 +96,7 @@ function toRawItem(
     points: null,
     commentsCount: null,
     reactionsCount: null,
-    sourceTags: item.categories ?? [],
+    sourceTags: (item.rawCategories ?? []).map((tag) => tag.trim()).filter(Boolean),
     excerpt: body ? toPlainText(body, EXCERPT_MAX_LENGTH) || null : null,
     readingTimeMinutes: null,
   };
@@ -79,7 +110,7 @@ export async function parseFeed(
   xml: string,
   { baseUrl, now }: { baseUrl: string; now: Date },
 ): Promise<ParsedFeed> {
-  const feed = await new Parser().parseString(xml);
+  const feed = await createFeedParser().parseString(xml);
   const oldest = now.getTime() - MAX_ITEM_AGE_MS;
   const recent: RawItem[] = [];
   let skippedWithoutDate = 0;
@@ -92,11 +123,13 @@ export async function parseFeed(
       continue;
     }
     const item = parsed.data;
-    const publishedAt = parseDate(item);
-    if (!publishedAt) {
+    const parsedAt = parseDate(item);
+    if (!parsedAt) {
       skippedWithoutDate++;
       continue;
     }
+    // Feed dates are author-written: a future one would keep the item at maximum freshness.
+    const publishedAt = parsedAt > now ? now : parsedAt;
     const link = resolveLink(item.link, baseUrl);
     const title = item.title ? toPlainText(item.title) : '';
     if (!link || !title) {

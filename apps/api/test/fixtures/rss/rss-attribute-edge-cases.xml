@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Attribute edge cases</title>
+    <link>https://blog.example.com/</link>
+    <description>Optional fields that carry attributes</description>
+    <item>
+      <title>Attributed fields</title>
+      <link>https://blog.example.com/posts/attributed</link>
+      <guid isPermaLink="false"></guid>
+      <category domain="http://www.blogger.com/atom/ns#">News</category>
+      <pubDate>Thu, 19 Nov 2026 10:00:00 GMT</pubDate>
+      <description>Body</description>
+    </item>
+  </channel>
+</rss>
