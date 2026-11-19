@@ -25,6 +25,7 @@ describe('ingest:once CLI', () => {
       .useValue([new HnAdapter(new HttpClient(hnFixtureFetch(), () => 0))])
       .compile();
 
+    await app.init();
     const recompute = vi.spyOn(app.get(RankingService), 'recompute');
 
     const status = await runIngestOnce(app);
