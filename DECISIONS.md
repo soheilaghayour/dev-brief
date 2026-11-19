@@ -29,6 +29,7 @@ links to them instead of restating them.
 - **An oversized body answers 400 `VALIDATION_FAILED`.** [§6.1](docs/prd.md#61-conventions) has no 413 code and requires the status to match the code.
 - **The web server's API calls carry `x-internal-token` (env `INTERNAL_API_TOKEN`) and skip the rate limit.** Server-side calls reach the API without Traefik and without `X-Forwarded-For`, so all visitors would share one 120 req/min bucket; the token is compared in constant time and the API port is not published.
 - **Health is `ok` or `degraded` (a source is stale or open); a down database answers 503 `UPSTREAM_UNAVAILABLE`, so `db` is always `ok` in a 200.** [§6.2](docs/prd.md#62-rest-endpoints--phase-1) names the fields but not their values.
+<<<<<<< HEAD
 - **A source whose kind has no registered adapter is recorded as `skipped`, not `failed`.** The seed lists Dev.to and RSS before their adapters exist; counting them as failures would open their circuits and mark every run `partial` ([F1.2](docs/prd.md#f12-scheduled-ingestion)).
 - **The overall run is `failed` only when every source that ran failed, and `skipped` when none ran; skipped sources do not count.** [§8.3](docs/prd.md#83-external-sources-timeouts-retries-circuit-breaking) defines `partial` for "one source failed"; with no source left to succeed, `partial` would hide a total outage, and an all-skipped run recorded as `success` would show green during one.
 - **"Last successful run" for `INGEST_ON_BOOT` means an overall run with status `success` or `partial`.** A partial run still refreshed the feed, so re-running at once on every restart would only hammer the sources ([AC-1.2.1](docs/prd.md#f12-scheduled-ingestion)).
@@ -38,6 +39,12 @@ links to them instead of restating them.
 - **The HN fixtures in `apps/api/test/fixtures/hn/` are real Firebase payloads under a composed id list.** The issue's counts (100 ids, 3 jobs, 2 dead items) must be exact, so the list mixes ids recorded from `topstories`, `jobstories` and a scan of recent items.
 - **A re-ingested HN item keeps the Story's first title.** Only the SourceItem title follows edits; re-tagging and title dedup stay stable for a Story.
 - **The 4-min run budget covers the source fetches, not the database writes or post-run steps.** A hung write would hold the lock until restart; bounding it is left to the first issue that needs it.
+=======
+- **Geist comes from `next/font/google`, not the `geist` package.** It self-hosts a Latin-only subset with `display: swap` as [§7.1](docs/prd.md#71-design-references-and-system) asks; the package ships every weight and subset unsplit. The build needs network access to fetch the font once.
+- **The shortcuts help dialog loads on first `?`.** The root layout wraps every page, and the landing budget ([§8.5](docs/prd.md#85-performance-budgets)) can't carry Radix Dialog for a dialog most visitors never open.
+- **The sidebar has Feed and Saved, plus Radar behind its flag; Collections arrives with its P3 issue.** Collections has no index route in [§7.2](docs/prd.md#72-routes-and-views), so a `g c` link would point nowhere.
+- **E2E runs as its own CI job after `check`, with its own Postgres service.** It needs the built apps, and a failing smoke test then shows apart from lint and unit failures.
+>>>>>>> 7f81ec2 (test(e2e): Playwright shell smoke tests and CI job (#10))
 
 ## Open PM questions
 

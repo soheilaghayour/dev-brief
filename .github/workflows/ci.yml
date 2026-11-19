@@ -49,3 +49,40 @@ jobs:
         run: pnpm --filter api exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - run: pnpm test
       - run: pnpm build
+
+  e2e:
+    name: e2e
+    needs: check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: devbrief
+          POSTGRES_PASSWORD: devbrief
+          POSTGRES_DB: devbrief
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U devbrief"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_URL: http://localhost:3000
+      API_INTERNAL_URL: http://localhost:3001
+      INTERNAL_API_TOKEN: ci-internal-token-0123
+      DATABASE_URL: postgresql://devbrief:devbrief@localhost:5432/devbrief
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter api db:deploy
+      - run: pnpm --filter api db:seed
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
