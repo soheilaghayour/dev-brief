@@ -114,9 +114,11 @@ async function seedStory(prisma: PrismaClient, seed: StorySeed) {
   }
 }
 
-/** Seeds the sources plus the fixture stories, and marks every source as freshly fetched. */
+/** Replaces all stories with the fixture ones and marks every source as freshly fetched; only for e2e databases. */
 export async function seedE2e(prisma: PrismaClient, now = new Date()) {
   await seedSources(prisma);
+  // Leftovers (e.g. from integration tests sharing the CI database) would break the exact counts specs rely on.
+  await prisma.story.deleteMany();
   for (const seed of buildStorySeeds(now)) await seedStory(prisma, seed);
   await prisma.source.updateMany({ data: { lastSuccessAt: now, consecutiveFailures: 0 } });
 }

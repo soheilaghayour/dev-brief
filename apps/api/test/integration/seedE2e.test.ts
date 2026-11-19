@@ -22,6 +22,25 @@ describe('end-to-end seed', () => {
     }
   });
 
+  it('removes stories that are not fixtures', async () => {
+    await prisma.story.create({
+      data: {
+        canonicalUrl: 'https://stray.example.com/post',
+        url: 'https://stray.example.com/post',
+        domain: 'stray.example.com',
+        title: 'Stray',
+        normalizedTitle: 'stray',
+        publishedAt: now,
+        tags: [],
+        taggerVersion: 1,
+      },
+    });
+
+    await seedE2e(prisma, now);
+
+    expect(await prisma.story.findFirst({ where: { title: 'Stray' } })).toBeNull();
+  });
+
   it('is idempotent: a second run adds no rows', async () => {
     await seedE2e(prisma, now);
     const counts = async () => [await prisma.story.count(), await prisma.sourceItem.count()];

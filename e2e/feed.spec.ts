@@ -173,7 +173,10 @@ test('AC-1.3.8 / focuses search, t toggles the sort, Esc blurs, and typing ignor
   await page.keyboard.press('Escape');
   await expect(search).not.toBeFocused();
 
+  // fill() focuses the box again, so blur it before the shortcut.
   await search.fill('');
+  await expect(page).not.toHaveURL(/q=/);
+  await page.keyboard.press('Escape');
   await page.keyboard.press('t');
   await expect(page).toHaveURL(/sort=latest/);
   await page.keyboard.press('t');
