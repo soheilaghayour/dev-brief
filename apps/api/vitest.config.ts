@@ -20,7 +20,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Tests run against the shared source, so they need no prior build of the package.
+      // Tests read the shared source (the entry its package.json `types` names), so they need no prior build.
       '@devbrief/shared': fileURLToPath(
         new URL('../../packages/shared/src/index.ts', import.meta.url),
       ),

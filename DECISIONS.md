@@ -29,6 +29,15 @@ links to them instead of restating them.
 - **An oversized body answers 400 `VALIDATION_FAILED`.** [§6.1](docs/prd.md#61-conventions) has no 413 code and requires the status to match the code.
 - **The web server's API calls carry `x-internal-token` (env `INTERNAL_API_TOKEN`) and skip the rate limit.** Server-side calls reach the API without Traefik and without `X-Forwarded-For`, so all visitors would share one 120 req/min bucket; the token is compared in constant time and the API port is not published.
 - **Health is `ok` or `degraded` (a source is stale or open); a down database answers 503 `UPSTREAM_UNAVAILABLE`, so `db` is always `ok` in a 200.** [§6.2](docs/prd.md#62-rest-endpoints--phase-1) names the fields but not their values.
+- **A source whose kind has no registered adapter is recorded as `skipped`, not `failed`.** The seed lists Dev.to and RSS before their adapters exist; counting them as failures would open their circuits and mark every run `partial` ([F1.2](docs/prd.md#f12-scheduled-ingestion)).
+- **The overall run is `failed` only when every source that ran failed, and `skipped` when none ran; skipped sources do not count.** [§8.3](docs/prd.md#83-external-sources-timeouts-retries-circuit-breaking) defines `partial` for "one source failed"; with no source left to succeed, `partial` would hide a total outage, and an all-skipped run recorded as `success` would show green during one.
+- **"Last successful run" for `INGEST_ON_BOOT` means an overall run with status `success` or `partial`.** A partial run still refreshed the feed, so re-running at once on every restart would only hammer the sources ([AC-1.2.1](docs/prd.md#f12-scheduled-ingestion)).
+- **Sources fetch in parallel but write to the database one source at a time.** Two sources inserting the same canonical URL or title at once would hit the unique constraint or split a Story; writes are cheap next to the network calls.
+- **The ingestion lock is a Postgres advisory lock on its own `pg` connection, not the Prisma pool.** A session-level lock must be released on the connection that took it; it also frees itself if the process dies mid-run.
+- **`pnpm --filter api ingest:once` builds the shared package and the API, then runs the compiled CLI.** tsx (esbuild) does not emit the decorator metadata Nest's injection reads, and the compiled API imports the shared package from its `dist`.
+- **The HN fixtures in `apps/api/test/fixtures/hn/` are real Firebase payloads under a composed id list.** The issue's counts (100 ids, 3 jobs, 2 dead items) must be exact, so the list mixes ids recorded from `topstories`, `jobstories` and a scan of recent items.
+- **A re-ingested HN item keeps the Story's first title.** Only the SourceItem title follows edits; re-tagging and title dedup stay stable for a Story.
+- **The 4-min run budget covers the source fetches, not the database writes or post-run steps.** A hung write would hold the lock until restart; bounding it is left to the first issue that needs it.
 
 ## Open PM questions
 

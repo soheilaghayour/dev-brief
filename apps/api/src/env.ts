@@ -6,6 +6,10 @@ const EnvSchema = z.object({
   APP_URL: z.string().url(),
   DATABASE_URL: z.string().url(),
   INTERNAL_API_TOKEN: z.string().min(16),
+  INGEST_ON_BOOT: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 /** Parses the environment and throws one readable error listing every invalid variable. */

@@ -16,6 +16,12 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...validEnv, PORT: '4000' }).PORT).toBe(4000);
   });
 
+  it('reads INGEST_ON_BOOT as a boolean that defaults to false', () => {
+    expect(loadEnv(validEnv).INGEST_ON_BOOT).toBe(false);
+    expect(loadEnv({ ...validEnv, INGEST_ON_BOOT: 'true' }).INGEST_ON_BOOT).toBe(true);
+    expect(() => loadEnv({ ...validEnv, INGEST_ON_BOOT: 'yes' })).toThrow(/INGEST_ON_BOOT/);
+  });
+
   it('names every missing required variable', () => {
     expect(() => loadEnv({})).toThrow(/APP_URL[\s\S]*DATABASE_URL/);
   });
