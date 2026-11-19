@@ -10,6 +10,11 @@ links to them instead of restating them.
 - **`CLAUDE.md` is the one home for agent rules; `AGENTS.md` only points to it.** PRD §4.2 asks for both files; two copies of the same rules drift apart.
 - **`@/*` maps to `src/*` inside each app, and `packages/shared` is imported as `@devbrief/shared`.** The PRD names neither; one import style in both apps keeps moves cheap.
 - **RSS items with a missing or unparseable date are skipped.** F1.2 doesn't cover the case, and substituting the fetch time would rank old posts as fresh.
+- **Node 26 (the current Active LTS) and pnpm 12, pinned in `.nvmrc` and `packageManager`.** Tooling versions come from one place each; CI reads both.
+- **Nest 12 is ESM-only, so the API and `packages/shared` are ES modules with `.js` import specifiers.** One module system across the repo; the web app is bundled by Next.
+- **TypeScript stays on 6.0.x.** `typescript-eslint` doesn't support 7 yet; raise it when it does.
+- **The `zod` advisory GHSA-mrhx-c7xc-m3w5 is ignored in `pnpm audit`; every request-input `z.array()` gets `.max()`.** Only 4.6.6 fixes it, and the PRD pins Zod 3.25 for `@a2ui/react` ([§4.1](docs/prd.md#41-system-diagram)); request bodies are capped at 100 KB ([§8.6](docs/prd.md#86-security-basics)). Remove the ignore when the pin lifts.
+- **Local env lives in one root `.env`, loaded by `dotenv-cli` in each app's `dev` and `build` scripts; `dev` falls back to `.env.example`, so a fresh clone runs without a `.env`.** Next only reads its own folder's `.env`, and Node refuses `--env-file` in `NODE_OPTIONS`; a missing variable still fails fast at boot.
 
 ## Open PM questions
 

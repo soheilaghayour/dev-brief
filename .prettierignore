@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+.next
+dist
+coverage
+# frozen: changes only in PRD-amending PRs
+docs/prd.md

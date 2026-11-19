@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Pinned on purpose, see DECISIONS.md
+    ignore:
+      - dependency-name: zod
+        versions: ['>=4']
+      - dependency-name: typescript
+        versions: ['>=6.1']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
