@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { AccountSlot } from '@/components/account/AccountSlot';
+import { GuestStoreHydrator } from '@/components/saves/GuestStoreHydrator';
 import { AppShell } from '@/components/layout/AppShell';
 import { FeedFilters } from '@/components/feed/FeedFilters';
 import { FeedOnly } from '@/components/feed/FeedOnly';
@@ -11,6 +12,7 @@ import { SortToggle } from '@/components/feed/SortToggle';
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <NuqsAdapter>
+      <GuestStoreHydrator />
       <AppShell
         searchSlot={
           <FeedOnly>

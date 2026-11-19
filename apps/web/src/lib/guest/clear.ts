@@ -1,10 +1,7 @@
-export const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
+import { GUEST_STORAGE_KEY, guestStorage, useGuestStore } from './guestStore';
 
-/** Removes the guest data stored on this device. */
+/** Resets the guest store and removes its storage key. */
 export function clearGuestData() {
-  try {
-    localStorage.removeItem(GUEST_STORAGE_KEY);
-  } catch {
-    // localStorage can be unavailable; then there is nothing stored to clear.
-  }
+  useGuestStore.getState().reset();
+  guestStorage.removeItem(GUEST_STORAGE_KEY);
 }

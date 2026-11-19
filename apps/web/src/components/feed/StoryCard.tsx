@@ -1,7 +1,7 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { cn } from '@/lib/cn';
 import { RelativeTime } from './RelativeTime';
-import { SaveButton } from './SaveButton';
+import { SaveButton } from '@/components/saves/SaveButton';
 import { SourceBadge } from './SourceBadge';
 import { TagBadge } from './TagBadge';
 

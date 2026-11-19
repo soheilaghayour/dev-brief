@@ -73,6 +73,14 @@ test('sign-in via the test-mode route shows the user menu', async ({ page }) => 
   await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
 });
 
+test('a signed-in user does not see the guest hint', async ({ page }) => {
+  await signInThroughTestRoute(page);
+  await page.goto('/feed');
+  await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('region', { name: 'Guest hint' })).toHaveCount(0);
+});
+
 test('AC-1.5.8 signing out returns the app to guest mode with an empty local store', async ({
   page,
 }) => {
