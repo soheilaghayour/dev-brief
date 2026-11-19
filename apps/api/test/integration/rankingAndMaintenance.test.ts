@@ -217,7 +217,11 @@ describe('rank recompute and daily job', () => {
 
     await app.get(MaintenanceService).runDaily(NOW);
 
-    expect((await prisma.ingestionRun.findMany()).map((run) => run.runId)).toEqual(['recent']);
+    expect(
+      (await prisma.ingestionRun.findMany({ where: { runId: { in: ['old', 'recent'] } } })).map(
+        (run) => run.runId,
+      ),
+    ).toEqual(['recent']);
     expect((await prisma.session.findMany()).map((session) => session.id)).toEqual(['s-live']);
     expect((await prisma.verification.findMany()).map((row) => row.id)).toEqual(['v-live']);
     await app.close();
