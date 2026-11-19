@@ -62,5 +62,3 @@ jobs:
           ALLOW_DESTRUCTIVE_SEED: '1'
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
-        env:
-          AUTH_TEST_MODE: 'true'
