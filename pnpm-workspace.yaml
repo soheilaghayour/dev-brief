@@ -5,7 +5,10 @@ catalog:
   typescript: ~6.0.3
   zod: 3.25.76
 allowBuilds:
+  '@prisma/engines': true
   '@swc/core': true
+  esbuild: true
+  prisma: true
 overrides:
   zod: 'catalog:'
 auditConfig:
