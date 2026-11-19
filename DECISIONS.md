@@ -38,6 +38,10 @@ links to them instead of restating them.
 - **The HN fixtures in `apps/api/test/fixtures/hn/` are real Firebase payloads under a composed id list.** The issue's counts (100 ids, 3 jobs, 2 dead items) must be exact, so the list mixes ids recorded from `topstories`, `jobstories` and a scan of recent items.
 - **A re-ingested HN item keeps the Story's first title.** Only the SourceItem title follows edits; re-tagging and title dedup stay stable for a Story.
 - **The 4-min run budget covers the source fetches, not the database writes or post-run steps.** A hung write would hold the lock until restart; bounding it is left to the first issue that needs it.
+- **A source is `healthy` within 2 hours of its last success, `stale` after, and `circuit_open` while its circuit is open; `/health` and `/sources` share this one rule.** [AC-1.3.11](docs/prd.md#f13-feed-and-discovery) leaves 2-3 h undefined; one constant, `SOURCE_STALE_AFTER_HOURS`, is easy to change.
+- **The feed query selects only ids and sort keys in raw SQL; a Prisma read then loads the cards.** The keyset, tag, kind and full-text filters need `$queryRaw` ([§4.2](docs/prd.md#42-monorepo-layout)); loading sources and items through Prisma avoids hand-rolled JSON aggregation.
+- **`POST /stories/lookup` drops repeated ids, keeping the first occurrence.** Order is the input order; a card twice in the result would only be noise.
+- **Health is never cached and the API version comes from `APP_VERSION` (default `dev`).** A cached health answer would hide an outage.
 
 - **Geist comes from `next/font/google`, not the `geist` package.** It self-hosts a Latin-only subset with `display: swap` as [§7.1](docs/prd.md#71-design-references-and-system) asks; the package ships every weight and subset unsplit. The build needs network access to fetch the font once.
 - **The shortcuts help dialog loads on first `?`.** The root layout wraps every page, and the landing budget ([§8.5](docs/prd.md#85-performance-budgets)) can't carry Radix Dialog for a dialog most visitors never open.
