@@ -70,6 +70,7 @@ jobs:
           FEATURE_PREFERENCES: 'true'
           # Summaries need a key to boot; e2e never calls the LLM, so a placeholder does.
           ANTHROPIC_API_KEY: ci-placeholder-not-a-key
+          IP_HASH_SECRET: ci-placeholder-ip-hash-secret-0123456789
       - run: pnpm --filter web build
         env:
           API_PROXY_URL: http://localhost:3001

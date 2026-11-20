@@ -6,6 +6,7 @@ import type { Prisma } from '../../src/generated/prisma/client.js';
 import { createTestApp } from './createTestApp.js';
 import { ProbeController } from './probe.controller.js';
 import { createSource, createStory } from './seedStories.js';
+import { SUMMARIES_ON } from './summariesTestModule.js';
 import { useTestDatabase } from './testDatabase.js';
 
 const DAY = new Date('2026-03-10T00:00:00Z');
@@ -99,8 +100,7 @@ describe('Phase 2 schema', () => {
     beforeAll(async () => {
       off = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'false' });
       on = await createTestApp([ProbeController], {
-        FEATURE_SUMMARIES: 'true',
-        ANTHROPIC_API_KEY: 'test-key',
+        ...SUMMARIES_ON,
       });
     });
     afterAll(async () => {

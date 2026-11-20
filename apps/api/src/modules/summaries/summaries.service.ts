@@ -15,8 +15,8 @@ import { SummaryInputsService } from './summaryInputs.service.js';
 import { summaryRequest } from './summaryRequest.js';
 import { storedConsensus } from './summaryRules.js';
 
-/** `cached` when the story already had a summary (or a concurrent call stored one first), `created` when this call wrote it. */
-export type GenerateResult = { kind: 'cached' | 'created'; summary: StorySummary };
+/** `cached` when the story already had a summary and no model was called, `created` when this call wrote it, `raced` when a concurrent call stored one while this call's model request ran (its cost is in the ledger). */
+export type GenerateResult = { kind: 'cached' | 'created' | 'raced'; summary: StorySummary };
 
 const FEATURE_BY_TRIGGER = {
   auto: 'summary_auto',
@@ -105,7 +105,7 @@ export class SummariesService {
       // A concurrent call stored this story's summary first; that one stays, and this one's cost is already in the ledger.
       const winner = await this.find(storyId);
       if (!winner) throw error;
-      return { kind: 'cached', summary: winner };
+      return { kind: 'raced', summary: winner };
     }
   }
 }

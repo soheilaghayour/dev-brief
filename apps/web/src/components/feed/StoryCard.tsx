@@ -1,5 +1,8 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import type { ComponentProps } from 'react';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/Badge';
+import { isFeatureEnabled } from '@/config/features';
 import { cn } from '@/lib/cn';
 import { RelativeTime } from './RelativeTime';
 import { SaveButton } from '@/components/saves/SaveButton';
@@ -71,6 +74,11 @@ export function StoryCard({
             <TagBadge key={tag} slug={tag} menu={preferenceMenu} />
           ))}
           {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
+          {story.hasSummary && isFeatureEnabled('summaries') && (
+            <Link href={`/story/${story.id}`} aria-label={`Read the AI summary of ${story.title}`}>
+              <Badge>TL;DR</Badge>
+            </Link>
+          )}
         </div>
       </div>
       <SaveButton isSaved={isSaved} onToggleSave={onToggleSave} />

@@ -5,6 +5,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
+import { isFeatureEnabled } from '@/config/features';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { FeedEmpty } from './FeedEmpty';
@@ -23,6 +24,7 @@ import { hideMuted } from './hideMuted';
 import { InfiniteSentinel } from './InfiniteSentinel';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { StoryCard } from './StoryCard';
+import { SummarizeShortcut } from './SummarizeShortcut';
 import { useFeedFilters } from './useFeedFilters';
 import { useFocusAfterRemoval } from './useFocusAfterRemoval';
 
@@ -149,6 +151,7 @@ export function FeedList() {
       aria-label="Stories"
       onFocusCapture={trackFocus}
     >
+      {isFeatureEnabled('summaries') && activeId && <SummarizeShortcut storyId={activeId} />}
       {stories.map((story) => (
         <StoryCard
           key={story.id}

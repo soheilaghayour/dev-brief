@@ -47,6 +47,8 @@ const EnvSchema = z
     FEATURE_PREFERENCES: BooleanFlagSchema,
     /** Summarises the top stories after each ingestion run; takes effect only with FEATURE_SUMMARIES. */
     AUTO_SUMMARIES: BooleanFlagSchema,
+    /** Derives the daily salt of the stored IP digests (PRD §8.6); required when FEATURE_SUMMARIES=true. */
+    IP_HASH_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
     ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     LLM_MODEL: z.string().min(1).default('claude-haiku-5-5'),
     LLM_CAP_SUMMARY_AUTO_USD_DAY: UsdCapSchema,
@@ -59,6 +61,10 @@ const EnvSchema = z
   // Dev and CI run without a key; an enabled LLM feature must not boot without one.
   .refine((env) => !env.FEATURE_SUMMARIES || env.ANTHROPIC_API_KEY !== undefined, {
     path: ['ANTHROPIC_API_KEY'],
+    message: 'is required when FEATURE_SUMMARIES=true',
+  })
+  .refine((env) => !env.FEATURE_SUMMARIES || env.IP_HASH_SECRET !== undefined, {
+    path: ['IP_HASH_SECRET'],
     message: 'is required when FEATURE_SUMMARIES=true',
   })
   // Fails closed on the public origin too: an unset NODE_ENV defaults to development.

@@ -13,8 +13,12 @@ import { mockLanguageModel } from '../mockLanguageModel.js';
 import { summaryFixtureFetch } from '../summaryFixtures.js';
 import { summaryInputsOverride } from './createTestApp.js';
 
-/** Summaries on, with a key the mock model never sends. */
-export const SUMMARIES_ON = { FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
+/** Summaries on, with a key the mock model never sends and a secret for the IP digests. */
+export const SUMMARIES_ON = {
+  FEATURE_SUMMARIES: 'true',
+  ANTHROPIC_API_KEY: 'test-key',
+  IP_HASH_SECRET: 'test-ip-hash-secret-0123456789abcdef',
+};
 
 type GenerateOptions = Parameters<MockLanguageModelV4['doGenerate']>[0];
 

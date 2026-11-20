@@ -11,6 +11,7 @@ import {
   StatsSchema,
   StoryDetailSchema,
   StoryLookupResponseSchema,
+  StorySummarySchema,
   TagListSchema,
 } from '@devbrief/shared';
 import type {
@@ -54,6 +55,18 @@ export function lookupStories(body: StoryLookupRequest) {
   return apiClient.request(
     { method: 'POST', path: '/stories/lookup', body },
     StoryLookupResponseSchema,
+  );
+}
+
+/** Asks for the story's summary: served from cache, or generated within the daily quota. */
+export function summarizeStory(storyId: string, deviceId: string) {
+  return apiClient.request(
+    {
+      method: 'POST',
+      path: `/stories/${encodeURIComponent(storyId)}/summary`,
+      body: { deviceId },
+    },
+    StorySummarySchema,
   );
 }
 

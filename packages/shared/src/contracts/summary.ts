@@ -15,3 +15,6 @@ export const StorySummarySchema = z.object({
   createdAt: z.string().datetime(),
 });
 export type StorySummary = z.infer<typeof StorySummarySchema>;
+
+export const SummaryRequestSchema = z.object({ deviceId: z.string().uuid().optional() });
+export type SummaryRequest = z.infer<typeof SummaryRequestSchema>;

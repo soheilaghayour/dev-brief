@@ -1,9 +1,9 @@
 import { Injectable, SetMetadata, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ThrottlerException } from '@nestjs/throttler';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../../modules/auth/auth.guard.js';
-import { USER_RATE_LIMIT_WINDOW_MS, UserRateLimitWindows } from './userRateLimit.module.js';
+import { enforceWindowLimit } from './enforceWindowLimit.js';
+import { RateLimitWindows } from './userRateLimit.module.js';
 
 const LIMIT_KEY = 'rateLimit:perUser';
 
@@ -20,7 +20,7 @@ export const UserRateLimit = (limit: UserLimit) => SetMetadata(LIMIT_KEY, limit)
 export class UserRateLimitGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly windows: UserRateLimitWindows,
+    private readonly windows: RateLimitWindows,
   ) {}
 
   canActivate(context: ExecutionContext) {
@@ -28,18 +28,10 @@ export class UserRateLimitGuard implements CanActivate {
     if (!limit) return true;
     const http = context.switchToHttp();
     const { currentUser } = http.getRequest<AuthenticatedRequest>();
-    const response = http.getResponse<Response>();
-    const now = Date.now();
-    const window = this.windows.hit(`${limit.bucket}:${currentUser.id}`, now);
-
-    const secondsToReset = String(
-      Math.ceil((window.startedAt + USER_RATE_LIMIT_WINDOW_MS - now) / 1000),
-    );
-    response.setHeader('RateLimit-Limit', String(limit.perMinute));
-    response.setHeader('RateLimit-Remaining', String(Math.max(0, limit.perMinute - window.count)));
-    response.setHeader('RateLimit-Reset', secondsToReset);
-    if (window.count <= limit.perMinute) return true;
-    response.setHeader('Retry-After', secondsToReset);
-    throw new ThrottlerException();
+    enforceWindowLimit(this.windows, http.getResponse<Response>(), {
+      key: `${limit.bucket}:${currentUser.id}`,
+      perMinute: limit.perMinute,
+    });
+    return true;
   }
 }

@@ -2,10 +2,15 @@ import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import { SourceItemList } from '@/components/story/SourceItemList';
 import { StoryHeader } from '@/components/story/StoryHeader';
+import { SummaryPanel } from '@/components/story/SummaryPanel';
+import { isFeatureEnabled } from '@/config/features';
 import { ApiError } from '@/lib/api/apiError';
 import { getStory } from '@/lib/api/endpoints';
 
-type StoryPageProps = { params: Promise<{ id: string }> };
+type StoryPageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ summarize?: string }>;
+};
 
 // Shared by the metadata and the page, so one request serves both.
 const loadStory = cache(async (id: string) => {
@@ -23,13 +28,17 @@ export async function generateMetadata({ params }: StoryPageProps) {
   return { title: story?.title ?? 'Story not found' };
 }
 
-export default async function StoryPage({ params }: StoryPageProps) {
+export default async function StoryPage({ params, searchParams }: StoryPageProps) {
   const story = await loadStory((await params).id);
   if (!story) notFound();
+  const autoStart = (await searchParams).summarize === '1';
 
   return (
     <article className="flex flex-col gap-8">
       <StoryHeader story={story} />
+      {isFeatureEnabled('summaries') && (
+        <SummaryPanel storyId={story.id} summary={story.summary ?? null} autoStart={autoStart} />
+      )}
       <SourceItemList items={story.items} />
     </article>
   );

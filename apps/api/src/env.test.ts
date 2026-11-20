@@ -12,6 +12,11 @@ const validEnv = {
   GOOGLE_CLIENT_SECRET: 'google-secret',
 };
 
+const SUMMARIES_SECRETS = {
+  ANTHROPIC_API_KEY: 'test-key',
+  IP_HASH_SECRET: 'local-ip-hash-secret-0123456789abcdef',
+};
+
 describe('loadEnv', () => {
   it('applies defaults to optional variables', () => {
     expect(loadEnv(validEnv)).toMatchObject({ NODE_ENV: 'development', PORT: 3001 });
@@ -32,19 +37,19 @@ describe('loadEnv', () => {
       FEATURE_SUMMARIES: false,
       FEATURE_PREFERENCES: false,
     });
-    expect(
-      loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' }),
-    ).toMatchObject({
-      FEATURE_SUMMARIES: true,
-      FEATURE_PREFERENCES: false,
-    });
+    expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS })).toMatchObject(
+      {
+        FEATURE_SUMMARIES: true,
+        FEATURE_PREFERENCES: false,
+      },
+    );
     expect(loadEnv({ ...validEnv, FEATURE_PREFERENCES: 'true' }).FEATURE_PREFERENCES).toBe(true);
     expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'on' })).toThrow(/FEATURE_SUMMARIES/);
     expect(() => loadEnv({ ...validEnv, FEATURE_PREFERENCES: '1' })).toThrow(/FEATURE_PREFERENCES/);
   });
 
   it('reads AUTO_SUMMARIES as a boolean that defaults to false, so a summaries-on API makes no auto calls unasked', () => {
-    const summariesOn = { ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
+    const summariesOn = { ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS };
     expect(loadEnv(summariesOn).AUTO_SUMMARIES).toBe(false);
     expect(loadEnv({ ...summariesOn, AUTO_SUMMARIES: 'true' }).AUTO_SUMMARIES).toBe(true);
     expect(() => loadEnv({ ...summariesOn, AUTO_SUMMARIES: 'yes' })).toThrow(/AUTO_SUMMARIES/);
@@ -111,9 +116,22 @@ describe('loadEnv', () => {
       loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: '' }),
     ).toThrow(/ANTHROPIC_API_KEY/);
     expect(
-      loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' })
-        .ANTHROPIC_API_KEY,
+      loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS }).ANTHROPIC_API_KEY,
     ).toBe('test-key');
+  });
+
+  it('requires IP_HASH_SECRET of 32+ characters only when FEATURE_SUMMARIES=true', () => {
+    const summariesOn = { ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
+    expect(loadEnv(validEnv).IP_HASH_SECRET).toBeUndefined();
+    expect(() => loadEnv(summariesOn)).toThrow(
+      /IP_HASH_SECRET: is required when FEATURE_SUMMARIES=true/,
+    );
+    expect(() => loadEnv({ ...summariesOn, IP_HASH_SECRET: 'too-short' })).toThrow(
+      /IP_HASH_SECRET/,
+    );
+    expect(loadEnv({ ...summariesOn, ...SUMMARIES_SECRETS }).IP_HASH_SECRET).toBe(
+      SUMMARIES_SECRETS.IP_HASH_SECRET,
+    );
   });
 
   it('reads LLM_MODEL with the Haiku 5.5 default', () => {

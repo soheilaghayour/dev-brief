@@ -40,6 +40,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 | `AUTH_TEST_MODE`                                                                       | yes |     | `false` (the API refuses `true` in production)                                                            |
 | `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                                    |
 | `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                                        |
+| `IP_HASH_SECRET`                                                                       | yes |     | 32+ random characters (`openssl rand -base64 32`); required once `FEATURE_SUMMARIES` is `true`            |
 | `ANTHROPIC_API_KEY`                                                                    | yes |     | required once `FEATURE_SUMMARIES` is `true` (see [Anthropic key](#anthropic-key-and-spend-limit-phase-2)) |
 | `AUTO_SUMMARIES`                                                                       | yes |     | `true` together with `FEATURE_SUMMARIES`; off, no summary is made after ingestion runs                    |
 | `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag                         |
@@ -110,7 +111,7 @@ To restore for real after data loss: create a new Postgres resource from the sam
 
 ## Anthropic key and spend limit (Phase 2)
 
-The API refuses to start with `FEATURE_SUMMARIES=true` and no `ANTHROPIC_API_KEY`. Before turning summaries on:
+The API refuses to start with `FEATURE_SUMMARIES=true` and no `ANTHROPIC_API_KEY` or `IP_HASH_SECRET`. Before turning summaries on:
 
 1. Record the real AC-2.3.7 model reply ([issue #57](https://github.com/soheilaghayour/dev-brief/issues/57), steps in [`apps/api/test/fixtures/llm/README.md`](../apps/api/test/fixtures/llm/README.md)). Until then the fixture holds a hand-written placeholder and its tests are skipped, so the prompt-injection defence is unproven against the real model.
 2. In the Anthropic Console, create an API key in a workspace used only by DevBrief, and set it as `ANTHROPIC_API_KEY` on the API application in Coolify. Never commit it.
