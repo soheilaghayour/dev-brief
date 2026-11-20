@@ -14,12 +14,12 @@ Two apps and one shared package:
 
 Each call runs reserve → call → settle against the `LlmUsage` ledger (`SpendLedgerService`):
 
-1. **Reserve.** The input (system prompt, user prompt and the output's JSON schema) is estimated at `ceil(chars / 2)` tokens, and its worst case (that input plus `maxOutputTokens`) must fit under both the feature's daily cap and the global one. The reservation inserts a `reserved` row; a refused one throws before the model is called.
-2. **Call.** The Vercel AI SDK's `generateText` with `Output.object` and the Anthropic provider (`LLM_MODEL`), thinking off and effort `low`, a 30 s timeout and no SDK retries.
-3. **Settle.** The row becomes `settled` at the cost of the AI SDK's `usage`. A failed call becomes `failed`: output that fails the schema or a refusal at its usage, an error status (400 or more) at zero, and a timeout, a lost connection or an unreadable 200 at its worst case.
+1. **Reserve.** The estimated input plus `maxOutputTokens`, priced as the call's worst case, must fit under both the feature's daily cap and the global one. The reservation inserts a `reserved` row; a refused one throws before the model is called.
+2. **Call.** The Vercel AI SDK's `generateText` with `Output.object` and the Anthropic provider (`LLM_MODEL`), thinking off and effort `low`, with no SDK retries.
+3. **Settle.** The row becomes `settled` at the cost of the AI SDK's `usage`, or `failed` at the usage a failure may have billed.
 
-`LlmService` retries once for each of two causes, each retry a new reserve → call → settle with its own row: after output that fails the schema, and 2 s after a 5xx, a 429 or a lost connection. A refusal, any other error and a timeout fail closed at once; a refused retry reservation throws `SpendCapReachedError`.
+A retry, after invalid output or a transient provider error, is a new reserve → call → settle with its own row; `RETRY_POLICY` in `llm.service.ts` holds the rules, and [`DECISIONS.md`](../DECISIONS.md) the estimate, settle and retry rules with their reasons.
 
 The caps, the price table and the cost math live in `llm/budget.ts`, as pure functions; env overrides each cap and the configured model's prices. Committed spend counts an open reservation at `reservedUsd` and a closed row at `costUsd`, per UTC day; `GET /health` reports the same figure as `llm.spentTodayUsd`.
 
-Reservations are serialised per UTC day: each runs in one transaction that first takes `pg_advisory_xact_lock(<ledger key>, <UTC day number>)`, so two concurrent reservations can't both read the spend from before the other's row. The transaction runs at Read Committed with a 10 s timeout, and one that times out throws `SpendCapReachedError` with cap `ledger_timeout`.
+Reservations are serialised per UTC day: each runs in one transaction that first takes `pg_advisory_xact_lock(<ledger key>, <UTC day number>)`, so two concurrent reservations can't both read the spend from before the other's row. A reservation that times out fails closed with `SpendCapReachedError`.

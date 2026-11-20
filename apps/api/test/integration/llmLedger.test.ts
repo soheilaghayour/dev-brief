@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { Output } from 'ai';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { z } from 'zod';
 import { ENV, EnvModule } from '../../src/common/env/env.module.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import { loadEnv } from '../../src/env.js';
@@ -10,11 +9,15 @@ import { GenerationFailedError, SpendCapReachedError } from '../../src/modules/l
 import { LlmModule } from '../../src/modules/llm/llm.module.js';
 import { LANGUAGE_MODEL, LlmService } from '../../src/modules/llm/llm.service.js';
 import { SpendLedgerService } from '../../src/modules/llm/spendLedger.service.js';
-import { mockLanguageModel, modelReply, RECORDED_USAGE } from '../mockLanguageModel.js';
+import {
+  mockLanguageModel,
+  modelReply,
+  RECORDED_USAGE,
+  TldrSchema,
+  VALID_TLDR as VALID,
+} from '../mockLanguageModel.js';
 import { useTestDatabase } from './testDatabase.js';
 
-const TldrSchema = z.object({ tldr: z.array(z.string()).length(3) });
-const VALID = { tldr: ['one', 'two', 'three'] };
 // The SDK sends the output's JSON schema along, and the input estimate counts it.
 const sentSchema = await Output.object({ schema: TldrSchema }).responseFormat;
 const SCHEMA_CHARS = sentSchema?.type === 'json' ? JSON.stringify(sentSchema.schema).length : 0;
@@ -32,6 +35,7 @@ const WORST_CASE_USAGE = { inputTokens: 4_000, outputTokens: 700 };
 const RECORDED_COST = '0.0003';
 
 describe('LLM spend ledger', () => {
+  const yesterday = new Date(utcDay(new Date()).getTime() - 86_400_000);
   const prisma = useTestDatabase();
   let closeModule: (() => Promise<void>) | undefined;
 
@@ -146,7 +150,6 @@ describe('LLM spend ledger', () => {
   });
 
   it("ignores yesterday's spend", async () => {
-    const yesterday = new Date(utcDay(new Date()).getTime() - 86_400_000);
     await addUsage({
       feature: 'summary_auto',
       status: 'settled',
@@ -236,7 +239,7 @@ describe('LLM spend ledger', () => {
       status: 'settled',
       reservedUsd: '0.00075',
       costUsd: '0.0005',
-      day: new Date(utcDay(new Date()).getTime() - 86_400_000),
+      day: yesterday,
     });
     const { ledger } = await createLlm(async () => modelReply(VALID));
 

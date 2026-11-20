@@ -34,7 +34,7 @@ const EnvSchema = z
       .transform((value) => value === '1'),
     APP_VERSION: z.string().min(1).default('dev'),
     /** Sentry project DSN; unset (or empty) turns error reporting off. */
-    SENTRY_DSN: z.preprocess((value) => value || undefined, z.string().url().optional()),
+    SENTRY_DSN: z.preprocess(emptyToUndefined, z.string().url().optional()),
     BETTER_AUTH_SECRET: z.string().min(32),
     GITHUB_CLIENT_ID: z.string().min(1),
     GITHUB_CLIENT_SECRET: z.string().min(1),
@@ -43,7 +43,6 @@ const EnvSchema = z
     AUTH_TEST_MODE: BooleanFlagSchema,
     FEATURE_SUMMARIES: BooleanFlagSchema,
     FEATURE_PREFERENCES: BooleanFlagSchema,
-    /** Anthropic key; required once an LLM feature flag is on. */
     ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     LLM_MODEL: z.string().min(1).default('claude-haiku-5-5'),
     LLM_CAP_SUMMARY_AUTO_USD_DAY: UsdCapSchema,

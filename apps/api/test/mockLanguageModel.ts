@@ -1,6 +1,11 @@
 import { MockLanguageModelV4 } from 'ai/test';
+import { z } from 'zod';
 
 type GenerateResult = Awaited<ReturnType<MockLanguageModelV4['doGenerate']>>;
+
+/** A summary-like output schema, and an object that matches it. */
+export const TldrSchema = z.object({ tldr: z.array(z.string()).length(3) });
+export const VALID_TLDR = { tldr: ['one', 'two', 'three'] };
 
 /** Token counts in the shape a Haiku 5.5 response reports them, thinking off. */
 export const RECORDED_USAGE = { inputTokens: 1_800, outputTokens: 240 };
