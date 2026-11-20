@@ -92,15 +92,29 @@ describe('Phase 2 schema', () => {
   });
 
   it('answers a @RequiresFeature route with 404 FEATURE_DISABLED while its flag is off', async () => {
-    const off = await createTestApp([ProbeController], { FEATURE_SUMMARIES: false });
+    const off = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'false' });
     const disabled = await request(off.getHttpServer()).get('/api/v1/probe/summaries');
     await off.close();
-    const on = await createTestApp([ProbeController], { FEATURE_SUMMARIES: true });
+    const on = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'true' });
     const enabled = await request(on.getHttpServer()).get('/api/v1/probe/summaries');
     await on.close();
 
     expect(disabled.status).toBe(404);
     expect(ApiErrorSchema.parse(disabled.body).error.code).toBe('FEATURE_DISABLED');
     expect(enabled.status).toBe(200);
+  });
+
+  it('checks the flag before the Origin: a flagged POST without Origin answers 404, not 403', async () => {
+    const off = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'false' });
+    const disabled = await request(off.getHttpServer()).post('/api/v1/probe/summaries');
+    await off.close();
+    const on = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'true' });
+    const enabled = await request(on.getHttpServer()).post('/api/v1/probe/summaries');
+    await on.close();
+
+    expect(disabled.status).toBe(404);
+    expect(ApiErrorSchema.parse(disabled.body).error.code).toBe('FEATURE_DISABLED');
+    // With the flag on, the same request reaches OriginGuard: the 404 above came first.
+    expect(ApiErrorSchema.parse(enabled.body).error.code).toBe('FORBIDDEN_ORIGIN');
   });
 });

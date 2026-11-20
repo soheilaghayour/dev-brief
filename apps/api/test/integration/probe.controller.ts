@@ -47,6 +47,12 @@ export class ProbeController {
     return {};
   }
 
+  @Post('summaries')
+  @RequiresFeature('summaries')
+  writeSummaries() {
+    return {};
+  }
+
   @Get('explode')
   explode(): never {
     throw new Error('secret internal detail: db password hunter2');
