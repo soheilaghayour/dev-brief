@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LazyToaster } from '@/components/layout/LazyToaster';
+import { PendingToast } from '@/components/landing/PendingToast';
 import { SiteFooter } from '@/components/landing/SiteFooter';
 import { SiteHeader } from '@/components/landing/SiteHeader';
 
@@ -9,8 +9,8 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter year={new Date().getFullYear()} />
-      {/* Deleting an account toasts, then navigates here. */}
-      <LazyToaster />
+      {/* Deleting an account navigates here with its toast pending. */}
+      <PendingToast />
     </div>
   );
 }
