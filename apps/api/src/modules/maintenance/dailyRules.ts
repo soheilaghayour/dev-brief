@@ -3,6 +3,8 @@ const MS_PER_DAY = 86_400_000;
 const TAG_STAT_DAYS = 3;
 const STORY_RETENTION_DAYS = 90;
 const INGESTION_RUN_RETENTION_DAYS = 30;
+const LLM_USAGE_RETENTION_DAYS = 400;
+const RATE_LIMIT_COUNTER_RETENTION_DAYS = 7;
 export const PURGE_BATCH_SIZE = 1000;
 
 function startOfUtcDay(date: Date) {
@@ -22,6 +24,16 @@ export function storyCutoff(now: Date) {
 /** Moment before which an IngestionRun is past retention. */
 export function ingestionRunCutoff(now: Date) {
   return new Date(now.getTime() - INGESTION_RUN_RETENTION_DAYS * MS_PER_DAY);
+}
+
+/** UTC day before which an LlmUsage row is past retention. */
+export function llmUsageCutoff(now: Date) {
+  return new Date(startOfUtcDay(now).getTime() - LLM_USAGE_RETENTION_DAYS * MS_PER_DAY);
+}
+
+/** UTC day before which a RateLimitCounter row is past retention. */
+export function rateLimitCounterCutoff(now: Date) {
+  return new Date(startOfUtcDay(now).getTime() - RATE_LIMIT_COUNTER_RETENTION_DAYS * MS_PER_DAY);
 }
 
 export interface TagStatStory {

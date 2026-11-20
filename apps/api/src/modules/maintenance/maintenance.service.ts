@@ -4,7 +4,9 @@ import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   aggregateTagStats,
   ingestionRunCutoff,
+  llmUsageCutoff,
   PURGE_BATCH_SIZE,
+  rateLimitCounterCutoff,
   storyCutoff,
   tagStatWindowStart,
 } from './dailyRules.js';
@@ -44,6 +46,17 @@ export class MaintenanceService {
       [
         'verification purge',
         () => this.prisma.verification.deleteMany({ where: { expiresAt: { lt: now } } }),
+      ],
+      [
+        'LLM usage purge',
+        () => this.prisma.llmUsage.deleteMany({ where: { day: { lt: llmUsageCutoff(now) } } }),
+      ],
+      [
+        'rate limit counter purge',
+        () =>
+          this.prisma.rateLimitCounter.deleteMany({
+            where: { day: { lt: rateLimitCounterCutoff(now) } },
+          }),
       ],
     ] as const;
     for (const [name, step] of steps) {

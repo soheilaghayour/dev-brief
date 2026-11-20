@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateTagStats,
   ingestionRunCutoff,
+  llmUsageCutoff,
+  rateLimitCounterCutoff,
   storyCutoff,
   tagStatWindowStart,
 } from './dailyRules.js';
@@ -17,6 +19,12 @@ describe('dailyRules', () => {
     const now = new Date('2026-06-01T00:00:00Z');
     expect(storyCutoff(now).toISOString()).toBe('2026-03-03T00:00:00.000Z');
     expect(ingestionRunCutoff(now).toISOString()).toBe('2026-05-02T00:00:00.000Z');
+  });
+
+  it('keeps LlmUsage 400 and RateLimitCounter 7 whole UTC days before today', () => {
+    const now = new Date('2026-06-01T23:30:00Z');
+    expect(llmUsageCutoff(now).toISOString()).toBe('2025-04-27T00:00:00.000Z');
+    expect(rateLimitCounterCutoff(now).toISOString()).toBe('2026-05-25T00:00:00.000Z');
   });
 
   it('AC-1.7.3 buckets by UTC publish day and sums the max item engagement per story', () => {
