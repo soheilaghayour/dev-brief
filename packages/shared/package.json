@@ -16,10 +16,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
+    "catalog:generate": "tsx scripts/generateCatalog.ts && prettier --write src/a2ui/catalog.v1.json"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "tsx": "^4.23.15",
+    "typescript": "catalog:",
+    "zod-to-json-schema": "^3.25.2"
   },
   "dependencies": {
     "zod": "catalog:"

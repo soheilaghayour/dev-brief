@@ -444,9 +444,15 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
     devDependencies:
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      zod-to-json-schema:
+        specifier: ^3.25.2
+        version: 3.25.2(zod@3.25.76)
 
 packages:
 
