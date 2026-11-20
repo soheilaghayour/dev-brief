@@ -14,7 +14,7 @@ import { loadAppOrigin } from '@/env';
 // Static with ISR: the preview's stories are fetched at build and again every 15 minutes.
 export const revalidate = 900;
 
-const TITLE = 'DevBrief — Developer news, minus the noise';
+const TITLE = 'DevBrief — Your morning scan in 5 min';
 const DESCRIPTION =
   'DevBrief pulls Hacker News, Dev.to and the best engineering blogs every hour, merges duplicates, tags by technology and ranks everything on one fair scale. No account needed.';
 
