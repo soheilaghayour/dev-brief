@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { type LlmFeature, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   type Budget,
@@ -7,7 +7,6 @@ import {
   committedUsd,
   costFromUsage,
   type LedgerStatus,
-  type LlmFeature,
   utcDay,
   worstCaseCostUsd,
 } from './budget.js';
@@ -16,7 +15,14 @@ import { SpendCapReachedError } from './llm.errors.js';
 export const LLM_BUDGET = Symbol('LLM_BUDGET');
 
 /** Combined with the UTC day number, keys the advisory lock that serialises a day's reservations. */
-export const LEDGER_LOCK_KEY = 8_113_002;
+const LEDGER_LOCK_KEY = 8_113_002;
+
+// A reservation waits for the day's lock inside its transaction, so the timeout covers queueing behind others.
+const RESERVE_TRANSACTION = {
+  isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+  maxWait: 5_000,
+  timeout: 10_000,
+} as const;
 
 const MS_PER_DAY = 86_400_000;
 
@@ -41,8 +47,20 @@ export class SpendLedgerService {
     @Inject(LLM_BUDGET) private readonly budget: Budget,
   ) {}
 
-  /** Inserts a `reserved` row for the call's worst case, or throws `SpendCapReachedError`. */
+  /** Inserts a `reserved` row for the call's worst case, or throws `SpendCapReachedError`, also when the ledger can't answer in time. */
   async reserve(request: ReserveRequest, now: Date): Promise<Reservation> {
+    try {
+      return await this.reserveInTransaction(request, now);
+    } catch (error) {
+      // P2028: the transaction timed out, so the call can't be shown to fit and fails closed.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2028') {
+        throw new SpendCapReachedError(request.feature, 'ledger_timeout', { cause: error });
+      }
+      throw error;
+    }
+  }
+
+  private async reserveInTransaction(request: ReserveRequest, now: Date): Promise<Reservation> {
     const day = utcDay(now);
     const worstCaseUsd = worstCaseCostUsd(request, this.budget.prices);
     return this.prisma.$transaction(async (tx) => {
@@ -72,7 +90,7 @@ export class SpendLedgerService {
         select: { id: true },
       });
       return { id: row.id, model: request.model };
-    });
+    }, RESERVE_TRANSACTION);
   }
 
   /** Closes a reservation at the cost of the call's actual usage and returns that cost. */
@@ -115,8 +133,8 @@ async function committedRows(db: Prisma.TransactionClient, day: Date) {
   });
   return groups.map((group) => ({
     feature: group.feature,
-    status: group.status as LedgerStatus,
+    status: group.status,
     reservedUsd: Number(group._sum.reservedUsd ?? 0),
-    costUsd: group._sum.costUsd === null ? null : Number(group._sum.costUsd),
+    costUsd: Number(group._sum.costUsd ?? 0),
   }));
 }

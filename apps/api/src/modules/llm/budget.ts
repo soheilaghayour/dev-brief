@@ -1,3 +1,5 @@
+import type { LlmFeature } from '../../generated/prisma/client.js';
+
 /** Daily spend caps in USD (PRD §8.1); `budgetFromEnv` applies their env overrides. */
 export const LLM_CAP_SUMMARY_AUTO_USD_DAY = 0.015;
 export const LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY = 0.012;
@@ -11,7 +13,7 @@ export const LLM_PRICES_PER_MTOK: Readonly<Record<string, ModelPrice>> = {
   'claude-haiku-5-5': { inputPerMTok: 0.1, outputPerMTok: 0.5 },
 };
 
-export type LlmFeature = 'summary_auto' | 'summary_on_demand' | 'copilot';
+/** The values of the plain-string `LlmUsage.status` column. */
 export type LedgerStatus = 'reserved' | 'settled' | 'failed';
 
 export type Budget = {
@@ -57,7 +59,7 @@ export function budgetFromEnv(env: BudgetEnv): Budget {
 
 /** Over-estimates the token count of `text`; callers also hard-truncate their inputs with it. */
 export function estimateTokens(text: string) {
-  return Math.ceil(text.length / 3);
+  return Math.ceil(text.length / 2);
 }
 
 /** The most a call can cost: the estimated input plus every output token it may produce, thinking included. */
@@ -107,12 +109,14 @@ export function capDecision(
 
 /** Committed spend of ledger rows: an open reservation counts its `reservedUsd`, a settled or failed row its `costUsd`. */
 export function committedUsd(
-  rows: readonly { status: LedgerStatus; reservedUsd: number; costUsd: number | null }[],
+  rows: readonly { status: string; reservedUsd: number; costUsd: number }[],
 ) {
   const microUsd = rows.reduce(
     (sum, row) =>
       sum +
-      toMicroUsd(row.status === 'reserved' ? row.reservedUsd : (row.costUsd ?? row.reservedUsd)),
+      toMicroUsd(
+        row.status === ('reserved' satisfies LedgerStatus) ? row.reservedUsd : row.costUsd,
+      ),
     0,
   );
   return microUsd / MICRO_USD_PER_USD;

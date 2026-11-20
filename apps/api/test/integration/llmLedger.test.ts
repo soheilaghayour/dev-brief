@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { Output } from 'ai';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { ENV, EnvModule } from '../../src/common/env/env.module.js';
@@ -14,12 +15,15 @@ import { useTestDatabase } from './testDatabase.js';
 
 const TldrSchema = z.object({ tldr: z.array(z.string()).length(3) });
 const VALID = { tldr: ['one', 'two', 'three'] };
-// 12,000 characters estimate to 4,000 input tokens: with 700 output tokens, the §8.1 worst case of $0.00075.
+// The SDK sends the output's JSON schema along, and the input estimate counts it.
+const sentSchema = await Output.object({ schema: TldrSchema }).responseFormat;
+const SCHEMA_CHARS = sentSchema?.type === 'json' ? JSON.stringify(sentSchema.schema).length : 0;
+// 8,000 characters with the schema estimate to 4,000 input tokens: with 700 output tokens, the §8.1 worst case of $0.00075.
 const SUMMARY_CALL = {
   feature: 'summary_auto',
   schema: TldrSchema,
-  system: 's'.repeat(6_000),
-  prompt: 'p'.repeat(6_000),
+  system: 's'.repeat(4_000),
+  prompt: 'p'.repeat(4_000 - SCHEMA_CHARS),
   maxOutputTokens: 700,
   refId: 'story-1',
 } as const;

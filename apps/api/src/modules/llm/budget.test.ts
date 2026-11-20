@@ -61,11 +61,11 @@ describe('budgetFromEnv', () => {
 });
 
 describe('estimateTokens', () => {
-  it('counts one token per three characters, rounded up', () => {
+  it('counts one token per two characters, rounded up', () => {
     expect(estimateTokens('')).toBe(0);
-    expect(estimateTokens('abc')).toBe(1);
-    expect(estimateTokens('abcd')).toBe(2);
-    expect(estimateTokens('x'.repeat(12_000))).toBe(4_000);
+    expect(estimateTokens('ab')).toBe(1);
+    expect(estimateTokens('abc')).toBe(2);
+    expect(estimateTokens('x'.repeat(8_000))).toBe(4_000);
   });
 });
 
@@ -159,7 +159,7 @@ describe('committedUsd', () => {
   it('AC-2.6.1 counts an open reservation at its reserved cost and a closed row at its actual cost', () => {
     expect(
       committedUsd([
-        { status: 'reserved', reservedUsd: 0.00075, costUsd: null },
+        { status: 'reserved', reservedUsd: 0.00075, costUsd: 0 },
         { status: 'settled', reservedUsd: 0.00075, costUsd: 0.0003 },
         { status: 'failed', reservedUsd: 0.00075, costUsd: 0 },
       ]),
@@ -170,7 +170,7 @@ describe('committedUsd', () => {
     const rows = Array.from({ length: 20 }, () => ({
       status: 'reserved' as const,
       reservedUsd: 0.00075,
-      costUsd: null,
+      costUsd: 0,
     }));
     expect(committedUsd(rows)).toBe(0.015);
   });

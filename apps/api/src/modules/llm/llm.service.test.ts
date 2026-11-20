@@ -1,5 +1,5 @@
 import { APICallError } from 'ai';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { mockLanguageModel, modelReply, RECORDED_USAGE } from '../../../test/mockLanguageModel.js';
 import { budgetFromEnv } from './budget.js';
@@ -10,7 +10,6 @@ import type { Reservation, SpendLedgerService, TokenUsage } from './spendLedger.
 const budget = budgetFromEnv({ LLM_MODEL: 'claude-haiku-5-5' });
 const TldrSchema = z.object({ tldr: z.array(z.string()).length(3) });
 const VALID = { tldr: ['one', 'two', 'three'] };
-// 600 characters estimate to 200 input tokens.
 const request = {
   feature: 'summary_auto',
   schema: TldrSchema,
@@ -19,7 +18,8 @@ const request = {
   maxOutputTokens: 700,
   refId: 'story-1',
 } as const;
-const WORST_CASE = { inputTokens: 200, outputTokens: 700 };
+// 600 prompt characters plus the 209-character JSON schema the SDK sends estimate to 405 input tokens.
+const WORST_CASE = { inputTokens: 405, outputTokens: 700 };
 
 type LedgerEvent =
   | { kind: 'reserve'; id: string }
@@ -90,17 +90,21 @@ describe('LlmService.generateStructured', () => {
     expect(call?.prompt[0]).toEqual({ role: 'system', content: request.system });
   });
 
-  it('reserves the estimated input and maxOutputTokens', async () => {
+  it('reserves maxOutputTokens and the input estimated over the prompts and the JSON schema the SDK sends', async () => {
     const ledger = fakeLedger();
-    const { service } = serviceWith(async () => modelReply(VALID), ledger);
+    const { service, model } = serviceWith(async () => modelReply(VALID), ledger);
 
     await service.generateStructured({ ...request, userId: 'user-1' });
+
+    const sent = model.doGenerateCalls[0]?.responseFormat;
+    const schemaChars = sent?.type === 'json' ? JSON.stringify(sent.schema).length : 0;
+    expect(Math.ceil((600 + schemaChars) / 2)).toBe(WORST_CASE.inputTokens);
 
     expect(vi.mocked(ledger.ledger.reserve)).toHaveBeenCalledWith(
       {
         feature: 'summary_auto',
         model: 'claude-haiku-5-5',
-        inputTokens: 200,
+        inputTokens: WORST_CASE.inputTokens,
         maxOutputTokens: 700,
         userId: 'user-1',
         refId: 'story-1',
@@ -132,7 +136,7 @@ describe('LlmService.generateStructured', () => {
     expect(events.map(({ kind }) => kind)).toEqual(['reserve', 'fail', 'reserve', 'settle']);
   });
 
-  it('propagates SpendCapReachedError from the retry reservation without calling the model again', async () => {
+  it('propagates SpendCapReachedError from the schema retry reservation without calling the model again', async () => {
     const { service, model } = serviceWith(
       async () => modelReply({ tldr: [] }),
       fakeLedger({ capReachedAfter: 1 }),
@@ -152,12 +156,15 @@ describe('LlmService.generateStructured', () => {
     expect(model.doGenerateCalls).toHaveLength(0);
   });
 
-  it('settles a provider error status at zero and fails closed without a schema retry', async () => {
+  it('settles a provider error status at zero and fails closed without a retry', async () => {
     const { service, events, model } = serviceWith(async () => {
       throw apiError(400);
     });
 
-    await expect(service.generateStructured(request)).rejects.toBeInstanceOf(GenerationFailedError);
+    await expect(service.generateStructured(request)).rejects.toMatchObject({
+      name: 'GenerationFailedError',
+      reason: 'provider_error',
+    });
 
     expect(model.doGenerateCalls).toHaveLength(1);
     expect(events).toEqual([
@@ -166,52 +173,171 @@ describe('LlmService.generateStructured', () => {
     ]);
   });
 
-  it('retries a 5xx once within the same reservation, then settles it at zero', async () => {
+  it('does not retry a 408 or 409, which PRD §8.3 does not name', async () => {
+    for (const statusCode of [408, 409]) {
+      const { service, model } = serviceWith(async () => {
+        throw apiError(statusCode);
+      });
+
+      await expect(service.generateStructured(request)).rejects.toBeInstanceOf(
+        GenerationFailedError,
+      );
+      expect(model.doGenerateCalls).toHaveLength(1);
+    }
+  });
+
+  it('settles a 200 whose body failed to parse at its worst case, since it was billed', async () => {
     const { service, events, model } = serviceWith(async () => {
-      throw apiError(529);
+      throw apiError(200, 'Failed to process successful response');
     });
 
     await expect(service.generateStructured(request)).rejects.toBeInstanceOf(GenerationFailedError);
 
-    expect(model.doGenerateCalls).toHaveLength(2);
-    expect(events).toEqual([
-      { kind: 'reserve', id: 'reservation-1' },
-      { kind: 'fail', id: 'reservation-1', usage: null },
-    ]);
-  }, 15_000);
-
-  it('returns the reply when a 429 is followed by a success', async () => {
-    let calls = 0;
-    const { service, model } = serviceWith(async () => {
-      calls += 1;
-      if (calls === 1) throw apiError(429);
-      return modelReply(VALID);
-    });
-
-    await expect(service.generateStructured(request)).resolves.toMatchObject({ object: VALID });
-    expect(model.doGenerateCalls).toHaveLength(2);
-  }, 15_000);
-
-  it('settles a call that lost its connection at its worst case, since it may have been billed', async () => {
-    const { service, events } = serviceWith(async () => {
-      throw new Error('socket hang up');
-    });
-
-    await expect(service.generateStructured(request)).rejects.toBeInstanceOf(GenerationFailedError);
-
+    expect(model.doGenerateCalls).toHaveLength(1);
     expect(events).toEqual([
       { kind: 'reserve', id: 'reservation-1' },
       { kind: 'fail', id: 'reservation-1', usage: WORST_CASE },
     ]);
   });
+
+  it('settles a call that hit the 30 s timeout at its worst case, without a retry', async () => {
+    const { service, events, model } = serviceWith(async (options) => {
+      expect(options.abortSignal).toBeInstanceOf(AbortSignal);
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+
+    await expect(service.generateStructured(request)).rejects.toBeInstanceOf(GenerationFailedError);
+
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(events).toEqual([
+      { kind: 'reserve', id: 'reservation-1' },
+      { kind: 'fail', id: 'reservation-1', usage: WORST_CASE },
+    ]);
+  });
+
+  it.each([
+    ['no text', ''],
+    ['refusal text', 'I can not help with that.'],
+  ])(
+    'settles a refusal with %s at its actual usage and fails closed without a retry',
+    async (_case, text) => {
+      const { service, events, model } = serviceWith(async () => ({
+        ...modelReply(text),
+        finishReason: { unified: 'content-filter', raw: 'refusal' },
+      }));
+
+      await expect(service.generateStructured(request)).rejects.toMatchObject({
+        name: 'GenerationFailedError',
+        reason: 'refused',
+      });
+
+      expect(model.doGenerateCalls).toHaveLength(1);
+      expect(events).toEqual([
+        { kind: 'reserve', id: 'reservation-1' },
+        { kind: 'fail', id: 'reservation-1', usage: RECORDED_USAGE },
+      ]);
+    },
+  );
+
+  describe('provider retry', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('retries a 5xx once with its own reservation, settling each attempt at zero', async () => {
+      const { service, events, model } = serviceWith(async () => {
+        throw apiError(529);
+      });
+
+      await expect(pastRetryPause(service.generateStructured(request))).rejects.toMatchObject({
+        name: 'GenerationFailedError',
+        reason: 'provider_error',
+      });
+
+      expect(model.doGenerateCalls).toHaveLength(2);
+      expect(events).toEqual([
+        { kind: 'reserve', id: 'reservation-1' },
+        { kind: 'fail', id: 'reservation-1', usage: null },
+        { kind: 'reserve', id: 'reservation-2' },
+        { kind: 'fail', id: 'reservation-2', usage: null },
+      ]);
+    });
+
+    it('returns the reply when a 429 is followed by a success', async () => {
+      const replies = [apiError(429), modelReply(VALID)];
+      const { service, events } = serviceWith(async () => {
+        const reply = replies.shift();
+        if (reply instanceof Error) throw reply;
+        return reply ?? modelReply(VALID);
+      });
+
+      await expect(pastRetryPause(service.generateStructured(request))).resolves.toMatchObject({
+        object: VALID,
+      });
+      expect(events.map(({ kind }) => kind)).toEqual(['reserve', 'fail', 'reserve', 'settle']);
+    });
+
+    it('retries a lost connection once, settling each attempt at its worst case, since it may have been billed', async () => {
+      const { service, events, model } = serviceWith(async () => {
+        throw lostConnection();
+      });
+
+      await expect(pastRetryPause(service.generateStructured(request))).rejects.toBeInstanceOf(
+        GenerationFailedError,
+      );
+
+      expect(model.doGenerateCalls).toHaveLength(2);
+      expect(events).toEqual([
+        { kind: 'reserve', id: 'reservation-1' },
+        { kind: 'fail', id: 'reservation-1', usage: WORST_CASE },
+        { kind: 'reserve', id: 'reservation-2' },
+        { kind: 'fail', id: 'reservation-2', usage: WORST_CASE },
+      ]);
+    });
+
+    it('propagates SpendCapReachedError when the retry reservation is refused', async () => {
+      const { service, model } = serviceWith(
+        async () => {
+          throw apiError(503);
+        },
+        fakeLedger({ capReachedAfter: 1 }),
+      );
+
+      await expect(pastRetryPause(service.generateStructured(request))).rejects.toBeInstanceOf(
+        SpendCapReachedError,
+      );
+      expect(model.doGenerateCalls).toHaveLength(1);
+    });
+  });
 });
 
-function apiError(statusCode: number) {
+// Runs the pause before a provider retry; the early `catch` keeps a rejection from counting as unhandled meanwhile.
+async function pastRetryPause<T>(call: Promise<T>) {
+  call.catch(() => {});
+  await vi.runAllTimersAsync();
+  return call;
+}
+
+// Built like provider-utils builds them, with its default `isRetryable` for the status.
+function apiError(statusCode: number, message = `status ${statusCode}`) {
   return new APICallError({
-    message: `status ${statusCode}`,
+    message,
     url: 'https://api.anthropic.com/v1/messages',
     requestBodyValues: {},
     statusCode,
-    isRetryable: statusCode === 429 || statusCode >= 500,
+  });
+}
+
+// What provider-utils throws for ECONNRESET or "fetch failed": no status, retryable.
+function lostConnection() {
+  return new APICallError({
+    message: 'Cannot connect to API: socket hang up',
+    url: 'https://api.anthropic.com/v1/messages',
+    requestBodyValues: {},
+    cause: Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }),
+    isRetryable: true,
   });
 }

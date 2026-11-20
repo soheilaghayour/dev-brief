@@ -7,10 +7,10 @@ import {
   type LanguageModelUsage,
   NoObjectGeneratedError,
   Output,
-  RetryError,
 } from 'ai';
 import type { z } from 'zod';
-import { type Budget, estimateTokens, type LlmFeature } from './budget.js';
+import type { LlmFeature } from '../../generated/prisma/client.js';
+import { type Budget, estimateTokens } from './budget.js';
 import { GenerationFailedError } from './llm.errors.js';
 import {
   LLM_BUDGET,
@@ -21,11 +21,12 @@ import {
 
 export const LANGUAGE_MODEL = Symbol('LANGUAGE_MODEL');
 
-/** PRD §8.3: one Anthropic call, retries included, gets 30 s and one retry on 5xx or 429. */
+/** PRD §8.3: each attempt gets 30 s; 5xx, 429 and a lost connection get one retry, after a pause. */
 const CALL_TIMEOUT_MS = 30_000;
 const PROVIDER_RETRIES = 1;
+const PROVIDER_RETRY_DELAY_MS = 2_000;
 /** PRD §8.2: output that fails the schema is retried once, then the call fails closed. */
-const SCHEMA_ATTEMPTS = 2;
+const SCHEMA_RETRIES = 1;
 
 // PRD §8.1: no thinking and the lowest effort, so `maxOutputTokens` bounds what a call bills.
 const MINIMAL_THINKING = {
@@ -49,10 +50,13 @@ export type StructuredResult<OBJECT> = {
   model: string;
 };
 
+type StructuredOutput<OBJECT> = ReturnType<typeof Output.object<OBJECT>>;
+
 type Attempt<OBJECT> =
   | { kind: 'generated'; object: OBJECT; usage: TokenUsage }
-  | { kind: 'invalid'; usage: TokenUsage }
-  | { kind: 'provider_failed'; usage: TokenUsage | null; error: unknown };
+  | { kind: 'invalid_output'; usage: TokenUsage }
+  | { kind: 'refused'; usage: TokenUsage }
+  | { kind: 'provider_error'; usage: TokenUsage | null; retryable: boolean; error: unknown };
 
 /** The only way the API calls a model: every attempt reserves its worst case, calls, then settles. */
 @Injectable()
@@ -63,12 +67,14 @@ export class LlmService {
     @Inject(LLM_BUDGET) private readonly budget: Budget,
   ) {}
 
-  /** Generates an object matching `schema`; throws `SpendCapReachedError` or `GenerationFailedError`. */
+  /** Generates an object matching `schema`; throws `GenerationFailedError`, or `SpendCapReachedError` when any attempt's reservation, a retry's included, is refused. */
   async generateStructured<OBJECT>(
     request: StructuredRequest<OBJECT>,
   ): Promise<StructuredResult<OBJECT>> {
-    const inputTokens = estimateTokens(request.system + request.prompt);
-    for (let attempt = 1; attempt <= SCHEMA_ATTEMPTS; attempt++) {
+    const output = Output.object({ schema: request.schema });
+    const inputTokens = await estimateInputTokens(request, output);
+    const retriesLeft = { invalid_output: SCHEMA_RETRIES, provider_error: PROVIDER_RETRIES };
+    for (;;) {
       const reservation = await this.ledger.reserve(
         {
           feature: request.feature,
@@ -80,20 +86,20 @@ export class LlmService {
         },
         new Date(),
       );
-      const outcome = await this.callModel(request, inputTokens);
+      const outcome = await this.callModel(request, output, inputTokens);
       if (outcome.kind === 'generated') return this.settle(reservation, outcome);
       await this.ledger.fail(reservation, outcome.usage);
-      if (outcome.kind === 'provider_failed') {
-        throw new GenerationFailedError('The model call failed.', { cause: outcome.error });
+      if (!isRetried(outcome, retriesLeft)) {
+        const cause = outcome.kind === 'provider_error' ? outcome.error : undefined;
+        throw new GenerationFailedError(outcome.kind, { cause });
       }
+      if (outcome.kind === 'provider_error') await pause(PROVIDER_RETRY_DELAY_MS);
     }
-    throw new GenerationFailedError(
-      `The model output failed schema validation ${SCHEMA_ATTEMPTS} times.`,
-    );
   }
 
   private async callModel<OBJECT>(
     request: StructuredRequest<OBJECT>,
+    output: StructuredOutput<OBJECT>,
     inputTokens: number,
   ): Promise<Attempt<OBJECT>> {
     const worstCase = { inputTokens, outputTokens: request.maxOutputTokens };
@@ -102,23 +108,25 @@ export class LlmService {
         model: this.model,
         instructions: request.system,
         prompt: request.prompt,
-        output: Output.object({ schema: request.schema }),
+        output,
         maxOutputTokens: request.maxOutputTokens,
-        maxRetries: PROVIDER_RETRIES,
+        // Retries happen here in the service, so each attempt reserves and settles its own row.
+        maxRetries: 0,
         timeout: { totalMs: CALL_TIMEOUT_MS },
         providerOptions: { anthropic: MINIMAL_THINKING },
       });
-      return {
-        kind: 'generated',
-        object: result.output,
-        usage: billedTokens(result.totalUsage, worstCase),
-      };
+      const usage = billedTokens(result.totalUsage, worstCase);
+      // A refusal is a 200 without the object, so `result.output` would throw and lose its usage.
+      if (result.finishReason === 'content-filter') return { kind: 'refused', usage };
+      return { kind: 'generated', object: result.output, usage };
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
-        return { kind: 'invalid', usage: billedTokens(error.usage, worstCase) };
+        const usage = billedTokens(error.usage, worstCase);
+        return error.finishReason === 'content-filter'
+          ? { kind: 'refused', usage }
+          : { kind: 'invalid_output', usage };
       }
-      // An error status is not billed; a timeout or lost connection may have been, so it counts its worst case.
-      return { kind: 'provider_failed', usage: answeredWithError(error) ? null : worstCase, error };
+      return providerFailure(error, worstCase);
     }
   }
 
@@ -135,6 +143,16 @@ export class LlmService {
   }
 }
 
+// The SDK sends the output's JSON schema with the prompt, so it counts as input.
+async function estimateInputTokens<OBJECT>(
+  request: StructuredRequest<OBJECT>,
+  output: StructuredOutput<OBJECT>,
+) {
+  const format = await output.responseFormat;
+  const schema = format?.type === 'json' ? JSON.stringify(format.schema) : '';
+  return estimateTokens(request.system + request.prompt + schema);
+}
+
 // A provider that omits a count is charged its worst case, so missing usage never under-counts spend.
 function billedTokens(usage: LanguageModelUsage | undefined, worstCase: TokenUsage): TokenUsage {
   return {
@@ -143,7 +161,35 @@ function billedTokens(usage: LanguageModelUsage | undefined, worstCase: TokenUsa
   };
 }
 
-function answeredWithError(error: unknown) {
-  const last = RetryError.isInstance(error) ? error.lastError : error;
-  return APICallError.isInstance(last) && last.statusCode !== undefined;
+function providerFailure(error: unknown, worstCase: TokenUsage): Attempt<never> {
+  const status = APICallError.isInstance(error) ? error.statusCode : undefined;
+  // An error status is not billed. A 200 that failed to parse or read, a timeout or a lost connection may have been, at unknown usage.
+  if (status !== undefined && status >= 400) {
+    return {
+      kind: 'provider_error',
+      usage: null,
+      retryable: status === 429 || status >= 500,
+      error,
+    };
+  }
+  // The SDK wraps a lost connection as a retryable APICallError with no status.
+  const lostConnection =
+    APICallError.isInstance(error) && status === undefined && error.isRetryable;
+  return { kind: 'provider_error', usage: worstCase, retryable: lostConnection, error };
+}
+
+// A refusal is never retried: the same input refuses again.
+function isRetried(
+  outcome: Exclude<Attempt<unknown>, { kind: 'generated' }>,
+  retriesLeft: Record<'invalid_output' | 'provider_error', number>,
+) {
+  if (outcome.kind === 'refused') return false;
+  if (outcome.kind === 'provider_error' && !outcome.retryable) return false;
+  if (retriesLeft[outcome.kind] === 0) return false;
+  retriesLeft[outcome.kind] -= 1;
+  return true;
+}
+
+function pause(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
