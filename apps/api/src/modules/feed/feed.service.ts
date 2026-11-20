@@ -18,6 +18,9 @@ import {
 import { Prisma } from '../../generated/prisma/client.js';
 import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
 
+/** Above this many source items, a source filter is not resolved to a list of story ids. */
+const SMALL_SOURCE_STORIES = 500;
+
 /** `sortScore` is Top's sort key: rankScore with the follow boost applied. */
 type PageRow = { id: string; publishedAt: Date; sortScore: number };
 
@@ -60,8 +63,13 @@ export class FeedService {
   }
 
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
-  private selectPage(query: FeedQuery, keyset: Keyset | undefined) {
+  private async selectPage(query: FeedQuery, keyset: Keyset | undefined) {
     const { exclusions, boost } = personalisation(query);
+    // A boosted Top page reads the matches up to three times; a small source is better a list of ids than an EXISTS probe.
+    const sourceStoryIds =
+      query.sort === 'top' && boost && query.sources?.length
+        ? await this.smallSourceStoryIds(query.sources)
+        : undefined;
     const filters = [
       ...(query.sort === 'top'
         ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
@@ -70,9 +78,11 @@ export class FeedService {
       ...(query.kinds?.length
         ? [sourceExists(Prisma.sql`src."kind"::text = ANY(${query.kinds}::text[])`)]
         : []),
-      ...(query.sources?.length
-        ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
-        : []),
+      ...(sourceStoryIds
+        ? [Prisma.sql`s."id" = ANY(${sourceStoryIds}::text[])`]
+        : query.sources?.length
+          ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
+          : []),
       ...(query.q
         ? [Prisma.sql`s."searchVector" @@ websearch_to_tsquery('english', ${query.q})`]
         : []),
@@ -84,6 +94,22 @@ export class FeedService {
         ? latestPage(filters, keyset, limit)
         : topPage(filters, boost, keyset, limit);
     return this.prisma.$queryRaw<PageRow[]>(pageQuery);
+  }
+
+  /**
+   * The story ids of the sources when at most SMALL_SOURCE_STORIES items have them, else undefined. The planner
+   * can't size a subquery, so an id list is what makes it look the few stories up instead of scanning; a big source
+   * stays an EXISTS, which stops after a page in rankScore order.
+   */
+  private async smallSourceStoryIds(slugs: string[]) {
+    const items = await this.prisma.sourceItem.findMany({
+      where: { source: { slug: { in: slugs } } },
+      select: { storyId: true },
+      take: SMALL_SOURCE_STORIES + 1,
+    });
+    return items.length > SMALL_SOURCE_STORIES
+      ? undefined
+      : [...new Set(items.map((item) => item.storyId))];
   }
 
   private async loadCards(ids: string[]) {
@@ -153,24 +179,47 @@ function topPage(
 ) {
   if (!boost) return topStream(filters, 1, keyset, limit);
   const floor = Prisma.sql`(SELECT "rankScore" FROM "pageFloor")`;
+  // When fewer than a page-plus-one match, the first rows are every match and the streams stay unread: they would
+  // scan the whole index for a floor of -infinity.
+  const matches = Prisma.sql`(SELECT "matches" FROM "pageFloor")`;
+  const enoughMatches = Prisma.sql`${matches} >= ${limit}`;
   // IS NOT TRUE is the exact complement of WHERE boost, so the streams split the stories even where the boost is NULL.
   const unboosted = Prisma.sql`${boost} IS NOT TRUE`;
   return Prisma.sql`
-    WITH "pageFloor" AS (${pageFloor(filters, keyset, limit)})
-    (${topStream([...filters, boost], FOLLOW_BOOST, keyset, limit, floor)})
+    WITH "firstRows" AS MATERIALIZED (${firstRows(filters, boost, keyset, limit)}),
+      "pageFloor" AS (SELECT count(*) AS "matches", min("rankScore") AS "rankScore" FROM "firstRows")
+    (${topStream([...filters, boost, enoughMatches], FOLLOW_BOOST, keyset, limit, floor)})
     UNION ALL
-    (${topStream([...filters, unboosted], 1, keyset, limit, floor)})
+    (${topStream([...filters, unboosted, enoughMatches], 1, keyset, limit, floor)})
+    UNION ALL
+    (SELECT "id", "publishedAt", CASE WHEN "boosted" THEN "rankScore" * ${FOLLOW_BOOST}::double precision ELSE "rankScore" END
+      FROM "firstRows" WHERE ${matches} < ${limit})
     ORDER BY "sortScore" DESC, "id" DESC LIMIT ${limit}`;
 }
 
-/** The lowest score a boosted page can reach: the `limit`-th rankScore after the cursor even when boosted, or -infinity. */
-function pageFloor(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: number) {
-  // Each of these stories comes after the cursor and scores at least its rankScore, so `limit` stories reach the floor.
-  const after = keyset ? topKeyset(FOLLOW_BOOST, keyset) : [];
+/**
+ * The first `limit` stories after the cursor, by their own boosted or plain score, in index order. Each
+ * scores at least its rankScore, so the lowest rankScore among them is the page floor: no story below it
+ * can make the page. Fewer than `limit` rows means these are all the matching stories.
+ */
+function firstRows(
+  filters: Prisma.Sql[],
+  boost: Prisma.Sql,
+  keyset: Keyset | undefined,
+  limit: number,
+) {
+  const after = keyset
+    ? [
+        Prisma.sql`s."rankScore" <= ${keyset.sortKey}::double precision`,
+        Prisma.sql`CASE WHEN ${boost}
+          THEN (${scoreSql(FOLLOW_BOOST)}, s."id") < (${keyset.sortKey}::double precision, ${keyset.id})
+          ELSE (s."rankScore", s."id") < (${keyset.sortKey}::double precision, ${keyset.id}) END`,
+      ]
+    : [];
   return Prisma.sql`
-    SELECT CASE WHEN count(*) < ${limit} THEN '-infinity' ELSE min(p."rankScore") END AS "rankScore"
-    FROM (SELECT s."rankScore" FROM "Story" s ${whereClause([...filters, ...after])}
-      ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}) p`;
+    SELECT s."id", s."publishedAt", s."rankScore", (${boost}) IS TRUE AS "boosted" FROM "Story" s
+    ${whereClause([...filters, ...after])}
+    ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}`;
 }
 
 /** The first `limit` stories scored rankScore × `factor` after the keyset, down to the floor, in index order. */

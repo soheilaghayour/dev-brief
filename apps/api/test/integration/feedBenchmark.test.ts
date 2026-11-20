@@ -65,6 +65,15 @@ describe('feed benchmark at 40k stories', () => {
         'https://example.com/' || n,
         'Benchmark story ' || n, now(), now()
       FROM generate_series(10, ${total}, 10) AS n`;
+    // A source with a handful of stories, so a filter on it matches fewer than a page.
+    const tiny = await createSource(prisma, 'bench-tiny', 'rss');
+    await prisma.$executeRaw`
+      INSERT INTO "SourceItem" ("id", "storyId", "sourceId", "externalId", "url", "canonicalUrl", "title",
+        "publishedAt", "lastSeenAt")
+      SELECT 'tiny' || n, 'bench' || n, ${tiny.id}, n::text, 'https://example.com/' || n,
+        'https://example.com/' || n,
+        'Benchmark story ' || n, now(), now()
+      FROM generate_series(1, 5) AS n`;
     // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
     await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source"`;
     app = await createTestApp();
@@ -84,6 +93,13 @@ describe('feed benchmark at 40k stories', () => {
       // One stream finds no story, so only the page floor stops its scan.
       'top + boost matching nothing': { boostTags: 'vue', boostSources: 'no-such-source' },
       'top + boost matching everything': { boostSources: 'bench' },
+      // Fewer than a page match the filters, so the page floor finds no row to stop at.
+      'top + small source + boostTags': { sources: 'bench-tiny', boostTags: 'rust' },
+      'top + small source + boostSources': { sources: 'bench-tiny', boostSources: 'bench' },
+      // A source filter that matches most stories, so the stream can stop early after a page.
+      'top + large source + boost': { sources: 'bench', boostTags: 'rust' },
+      'top + medium source (1 in 10) + boost': { sources: 'bench-minor', boostTags: 'rust' },
+      'top + q matching nothing + boostTags': { q: 'zzqxnomatch', boostTags: 'rust' },
       'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
     };
   }, 180_000);
@@ -146,8 +162,11 @@ describe('feed benchmark at 40k stories', () => {
         .map((row) => row['QUERY PLAN'])
         .join('\n');
       if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${plan}`);
+      // A selective filter (q, a small source) is better read through its own index or in one scan, not in rankScore order.
       if (query.boostTags || query.boostSources) {
-        expect(plan, name).toMatch(/Index Scan using "Story_rankScore_id_idx"/);
+        if (!query.q && !query.sources) {
+          expect(plan, name).toMatch(/Index Scan using "Story_rankScore_id_idx"/);
+        }
         expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
       }
       const [jsonPlan] = JsonPlanSchema.parse(await explain(Prisma.sql`(FORMAT JSON)`, feedQuery));
