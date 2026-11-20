@@ -64,6 +64,8 @@ jobs:
           nohup pnpm --filter api start > api.log 2>&1 &
           curl --fail --silent --retry 30 --retry-delay 2 --retry-connrefused http://localhost:3001/api/v1/health
         env:
+          # The e2e API must not run the hourly ingestion against live sources.
+          INGEST_SCHEDULE: 'false'
           AUTH_TEST_MODE: 'true'
           # The e2e run reaches the Phase 2 UI and routes; Lighthouse builds with every flag off.
           FEATURE_SUMMARIES: 'true'
