@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { LazyToaster } from '@/components/layout/LazyToaster';
+import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { LazyAccountSlot } from '@/components/account/LazyAccountSlot';
@@ -12,35 +14,38 @@ import { SortToggle } from '@/components/feed/SortToggle';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <QueryProvider>
-      <NuqsAdapter>
-        <GuestStoreHydrator />
-        <AppShell
-          searchSlot={
-            <FeedOnly>
-              <SearchInput />
-            </FeedOnly>
-          }
-          accountSlot={<LazyAccountSlot />}
-          sortSlot={
-            <FeedOnly>
-              <SortToggle className="max-md:hidden" />
-            </FeedOnly>
-          }
-          filtersSlot={
-            <FeedOnly>
-              <FeedFilters />
-            </FeedOnly>
-          }
-          mobileBarSlot={
-            <FeedOnly>
-              <MobileFeedBar />
-            </FeedOnly>
-          }
-        >
-          {children}
-        </AppShell>
-      </NuqsAdapter>
-    </QueryProvider>
+    <HotkeysProvider>
+      <QueryProvider>
+        <NuqsAdapter>
+          <GuestStoreHydrator />
+          <AppShell
+            searchSlot={
+              <FeedOnly>
+                <SearchInput />
+              </FeedOnly>
+            }
+            accountSlot={<LazyAccountSlot />}
+            sortSlot={
+              <FeedOnly>
+                <SortToggle className="max-md:hidden" />
+              </FeedOnly>
+            }
+            filtersSlot={
+              <FeedOnly>
+                <FeedFilters />
+              </FeedOnly>
+            }
+            mobileBarSlot={
+              <FeedOnly>
+                <MobileFeedBar />
+              </FeedOnly>
+            }
+          >
+            {children}
+          </AppShell>
+        </NuqsAdapter>
+      </QueryProvider>
+      <LazyToaster />
+    </HotkeysProvider>
   );
 }

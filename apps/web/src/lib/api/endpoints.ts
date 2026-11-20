@@ -7,6 +7,7 @@ import {
   SaveSchema,
   SavedStoryPageSchema,
   SourceListSchema,
+  StatsSchema,
   StoryDetailSchema,
   StoryLookupResponseSchema,
   TagListSchema,
@@ -27,15 +28,20 @@ export function getHealth() {
   return apiClient.request({ path: '/health' }, HealthSchema);
 }
 
-export function getFeed({ tags, kinds, sources, ...rest }: FeedParams = {}) {
+/** `isPerRequest: false` leaves the fetch cacheable, for statically generated pages. */
+export function getFeed(
+  { tags, kinds, sources, ...rest }: FeedParams = {},
+  { isPerRequest = true } = {},
+) {
   const query = {
     ...rest,
     tags: tags?.join(','),
     kinds: kinds?.join(','),
     sources: sources?.join(','),
   };
-  // Per request: the feed's first page renders from fresh API data (PRD §8.4).
-  return apiClient.request({ path: '/feed', query, cache: 'no-store' }, FeedPageSchema);
+  // Per request by default: the feed's first page renders from fresh API data (PRD §8.4).
+  const cache = isPerRequest ? 'no-store' : undefined;
+  return apiClient.request({ path: '/feed', query, cache }, FeedPageSchema);
 }
 
 export function getStory(id: string) {
@@ -54,6 +60,10 @@ export function lookupStories(body: StoryLookupRequest) {
 
 export function getTags() {
   return apiClient.request({ path: '/tags' }, TagListSchema);
+}
+
+export function getStats() {
+  return apiClient.request({ path: '/stats' }, StatsSchema);
 }
 
 export function getSources() {

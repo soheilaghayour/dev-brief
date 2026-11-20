@@ -6,5 +6,6 @@ export * from './me.js';
 export * from './pagination.js';
 export * from './saves.js';
 export * from './sources.js';
+export * from './stats.js';
 export * from './story.js';
 export * from './tags.js';

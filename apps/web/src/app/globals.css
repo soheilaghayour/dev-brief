@@ -3,6 +3,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* next/font's Geist fallback is local(Arial) only; these match Geist's metrics where Arial is missing (DECISIONS.md). */
+@font-face {
+  font-family: 'Geist Fallback Liberation';
+  src:
+    local('Liberation Sans'), local('LiberationSans'), local('Arimo Regular'),
+    local('Arimo-Regular');
+  ascent-override: 95.94%;
+  descent-override: 28.16%;
+  line-gap-override: 0%;
+  size-adjust: 104.76%;
+}
+
+@font-face {
+  font-family: 'Geist Fallback Roboto';
+  src: local('Roboto'), local('Roboto Regular'), local('Roboto-Regular');
+  ascent-override: 95.73%;
+  descent-override: 28.1%;
+  line-gap-override: 0%;
+  size-adjust: 104.99%;
+}
+
 /* The only place palette values live; everything else uses the role names below. */
 :root {
   --background: oklch(0.99 0.002 265);
@@ -83,7 +104,9 @@
   --radius-md: 0.375rem;
   --radius-sm: 0.25rem;
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    var(--font-geist-sans), 'Geist Fallback Liberation', 'Geist Fallback Roboto', ui-sans-serif,
+    system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
@@ -108,5 +131,51 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Landing page animations; each use is behind motion-safe. */
+@keyframes bento-scan {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  33% {
+    transform: translateY(2.25rem);
+  }
+  66% {
+    transform: translateY(4.5rem);
+  }
+}
+
+@keyframes bento-pop {
+  0%,
+  60%,
+  100% {
+    transform: scale(1);
+  }
+  70% {
+    transform: scale(1.35);
+  }
+}
+
+@keyframes bento-grow {
+  0%,
+  100% {
+    transform: scaleX(0.25);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes keycap-press {
+  0%,
+  85%,
+  100% {
+    transform: translateY(0);
+  }
+  92% {
+    transform: translateY(3px);
   }
 }

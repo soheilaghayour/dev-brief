@@ -16,7 +16,7 @@ export function SourceStatus() {
       : `${unhealthy} of ${data.sources.length} sources behind`;
 
   return (
-    <p className="text-muted-foreground flex items-center gap-2 px-2 text-xs">
+    <p id="source-status" className="text-muted-foreground flex items-center gap-2 px-2 text-xs">
       <HealthDot status={unhealthy === 0 ? 'healthy' : 'stale'} tooltip={text} />
       {text}
     </p>

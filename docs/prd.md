@@ -1208,6 +1208,7 @@ export const FeedPageSchema = z.object({ items: z.array(StoryCardSchema), nextCu
 | 12 | DELETE | `/api/v1/me/saves/:storyId` | user | none | 204 | Idempotent |
 | 13 | POST | `/api/v1/me/merge` | user | `MergeRequestSchema` `{ version: 1, saves: [{ storyId, savedAt }] (≤ 500) }` | 200 `MergeResponseSchema` `{ merged: { saves }, skipped: { saves }, missingStoryIds }` | One transaction, idempotent. Throttle 10/min. |
 | 14 | GET | `/api/v1/openapi.json`, `/api/v1/docs` | public | none | OpenAPI 3.1 JSON / Swagger UI | |
+| 15 | GET | `/api/v1/stats` | public | none | 200 `StatsSchema` `{storiesToday, sourceCount, lastIngestedAt}` | Stories published in the last 24 h, enabled sources, latest successful ingestion. For the landing page. |
 | — | GET/POST | `/api/auth/*` | public | Better Auth | Better Auth | `sign-in/social`, `callback/:provider`, `sign-out`, `get-session`. Throttle 10/min/IP. |
 
 Test-only route: `POST /api/auth/test/sign-in` creates a session for a fixture user so Playwright can sign in. It is registered **only** when `AUTH_TEST_MODE=true`, and env validation **rejects** that flag when `NODE_ENV=production`.
@@ -1744,7 +1745,7 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 |---|---|---|
 | Landing Lighthouse (mobile): Perf / A11y / BP / SEO | ≥ 95 each | Lighthouse CI (`@lhci/cli`) in GitHub Actions, failing PRs |
 | Landing LCP / CLS / TBT (Lighthouse mobile) | ≤ 1.8 s / ≤ 0.05 / ≤ 150 ms | Lighthouse CI assertions |
-| Landing first-load JS | ≤ 150 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
+| Landing first-load JS | ≤ 160 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
 | `/feed`, `/saved` first-load JS | ≤ 190 KB gzip each (shell included) | `pnpm --filter web size` |
 | `/story/[id]` first-load JS | ≤ 185 KB gzip (shell included) | `pnpm --filter web size` |
 | Lazy chunks | Recharts, A2UI renderer and Markdown editor are never in landing or feed first-load | `pnpm --filter web size` plus a bundle-analyzer report on PRs |

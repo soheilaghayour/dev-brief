@@ -23,7 +23,9 @@ test('production health is ok', async ({ request }) => {
 
 test('the landing page renders', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'DevBrief' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Developer news, minus the noise.' }),
+  ).toBeVisible();
 });
 
 test('the guest feed renders stories', async ({ page }) => {
