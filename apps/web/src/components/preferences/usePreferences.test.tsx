@@ -151,11 +151,19 @@ describe('usePreferences with overlapping account changes', () => {
   });
 
   it('AC-2.5.1 keeps a later change on screen when an earlier one fails, and refetches only after the last', async () => {
+    // Each PUT answers only when the test says so, so no assertion depends on how fast the mocks run.
     let stored = STORED;
+    let failFirst: (error: Error) => void = () => {};
+    let finishSecond: () => void = () => {};
     api.getPreferences.mockImplementation(async () => stored);
     api.putPreferences
-      .mockRejectedValueOnce(new Error('500'))
-      .mockImplementationOnce(async (prefs: Preferences) => (stored = prefs));
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (failFirst = reject)))
+      .mockImplementationOnce(
+        (prefs: Preferences) =>
+          new Promise<Preferences>((resolve) => {
+            finishSecond = () => resolve((stored = prefs));
+          }),
+      );
     await render();
     await settle(() => expect(hook().isReady).toBe(true));
 
@@ -163,12 +171,22 @@ describe('usePreferences with overlapping account changes', () => {
       hook().setMode('tag', 'go', 'follow');
       hook().setMode('tag', 'react', 'mute');
     });
+    // The changes are sent in order: the second waits for the first.
+    await settle(() => expect(api.putPreferences).toHaveBeenCalledTimes(1));
+    await settle(() => expect(hook().modeOf('tag', 'react')).toBe('mute'));
 
+    await act(async () => failFirst(new Error('500')));
     await settle(() => expect(api.putPreferences).toHaveBeenCalledTimes(2));
-    await settle(() => expect(api.getPreferences).toHaveBeenCalledTimes(2));
     expect(notify).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith(PREFS_FAILED_NOTICE);
+    expect(api.getPreferences).toHaveBeenCalledTimes(1);
+    await settle(() => expect(hook().modeOf('tag', 'react')).toBe('mute'));
+
+    await act(async () => finishSecond());
+    await settle(() => expect(api.getPreferences).toHaveBeenCalledTimes(2));
+    await settle(() => expect(hook().modeOf('tag', 'go')).toBe('follow'));
     expect(hook().modeOf('tag', 'react')).toBe('mute');
+    expect(notify).toHaveBeenCalledTimes(1);
   });
 
   it('AC-2.5.1 refetches once, after the last of several quick changes settles', async () => {
