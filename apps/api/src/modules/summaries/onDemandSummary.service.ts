@@ -4,6 +4,7 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { toStorySummary } from '../../common/story-card/storyCard.mapper.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { SummariesService } from './summaries.service.js';
@@ -28,7 +29,7 @@ function toApiException(error: unknown) {
   return error;
 }
 
-/** The on-demand flow of F2.3: cache first, then a quota slot, then generation; a failed generation returns its slot. */
+/** The on-demand flow of F2.3: cache first, then a quota slot, then generation; a generation that fails or finds a stored summary without a model call returns its slot. */
 @Injectable()
 export class OnDemandSummaryService {
   constructor(
@@ -52,7 +53,12 @@ export class OnDemandSummaryService {
     const quota = this.quotaOf(requester, now);
     await this.takeSlot(quota);
     try {
-      return await this.summaries.generate(storyId, 'on_demand', { userId: requester.userId });
+      const result = await this.summaries.generate(storyId, 'on_demand', {
+        userId: requester.userId,
+      });
+      // Only `raced` keeps the slot: its model call was made and paid for.
+      if (result.kind === 'cached') await this.returnSlot(quota);
+      return { kind: result.kind === 'created' ? 'created' : 'cached', summary: result.summary };
     } catch (error) {
       await this.returnSlot(quota);
       throw toApiException(error);
@@ -71,15 +77,25 @@ export class OnDemandSummaryService {
     return summaryQuota({ kind: 'guest', ip, deviceId }, secret, now);
   }
 
+  // The limit check is part of the increment, so a concurrent holder's pending release can't make it reject below the real count.
   private async takeSlot(quota: ReturnType<typeof summaryQuota>) {
     const { key, day, limit, resetsAt } = quota;
-    const counter = await this.prisma.rateLimitCounter.upsert({
-      where: { key_day: { key, day } },
-      create: { key, day, count: 1 },
-      update: { count: { increment: 1 } },
-    });
-    if (counter.count <= limit) return;
-    await this.returnSlot(quota);
+    const increment = () =>
+      this.prisma.rateLimitCounter.updateMany({
+        where: { key, day, count: { lt: limit } },
+        data: { count: { increment: 1 } },
+      });
+    if ((await increment()).count === 1) return;
+    try {
+      await this.prisma.rateLimitCounter.create({ data: { key, day, count: 1 } });
+      return;
+    } catch (error) {
+      // A parallel first request of the day created the row; fall through to the guarded increment.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) {
+        throw error;
+      }
+    }
+    if ((await increment()).count === 1) return;
     throw new ApiException('QUOTA_EXCEEDED', 'Daily summary limit reached.', {
       resetsAt: resetsAt.toISOString(),
     });

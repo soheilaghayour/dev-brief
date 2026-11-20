@@ -184,6 +184,52 @@ describe('on-demand summaries', () => {
     expect((await post(cached.id, { cookie, body: {} })).status).toBe(200);
   });
 
+  it('AC-2.3.3 allows the 5th guest generation and rejects the next one', async () => {
+    const first = await story('Boundary guest 1');
+    const second = await story('Boundary guest 2');
+    await boot();
+    const ip = '198.51.100.251';
+    const quota = summaryQuota(
+      { kind: 'guest', ip, deviceId: DEVICE },
+      env.IP_HASH_SECRET ?? '',
+      new Date(),
+    );
+    await prisma.rateLimitCounter.create({ data: { key: quota.key, day: quota.day, count: 4 } });
+
+    expect((await post(first.id, { ip })).status).toBe(201);
+    expect((await post(second.id, { ip })).status).toBe(429);
+    const counter = await prisma.rateLimitCounter.findFirstOrThrow({ where: { key: quota.key } });
+    expect(counter.count).toBe(5);
+  });
+
+  it('AC-2.3.3 allows the 20th user generation and rejects the next one', async () => {
+    const first = await story('Boundary user 1');
+    const second = await story('Boundary user 2');
+    await boot();
+    const { cookie, userId } = await signIn();
+    const quota = summaryQuota({ kind: 'user', userId }, env.IP_HASH_SECRET ?? '', new Date());
+    await prisma.rateLimitCounter.create({ data: { key: quota.key, day: quota.day, count: 19 } });
+
+    expect((await post(first.id, { cookie, body: {} })).status).toBe(201);
+    expect((await post(second.id, { cookie, body: {} })).status).toBe(429);
+  });
+
+  it('AC-2.3.3 lets parallel first requests of the day share one counter without a 500', async () => {
+    const stories = await Promise.all([
+      story('Parallel 1'),
+      story('Parallel 2'),
+      story('Parallel 3'),
+    ]);
+    await boot();
+    const ip = '198.51.100.252';
+
+    const responses = await Promise.all(stories.map((target) => post(target.id, { ip })));
+
+    expect(responses.map((response) => response.status)).toEqual([201, 201, 201]);
+    const counters = await prisma.rateLimitCounter.findMany();
+    expect(counters.map((counter) => counter.count)).toEqual([3]);
+  });
+
   it('AC-2.3.3 gives the slot back after a failed generation', async () => {
     const target = await story('Slot back');
     await boot({ failing: ['hn.algolia.com'] });

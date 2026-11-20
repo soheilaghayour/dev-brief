@@ -165,7 +165,7 @@ describe('summary generator', () => {
     expect(await prisma.summary.count()).toBe(0);
   });
 
-  it('returns the summary a concurrent call stored first as cached', async () => {
+  it('returns the summary a concurrent call stored first as raced', async () => {
     const story = await createDiscussedStory(prisma, { title: 'Raced', sourceId: hnSourceId });
     const { summaries } = await generator({
       doGenerate: async () => {
@@ -189,7 +189,7 @@ describe('summary generator', () => {
 
     const result = await summaries.generate(story.id, 'on_demand');
 
-    expect(result).toMatchObject({ kind: 'cached', summary: { tldr: ['a', 'b', 'c'] } });
+    expect(result).toMatchObject({ kind: 'raced', summary: { tldr: ['a', 'b', 'c'] } });
     expect(await prisma.summary.count()).toBe(1);
   });
 
