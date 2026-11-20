@@ -13,6 +13,8 @@ import { useTestDatabase } from './testDatabase.js';
 
 const env = loadEnv({ ...process.env, ...SUMMARIES_ON });
 const MISSING_ID = 'cmissingmissingmissing0000';
+// Every story is a different HN item; unrecorded ids are served this recorded thread.
+const RECORDED_THREAD_ID = '50544168';
 const DEVICE = '4f0c1c1e-1b0a-4d27-9a38-3f1c2c0f9a11';
 const SIGN_IN_PATH = '/api/auth/test/sign-in';
 
@@ -58,7 +60,7 @@ describe('on-demand summaries', () => {
       { ...SUMMARIES_ON, ...envOverrides },
       {
         languageModel: model,
-        upstreamFetch: summaryFixtureFetch({ failing }).fetch,
+        upstreamFetch: summaryFixtureFetch({ hnFallbackId: RECORDED_THREAD_ID, failing }).fetch,
       },
     );
     return model;
@@ -94,7 +96,15 @@ describe('on-demand summaries', () => {
     return { cookie, userId: (response.body as { userId: string }).userId };
   }
 
-  const story = (title: string) => createDiscussedStory(prisma, { title, sourceId: hnSourceId });
+  let storyCounter = 0;
+  const story = (title: string) => {
+    storyCounter += 1;
+    return createDiscussedStory(prisma, {
+      title,
+      sourceId: hnSourceId,
+      externalId: String(9_000_000 + storyCounter),
+    });
+  };
 
   it('AC-2.3.2 generates, answers 201 and writes the Summary and LlmUsage rows', async () => {
     const created = await story('Named args');
