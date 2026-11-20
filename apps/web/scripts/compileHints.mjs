@@ -21,7 +21,7 @@ export function scriptsWithoutCompileHint(nextDir) {
   );
 }
 
-// V8 reads the hint only on line 1; Sentry's debug-ID snippet there only has to run before Sentry starts, which is after load (instrumentation-client.ts), so it moves below the code and every code line keeps the number the uploaded source maps expect.
+// V8 reads the hint only on line 1, so Sentry's debug-ID snippet moves below the code; that is safe only because Sentry starts after load (DECISIONS.md).
 function withCompileHint(script, source) {
   const [firstLine, ...rest] = source.split('\n');
   if (!firstLine.includes('_debugIds')) {
@@ -31,9 +31,6 @@ function withCompileHint(script, source) {
         "The snippet comes from Sentry's native Turbopack debug IDs, so `sourcemaps.disable: true` or a webpack build removes or moves it.",
     );
   }
-  let codeEnd = rest.length;
-  while (codeEnd > 0 && (rest[codeEnd - 1] === '' || rest[codeEnd - 1].startsWith('//#'))) {
-    codeEnd -= 1;
-  }
+  const codeEnd = rest.findLastIndex((line) => line !== '' && !line.startsWith('//#')) + 1;
   return [COMPILE_HINT, ...rest.slice(0, codeEnd), firstLine, ...rest.slice(codeEnd)].join('\n');
 }
