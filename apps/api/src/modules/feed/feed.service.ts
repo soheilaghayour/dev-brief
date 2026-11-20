@@ -18,6 +18,9 @@ import {
 import { Prisma } from '../../generated/prisma/client.js';
 import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
 
+/** Above this many source items, a source filter is not resolved to a list of story ids. */
+const SMALL_SOURCE_STORIES = 500;
+
 /** `sortScore` is Top's sort key: rankScore with the follow boost applied. */
 type PageRow = { id: string; publishedAt: Date; sortScore: number };
 
@@ -60,14 +63,12 @@ export class FeedService {
   }
 
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
-  private selectPage(query: FeedQuery, keyset: Keyset | undefined) {
+  private async selectPage(query: FeedQuery, keyset: Keyset | undefined) {
     const { exclusions, boost } = personalisation(query);
-    // A boosted Top page reads the matching stories up to three times, so a source filter is resolved once, up front.
-    const sourceStories =
+    // A boosted Top page reads the matches up to three times; a small source is better a list of ids than an EXISTS probe.
+    const sourceStoryIds =
       query.sort === 'top' && boost && query.sources?.length
-        ? Prisma.sql`"sourceStories" AS MATERIALIZED (
-            SELECT DISTINCT si."storyId" FROM "SourceItem" si JOIN "Source" src ON src."id" = si."sourceId"
-            WHERE src."slug" = ANY(${query.sources}::text[]))`
+        ? await this.smallSourceStoryIds(query.sources)
         : undefined;
     const filters = [
       ...(query.sort === 'top'
@@ -77,8 +78,8 @@ export class FeedService {
       ...(query.kinds?.length
         ? [sourceExists(Prisma.sql`src."kind"::text = ANY(${query.kinds}::text[])`)]
         : []),
-      ...(sourceStories
-        ? [Prisma.sql`s."id" IN (SELECT "storyId" FROM "sourceStories")`]
+      ...(sourceStoryIds
+        ? [Prisma.sql`s."id" = ANY(${sourceStoryIds}::text[])`]
         : query.sources?.length
           ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
           : []),
@@ -91,8 +92,24 @@ export class FeedService {
     const pageQuery =
       query.sort === 'latest'
         ? latestPage(filters, keyset, limit)
-        : topPage(filters, boost, sourceStories, keyset, limit);
+        : topPage(filters, boost, keyset, limit);
     return this.prisma.$queryRaw<PageRow[]>(pageQuery);
+  }
+
+  /**
+   * The story ids of the sources when at most SMALL_SOURCE_STORIES items have them, else undefined. The planner
+   * can't size a subquery, so an id list is what makes it look the few stories up instead of scanning; a big source
+   * stays an EXISTS, which stops after a page in rankScore order.
+   */
+  private async smallSourceStoryIds(slugs: string[]) {
+    const items = await this.prisma.sourceItem.findMany({
+      where: { source: { slug: { in: slugs } } },
+      select: { storyId: true },
+      take: SMALL_SOURCE_STORIES + 1,
+    });
+    return items.length > SMALL_SOURCE_STORIES
+      ? undefined
+      : [...new Set(items.map((item) => item.storyId))];
   }
 
   private async loadCards(ids: string[]) {
@@ -157,27 +174,20 @@ function latestPage(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: nu
 function topPage(
   filters: Prisma.Sql[],
   boost: Prisma.Sql | undefined,
-  sourceStories: Prisma.Sql | undefined,
   keyset: Keyset | undefined,
   limit: number,
 ) {
   if (!boost) return topStream(filters, 1, keyset, limit);
   const floor = Prisma.sql`(SELECT "rankScore" FROM "pageFloor")`;
-  // When fewer than a page match, the first rows are every match and the streams stay unread: they would
+  // When fewer than a page-plus-one match, the first rows are every match and the streams stay unread: they would
   // scan the whole index for a floor of -infinity.
   const matches = Prisma.sql`(SELECT "matches" FROM "pageFloor")`;
   const enoughMatches = Prisma.sql`${matches} >= ${limit}`;
   // IS NOT TRUE is the exact complement of WHERE boost, so the streams split the stories even where the boost is NULL.
   const unboosted = Prisma.sql`${boost} IS NOT TRUE`;
   return Prisma.sql`
-    WITH ${Prisma.join(
-      [
-        ...(sourceStories ? [sourceStories] : []),
-        Prisma.sql`"firstRows" AS MATERIALIZED (${firstRows(filters, boost, keyset, limit)})`,
-        Prisma.sql`"pageFloor" AS (SELECT count(*) AS "matches", min("rankScore") AS "rankScore" FROM "firstRows")`,
-      ],
-      ', ',
-    )}
+    WITH "firstRows" AS MATERIALIZED (${firstRows(filters, boost, keyset, limit)}),
+      "pageFloor" AS (SELECT count(*) AS "matches", min("rankScore") AS "rankScore" FROM "firstRows")
     (${topStream([...filters, boost, enoughMatches], FOLLOW_BOOST, keyset, limit, floor)})
     UNION ALL
     (${topStream([...filters, unboosted, enoughMatches], 1, keyset, limit, floor)})

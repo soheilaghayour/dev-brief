@@ -96,6 +96,9 @@ describe('feed benchmark at 40k stories', () => {
       // Fewer than a page match the filters, so the page floor finds no row to stop at.
       'top + small source + boostTags': { sources: 'bench-tiny', boostTags: 'rust' },
       'top + small source + boostSources': { sources: 'bench-tiny', boostSources: 'bench' },
+      // A source filter that matches most stories, so the stream can stop early after a page.
+      'top + large source + boost': { sources: 'bench', boostTags: 'rust' },
+      'top + medium source (1 in 10) + boost': { sources: 'bench-minor', boostTags: 'rust' },
       'top + q matching nothing + boostTags': { q: 'zzqxnomatch', boostTags: 'rust' },
       'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
     };
@@ -160,8 +163,10 @@ describe('feed benchmark at 40k stories', () => {
         .join('\n');
       if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${plan}`);
       // A selective filter (q, a small source) is better read through its own index or in one scan, not in rankScore order.
-      if ((query.boostTags || query.boostSources) && !query.q && !query.sources) {
-        expect(plan, name).toMatch(/Index Scan using "Story_rankScore_id_idx"/);
+      if (query.boostTags || query.boostSources) {
+        if (!query.q && !query.sources) {
+          expect(plan, name).toMatch(/Index Scan using "Story_rankScore_id_idx"/);
+        }
         expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
       }
       const [jsonPlan] = JsonPlanSchema.parse(await explain(Prisma.sql`(FORMAT JSON)`, feedQuery));
