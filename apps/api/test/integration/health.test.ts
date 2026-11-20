@@ -32,12 +32,12 @@ describe('GET /api/v1/health', () => {
   });
 
   it('AC-1.7.1 reports degraded when an enabled source is stale or has an open circuit', async () => {
-    await createSource(prisma, 'never', 'rss');
+    await createSource(prisma, 'failing', 'rss', { lastErrorAt: new Date() });
     const response = await request(app.getHttpServer()).get('/api/v1/health');
     expect(response.status).toBe(200);
     const health = HealthSchema.parse(response.body);
     expect(health.status).toBe('degraded');
-    expect(health.sources.find((source) => source.slug === 'never')?.status).toBe('stale');
+    expect(health.sources.find((source) => source.slug === 'failing')?.status).toBe('stale');
   });
 
   it("AC-2.6.2 reports today's committed LLM spend and the global cap", async () => {

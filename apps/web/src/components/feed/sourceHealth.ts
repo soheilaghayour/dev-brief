@@ -1,4 +1,9 @@
-import type { SourceKind, SourceList, SourceStatus } from '@devbrief/shared';
+import {
+  SOURCE_KINDS,
+  type SourceKind,
+  type SourceList,
+  type SourceStatus,
+} from '@devbrief/shared';
 
 type SourceEntry = SourceList['sources'][number];
 
@@ -11,7 +16,7 @@ const SEVERITY = {
 } satisfies Record<SourceStatus, number>;
 
 /** The health of a source kind: the worst status among its sources, and their latest success. */
-export function kindHealth(sources: readonly SourceEntry[], kind: SourceKind): KindHealth | null {
+function kindHealth(sources: readonly SourceEntry[], kind: SourceKind): KindHealth | null {
   const members = sources.filter((source) => source.kind === kind);
   if (members.length === 0) return null;
   const status = members.reduce<SourceStatus>(
@@ -20,6 +25,14 @@ export function kindHealth(sources: readonly SourceEntry[], kind: SourceKind): K
   );
   const successes = members.flatMap(({ lastSuccessAt }) => (lastSuccessAt ? [lastSuccessAt] : []));
   return { status, lastSuccessAt: successes.sort().at(-1) ?? null };
+}
+
+/** Each kind `/sources` lists, in filter order, with its health; a kind without sources is left out. */
+export function listedKinds(sources: readonly SourceEntry[]) {
+  return SOURCE_KINDS.flatMap((kind) => {
+    const health = kindHealth(sources, kind);
+    return health ? [{ kind, health }] : [];
+  });
 }
 
 /** Sources that are not healthy, for the one-line summary under the filters. */

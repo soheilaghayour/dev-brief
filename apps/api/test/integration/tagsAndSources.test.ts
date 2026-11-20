@@ -38,7 +38,7 @@ describe('GET /api/v1/tags and /api/v1/sources', () => {
     const now = Date.now();
     await createSource(prisma, 'fresh', 'hn', { lastSuccessAt: new Date(now - 60_000) });
     await createSource(prisma, 'old', 'rss', { lastSuccessAt: new Date(now - 5 * 3_600_000) });
-    await createSource(prisma, 'never', 'devto');
+    await createSource(prisma, 'failing', 'devto', { lastErrorAt: new Date(now - 60_000) });
     await createSource(prisma, 'broken', 'github', {
       lastSuccessAt: new Date(now - 60_000),
       circuitOpenUntil: new Date(now + 3_600_000),
@@ -71,9 +71,9 @@ describe('GET /api/v1/tags and /api/v1/sources', () => {
     expect(statusBySlug).toEqual({
       fresh: 'healthy',
       old: 'stale',
-      never: 'stale',
+      failing: 'stale',
       broken: 'circuit_open',
     });
-    expect(sources.find((source) => source.slug === 'never')?.lastSuccessAt).toBeNull();
+    expect(sources.find((source) => source.slug === 'failing')?.lastSuccessAt).toBeNull();
   });
 });

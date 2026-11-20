@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SourceList } from '@devbrief/shared';
-import { countUnhealthy, kindHealth } from './sourceHealth';
+import { countUnhealthy, listedKinds } from './sourceHealth';
 
 function source(
   slug: string,
@@ -18,19 +18,25 @@ const sources = [
   source('blog-c', 'rss', 'stale', null),
 ];
 
-describe('kindHealth', () => {
+const healthOf = (list: typeof sources, kind: string) =>
+  listedKinds(list).find((entry) => entry.kind === kind)?.health;
+
+describe('listedKinds', () => {
   it('AC-1.3.11 shows the worst status among a group of blogs', () => {
-    expect(kindHealth(sources, 'rss')?.status).toBe('circuit_open');
-    expect(kindHealth(sources, 'hn')?.status).toBe('healthy');
+    expect(healthOf(sources, 'rss')?.status).toBe('circuit_open');
+    expect(healthOf(sources, 'hn')?.status).toBe('healthy');
   });
 
   it('AC-1.3.11 reports the latest success for the tooltip', () => {
-    expect(kindHealth(sources, 'rss')?.lastSuccessAt).toBe('2026-11-19T11:00:00.000Z');
+    expect(healthOf(sources, 'rss')?.lastSuccessAt).toBe('2026-11-19T11:00:00.000Z');
   });
 
-  it('is null for a kind without sources and has no success time when none succeeded', () => {
-    expect(kindHealth(sources, 'devto')).toBeNull();
-    expect(kindHealth([source('x', 'devto', 'stale', null)], 'devto')?.lastSuccessAt).toBeNull();
+  it('lists only the kinds /sources returns, in filter order', () => {
+    expect(listedKinds(sources).map(({ kind }) => kind)).toEqual(['hn', 'rss']);
+  });
+
+  it('has no success time when no source of the kind succeeded', () => {
+    expect(healthOf([source('x', 'devto', 'stale', null)], 'devto')?.lastSuccessAt).toBeNull();
   });
 });
 

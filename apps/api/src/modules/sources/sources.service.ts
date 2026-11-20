@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { SourceList } from '@devbrief/shared';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { sourceStatus } from '../../common/source-status/sourceStatus.js';
+import { hasCompletedRun, sourceStatus } from '../../common/source-status/sourceStatus.js';
 
 const CACHE_KEY = 'sources';
 
@@ -22,7 +22,7 @@ export class SourcesService {
       orderBy: [{ kind: 'asc' }, { name: 'asc' }],
     });
     const list: SourceList = {
-      sources: sources.map((source) => ({
+      sources: sources.filter(hasCompletedRun).map((source) => ({
         slug: source.slug,
         kind: source.kind,
         name: source.name,

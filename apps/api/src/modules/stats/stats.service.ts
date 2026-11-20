@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Stats } from '@devbrief/shared';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { hasCompletedRun } from '../../common/source-status/sourceStatus.js';
 
 const CACHE_KEY = 'stats';
 const DAY_MS = 86_400_000;
@@ -18,16 +19,22 @@ export class StatsService {
     if (cached) return cached;
     const [storiesToday, sources] = await Promise.all([
       this.prisma.story.count({ where: { publishedAt: { gte: new Date(Date.now() - DAY_MS) } } }),
-      this.prisma.source.aggregate({
+      this.prisma.source.findMany({
         where: { enabled: true },
-        _count: { _all: true },
-        _max: { lastSuccessAt: true },
+        select: { lastSuccessAt: true, lastErrorAt: true },
       }),
     ]);
+    const successes = sources.flatMap(({ lastSuccessAt }) =>
+      lastSuccessAt ? [lastSuccessAt] : [],
+    );
+    const lastIngestedAt = successes.reduce<Date | null>(
+      (latest, next) => (latest && latest > next ? latest : next),
+      null,
+    );
     const stats: Stats = {
       storiesToday,
-      sourceCount: sources._count._all,
-      lastIngestedAt: sources._max.lastSuccessAt?.toISOString() ?? null,
+      sourceCount: sources.filter(hasCompletedRun).length,
+      lastIngestedAt: lastIngestedAt?.toISOString() ?? null,
     };
     this.cache.set(CACHE_KEY, stats, CACHE_TTL_MS);
     return stats;

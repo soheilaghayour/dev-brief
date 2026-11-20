@@ -1,23 +1,25 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { SOURCE_KINDS } from '@devbrief/shared';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRelativeTime } from '@/lib/format/formatRelativeTime';
 import { sourcesQueryOptions } from './feedQueries';
 import { HealthDot } from './HealthDot';
-import { kindHealth, type KindHealth } from './sourceHealth';
+import { listedKinds, type KindHealth } from './sourceHealth';
 import { SOURCE_KIND_LABELS } from './sourceKinds';
 import { useFeedFilters } from './useFeedFilters';
+
+const PLACEHOLDER_ROWS = 3;
 
 function tooltipFor({ lastSuccessAt }: KindHealth) {
   if (!lastSuccessAt) return 'Not updated yet';
   return `Last updated ${formatRelativeTime(lastSuccessAt, new Date(), 'long')}`;
 }
 
-/** The source kinds as filters, each with a health dot (the worst status among its sources). */
+/** The source kinds `/sources` lists, as filters, each with a health dot (the worst status among its sources). */
 export function SourceFilterList() {
-  const { data } = useQuery(sourcesQueryOptions);
+  const { data, isPending } = useQuery(sourcesQueryOptions);
   const { filters, toggleKind } = useFeedFilters();
 
   return (
@@ -25,9 +27,15 @@ export function SourceFilterList() {
       <legend className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
         Sources
       </legend>
-      {SOURCE_KINDS.map((kind) => {
-        const health = data ? kindHealth(data.sources, kind) : null;
-        return (
+      {isPending &&
+        Array.from({ length: PLACEHOLDER_ROWS }, (_, index) => (
+          <Skeleton key={index} className="mx-2 my-1.5 h-4" />
+        ))}
+      {!isPending && !data && (
+        <p className="text-muted-foreground px-2 py-1">Sources unavailable.</p>
+      )}
+      {data &&
+        listedKinds(data.sources).map(({ kind, health }) => (
           <div
             key={kind}
             data-kind={kind}
@@ -37,10 +45,9 @@ export function SourceFilterList() {
               <Checkbox checked={filters.kinds.includes(kind)} onChange={() => toggleKind(kind)} />
               <span className="flex-1 truncate">{SOURCE_KIND_LABELS[kind]}</span>
             </label>
-            {health && <HealthDot status={health.status} tooltip={tooltipFor(health)} />}
+            <HealthDot status={health.status} tooltip={tooltipFor(health)} />
           </div>
-        );
-      })}
+        ))}
     </fieldset>
   );
 }

@@ -124,7 +124,7 @@ The GitHub source calls the Search API with a token (30 searches per minute inst
 1. Open GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
 2. Name it `devbrief-search`, pick an expiration (put the renewal date in the calendar), and set Repository access to **Public repositories**. Add no permissions.
 3. Generate it and copy it into the API application's environment in Coolify as `GITHUB_TOKEN`, then redeploy.
-4. After the next hourly run, `GET /api/v1/sources` lists `github` as `healthy`. Until the token is set, every run records the source as `skipped` with "GITHUB_TOKEN not set", and its health dot turns stale.
+4. After the next hourly run, `GET /api/v1/sources` lists `github` as `healthy`. Until the token is set, every run records the source as `skipped` with "GITHUB_TOKEN not set". A source that has never finished a run is left out of `/api/v1/health`, `/api/v1/sources` (so the sidebar offers no GitHub filter) and the landing's source count, so health stays `ok`.
 
 When the token expires, searches fail, and after 3 failed runs the source's circuit opens: generate a new token and replace the value.
 
