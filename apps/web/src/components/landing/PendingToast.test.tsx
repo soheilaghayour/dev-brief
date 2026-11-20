@@ -33,7 +33,7 @@ async function mountPendingToast() {
 
 describe('PendingToast', () => {
   it('AC-1.6.2 shows the account-deleted toast queued before the redirect', async () => {
-    const { queuePendingToast } = await import('@/lib/guest/pendingToast');
+    const { queuePendingToast } = await import('@/lib/toast/pendingToast');
     queuePendingToast('account-deleted');
     const container = await mountPendingToast();
     await vi.waitFor(() =>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ComponentType } from 'react';
-import { takePendingToast } from '@/lib/guest/pendingToast';
+import { takePendingToast } from '@/lib/toast/pendingToast';
 
 /** Shows a toast queued before navigating here; Sonner downloads only when one is pending. */
 export function PendingToast() {

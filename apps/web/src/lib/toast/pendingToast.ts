@@ -16,7 +16,6 @@ let queuedInMemory: PendingToastKind | null = null;
 export function queuePendingToast(kind: PendingToastKind) {
   queuedInMemory = kind;
   try {
-    // Storage survives the full page load Next falls back to when a deploy lands mid-session.
     window.sessionStorage.setItem(SESSION_KEY, kind);
   } catch {
     // Memory alone then carries it across the client-side navigation.

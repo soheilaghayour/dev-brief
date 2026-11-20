@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/Input';
 import { deleteMe } from '@/lib/api/endpoints';
 import { ME_QUERY_KEY } from '@/lib/auth/useMe';
 import { clearGuestData } from '@/lib/guest/clear';
-import { queuePendingToast } from '@/lib/guest/pendingToast';
+import { queuePendingToast } from '@/lib/toast/pendingToast';
 
 const CONFIRMATION_WORD = 'delete';
 
@@ -62,7 +62,7 @@ function DeleteAccountForm() {
     queryClient.setQueryData(ME_QUERY_KEY, null);
     // The next sign-in must not see this account's saves.
     queryClient.removeQueries({ queryKey: ['saves'] });
-    // The landing page shows it, so it loads Sonner only after a deletion.
+    // Queued, not toasted: the landing page loads Sonner only when a toast is pending.
     queuePendingToast('account-deleted');
     router.push('/');
   }
