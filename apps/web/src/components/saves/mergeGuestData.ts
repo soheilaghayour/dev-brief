@@ -2,7 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { isFeatureEnabled } from '@/config/features';
 import { mergeSaves } from '@/lib/api/endpoints';
 import { guestMergeResult, planGuestMerge } from '@/lib/guest/guestMerge';
-import { clearGuestPreferences } from '@/lib/guest/guestPreferences';
+import { removeGuestPreferences } from '@/lib/guest/guestPreferences';
 import { latestGuestData, removeGuestSaves, setGuestPendingMerge } from '@/lib/guest/guestSaves';
 import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
 import { notify } from '@/lib/toast/notify';
@@ -32,7 +32,7 @@ export async function mergeGuestData(queryClient: QueryClient) {
   // Only now that the server confirmed does the device let go of the saves and preferences.
   const result = guestMergeResult(plan.request, response);
   await removeGuestSaves(result.confirmedStoryIds);
-  if (result.confirmedPreferences) await clearGuestPreferences();
+  if (result.confirmedPreferences) await removeGuestPreferences(result.confirmedPreferences);
   await setGuestPendingMerge(false);
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['saves'] }),

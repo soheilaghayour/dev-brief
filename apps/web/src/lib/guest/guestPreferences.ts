@@ -1,8 +1,8 @@
 import { useGuestStore } from './guestStore';
 import { loadLatestGuestStore } from './hydrateGuestStore';
-import { EMPTY_PREFERENCES } from './guestState';
+import type { Preferences } from '@devbrief/shared';
 import type { PreferenceKind, PreferenceMode, PreferenceValue } from './preferences';
-import { setPreference } from './preferenceModes';
+import { setPreference, withoutPreferences } from './preferenceModes';
 
 // Not store actions: only the lazily loaded menu, Settings and the merge change preferences, so first-load JS doesn't carry this.
 
@@ -18,7 +18,8 @@ export async function setGuestPreference<K extends PreferenceKind>(
   return outcome;
 }
 
-export async function clearGuestPreferences() {
+/** Removes the entries of `sent` and keeps any other the device gained meanwhile. */
+export async function removeGuestPreferences(sent: Preferences) {
   await loadLatestGuestStore();
-  useGuestStore.setState({ prefs: EMPTY_PREFERENCES });
+  useGuestStore.setState({ prefs: withoutPreferences(useGuestStore.getState().prefs, sent) });
 }

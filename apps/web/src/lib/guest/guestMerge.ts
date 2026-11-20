@@ -35,18 +35,18 @@ export function planGuestMerge({
 export type GuestMergeResult = {
   /** Local saves the server has dealt with: stored in the account, or gone for good. */
   confirmedStoryIds: string[];
-  /** True when the request carried the device's preferences, which the account now holds. */
-  confirmedPreferences: boolean;
+  /** The preferences the request carried, which the account now holds; undefined when it carried none. */
+  confirmedPreferences: Preferences | undefined;
   /** The toast to show, or null when nothing was synced. */
   notice: string | null;
 };
 
-/** What a confirmed merge means locally: which saves and whether the preferences leave the store, and what to tell the user (saves only). */
+/** What a confirmed merge means locally: which saves and preferences leave the store, and what to tell the user (saves only). */
 export function guestMergeResult(request: MergeRequest, response: MergeResponse): GuestMergeResult {
   const count = response.merged.saves;
   return {
     confirmedStoryIds: request.saves.map((save) => save.storyId),
-    confirmedPreferences: request.preferences !== undefined,
+    confirmedPreferences: request.preferences,
     notice: count === 0 ? null : `${count} saved ${count === 1 ? 'story' : 'stories'} synced`,
   };
 }

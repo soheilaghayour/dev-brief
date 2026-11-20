@@ -96,14 +96,12 @@ describe('guestMergeResult', () => {
   });
 
   it('AC-2.5.3 confirms the sent preferences, and the toast still counts saves only', () => {
+    const sent = { ...EMPTY_PREFERENCES, follow: { tags: ['rust' as const], sources: [] } };
     const result = guestMergeResult(
-      {
-        ...request,
-        preferences: { ...EMPTY_PREFERENCES, follow: { tags: ['rust'], sources: [] } },
-      },
+      { ...request, preferences: sent },
       { merged: { saves: 1, preferences: 1 }, skipped: { saves: 1 }, missingStoryIds: ['gone'] },
     );
-    expect(result.confirmedPreferences).toBe(true);
+    expect(result.confirmedPreferences).toEqual(sent);
     expect(result.notice).toBe('1 saved story synced');
     expect(
       guestMergeResult(request, {
@@ -111,7 +109,7 @@ describe('guestMergeResult', () => {
         skipped: { saves: 1 },
         missingStoryIds: ['gone'],
       }).confirmedPreferences,
-    ).toBe(false);
+    ).toBeUndefined();
   });
 });
 

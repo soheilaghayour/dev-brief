@@ -24,10 +24,7 @@ export function modeOf<K extends PreferenceKind>(
   return null;
 }
 
-/**
- * Puts the value in the mode's list (null clears it); following removes a mute of the same value and the reverse.
- * A full list refuses a new value, since a longer one would no longer fit the feed params.
- */
+/** Puts the value in the mode's list (null clears it), moving it out of the other mode's list; a full list refuses a new value. */
 export function setPreference<K extends PreferenceKind>(
   prefs: Preferences,
   kind: K,
@@ -48,4 +45,21 @@ export function setPreference<K extends PreferenceKind>(
   };
   // The lists only ever gain a value of the kind's own type.
   return { outcome: 'changed', prefs: next as Preferences };
+}
+
+/** The preferences without the entries of `sent`, so a change made while `sent` was on its way stays. */
+export function withoutPreferences(current: Preferences, sent: Preferences): Preferences {
+  function drop<T extends string>(list: readonly T[], gone: readonly string[]) {
+    return list.filter((value) => !gone.includes(value));
+  }
+  return {
+    follow: {
+      tags: drop(current.follow.tags, sent.follow.tags),
+      sources: drop(current.follow.sources, sent.follow.sources),
+    },
+    mute: {
+      tags: drop(current.mute.tags, sent.mute.tags),
+      sources: drop(current.mute.sources, sent.mute.sources),
+    },
+  };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FEED_LIST_MAX } from '@devbrief/shared';
 import { EMPTY_PREFERENCES } from './guestState';
-import { modeOf, setPreference } from './preferenceModes';
+import { modeOf, setPreference, withoutPreferences } from './preferenceModes';
 
 const prefs = {
   follow: { tags: ['rust' as const], sources: ['hn'] },
@@ -62,5 +62,18 @@ describe('modeOf', () => {
     expect(modeOf(prefs, 'tag', 'career')).toBe('mute');
     expect(modeOf(prefs, 'source', 'hn')).toBe('follow');
     expect(modeOf(prefs, 'tag', 'react')).toBeNull();
+  });
+});
+
+describe('withoutPreferences', () => {
+  it('AC-2.5.3 drops the sent entries and keeps what the device gained meanwhile', () => {
+    const current = {
+      follow: { tags: ['rust' as const, 'go' as const], sources: ['hn'] },
+      mute: { tags: ['career' as const], sources: [] },
+    };
+    expect(withoutPreferences(current, prefs)).toEqual({
+      follow: { tags: ['go'], sources: [] },
+      mute: { tags: [], sources: [] },
+    });
   });
 });
