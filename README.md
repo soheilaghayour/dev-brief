@@ -11,11 +11,14 @@ logic, PostgreSQL. Details in [`docs/architecture.md`](docs/architecture.md) and
 
 ## Run locally
 
-Needs Node from `.nvmrc`, pnpm and Docker.
+Needs Node from `.nvmrc`, pnpm at the version in `package.json`'s `packageManager` ([how](docs/development.md#local-setup)) and Docker.
 
 ```
 docker compose up -d
 pnpm i
+pnpm --filter api db:deploy
+pnpm --filter api db:seed
+pnpm --filter api ingest:once   # optional: otherwise the feed stays empty until the hourly run at :05 UTC
 pnpm dev
 ```
 
