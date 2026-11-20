@@ -7,6 +7,7 @@ import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { loadEnv } from '../../src/env.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { IngestionModule } from '../../src/modules/ingestion/ingestion.module.js';
+import { SOURCE_ADAPTERS } from '../../src/modules/ingestion/sourceAdapter.js';
 import { LANGUAGE_MODEL } from '../../src/modules/llm/llm.service.js';
 import { SummariesModule } from '../../src/modules/summaries/summaries.module.js';
 import { SummaryInputsService } from '../../src/modules/summaries/summaryInputs.service.js';
@@ -23,7 +24,7 @@ export function promptOf(options: GenerateOptions) {
   return JSON.stringify(options.prompt);
 }
 
-/** The summaries and ingestion modules with a scripted model and the recorded upstream payloads; no ranking step. */
+/** The summaries and ingestion modules with a scripted model, the recorded upstream payloads, no source adapters and no ranking step. */
 export async function createSummariesModule({
   doGenerate,
   env = SUMMARIES_ON,
@@ -40,6 +41,9 @@ export async function createSummariesModule({
   })
     .overrideProvider(ENV)
     .useValue(loadEnv({ ...process.env, ...env }))
+    // No adapters: a run skips every source, so it never reaches the network and goes straight to the post-run steps.
+    .overrideProvider(SOURCE_ADAPTERS)
+    .useValue([])
     .overrideProvider(LANGUAGE_MODEL)
     .useValue(model)
     .overrideProvider(SummaryInputsService)

@@ -36,7 +36,6 @@ describe('auto summaries', () => {
 
   afterEach(() => moduleRef?.close());
 
-  /** An ingestion engine with no sources, so a run goes straight to the post-run steps. */
   async function createIngestion(
     options: Partial<Parameters<typeof createSummariesModule>[0]> = {},
   ) {

@@ -210,8 +210,16 @@ describe('summary reads', () => {
 
   beforeAll(async () => {
     const hn = await createSource(prisma, 'hn-reads', 'hn');
-    const summarised = await createDiscussedStory(prisma, { title: 'Summarised', sourceId: hn.id });
-    const plain = await createDiscussedStory(prisma, { title: 'Plain', sourceId: hn.id });
+    const summarised = await createDiscussedStory(prisma, {
+      title: 'Summarised',
+      sourceId: hn.id,
+      externalId: '1',
+    });
+    const plain = await createDiscussedStory(prisma, {
+      title: 'Plain',
+      sourceId: hn.id,
+      externalId: '2',
+    });
     summarisedId = summarised.id;
     plainId = plain.id;
     await prisma.summary.create({
