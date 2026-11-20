@@ -1,11 +1,7 @@
-import { TAG_SLUGS, type Preferences, type TagSlug } from '@devbrief/shared';
+import { isTagSlug, type Preferences } from '@devbrief/shared';
 import type { PreferenceEntry, PreferenceKind, PreferenceMode } from './preferenceEntries.js';
 
-// A tag retired by a taxonomy bump is dropped, so a stored set never fails the contract.
-const TAG_SLUG_SET: ReadonlySet<string> = new Set(TAG_SLUGS);
-const isTagSlug = (tag: string): tag is TagSlug => TAG_SLUG_SET.has(tag);
-
-/** Builds the preference set from a user's rows, each list sorted so the output is stable. */
+/** Builds the preference set from a user's rows, lists sorted and retired tags dropped, so the output is stable and parses. */
 export function toPreferences(entries: readonly PreferenceEntry[]): Preferences {
   const values = (mode: PreferenceMode, kind: PreferenceKind) =>
     entries

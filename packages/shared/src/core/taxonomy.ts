@@ -23,6 +23,11 @@ export const TAG_SLUGS = [
 
 export type TagSlug = (typeof TAG_SLUGS)[number];
 
+const TAG_SLUG_SET: ReadonlySet<string> = /* @__PURE__ */ new Set(TAG_SLUGS);
+
+/** Whether a stored tag is in the current taxonomy; a slug retired by a version bump is not. */
+export const isTagSlug = (tag: string): tag is TagSlug => TAG_SLUG_SET.has(tag);
+
 /** Display name per tag; the web ships only these, not the matching rules in `TAXONOMY`. */
 export const TAG_LABELS = {
   react: 'React',
