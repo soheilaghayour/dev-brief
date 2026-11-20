@@ -24,19 +24,27 @@ interface FixtureOptions {
   pages?: GithubFixtureName[];
   /** The `x-ratelimit-remaining` header per page, page 1 first; a missing entry sends no header. */
   rateLimitRemaining?: string[];
+  /** Pages, page 1 first, whose `incomplete_results` is set to true. */
+  incompletePages?: number[];
 }
 
 /** A `fetch` stand-in that serves the recorded GitHub search pages, so no test reaches the network. */
 export function githubFixtureFetch({
   pages = ['search-page-1', 'search-page-2'],
   rateLimitRemaining = ['29', '28'],
+  incompletePages = [],
 }: FixtureOptions = {}): typeof fetch {
   return async (input) => {
     const page = Number(new URL(String(input)).searchParams.get('page'));
     const name = pages[page - 1];
     const remaining = rateLimitRemaining[page - 1];
+    const body = name
+      ? readGithubFixture(name)
+      : '{"total_count":0,"incomplete_results":false,"items":[]}';
     return new Response(
-      name ? readGithubFixture(name) : '{"total_count":0,"incomplete_results":false,"items":[]}',
+      incompletePages.includes(page)
+        ? JSON.stringify({ ...JSON.parse(body), incomplete_results: true })
+        : body,
       {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',

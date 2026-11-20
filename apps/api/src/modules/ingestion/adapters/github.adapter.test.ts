@@ -160,12 +160,7 @@ describe('GithubAdapter', () => {
   });
 
   it('reports partial and keeps the items when a page has incomplete results', async () => {
-    const base = githubFixtureFetch();
-    const stub: typeof fetch = async (input, init) => {
-      const page = await (await base(input, init)).json();
-      const first = new URL(String(input)).searchParams.get('page') === '1';
-      return Response.json({ ...page, incomplete_results: first });
-    };
+    const stub = githubFixtureFetch({ incompletePages: [1] });
     const reportPartial = vi.fn();
     const items = await adapterWith(stub).fetch(source, { signal, reportPartial });
 
@@ -174,12 +169,7 @@ describe('GithubAdapter', () => {
   });
 
   it('joins every partial reason into one report', async () => {
-    const base = githubFixtureFetch({ rateLimitRemaining: ['3'] });
-    const stub: typeof fetch = async (input, init) => {
-      const response = await base(input, init);
-      const page = await response.json();
-      return Response.json({ ...page, incomplete_results: true }, { headers: response.headers });
-    };
+    const stub = githubFixtureFetch({ rateLimitRemaining: ['3'], incompletePages: [1] });
     const reportPartial = vi.fn();
     await adapterWith(stub).fetch(source, { signal, reportPartial });
 
