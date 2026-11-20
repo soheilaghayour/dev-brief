@@ -4,17 +4,16 @@ import type { SummaryRequest } from '@devbrief/shared';
 import type { Request, Response } from 'express';
 import { PrivateNoStore, PublicCache } from '../../common/cache/cacheControl.js';
 import { RequiresFeature } from '../../common/features/requiresFeature.decorator.js';
-import {
-  IpRateLimit,
-  IpRateLimitGuard,
-  SUMMARY_IP_LIMIT,
-} from '../../common/rate-limit/ipRateLimit.guard.js';
+import { IpRateLimit, IpRateLimitGuard } from '../../common/rate-limit/ipRateLimit.guard.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
 import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { OptionalAuthGuard, type CurrentUserData } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/currentUser.decorator.js';
 import { OnDemandSummaryService } from './onDemandSummary.service.js';
 import { SummariesService } from './summaries.service.js';
+
+/** The short-window limit of PRD §8.6 for the on-demand summary route. */
+const SUMMARY_IP_LIMIT = { bucket: 'summary', perMinute: 5 };
 
 @Controller('stories')
 @RequiresFeature('summaries')
