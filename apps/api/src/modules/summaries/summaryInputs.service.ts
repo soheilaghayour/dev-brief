@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DevtoClient } from '../../common/devto/devtoClient.js';
 import { ApiException } from '../../common/errors/api.exception.js';
+import { createLimiter } from '../../common/http/createLimiter.js';
 import { HttpClient } from '../../common/http/httpClient.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { CommentNode } from './flattenComments.js';
@@ -34,30 +35,12 @@ export type SummaryInputs = {
 
 type InputItem = { externalId: string; source: { kind: string } };
 
-/** Runs tasks with at most `limit` in flight across every caller; the others wait in arrival order. */
-function concurrencyLimit(limit: number) {
-  let active = 0;
-  const waiting: (() => void)[] = [];
-  return async <Result>(task: () => Promise<Result>) => {
-    if (active < limit) active += 1;
-    else await new Promise<void>((resolve) => waiting.push(resolve));
-    try {
-      return await task();
-    } finally {
-      // A waiting task takes over this slot; with none waiting, the slot is freed.
-      const next = waiting.shift();
-      if (next) next();
-      else active -= 1;
-    }
-  };
-}
-
 /** Loads a story with its own items' comments and text; the one place clustering widens to all cluster members. */
 @Injectable()
 export class SummaryInputsService {
   private readonly logger = new Logger(SummaryInputsService.name);
   // PRD §8.3 limits Algolia per client, so the limit spans every summary in flight, auto and on-demand.
-  private readonly algoliaSlot = concurrencyLimit(ALGOLIA_CONCURRENCY);
+  private readonly algoliaSlot = createLimiter(ALGOLIA_CONCURRENCY);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -114,8 +97,6 @@ export class SummaryInputsService {
 
   private fetchHnThread(item: InputItem, signal: AbortSignal) {
     return this.algoliaSlot(async () => {
-      // A request that waited for its slot is not sent once its story gave up.
-      signal.throwIfAborted();
       const payload = await this.http.getJson(`${ALGOLIA_ITEMS}/${item.externalId}`, {
         ...ALGOLIA_REQUEST_OPTIONS,
         signal,

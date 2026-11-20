@@ -37,8 +37,6 @@ export class DevtoClient {
   private async send(path: string, signal: AbortSignal | undefined) {
     const waitMs = this.lastRequestEndedAt + DEVTO_REQUEST_GAP_MS - this.nowMs();
     if (waitMs > 0) await this.pause(waitMs, signal);
-    // Checked after the gap: a caller may have given up on its queued request meanwhile.
-    signal?.throwIfAborted();
     try {
       return await this.http.getJson(`${DEVTO_API}${path}`, { ...DEVTO_REQUEST_OPTIONS, signal });
     } finally {

@@ -2,7 +2,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { APICallError } from 'ai';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
-import { utcDay } from '../../src/modules/llm/budget.js';
+import { LLM_CAP_SUMMARY_AUTO_USD_DAY, utcDay } from '../../src/modules/llm/budget.js';
 import { AutoSummariesStep } from '../../src/modules/summaries/autoSummaries.step.js';
 import { AUTO_ATTEMPTS_PER_RUN } from '../../src/modules/summaries/summaryRules.js';
 import { modelReply } from '../mockLanguageModel.js';
@@ -158,8 +158,8 @@ describe('auto summaries', () => {
         feature: 'summary_auto',
         model: 'claude-haiku-5-5',
         status: 'settled',
-        reservedUsd: '0.015',
-        costUsd: '0.015',
+        reservedUsd: LLM_CAP_SUMMARY_AUTO_USD_DAY.toFixed(6),
+        costUsd: LLM_CAP_SUMMARY_AUTO_USD_DAY.toFixed(6),
       },
     });
     const { ingestion, model } = await createIngestion();
