@@ -1,15 +1,12 @@
 import { Injectable, SetMetadata, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
-import { enforceWindowLimit } from './userRateLimit.guard.js';
-import { UserRateLimitWindows } from './userRateLimit.module.js';
+import { enforceWindowLimit } from './enforceWindowLimit.js';
+import { RateLimitWindows } from './userRateLimit.module.js';
 
 const LIMIT_KEY = 'rateLimit:perIp';
 
 type IpLimit = { bucket: string; perMinute: number };
-
-/** The short-window limit of PRD §8.6 for the on-demand summary route. */
-export const SUMMARY_IP_LIMIT = { bucket: 'summary', perMinute: 5 } satisfies IpLimit;
 
 /** Limits a route to `perMinute` requests per client IP per minute, on top of the global limit. */
 export const IpRateLimit = (limit: IpLimit) => SetMetadata(LIMIT_KEY, limit);
@@ -19,7 +16,7 @@ export const IpRateLimit = (limit: IpLimit) => SetMetadata(LIMIT_KEY, limit);
 export class IpRateLimitGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly windows: UserRateLimitWindows,
+    private readonly windows: RateLimitWindows,
   ) {}
 
   canActivate(context: ExecutionContext) {
