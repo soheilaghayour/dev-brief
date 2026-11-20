@@ -27,12 +27,15 @@ export function loadEnv(source: EnvSource = process.env) {
   return parseEnv(EnvSchema, source);
 }
 
-/** Throws on a `NEXT_PUBLIC_FEATURE_*` value other than `'true'` or `'false'`, which `config/features.ts` would silently read as off. */
+/** Fails the build on a `NEXT_PUBLIC_FEATURE_*` value other than `'true'` or `'false'`. */
 export function validateFeatureFlagEnv(source: EnvSource = process.env) {
   parseEnv(FeatureFlagEnvSchema, source);
 }
 
-function parseEnv<Schema extends z.ZodTypeAny>(schema: Schema, source: EnvSource): z.output<Schema> {
+function parseEnv<Schema extends z.ZodTypeAny>(
+  schema: Schema,
+  source: EnvSource,
+): z.output<Schema> {
   const result = schema.safeParse(source);
   if (result.success) return result.data;
   const problems = result.error.issues.map(

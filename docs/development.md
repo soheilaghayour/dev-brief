@@ -11,7 +11,7 @@ The `dev` scripts and the API's `db:*` scripts load the root `.env` over `.env.e
 
 ## Phase flags
 
-A phase feature is off until both of its flags are on: the API reads `FEATURE_<NAME>` at boot, and the web build inlines `NEXT_PUBLIC_FEATURE_<NAME>`, so rebuild the web app after changing it. To turn on summaries locally, put `FEATURE_SUMMARIES=true` and `NEXT_PUBLIC_FEATURE_SUMMARIES=true` in the root `.env` and restart `pnpm dev`. `FEATURE_PREFERENCES` and `NEXT_PUBLIC_FEATURE_PREFERENCES` work the same way. Each flag takes `'true'` or `'false'`; any other value stops the API at boot and fails the web build.
+A phase feature is off until both of its flags are on: the API reads `FEATURE_<NAME>` at boot, and the web build inlines `NEXT_PUBLIC_FEATURE_<NAME>`, so rebuild the web app after changing it. To turn on summaries locally, put `FEATURE_SUMMARIES=true` and `NEXT_PUBLIC_FEATURE_SUMMARIES=true` in the root `.env` and restart `pnpm dev`. `FEATURE_PREFERENCES` and `NEXT_PUBLIC_FEATURE_PREFERENCES` work the same way.
 
 ## End-to-end tests
 
