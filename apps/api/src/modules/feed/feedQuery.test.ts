@@ -77,4 +77,12 @@ describe('feedCacheKey', () => {
     ]);
     expect(keys.size).toBe(7);
   });
+
+  it('ignores the boost params on Latest, which does not boost, but not on Top', () => {
+    const boosts = { boostTags: ['rust' as const], boostSources: ['hn'] };
+    expect(feedCacheKey({ ...baseQuery, sort: 'latest', ...boosts })).toBe(
+      feedCacheKey({ ...baseQuery, sort: 'latest' }),
+    );
+    expect(feedCacheKey({ ...baseQuery, ...boosts })).not.toBe(feedCacheKey(baseQuery));
+  });
 });

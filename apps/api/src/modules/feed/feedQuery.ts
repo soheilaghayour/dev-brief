@@ -21,6 +21,8 @@ const asSet = (values: readonly string[] = []) => [...new Set(values)].sort();
 
 /** The cache key: equal queries map to one key whatever the order or repeats of their list values. */
 export function feedCacheKey(query: FeedQuery) {
+  // Latest ignores boosts, so a Latest query with and without them shares one entry.
+  const boosted = query.sort === 'top';
   return JSON.stringify([
     'feed',
     query.sort,
@@ -30,8 +32,8 @@ export function feedCacheKey(query: FeedQuery) {
     query.q ?? null,
     asSet(query.excludeTags),
     asSet(query.excludeSources),
-    asSet(query.boostTags),
-    asSet(query.boostSources),
+    boosted ? asSet(query.boostTags) : [],
+    boosted ? asSet(query.boostSources) : [],
     query.cursor ?? null,
     query.limit,
   ]);
