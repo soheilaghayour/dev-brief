@@ -174,6 +174,7 @@ links to them instead of restating them.
 - **Embeddings and vector search:** tags, full-text search and `pg_trgm` cover the need; reconsidered only if clustering misses its accuracy target ([§1.7](docs/prd.md#17-non-goals-all-phases), O1).
 - **Email/password sign-in:** GitHub and Google OAuth only ([AC-1.5.1](docs/prd.md#f15-auth-account-saves-and-merge)).
 - **Email digests:** the weekly digest is a Markdown download or clipboard copy ([AC-3.4.4](docs/prd.md#f34-collections-notes-and-digest)).
+- **JIT off globally (`-c jit=off`):** it hides the symptom of a plan that scores the whole Top window; the two-stream query removes the cause.
 - **A separate worker process, queues, Redis:** one API process serves REST, SSE and cron ([§1.5](docs/prd.md#15-product-principles)).
 - **An A2UI adapter layer or in-house fallback renderer:** `@a2ui/react` is pinned to an exact version and upgraded like any dependency.
 - **LLM tagging in Phase 1:** the deterministic taxonomy is pure and testable ([Appendix A](docs/prd.md#appendix-a--tag-taxonomy-v1)); LLM tags are an optional Phase 2 add-on (F2.7).
