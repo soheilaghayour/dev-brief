@@ -16,7 +16,7 @@ test('AC-L4 the landing page renders and the primary CTA reaches the feed withou
 }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Developer news, minus the noise.' }),
+    page.getByRole('heading', { level: 1, name: 'Your morning scan in 5 min' }),
   ).toBeVisible();
   await page.getByRole('link', { name: 'Explore the feed — no login required' }).first().click();
   // AC-L4: Top is the default, so the URL carries no params.
