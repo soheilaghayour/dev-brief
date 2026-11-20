@@ -5,6 +5,7 @@ import {
   committedUsd,
   costFromUsage,
   estimateTokens,
+  truncateToTokens,
   utcDay,
   worstCaseCostUsd,
 } from './budget.js';
@@ -65,6 +66,29 @@ describe('estimateTokens', () => {
     expect(estimateTokens('ab')).toBe(1);
     expect(estimateTokens('abc')).toBe(2);
     expect(estimateTokens('x'.repeat(8_000))).toBe(4_000);
+  });
+
+  it('counts UTF-8 bytes, so CJK text and emoji are not under-estimated', () => {
+    // Three bytes per CJK character, four per emoji.
+    expect(estimateTokens('日本語')).toBe(5);
+    expect(estimateTokens('😀')).toBe(2);
+    expect(estimateTokens('é')).toBe(1);
+  });
+});
+
+describe('truncateToTokens', () => {
+  it('keeps text within the budget unchanged and cuts longer text to the budget', () => {
+    expect(truncateToTokens('abcd', 2)).toBe('abcd');
+    expect(truncateToTokens('abcdef', 2)).toBe('abcd');
+    expect(estimateTokens(truncateToTokens('x'.repeat(5_001), 1_000))).toBe(1_000);
+  });
+
+  it('cuts multi-byte text by its bytes and never inside a character', () => {
+    expect(truncateToTokens('abc😀def', 2)).toBe('abc');
+    expect(truncateToTokens('😀def', 2)).toBe('😀');
+    expect(truncateToTokens('日本語', 2)).toBe('日');
+    const cjk = '語'.repeat(1_000);
+    expect(estimateTokens(truncateToTokens(cjk, 100))).toBeLessThanOrEqual(100);
   });
 });
 

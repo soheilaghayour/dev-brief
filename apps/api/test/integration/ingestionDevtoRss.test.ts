@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { HttpClient } from '../../src/common/http/httpClient.js';
 import { EnvModule } from '../../src/common/env/env.module.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
+import { DevtoClient } from '../../src/common/devto/devtoClient.js';
 import { DevtoAdapter } from '../../src/modules/ingestion/adapters/devto.adapter.js';
 import { HnAdapter } from '../../src/modules/ingestion/adapters/hn.adapter.js';
 import { RssAdapter } from '../../src/modules/ingestion/adapters/rss.adapter.js';
@@ -51,7 +52,9 @@ describe('ingestion of Dev.to and RSS', () => {
   function devtoAdapter(
     fetchStub: typeof fetch = devtoFixtureFetch({ latest: fixtureOverlappingArticles }),
   ) {
-    return new DevtoAdapter(new HttpClient(fetchStub, () => 0), async () => undefined);
+    return new DevtoAdapter(
+      new DevtoClient(new HttpClient(fetchStub, () => 0), async () => undefined),
+    );
   }
 
   async function createService(adapters: (HnAdapter | DevtoAdapter | RssAdapter)[]) {

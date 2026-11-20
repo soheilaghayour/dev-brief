@@ -13,7 +13,7 @@ A variable exported in your shell wins over `.env`: a `GITHUB_TOKEN` there (some
 
 ## Phase flags
 
-A phase feature is off until both of its flags are on: the API reads `FEATURE_<NAME>` at boot, and the web build inlines `NEXT_PUBLIC_FEATURE_<NAME>`, so rebuild the web app after changing it. To turn on summaries locally, put `FEATURE_SUMMARIES=true` and `NEXT_PUBLIC_FEATURE_SUMMARIES=true` in the root `.env` and restart `pnpm dev`. `FEATURE_PREFERENCES` and `NEXT_PUBLIC_FEATURE_PREFERENCES` work the same way.
+A phase feature is off until both of its flags are on: the API reads `FEATURE_<NAME>` at boot, and the web build inlines `NEXT_PUBLIC_FEATURE_<NAME>`, so rebuild the web app after changing it. To turn on summaries locally, put `FEATURE_SUMMARIES=true` and `NEXT_PUBLIC_FEATURE_SUMMARIES=true` in the root `.env` and restart `pnpm dev`. `FEATURE_PREFERENCES` and `NEXT_PUBLIC_FEATURE_PREFERENCES` work the same way. Summaries also need an `ANTHROPIC_API_KEY`; `AUTO_SUMMARIES=true` additionally summarises the top stories after each ingestion run, which calls the live model.
 
 ## End-to-end tests
 

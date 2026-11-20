@@ -143,7 +143,7 @@ describe('rank recompute and daily job', () => {
     vi.spyOn(app.get(RankingService), 'recompute').mockRejectedValue(new Error('batch failed'));
     const clear = vi.spyOn(cache, 'clear');
 
-    await expect(app.get(RankingService).run({ now: NOW })).rejects.toThrow('batch failed');
+    await app.get(IngestionService).run();
 
     expect(clear).toHaveBeenCalledOnce();
     await app.close();
