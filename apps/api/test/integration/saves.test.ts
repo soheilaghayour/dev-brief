@@ -67,7 +67,8 @@ describe('account saves', () => {
   }
 
   beforeAll(async () => {
-    app = await createTestApp([], { AUTH_TEST_MODE: 'true' });
+    // The merge's preferences work with the preferences flag off.
+    app = await createTestApp([], { AUTH_TEST_MODE: 'true', FEATURE_PREFERENCES: 'false' });
     const source = await createSource(prisma, 'saves-blog', 'rss');
     const stories = [];
     for (const [index, title] of ['Alpha', 'Bravo', 'Charlie', 'Delta'].entries()) {
