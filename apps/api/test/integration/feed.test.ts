@@ -246,39 +246,36 @@ describe('GET /api/v1/feed', () => {
 
     it('AC-2.5.2 boostTags ranks a followed story at 0.7× its neighbour above it, and the cursor pages every story once', async () => {
       const blog = await prisma.source.findUniqueOrThrow({ where: { slug: 'blog' } });
-      await createStory(prisma, {
-        title: 'Neighbour',
-        publishedAt: hoursAgo(5),
-        rankScore: 10,
-        tags: ['go'],
-        itemSourceIds: [blog.id],
-      });
-      await createStory(prisma, {
-        title: 'Rust borrow checker',
-        publishedAt: hoursAgo(6),
-        rankScore: 7,
-        tags: ['rust'],
-        itemSourceIds: [blog.id],
-      });
+      const extra = [
+        { title: 'Neighbour', rank: 10, tags: ['go'] },
+        { title: 'Rust borrow checker', rank: 7, tags: ['rust'] },
+        // Boosted 6 × 1.5 = 9 ties TypeScript 7 (9) unboosted, so the id tiebreaker decides.
+        { title: 'Rust async', rank: 6, tags: ['rust'] },
+      ];
+      for (const [index, story] of extra.entries()) {
+        await createStory(prisma, {
+          title: story.title,
+          publishedAt: hoursAgo(5 + index),
+          rankScore: story.rank,
+          tags: story.tags,
+          itemSourceIds: [blog.id],
+        });
+      }
       const unboosted = await feedTitles({ limit: 2 });
       expect(unboosted).toEqual(['Neighbour', 'TypeScript 7']);
 
       const boosted = await feedTitles({ boostTags: 'rust' });
-      expect(boosted).toEqual([
-        'Rust borrow checker',
-        'Neighbour',
-        'TypeScript 7',
-        'React compiler',
-        'Rust and React',
-        'Bun runtime news',
-      ]);
+      expect(boosted.slice(0, 2)).toEqual(['Rust borrow checker', 'Neighbour']);
+      expect(boosted.slice(2, 4).sort()).toEqual(['Rust async', 'TypeScript 7']);
+      expect(boosted.slice(4)).toEqual(['React compiler', 'Rust and React', 'Bun runtime news']);
 
+      // A cursor on every row: one holding Rust borrow checker's raw 7, not 10.5, would skip three stories.
       const paged: string[] = [];
       let cursor: string | undefined;
       do {
         const response = await getFeed({
           boostTags: 'rust',
-          limit: 2,
+          limit: 1,
           ...(cursor ? { cursor } : {}),
         });
         const page = FeedPageSchema.parse(response.body);
@@ -287,7 +284,7 @@ describe('GET /api/v1/feed', () => {
       } while (cursor);
       expect(paged).toEqual(boosted);
       await prisma.story.deleteMany({
-        where: { title: { in: ['Neighbour', 'Rust borrow checker'] } },
+        where: { title: { in: extra.map((story) => story.title) } },
       });
     });
 
