@@ -4,7 +4,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 
 ## First-time setup
 
-[`provision.sh`](provision.sh) is an interactive wizard for steps 1 to 6 and 8's secrets: it opens each provider page, says what to click and writes the values you copy to a private file outside the repo (`~/.config/devbrief/production.env`, mode 600) and an application-only copy beside it, `production.coolify.env`. Run `bash docs/provision.sh`, then enter the values from the `.coolify.env` file in Coolify as listed below, and delete that copy afterwards. Re-running the wizard reuses every saved value; it asks before rotating a generated secret.
+[`provision.sh`](provision.sh) is an interactive wizard for steps 1 to 6, 8's secrets and 9's credentials: it opens each provider page, says what to click and writes the values you copy to a private file outside the repo (`~/.config/devbrief/production.env`, mode 600) and an application-only copy beside it, `production.coolify.env`. Run `bash docs/provision.sh`, then enter the values from the `.coolify.env` file in Coolify as listed below, and delete that copy afterwards. Re-running the wizard reuses every saved value; it asks before rotating a generated secret.
 
 1. **Domain.** Buy it and point an `A` record at the VPS.
 2. **VPS.** Hetzner Cloud, Ubuntu 24.04, the smallest shared-vCPU plan with at least 4 GB RAM. Coolify builds Next.js on this same machine, so add 2 GB of swap (`fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`, plus a line in `/etc/fstab`) so a build cannot push the running containers out of memory.
@@ -20,7 +20,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
    - Environment variables: the [API table](#environment-variables). Untick "Available at Buildtime" for each secret; the image build needs none of them.
 7. **Web application.** Same repository and branch, Dockerfile `/apps/web/Dockerfile`, port `3000`, domain `https://devbrief.example`, health check toggle off (the image's `HEALTHCHECK` requests `/`), and the same **Available during build** source-commit setting as the API. Mark `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` as build variables (the DSN and the phase flags are baked into the client bundle). Environment: the [web table](#environment-variables).
 8. **Secrets.** Generate `BETTER_AUTH_SECRET` and `INTERNAL_API_TOKEN` (the wizard does); `INTERNAL_API_TOKEN` must be identical in `api` and `web`.
-9. **OAuth apps.** Register the production apps with the callbacks in [OAuth apps](#oauth-apps).
+9. **OAuth apps and the GitHub source token.** Register the production apps with the callbacks in [OAuth apps](#oauth-apps), and create the token in [GitHub source token](#github-source-token).
 10. **Auto-deploy.** On both applications enable automatic deployment from `main` (Coolify's GitHub App, or the webhook URL added to the repository). CI must be green before merging, as ever; Coolify deploys the push.
 11. **Seed the sources** once, after the first deploy: in the API application's Terminal run `node dist/cli/seed.js`. It is idempotent. Set `INGEST_ON_BOOT=true` so the first start fills the feed; the hourly job takes over from there.
 12. **Check the deploy.** `SMOKE_BASE_URL=https://devbrief.example pnpm smoke:prod` (see [Post-deploy checks](#post-deploy-checks)).
