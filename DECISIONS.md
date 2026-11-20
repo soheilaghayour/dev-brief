@@ -95,7 +95,7 @@ links to them instead of restating them.
 - **The device releases every save it sent once the server confirms, unknown stories included.** A story the server doesn't know is gone for good; keeping it would resend it on every load.
 - **A signed-in load merges whenever the device holds saves; `pendingMerge` only records an attempt the server hasn't confirmed, and it joins the v1 guest store without a version bump.** It is set before the request and cleared on the server's answer, so a tab that dies mid-request still counts as a failed attempt; stored v1 data without the field reads as `false`, so the `devbrief:guest:v1` key and the `version: 1` shape of [AC-1.4.2](docs/prd.md#f14-guest-saves) stay.
 - **Per-user limits (merge 10/min, mutations 60/min) use a small guard after `AuthGuard` instead of `@nestjs/throttler`.** The global throttler runs before `AuthGuard`, so it can't key on the user; a second `ThrottlerGuard` would still need its own tracker and storage for two buckets ([§8.6](docs/prd.md#86-security-basics)).
-- **While `GET /me` is pending, `useSaves()` is not ready and toggles go to the device store.** A guest's first save never waits on the network, and a save made before sign-in is recognised is picked up by the merge.
+- **While `GET /me` is pending, `useSaves()` and `usePreferences()` are not ready and changes go to the device store.** A guest's first save or mute never waits on the network, and a change made before sign-in is recognised is picked up by the merge.
 
 - **Nothing in the repo hard-codes the production domain; every URL comes from `APP_URL` and its siblings, and docs use `devbrief.example`.** The domain is not bought ([O2](docs/prd.md#34-open-items)).
 - **Production is two Coolify Dockerfile applications plus a Coolify-managed Postgres, not a compose file.** Coolify's scheduled S3 backup (AC-1.7.7) exists only for its own database resources, and one application per image gives each its own health-checked rolling deploy.
@@ -165,6 +165,7 @@ links to them instead of restating them.
 
 - **A guest's `prefs` join the v1 guest store without a version bump, and a stored set that fails `PreferencesSchema` reads as empty.** Stored v1 data without the field reads as empty preferences, the `pendingMerge` rule, so the `devbrief:guest:v1` key of [AC-1.4.2](docs/prd.md#f14-guest-saves) stays; a set that breaks one rule (a cap, a value both followed and muted) can't be trusted in part, and sending it would fail the whole merge.
 - **A follow or mute that would take a list past `FEED_LIST_MAX` is refused with a toast.** A longer list would make every feed request and the merge fail validation; dropping an older entry would undo a choice the user made, as the 500-saves rule avoids.
+- **An account change sends the full preference set with `PUT`, built from the stored set, which is fetched first when it hasn't loaded.** `PUT` replaces the set, so a change built on an empty placeholder would erase the account's other preferences.
 
 ## Open PM questions
 
