@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { ApiErrorSchema, FeedPageSchema, type FeedPage } from '@devbrief/shared';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
 import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { createTestApp } from './createTestApp.js';
@@ -23,6 +23,19 @@ describe('GET /api/v1/feed', () => {
     const response = await getFeed(params);
     expect(response.status).toBe(200);
     return FeedPageSchema.parse(response.body).items.map((item) => item.title);
+  }
+  /** Every item of a query, read page by page through its cursors. */
+  async function pagedItems(params: Record<string, string | number>) {
+    const items: FeedPage['items'] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await getFeed({ ...params, ...(cursor ? { cursor } : {}) });
+      expect(response.status).toBe(200);
+      const page = FeedPageSchema.parse(response.body);
+      items.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return items;
   }
 
   beforeAll(async () => {
@@ -170,19 +183,6 @@ describe('GET /api/v1/feed', () => {
   });
 
   describe('AC-1.3.5 keyset pagination', () => {
-    async function pageThrough(sort: 'top' | 'latest') {
-      const seen: string[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await getFeed({ sort, limit: 2, ...(cursor ? { cursor } : {}) });
-        expect(response.status).toBe(200);
-        const page = FeedPageSchema.parse(response.body);
-        seen.push(...page.items.map((item) => item.id));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-      return seen;
-    }
-
     it('AC-1.3.5 pages through every story once, including ties on rankScore and publishedAt', async () => {
       const hn = await prisma.source.findUniqueOrThrow({ where: { slug: 'hn' } });
       const tieTime = hoursAgo(3);
@@ -198,7 +198,8 @@ describe('GET /api/v1/feed', () => {
         const all = FeedPageSchema.parse((await getFeed({ sort, limit: 50 })).body).items.map(
           (item) => item.id,
         );
-        expect(await pageThrough(sort)).toEqual(all);
+        const paged = await pagedItems({ sort, limit: 2 });
+        expect(paged.map((item) => item.id)).toEqual(all);
       }
       await prisma.story.deleteMany({ where: { title: { startsWith: 'Tie' } } });
     });
@@ -216,6 +217,12 @@ describe('GET /api/v1/feed', () => {
   });
 
   describe('AC-2.5.2 personalisation params', () => {
+    // Runs even when the test fails, so a failure doesn't leak stories into the shared seed.
+    async function removeSourceAndStories(slug: string) {
+      await prisma.story.deleteMany({ where: { items: { some: { source: { slug } } } } });
+      await prisma.source.delete({ where: { slug } });
+    }
+
     it('AC-2.5.2 excludeTags hides every story carrying a muted tag, in Top and Latest', async () => {
       const blog = await prisma.source.findUniqueOrThrow({ where: { slug: 'blog' } });
       await createStory(prisma, {
@@ -270,22 +277,75 @@ describe('GET /api/v1/feed', () => {
       expect(boosted.slice(4)).toEqual(['React compiler', 'Rust and React', 'Bun runtime news']);
 
       // A cursor on every row: one holding Rust borrow checker's raw 7, not 10.5, would skip three stories.
-      const paged: string[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await getFeed({
-          boostTags: 'rust',
-          limit: 1,
-          ...(cursor ? { cursor } : {}),
-        });
-        const page = FeedPageSchema.parse(response.body);
-        paged.push(...page.items.map((item) => item.title));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-      expect(paged).toEqual(boosted);
+      const paged = await pagedItems({ boostTags: 'rust', limit: 1 });
+      expect(paged.map((item) => item.title)).toEqual(boosted);
       await prisma.story.deleteMany({
         where: { title: { in: extra.map((story) => story.title) } },
       });
+    });
+
+    it('AC-2.5.2 the cursor pages followed stories whose boosted score does not divide back to their rankScore', async () => {
+      const source = await createSource(prisma, 'float-cursor', 'rss');
+      onTestFinished(() => removeSourceAndStories('float-cursor'));
+      for (const title of ['Float A', 'Float B']) {
+        await createStory(prisma, {
+          title,
+          publishedAt: hoursAgo(6),
+          // 0.7 × 1.5 / 1.5 < 0.7 in floats, so the cursor's index bound needs its slack to keep the second story.
+          rankScore: 0.7,
+          itemSourceIds: [source.id],
+        });
+      }
+      const query = { sources: 'float-cursor', boostSources: 'float-cursor' };
+      const all = await feedTitles(query);
+      expect([...all].sort()).toEqual(['Float A', 'Float B']);
+      const paged = await pagedItems({ ...query, limit: 1 });
+      expect(paged.map((item) => item.title)).toEqual(all);
+    });
+
+    it('AC-2.5.2 a followed story whose boosted score ties the page floor keeps its id order', async () => {
+      const source = await createSource(prisma, 'float-floor', 'rss');
+      onTestFinished(() => removeSourceAndStories('float-floor'));
+      const stories = [
+        // 0.2 × 1.5 = 0.30000000000000004, and that divided by 1.5 rounds up past 0.2.
+        { id: 'floor-y', title: 'Floor Y', rankScore: 0.2, tags: ['rust'] },
+        { id: 'floor-x2', title: 'Floor X2', rankScore: 0.1 + 0.2, tags: ['go'] },
+        { id: 'floor-x1', title: 'Floor X1', rankScore: 0.1 + 0.2, tags: ['go'] },
+      ];
+      for (const story of stories) {
+        await createStory(prisma, {
+          ...story,
+          publishedAt: hoursAgo(6),
+          itemSourceIds: [source.id],
+        });
+      }
+      const query = { sources: 'float-floor', boostTags: 'rust' };
+      const titles = stories.map((story) => story.title);
+      expect(await feedTitles(query)).toEqual(titles);
+      // At one per page, the two unfollowed stories set the floor that Floor Y's boosted score ties.
+      const paged = await pagedItems({ ...query, limit: 1 });
+      expect(paged.map((item) => item.title)).toEqual(titles);
+    });
+
+    it('AC-2.5.2 a muted tag does not hide a story with no tags', async () => {
+      const source = await createSource(prisma, 'untagged', 'rss');
+      onTestFinished(() => removeSourceAndStories('untagged'));
+      const story = await createStory(prisma, {
+        title: 'Untagged story',
+        publishedAt: hoursAgo(6),
+        rankScore: 2,
+        itemSourceIds: [source.id],
+      });
+      // Prisma writes an empty list, but the column is nullable, and NULL tags match no tag.
+      await prisma.$executeRaw`UPDATE "Story" SET "tags" = NULL WHERE "id" = ${story.id}`;
+      const queries: Record<string, string>[] = [
+        { sort: 'top', excludeTags: 'python' },
+        { sort: 'latest', excludeTags: 'python' },
+        { sort: 'top', excludeTags: 'python', boostTags: 'rust' },
+      ];
+      for (const query of queries) {
+        expect(await feedTitles({ ...query, sources: 'untagged' })).toEqual(['Untagged story']);
+      }
     });
 
     it('AC-2.5.2 a story matching a followed tag and a followed source is boosted once, not twice', async () => {

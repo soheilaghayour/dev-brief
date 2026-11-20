@@ -18,6 +18,8 @@ export function createSource(
 }
 
 type StoryOptions = {
+  /** Set only where a test needs to know the id tiebreak. */
+  id?: string;
   title: string;
   publishedAt: Date;
   rankScore?: number;
@@ -33,6 +35,7 @@ export async function createStory(prisma: PrismaClient, options: StoryOptions) {
   const url = `https://example.com/${slug}`;
   return prisma.story.create({
     data: {
+      id: options.id,
       canonicalUrl: url,
       url,
       domain: 'example.com',

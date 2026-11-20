@@ -161,6 +161,7 @@ links to them instead of restating them.
 - **A muted tag hides a story; a muted source hides it only when every one of its sources is muted.** A muted source must not hide a link the user also sees through a source they kept; a muted topic should never show.
 - **Mute wins over follow on the same story.** "Muted items never appear" ([AC-2.5.2](docs/prd.md#f25-followmute)), so exclusion runs in the `WHERE` and the boost only reorders what is left.
 - **The follow boost applies once (×1.5), however many followed tags or sources match.** [Appendix B §5](docs/prd.md#appendix-b--ranking-formula) states a single multiplier; it is `FOLLOW_BOOST` in `core/ranking.ts`.
+- **A boosted Top page reads followed and other stories as two streams in `(rankScore, id)` index order, each stopping after a page or at the page floor, and merges them by boosted score.** Sorting by the boosted expression scored and sorted the whole 7-day window, and its cost estimate turned on JIT compilation that took longer than the query ([§8.5](docs/prd.md#85-performance-budgets)). The page floor is the lowest rankScore among the first page-plus-one stories, in index order, that come after the cursor even if boosted: each scores at least its rankScore, so no story below the floor can make the page, and a stream that matches few or no stories stops there instead of reading the whole index. Pages are re-sorted by the true key, so the streams never repeat a story, but one case can skip a story while paging: two followed stories with exactly equal rankScore at the page cut, plus a third whose rankScore is one ulp away and collides with theirs under ×1.5 (3.5411337216615677 and 3.5411337216615673 both boost to 5.311700582492351). It is accepted because [Appendix B](docs/prd.md#appendix-b--ranking-formula) scores essentially never collide like this.
 
 ## Open PM questions
 
@@ -178,6 +179,7 @@ links to them instead of restating them.
 - **Embeddings and vector search:** tags, full-text search and `pg_trgm` cover the need; reconsidered only if clustering misses its accuracy target ([§1.7](docs/prd.md#17-non-goals-all-phases), O1).
 - **Email/password sign-in:** GitHub and Google OAuth only ([AC-1.5.1](docs/prd.md#f15-auth-account-saves-and-merge)).
 - **Email digests:** the weekly digest is a Markdown download or clipboard copy ([AC-3.4.4](docs/prd.md#f34-collections-notes-and-digest)).
+- **JIT off globally (`-c jit=off`):** it hides the symptom of a plan that scores the whole Top window; the two-stream query removes the cause.
 - **A separate worker process, queues, Redis:** one API process serves REST, SSE and cron ([§1.5](docs/prd.md#15-product-principles)).
 - **An A2UI adapter layer or in-house fallback renderer:** `@a2ui/react` is pinned to an exact version and upgraded like any dependency.
 - **GitHub star velocity (daily star snapshots):** "new repos by stars" is the agreed proxy until [O3](docs/prd.md#34-open-items) is decided.
