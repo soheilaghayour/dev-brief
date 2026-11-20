@@ -69,7 +69,12 @@ jobs:
         env:
           API_PROXY_URL: http://localhost:3001
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm e2e zzdebug
+      - run: pnpm e2e feed.spec
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results
       # After e2e, so a size overrun does not hide a failing smoke test.
       - run: pnpm --filter web size
 
