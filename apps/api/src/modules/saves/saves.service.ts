@@ -13,7 +13,7 @@ import {
 } from '@devbrief/shared';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { preferenceKey } from '../../common/preferences/preferenceEntries.js';
+import { lockPreferenceWrites } from '../../common/preferences/preferenceWriteLock.js';
 import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { planSaveMerge } from './mergePlan.js';
@@ -41,18 +41,15 @@ async function mergePreferences(
   userId: string,
   preferences: Preferences,
 ) {
+  // Read under the lock, so a concurrent PUT or merge can't change the set the plan is based on.
+  await lockPreferenceWrites(tx, userId);
   const existing = await tx.feedPreference.findMany({
     where: { userId },
     select: { kind: true, value: true, mode: true },
   });
   const plan = planPreferenceMerge({ incoming: preferences, existing });
-  // Sorted like the saves; a row a concurrent request inserted first is skipped, so the server mode still wins.
-  const toCreate = [...plan.toCreate].sort((a, b) =>
-    preferenceKey(a).localeCompare(preferenceKey(b)),
-  );
   await tx.feedPreference.createMany({
-    data: toCreate.map((entry) => ({ userId, ...entry })),
-    skipDuplicates: true,
+    data: plan.toCreate.map((entry) => ({ userId, ...entry })),
   });
   return plan.mergedCount;
 }

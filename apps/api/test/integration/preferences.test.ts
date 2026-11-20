@@ -104,6 +104,18 @@ describe('preferences', () => {
     expect(await prisma.feedPreference.count({ where: { userId: user.userId } })).toBe(1);
   });
 
+  it('serialises concurrent PUTs sharing a value: both answer 200 and the stored set is one of them', async () => {
+    const user = await signIn();
+    const first = { ...EMPTY, follow: { tags: ['react', 'rust'], sources: ['hn'] } };
+    const second = { ...EMPTY, follow: { tags: ['rust'], sources: ['devto'] } };
+    // Several rounds, since one pair may not interleave; unserialised, a round collides on rust and answers 500.
+    for (let round = 0; round < 5; round++) {
+      const responses = await Promise.all([user.put(first), user.put(second)]);
+      expect(responses.map((response) => response.status)).toEqual([200, 200]);
+      expect([first, second]).toContainEqual(PreferencesSchema.parse((await user.get()).body));
+    }
+  });
+
   it('PUT with the same value in follow and mute answers 400 VALIDATION_FAILED and stores nothing', async () => {
     const user = await signIn();
     const response = await user.put({
