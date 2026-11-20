@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 import { itemEngagement, itemPercentile, rankScore, RSS_BASELINE } from '@devbrief/shared';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CacheModule } from '../../src/common/cache/cache.module.js';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
 import { EnvModule } from '../../src/common/env/env.module.js';
@@ -14,7 +14,7 @@ import { MaintenanceModule } from '../../src/modules/maintenance/maintenance.mod
 import { MaintenanceService } from '../../src/modules/maintenance/maintenance.service.js';
 import { RankingModule } from '../../src/modules/ranking/ranking.module.js';
 import { RankingService } from '../../src/modules/ranking/ranking.service.js';
-import { createSource } from './seedStories.js';
+import { createCluster, createSource } from './seedStories.js';
 import { useTestDatabase } from './testDatabase.js';
 
 const NOW = new Date('2026-03-10T12:00:00Z');
@@ -23,6 +23,16 @@ const daysAgo = (days: number) => new Date(NOW.getTime() - days * DAY_MS);
 
 describe('rank recompute and daily job', () => {
   const prisma = useTestDatabase();
+
+  // The flag is read when the app is created, so call this before createApp.
+  function clustersOn() {
+    vi.stubEnv('FEATURE_CLUSTERS', 'true');
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   async function createApp(cache = new LruCache()) {
     const moduleRef = await Test.createTestingModule({
@@ -180,6 +190,293 @@ describe('rank recompute and daily job', () => {
     expect(remaining).not.toContain(unsaved.id);
     expect(await prisma.sourceItem.count({ where: { storyId: unsaved.id } })).toBe(0);
     expect(await prisma.sourceItem.count({ where: { storyId: saved.id } })).toBe(1);
+    await app.close();
+  });
+
+  it('AC-2.1.7 ranks every member with k over the cluster, makes the best one the only primary and sets the cluster rank', async () => {
+    clustersOn();
+    const hn = await createSource(prisma, 'cl-hn', 'hn');
+    const rss = await createSource(prisma, 'cl-rss', 'rss', { baselinePercentile: 0.1 });
+    const strong = await addStory('cl-strong', daysAgo(1), [{ sourceId: hn.id, points: 80 }]);
+    const weak = await addStory('cl-weak', daysAgo(1), [{ sourceId: rss.id }]);
+    const alone = await addStory('cl-alone', daysAgo(1), [{ sourceId: hn.id, points: 80 }]);
+    const cluster = await createCluster(prisma, {
+      memberIds: [strong.id, weak.id],
+      representativeId: weak.id,
+      sourceKinds: ['hn', 'rss'],
+    });
+    const app = await createApp();
+
+    await app.get(RankingService).recompute(NOW);
+
+    const [strongRow, weakRow, aloneRow] = await Promise.all(
+      [strong, weak, alone].map((s) => prisma.story.findUniqueOrThrow({ where: { id: s.id } })),
+    );
+    // The same HN item scores k = 2 in the cluster and k = 1 alone.
+    expect(strongRow?.rankScore).toBeCloseTo((aloneRow?.rankScore ?? 0) * 1.15, 9);
+    expect(strongRow?.rankScore).toBeGreaterThan(weakRow?.rankScore ?? Infinity);
+    expect(strongRow?.isPrimary).toBe(true);
+    expect(weakRow?.isPrimary).toBe(false);
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect(stored.representativeStoryId).toBe(strong.id);
+    expect(stored.rankScore).toBe(strongRow?.rankScore);
+    await app.close();
+  });
+
+  it('AC-2.1.7 swaps the representative on the next recompute when engagement swaps', async () => {
+    clustersOn();
+    const hn = await createSource(prisma, 'swap-hn', 'hn');
+    const first = await addStory('swap-first', daysAgo(1), [{ sourceId: hn.id, points: 90 }]);
+    const second = await addStory('swap-second', daysAgo(1), [{ sourceId: hn.id, points: 10 }]);
+    // Ten more HN items, so percentiles come from the sample and not the small-sample 0.5.
+    for (let index = 0; index < 10; index += 1) {
+      await addStory(`swap-filler-${index}`, daysAgo(1), [{ sourceId: hn.id, points: 20 + index }]);
+    }
+    const cluster = await createCluster(prisma, {
+      memberIds: [first.id, second.id],
+      representativeId: second.id,
+      sourceKinds: ['hn'],
+    });
+    const app = await createApp();
+    const ranking = app.get(RankingService);
+    await ranking.recompute(NOW);
+    expect(
+      (await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } })).representativeStoryId,
+    ).toBe(first.id);
+
+    await prisma.sourceItem.updateMany({ where: { storyId: first.id }, data: { points: 1 } });
+    await prisma.sourceItem.updateMany({ where: { storyId: second.id }, data: { points: 500 } });
+    await ranking.recompute(NOW);
+
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect(stored.representativeStoryId).toBe(second.id);
+    const primaries = await prisma.story.findMany({
+      where: { clusterId: cluster.id, isPrimary: true },
+    });
+    expect(primaries.map((story) => story.id)).toEqual([second.id]);
+    await app.close();
+  });
+
+  it('§5.3 re-picks the representative of a 3-member cluster when the purge removes it', async () => {
+    const hn = await createSource(prisma, 'purge-rep-hn', 'hn');
+    const devto = await createSource(prisma, 'purge-rep-devto', 'devto');
+    const rep = await addStory('pr-rep', daysAgo(91), [{ sourceId: hn.id }]);
+    const kept = await addStory('pr-kept', daysAgo(10), [{ sourceId: hn.id }]);
+    const other = await addStory('pr-other', daysAgo(10), [{ sourceId: devto.id }]);
+    await prisma.story.update({ where: { id: kept.id }, data: { rankScore: 5 } });
+    await prisma.story.update({ where: { id: other.id }, data: { rankScore: 2 } });
+    const cluster = await createCluster(prisma, {
+      memberIds: [rep.id, kept.id, other.id],
+      representativeId: rep.id,
+      sourceKinds: ['hn', 'devto'],
+    });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect(stored).toMatchObject({
+      representativeStoryId: kept.id,
+      memberCount: 2,
+      rankScore: 5,
+    });
+    expect(stored.sourceKinds.sort()).toEqual(['devto', 'hn']);
+    const members = await prisma.story.findMany({ where: { clusterId: cluster.id } });
+    expect(members.filter((story) => story.isPrimary).map((story) => story.id)).toEqual([kept.id]);
+    await app.close();
+  });
+
+  it('§5.3 dissolves a cluster the purge leaves with one member, resetting that story to a single primary story and keeping its clusterScore', async () => {
+    const hn = await createSource(prisma, 'dissolve-hn', 'hn');
+    const gone = await addStory('ds-gone', daysAgo(91), [{ sourceId: hn.id }]);
+    const left = await addStory('ds-left', daysAgo(10), [{ sourceId: hn.id }]);
+    const cluster = await createCluster(prisma, {
+      memberIds: [gone.id, left.id],
+      representativeId: gone.id,
+      sourceKinds: ['hn'],
+    });
+    await prisma.story.update({ where: { id: left.id }, data: { clusterScore: 0.9 } });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect(await prisma.cluster.findUnique({ where: { id: cluster.id } })).toBeNull();
+    expect(await prisma.story.findUniqueOrThrow({ where: { id: left.id } })).toMatchObject({
+      clusterId: null,
+      isPrimary: true,
+      clusterScore: 0.9,
+    });
+    await app.close();
+  });
+
+  it('§5.3 keeps a saved member of a cluster past retention and recounts the cluster around it', async () => {
+    const hn = await createSource(prisma, 'keep-hn', 'hn');
+    const saved = await addStory('ks-saved', daysAgo(91), [{ sourceId: hn.id }]);
+    const gone = await addStory('ks-gone', daysAgo(91), [{ sourceId: hn.id }]);
+    const fresh = await addStory('ks-fresh', daysAgo(10), [{ sourceId: hn.id }]);
+    const cluster = await createCluster(prisma, {
+      memberIds: [saved.id, gone.id, fresh.id],
+      representativeId: gone.id,
+      sourceKinds: ['hn'],
+    });
+    await prisma.user.create({ data: { id: 'u-keep', name: 'K', email: 'keep@example.com' } });
+    await prisma.save.create({ data: { userId: 'u-keep', storyId: saved.id } });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect(await prisma.story.findUnique({ where: { id: saved.id } })).not.toBeNull();
+    expect(await prisma.story.findUnique({ where: { id: gone.id } })).toBeNull();
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect(stored.memberCount).toBe(2);
+    expect([saved.id, fresh.id]).toContain(stored.representativeStoryId);
+    await app.close();
+  });
+
+  it('AC-2.1.7 keeps a cluster listed in Top when its older member has the higher stored score', async () => {
+    clustersOn();
+    const hn = await createSource(prisma, 'handoff-hn', 'hn');
+    // A is past the Top window (7d1h) with a high score; B (4d) is in it with a lower one.
+    const older = await addStory('handoff-a', new Date(NOW.getTime() - (7 * 24 + 1) * 3_600_000), [
+      { sourceId: hn.id, points: 100 },
+    ]);
+    const newer = await addStory('handoff-b', daysAgo(4), [{ sourceId: hn.id, points: 30 }]);
+    await prisma.story.update({ where: { id: older.id }, data: { rankScore: 0.045 } });
+    const cluster = await createCluster(prisma, {
+      memberIds: [older.id, newer.id],
+      representativeId: older.id,
+      sourceKinds: ['hn'],
+    });
+    const app = await createApp();
+
+    await app.get(RankingService).recompute(NOW);
+
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect(stored.representativeStoryId).toBe(newer.id);
+    const listed = await prisma.story.findMany({
+      where: {
+        clusterId: cluster.id,
+        isPrimary: true,
+        publishedAt: { gte: new Date(NOW.getTime() - 7 * DAY_MS) },
+      },
+    });
+    expect(listed.map((story) => story.id)).toEqual([newer.id]);
+    await app.close();
+  });
+
+  it('AC-2.1.7 scores every story as Phase 1 does with the clusters flag off, even if Cluster rows exist', async () => {
+    const hn = await createSource(prisma, 'off-hn', 'hn');
+    const rss = await createSource(prisma, 'off-rss', 'rss');
+    const first = await addStory('off-a', daysAgo(1), [{ sourceId: hn.id, points: 80 }]);
+    const second = await addStory('off-b', daysAgo(1), [{ sourceId: rss.id }]);
+    const app = await createApp();
+    await app.get(RankingService).recompute(NOW);
+    const ids = [first.id, second.id];
+    const phase1 = await prisma.story.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: 'asc' },
+    });
+    await createCluster(prisma, {
+      memberIds: [first.id, second.id],
+      representativeId: second.id,
+      sourceKinds: ['hn', 'rss'],
+    });
+    await prisma.story.updateMany({ where: { id: { in: ids } }, data: { rankScore: -1 } });
+
+    await app.get(RankingService).recompute(NOW);
+
+    const after = await prisma.story.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: 'asc' },
+    });
+    expect(after.map((story) => story.rankScore)).toEqual(phase1.map((story) => story.rankScore));
+    // Neither the cluster nor the isPrimary flags are touched.
+    expect(after.find((story) => story.id === first.id)?.isPrimary).toBe(false);
+    await app.close();
+  });
+
+  it('AC-2.1.7 refreshes k and Cluster.sourceKinds when a member gains a source kind', async () => {
+    clustersOn();
+    const hn = await createSource(prisma, 'kinds-hn', 'hn');
+    const devto = await createSource(prisma, 'kinds-devto', 'devto');
+    const first = await addStory('kinds-a', daysAgo(1), [{ sourceId: hn.id, points: 50 }]);
+    const second = await addStory('kinds-b', daysAgo(1), [{ sourceId: hn.id, points: 5 }]);
+    const cluster = await createCluster(prisma, {
+      memberIds: [first.id, second.id],
+      representativeId: first.id,
+      sourceKinds: ['hn'],
+    });
+    const app = await createApp();
+    const ranking = app.get(RankingService);
+    await ranking.recompute(NOW);
+    const before = await prisma.story.findUniqueOrThrow({ where: { id: first.id } });
+
+    // A Dev.to cross-post is deduped onto the second member.
+    await prisma.sourceItem.create({
+      data: {
+        storyId: second.id,
+        sourceId: devto.id,
+        externalId: 'kinds-b-devto',
+        url: 'https://example.com/kinds-b',
+        canonicalUrl: 'https://example.com/kinds-b',
+        title: 'kinds-b',
+        publishedAt: daysAgo(1),
+      },
+    });
+    await ranking.recompute(NOW);
+
+    const after = await prisma.story.findUniqueOrThrow({ where: { id: first.id } });
+    expect(after.rankScore).toBeGreaterThan(before.rankScore);
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect([...stored.sourceKinds].sort()).toEqual(['devto', 'hn']);
+    await app.close();
+  });
+
+  it('§5.3 repairs a cluster whose representative was purged without upkeep', async () => {
+    const hn = await createSource(prisma, 'repair-hn', 'hn');
+    const keptA = await addStory('repair-a', daysAgo(10), [{ sourceId: hn.id }]);
+    const keptB = await addStory('repair-b', daysAgo(10), [{ sourceId: hn.id }]);
+    const gone = await addStory('repair-gone', daysAgo(10), [{ sourceId: hn.id }]);
+    await prisma.story.update({ where: { id: keptB.id }, data: { rankScore: 3 } });
+    const cluster = await createCluster(prisma, {
+      memberIds: [keptA.id, keptB.id, gone.id],
+      representativeId: gone.id,
+      sourceKinds: ['hn'],
+    });
+    // A purge that died after deleting the representative and before upkeep.
+    await prisma.story.delete({ where: { id: gone.id } });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    const stored = await prisma.cluster.findUniqueOrThrow({ where: { id: cluster.id } });
+    expect(stored).toMatchObject({ representativeStoryId: keptB.id, memberCount: 2 });
+    const primaries = await prisma.story.findMany({
+      where: { clusterId: cluster.id, isPrimary: true },
+    });
+    expect(primaries.map((story) => story.id)).toEqual([keptB.id]);
+    await app.close();
+  });
+
+  it('§5.3 dissolves a cluster left with one member by an earlier purge', async () => {
+    const hn = await createSource(prisma, 'orphan-hn', 'hn');
+    const left = await addStory('orphan-left', daysAgo(10), [{ sourceId: hn.id }]);
+    const gone = await addStory('orphan-gone', daysAgo(10), [{ sourceId: hn.id }]);
+    const cluster = await createCluster(prisma, {
+      memberIds: [left.id, gone.id],
+      representativeId: gone.id,
+      sourceKinds: ['hn'],
+    });
+    await prisma.story.delete({ where: { id: gone.id } });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect(await prisma.cluster.findUnique({ where: { id: cluster.id } })).toBeNull();
+    expect(await prisma.story.findUniqueOrThrow({ where: { id: left.id } })).toMatchObject({
+      clusterId: null,
+      isPrimary: true,
+    });
     await app.close();
   });
 

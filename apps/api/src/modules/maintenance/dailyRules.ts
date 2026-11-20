@@ -1,3 +1,6 @@
+import type { SourceKind } from '@devbrief/shared';
+import { pickBest } from '../ranking/rankPlan.js';
+
 const MS_PER_DAY = 86_400_000;
 
 const TAG_STAT_DAYS = 3;
@@ -81,4 +84,56 @@ export function aggregateTagStats(stories: readonly TagStatStory[]) {
     ...row,
     avgPercentile: percentileSum / row.storyCount,
   }));
+}
+
+export interface ClusterMemberLeft {
+  id: string;
+  rankScore: number;
+  /** Source kinds of the member's items. */
+  kinds: readonly SourceKind[];
+}
+
+export type ClusterUpkeep =
+  | { action: 'dissolve'; clusterId: string }
+  | {
+      action: 'update';
+      clusterId: string;
+      memberCount: number;
+      sourceKinds: SourceKind[];
+      representativeStoryId: string;
+      rankScore: number;
+    };
+
+export interface StoredCluster {
+  representativeStoryId: string;
+  memberCount: number;
+  members: readonly { id: string; isPrimary: boolean }[];
+}
+
+/** Whether the stored cluster is broken: fewer than two members, a wrong count, or a representative that is missing or not the one primary. */
+export function clusterNeedsUpkeep(cluster: StoredCluster) {
+  const primaries = cluster.members.filter((member) => member.isPrimary);
+  return (
+    cluster.members.length < 2 ||
+    cluster.memberCount !== cluster.members.length ||
+    primaries.length !== 1 ||
+    primaries[0]?.id !== cluster.representativeStoryId
+  );
+}
+
+/** What a broken cluster becomes: gone when fewer than two members remain, else recounted with the best-scored member as representative. */
+export function planClusterUpkeep(
+  clusterId: string,
+  remaining: readonly ClusterMemberLeft[],
+): ClusterUpkeep {
+  const representative = pickBest(remaining);
+  if (remaining.length < 2 || !representative) return { action: 'dissolve', clusterId };
+  return {
+    action: 'update',
+    clusterId,
+    memberCount: remaining.length,
+    sourceKinds: [...new Set(remaining.flatMap((member) => member.kinds))].sort(),
+    representativeStoryId: representative.id,
+    rankScore: representative.rankScore,
+  };
 }

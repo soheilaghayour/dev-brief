@@ -13,7 +13,14 @@ import { useTestDatabase } from './testDatabase.js';
 const STORY_COUNT = 40_000;
 // Retention keeps 90 days of stories, so the rankScore index also holds stories outside Top's window.
 const OLDER_STORY_COUNT = 40_000;
+// Stories 1..CLUSTERED_STORY_COUNT are paired into clusters: the odd one is the representative, the even one a hidden member.
+const CLUSTERED_STORY_COUNT = 8_000;
 const SAMPLES = 60;
+// With clusters on, Top reads the (isPrimary, rankScore, id) index in place of the (rankScore, id) one.
+const rankScoreIndexScan = {
+  off: /Index Scan using "Story_rankScore_id_idx"/,
+  on: /Index Scan using "Story_isPrimary_rankScore_id_idx"/,
+};
 // Set FEED_BENCH_EXPLAIN=1 to print each shape's EXPLAIN (ANALYZE, BUFFERS) plan.
 const PRINT_PLANS = process.env.FEED_BENCH_EXPLAIN === '1';
 
@@ -23,8 +30,10 @@ const JsonPlanSchema = z.array(
 
 describe('feed benchmark at 40k stories', () => {
   const prisma = useTestDatabase();
+  // The same data is read with the clusters flag off (every story) and on (primary stories only).
+  const apps = {} as Record<'off' | 'on', INestApplication>;
   let app: INestApplication;
-  let shapes: Record<string, Record<string, string>>;
+  const shapesByFlag = {} as Record<'off' | 'on', Record<string, Record<string, string>>>;
 
   beforeAll(async () => {
     const source = await createSource(prisma, 'bench', 'hn');
@@ -74,12 +83,36 @@ describe('feed benchmark at 40k stories', () => {
         'https://example.com/' || n,
         'Benchmark story ' || n, now(), now()
       FROM generate_series(1, 5) AS n`;
+    await prisma.$executeRaw`
+      INSERT INTO "Cluster" ("id", "representativeStoryId", "memberCount", "sourceKinds", "rankScore", "updatedAt")
+      SELECT 'cluster' || n, 'bench' || n, 2, ARRAY['hn']::"SourceKind"[], 0, now()
+      FROM generate_series(1, ${CLUSTERED_STORY_COUNT}, 2) AS n`;
+    await prisma.$executeRaw`
+      UPDATE "Story" SET "clusterId" = 'cluster' || (n - 1 + n % 2),
+        "isPrimary" = n % 2 = 1
+      FROM (SELECT "id", substring("id" from 6)::int AS n FROM "Story"
+        WHERE substring("id" from 6)::int <= ${CLUSTERED_STORY_COUNT}) AS numbered
+      WHERE "Story"."id" = numbered."id"`;
     // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
-    await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source"`;
-    app = await createTestApp();
+    await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source", "Cluster"`;
+    apps.off = await createTestApp([], { FEATURE_CLUSTERS: 'false' });
+    apps.on = await createTestApp([], { FEATURE_CLUSTERS: 'true', ANTHROPIC_API_KEY: 'test-key' });
     const boosts = { boostTags: 'rust,go', boostSources: 'hn' };
-    const firstBoostedPage = await getFeed(boosts);
-    shapes = {
+    for (const flag of ['off', 'on'] as const) {
+      app = apps[flag];
+      const firstBoostedPage = await getFeed(boosts);
+      shapesByFlag[flag] = shapesFor(
+        boosts,
+        FeedPageSchema.parse(firstBoostedPage.body).nextCursor,
+      );
+    }
+  }, 180_000);
+
+  function shapesFor(
+    boosts: Record<string, string>,
+    boostedCursor: string | null,
+  ): Record<string, Record<string, string>> {
+    return {
       'top + tags': { tags: 'react' },
       'search (q)': { q: 'bun story' },
       'latest + tags': { sort: 'latest', tags: 'rust' },
@@ -87,7 +120,7 @@ describe('feed benchmark at 40k stories', () => {
       'top + boost + mute': { ...boosts, excludeTags: 'python' },
       'top + boost, cursor page': {
         ...boosts,
-        cursor: FeedPageSchema.parse(firstBoostedPage.body).nextCursor ?? '',
+        cursor: boostedCursor ?? '',
       },
       'top + boostSources (1 in 10 match)': { boostSources: 'bench-minor' },
       // One stream finds no story, so only the page floor stops its scan.
@@ -109,9 +142,12 @@ describe('feed benchmark at 40k stories', () => {
       'latest + minor source (1 in 10)': { sort: 'latest', sources: 'bench-minor' },
       'latest + large source': { sort: 'latest', sources: 'bench' },
     };
-  }, 180_000);
+  }
 
-  afterAll(() => app.close());
+  afterAll(async () => {
+    await apps.off?.close();
+    await apps.on?.close();
+  });
 
   // The internal token skips the per-IP limit, which the samples would otherwise exhaust.
   const getFeed = (query: Record<string, string>) =>
@@ -137,54 +173,62 @@ describe('feed benchmark at 40k stories', () => {
     return prisma.$queryRaw<unknown>(Prisma.sql`EXPLAIN ${options} ${feedQuery}`);
   }
 
-  it('prints the feed p95 server time per query shape (reported, not a gate)', async () => {
-    const cache = app.get(LruCache);
-    for (const [name, query] of Object.entries(shapes)) {
-      const durations: number[] = [];
-      for (let sample = 0; sample < SAMPLES; sample += 1) {
-        cache.clear();
-        const started = performance.now();
-        const response = await getFeed(query);
-        durations.push(performance.now() - started);
-        expect(response.status).toBe(200);
-      }
-      durations.sort((a, b) => a - b);
-      const p95 = durations[Math.floor(SAMPLES * 0.95) - 1] ?? 0;
-      console.info(
-        `feed p95 (${name}) at ${STORY_COUNT} stories (+${OLDER_STORY_COUNT} older): ${p95.toFixed(1)} ms (target <= 150 ms)`,
-      );
-    }
-  }, 240_000);
-
-  // Guards the boosted Top plan: its streams read the rankScore index, and no shape costs enough for JIT.
-  // Plans follow the planner's estimates, so these assertions hold at this seed's size, not at every size.
-  it('reads boosted Top through the rankScore index, and plans no shape for JIT', async () => {
-    const [{ jitAboveCost }] = await prisma.$queryRaw<[{ jitAboveCost: number }]>`
-      SELECT current_setting('jit_above_cost')::float8 AS "jitAboveCost"`;
-    for (const [name, query] of Object.entries(shapes)) {
-      const feedQuery = await captureFeedQuery(query);
-      const plan = z
-        .array(z.object({ 'QUERY PLAN': z.string() }))
-        .parse(await explain(Prisma.sql`(ANALYZE, BUFFERS)`, feedQuery))
-        .map((row) => row['QUERY PLAN'])
-        .join('\n');
-      if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${plan}`);
-      // A selective filter (q, a small source) is better read through its own index or in one scan, not in rankScore order.
-      if (query.boostTags || query.boostSources) {
-        if (!query.q && !query.sources) {
-          expect(plan, name).toMatch(/Index Scan using "Story_rankScore_id_idx"/);
+  for (const flag of ['off', 'on'] as const) {
+    it(`prints the feed p95 server time per query shape, clusters ${flag} (reported, not a gate)`, async () => {
+      app = apps[flag];
+      const shapes = shapesByFlag[flag];
+      const cache = app.get(LruCache);
+      for (const [name, query] of Object.entries(shapes)) {
+        const durations: number[] = [];
+        for (let sample = 0; sample < SAMPLES; sample += 1) {
+          cache.clear();
+          const started = performance.now();
+          const response = await getFeed(query);
+          durations.push(performance.now() - started);
+          expect(response.status).toBe(200);
         }
-        expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
-      }
-      // A tiny source is resolved to an id list, so its stories are looked up by key, not found by walking an index.
-      if (name.endsWith('tiny source')) {
-        expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
-        expect(plan, name).not.toMatch(
-          /Index Scan (Backward )?using "Story_(rankScore_id|publishedAt)\w*_idx"/,
+        durations.sort((a, b) => a - b);
+        const p95 = durations[Math.floor(SAMPLES * 0.95) - 1] ?? 0;
+        console.info(
+          `feed p95 (${name}) at ${STORY_COUNT} stories (+${OLDER_STORY_COUNT} older): ${p95.toFixed(1)} ms (target <= 150 ms)`,
         );
       }
-      const [jsonPlan] = JsonPlanSchema.parse(await explain(Prisma.sql`(FORMAT JSON)`, feedQuery));
-      expect(jsonPlan?.['QUERY PLAN'][0]?.Plan['Total Cost'], name).toBeLessThan(jitAboveCost);
-    }
-  }, 60_000);
+    }, 240_000);
+
+    // Guards the boosted Top plan: its streams read the rankScore index, and no shape costs enough for JIT.
+    // Plans follow the planner's estimates, so these assertions hold at this seed's size, not at every size.
+    it(`reads boosted Top through the rankScore index, and plans no shape for JIT, clusters ${flag}`, async () => {
+      app = apps[flag];
+      const shapes = shapesByFlag[flag];
+      const [{ jitAboveCost }] = await prisma.$queryRaw<[{ jitAboveCost: number }]>`
+        SELECT current_setting('jit_above_cost')::float8 AS "jitAboveCost"`;
+      for (const [name, query] of Object.entries(shapes)) {
+        const feedQuery = await captureFeedQuery(query);
+        const plan = z
+          .array(z.object({ 'QUERY PLAN': z.string() }))
+          .parse(await explain(Prisma.sql`(ANALYZE, BUFFERS)`, feedQuery))
+          .map((row) => row['QUERY PLAN'])
+          .join('\n');
+        if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${plan}`);
+        // A selective filter (q, a small source) is better read through its own index or in one scan, not in rankScore order.
+        if (query.boostTags || query.boostSources) {
+          if (!query.q && !query.sources) {
+            expect(plan, name).toMatch(rankScoreIndexScan[flag]);
+          }
+          expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
+        }
+        // A tiny source is resolved to an id list, so its stories are looked up by key, not found by walking an index.
+        if (name.endsWith('tiny source')) {
+          expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
+          expect(plan, name).not.toMatch(
+            /Index Scan (Backward )?using "Story_(isPrimary_)?(rankScore_id|publishedAt)\w*_idx"/,
+          );
+        }
+        const [jsonPlan] = JsonPlanSchema.parse(
+          await explain(Prisma.sql`(FORMAT JSON)`, feedQuery),
+        );
+        expect(jsonPlan?.['QUERY PLAN'][0]?.Plan['Total Cost'], name).toBeLessThan(jitAboveCost);
+      }
+    }, 60_000);
+  }
 });
