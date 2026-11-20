@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { SourceKindSchema } from '@devbrief/shared';
 import { z } from 'zod';
 import { loadEnv } from '../env.js';
 import { PrismaClient } from '../generated/prisma/client.js';
@@ -12,7 +13,7 @@ const sourcesJson: unknown = JSON.parse(
 const SeedSourcesSchema = z.array(
   z.object({
     slug: z.string().min(1),
-    kind: z.enum(['hn', 'devto', 'rss']),
+    kind: SourceKindSchema,
     name: z.string().min(1),
     siteUrl: z.string().url(),
     feedUrl: z.string().url().optional(),

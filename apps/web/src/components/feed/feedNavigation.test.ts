@@ -19,6 +19,7 @@ function source(kind: SourceRef['kind'], itemUrl: string): SourceRef {
     points: null,
     comments: null,
     reactions: null,
+    stars: null,
   };
 }
 

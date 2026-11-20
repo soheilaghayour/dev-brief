@@ -40,6 +40,8 @@ const EnvSchema = z
     GITHUB_CLIENT_SECRET: z.string().min(1),
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
+    /** Fine-grained token for the GitHub Search source; unset (or empty) skips that source. */
+    GITHUB_TOKEN: z.preprocess((value) => value || undefined, z.string().optional()),
     AUTH_TEST_MODE: BooleanFlagSchema,
     FEATURE_SUMMARIES: BooleanFlagSchema,
     FEATURE_PREFERENCES: BooleanFlagSchema,

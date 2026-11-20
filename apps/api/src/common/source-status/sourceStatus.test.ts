@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { overallStatus, sourceStatus } from './sourceStatus.js';
+import { hasCompletedRun, overallStatus, sourceStatus } from './sourceStatus.js';
 
 const now = new Date('2026-06-01T12:00:00Z');
 const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3_600_000);
@@ -32,6 +32,17 @@ describe('sourceStatus', () => {
     expect(sourceStatus({ circuitOpenUntil: now, lastSuccessAt: hoursAgo(1) }, now)).toBe(
       'healthy',
     );
+  });
+});
+
+describe('hasCompletedRun', () => {
+  it('is false for a source that never finished a fetch', () => {
+    expect(hasCompletedRun({ lastSuccessAt: null, lastErrorAt: null })).toBe(false);
+  });
+
+  it('is true after a success or a failure', () => {
+    expect(hasCompletedRun({ lastSuccessAt: hoursAgo(1), lastErrorAt: null })).toBe(true);
+    expect(hasCompletedRun({ lastSuccessAt: null, lastErrorAt: hoursAgo(1) })).toBe(true);
   });
 });
 

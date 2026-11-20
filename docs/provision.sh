@@ -160,7 +160,7 @@ finish() {
 
 run_wizard() {
 
-TOTAL_STAGES=8
+TOTAL_STAGES=9
 
 # Every value is kept in a private file outside the repo, so a re-run reuses what it saved (secrets included).
 if [[ "$ENV_FILE" == ".env" ]]; then
@@ -237,6 +237,12 @@ ask GITHUB_CLIENT_ID "Client ID:"
 write_env GITHUB_CLIENT_ID "$GITHUB_CLIENT_ID"
 ask_secret GITHUB_CLIENT_SECRET "Client secret:"
 write_env GITHUB_CLIENT_SECRET "$GITHUB_CLIENT_SECRET"
+
+stage "GitHub source token"
+open_url "https://github.com/settings/personal-access-tokens/new"
+step "Follow docs/operations.md, 'GitHub source token': a fine-grained token, Public repositories, no permissions."
+ask_secret GITHUB_TOKEN "Token:"
+write_env GITHUB_TOKEN "$GITHUB_TOKEN"
 
 stage "Google OAuth client"
 open_url "https://console.cloud.google.com/apis/credentials"

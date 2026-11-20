@@ -43,6 +43,7 @@ function toRawItem(item: HnItem & { title: string; time: number }): RawItem {
     points: item.score ?? 0,
     commentsCount: item.descendants ?? 0,
     reactionsCount: null,
+    stars: null,
     sourceTags: [],
     excerpt: null,
     readingTimeMinutes: null,

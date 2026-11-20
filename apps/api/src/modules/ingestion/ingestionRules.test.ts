@@ -24,6 +24,7 @@ const rawItem: RawItem = {
   points: 120,
   commentsCount: 7,
   reactionsCount: 30,
+  stars: 1200,
   sourceTags: [],
   excerpt: null,
   readingTimeMinutes: null,
@@ -42,6 +43,7 @@ describe('mapRawItem', () => {
     expect(mapRawItem('hn', rawItem).engagement).toBe(120);
     expect(mapRawItem('devto', rawItem).engagement).toBe(37);
     expect(mapRawItem('rss', rawItem).engagement).toBe(0);
+    expect(mapRawItem('github', rawItem).engagement).toBe(1200);
   });
 
   it('throws on a URL that is not http(s)', () => {
@@ -130,6 +132,12 @@ describe('overallStatus', () => {
 
   it('is failed when every source that ran failed', () => {
     expect(overallStatus(['failed', 'failed', 'skipped'])).toBe('failed');
+  });
+
+  it('is partial when a source reported partial, even if none failed', () => {
+    expect(overallStatus(['success', 'partial', 'skipped'])).toBe('partial');
+    expect(overallStatus(['partial'])).toBe('partial');
+    expect(overallStatus(['partial', 'failed'])).toBe('partial');
   });
 });
 

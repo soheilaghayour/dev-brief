@@ -1,6 +1,7 @@
 [
   { "slug": "hn", "kind": "hn", "name": "Hacker News", "siteUrl": "https://news.ycombinator.com" },
   { "slug": "devto", "kind": "devto", "name": "Dev.to", "siteUrl": "https://dev.to" },
+  { "slug": "github", "kind": "github", "name": "GitHub", "siteUrl": "https://github.com" },
   {
     "slug": "rss-react-blog",
     "kind": "rss",

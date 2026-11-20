@@ -3,7 +3,11 @@ import type { Health } from '@devbrief/shared';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { overallStatus, sourceStatus } from '../../common/source-status/sourceStatus.js';
+import {
+  hasCompletedRun,
+  overallStatus,
+  sourceStatus,
+} from '../../common/source-status/sourceStatus.js';
 import type { Budget } from '../llm/budget.js';
 import { LLM_BUDGET, SpendLedgerService } from '../llm/spendLedger.service.js';
 
@@ -22,7 +26,7 @@ export class HealthService {
   async check(): Promise<Health> {
     const now = new Date();
     const { sources, spentTodayUsd } = await this.loadStateOrFail(now);
-    const reported = sources.map((source) => ({
+    const reported = sources.filter(hasCompletedRun).map((source) => ({
       slug: source.slug,
       kind: source.kind,
       status: sourceStatus(source, now),

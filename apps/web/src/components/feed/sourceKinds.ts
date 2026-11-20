@@ -6,6 +6,3 @@ export const SOURCE_KIND_LABELS = {
   rss: 'Blogs',
   github: 'GitHub',
 } satisfies Record<SourceKind, string>;
-
-/** The kinds the filter offers; GitHub arrives with its adapter in Phase 2. */
-export const FILTER_KINDS = ['hn', 'devto', 'rss'] as const satisfies readonly SourceKind[];

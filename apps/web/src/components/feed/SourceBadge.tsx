@@ -1,9 +1,10 @@
 import { MessageSquareIcon } from 'lucide-react';
 import type { SourceRef } from '@devbrief/shared';
 import { Badge } from '@/components/ui/Badge';
+import { formatCompactCount } from '@/lib/format/formatCompactCount';
 
 type SourceBadgeProps = {
-  source: Pick<SourceRef, 'kind' | 'name' | 'points' | 'comments' | 'reactions'>;
+  source: Pick<SourceRef, 'kind' | 'name' | 'points' | 'comments' | 'reactions' | 'stars'>;
 };
 
 const SCORE_GLYPH = { hn: '▲', devto: '♥' } as const;
@@ -28,7 +29,20 @@ function Comments({ count }: { count: number | null }) {
   );
 }
 
-/** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, a blog by its name. */
+function Stars({ count }: { count: number }) {
+  const full = `${count.toLocaleString('en')} stars`;
+  return (
+    <span className="inline-flex gap-0.5" title={full}>
+      <span aria-hidden="true">★</span>
+      <span className="tabular-nums" aria-hidden="true">
+        {formatCompactCount(count)}
+      </span>
+      <span className="sr-only">{full}</span>
+    </span>
+  );
+}
+
+/** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
 export function SourceBadge({ source }: SourceBadgeProps) {
   if (source.kind === 'hn' || source.kind === 'devto') {
     const score = source.kind === 'hn' ? source.points : source.reactions;
@@ -50,6 +64,7 @@ export function SourceBadge({ source }: SourceBadgeProps) {
   return (
     <Badge variant="outline" data-source-kind={source.kind}>
       <span className="text-foreground font-medium">{source.name}</span>
+      {source.stars !== null && <Stars count={source.stars} />}
     </Badge>
   );
 }

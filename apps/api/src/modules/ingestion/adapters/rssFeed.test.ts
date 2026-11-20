@@ -24,6 +24,7 @@ describe('parseFeed', () => {
       points: null,
       commentsCount: null,
       reactionsCount: null,
+      stars: null,
       discussionUrl: null,
     });
   });

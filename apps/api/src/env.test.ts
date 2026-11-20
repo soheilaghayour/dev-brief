@@ -61,6 +61,14 @@ describe('loadEnv', () => {
     );
   });
 
+  it('reads an unset or empty GITHUB_TOKEN as missing', () => {
+    expect(loadEnv(validEnv).GITHUB_TOKEN).toBeUndefined();
+    expect(loadEnv({ ...validEnv, GITHUB_TOKEN: '' }).GITHUB_TOKEN).toBeUndefined();
+    expect(loadEnv({ ...validEnv, GITHUB_TOKEN: 'github_pat_x' }).GITHUB_TOKEN).toBe(
+      'github_pat_x',
+    );
+  });
+
   it('accepts AUTH_TEST_MODE=true on a loopback APP_URL and defaults it to false', () => {
     expect(loadEnv(validEnv).AUTH_TEST_MODE).toBe(false);
     for (const APP_URL of ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
