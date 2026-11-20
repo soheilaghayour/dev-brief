@@ -101,6 +101,13 @@ describe('feed benchmark at 40k stories', () => {
       'top + medium source (1 in 10) + boost': { sources: 'bench-minor', boostTags: 'rust' },
       'top + q matching nothing + boostTags': { q: 'zzqxnomatch', boostTags: 'rust' },
       'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
+      // Unboosted source filters: a tiny and a minor source must not walk the whole rankScore index.
+      'top + tiny source': { sources: 'bench-tiny' },
+      'top + minor source (1 in 10)': { sources: 'bench-minor' },
+      'top + large source': { sources: 'bench' },
+      'latest + tiny source': { sort: 'latest', sources: 'bench-tiny' },
+      'latest + minor source (1 in 10)': { sort: 'latest', sources: 'bench-minor' },
+      'latest + large source': { sort: 'latest', sources: 'bench' },
     };
   }, 180_000);
 
@@ -168,6 +175,13 @@ describe('feed benchmark at 40k stories', () => {
           expect(plan, name).toMatch(/Index Scan using "Story_rankScore_id_idx"/);
         }
         expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
+      }
+      // A tiny source is resolved to an id list, so its stories are looked up by key, not found by walking an index.
+      if (name.endsWith('tiny source')) {
+        expect(plan, name).not.toMatch(/Seq Scan on "Story"/);
+        expect(plan, name).not.toMatch(
+          /Index Scan (Backward )?using "Story_(rankScore_id|publishedAt)\w*_idx"/,
+        );
       }
       const [jsonPlan] = JsonPlanSchema.parse(await explain(Prisma.sql`(FORMAT JSON)`, feedQuery));
       expect(jsonPlan?.['QUERY PLAN'][0]?.Plan['Total Cost'], name).toBeLessThan(jitAboveCost);
