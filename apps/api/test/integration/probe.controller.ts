@@ -7,6 +7,7 @@ import {
 } from '@devbrief/shared';
 import type { FeedQuery, StoryLookupRequest } from '@devbrief/shared';
 import { PrivateNoStore, PublicCache } from '../../src/common/cache/cacheControl.js';
+import { RequiresFeature } from '../../src/common/features/requiresFeature.decorator.js';
 import { Contract } from '../../src/common/zod/contract.decorator.js';
 import { ZodPipe } from '../../src/common/zod/zod.pipe.js';
 
@@ -38,6 +39,18 @@ export class ProbeController {
   @Contract({ body: StoryLookupRequestSchema })
   lookup(@Body(new ZodPipe(StoryLookupRequestSchema)) body: StoryLookupRequest) {
     return { ids: body.ids };
+  }
+
+  @Get('summaries')
+  @RequiresFeature('summaries')
+  summaries() {
+    return {};
+  }
+
+  @Post('summaries')
+  @RequiresFeature('summaries')
+  writeSummaries() {
+    return {};
   }
 
   @Get('explode')

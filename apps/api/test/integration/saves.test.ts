@@ -67,8 +67,7 @@ describe('account saves', () => {
   }
 
   beforeAll(async () => {
-    process.env.AUTH_TEST_MODE = 'true';
-    app = await createTestApp();
+    app = await createTestApp([], { AUTH_TEST_MODE: 'true' });
     const source = await createSource(prisma, 'saves-blog', 'rss');
     const stories = [];
     for (const [index, title] of ['Alpha', 'Bravo', 'Charlie', 'Delta'].entries()) {
@@ -84,7 +83,6 @@ describe('account saves', () => {
   });
   afterAll(async () => {
     await app.close();
-    delete process.env.AUTH_TEST_MODE;
   });
 
   it('AC-1.5.4 PUT saves a story idempotently and answers a Save', async () => {

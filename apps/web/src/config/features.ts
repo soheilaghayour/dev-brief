@@ -9,10 +9,11 @@ export type Features = {
 
 export type FeatureFlag = keyof Features;
 
+// Literal reads, not Zod: Next inlines only `process.env.NEXT_PUBLIC_*` written out, and next.config.ts validates the values at build time.
 export const FEATURES: Features = {
   clusters: false,
-  summaries: false,
-  preferences: false,
+  summaries: process.env.NEXT_PUBLIC_FEATURE_SUMMARIES === 'true',
+  preferences: process.env.NEXT_PUBLIC_FEATURE_PREFERENCES === 'true',
   copilot: false,
   radar: false,
   collections: false,

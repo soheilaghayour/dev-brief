@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadAppOrigin, loadEnv } from './env';
+import { loadAppOrigin, loadEnv, validateFeatureFlagEnv } from './env';
 
 const validEnv = {
   APP_URL: 'http://localhost:3000',
@@ -32,5 +32,28 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...validEnv, API_INTERNAL_URL: 'not a url' })).toThrow(
       /API_INTERNAL_URL/,
     );
+  });
+});
+
+describe('validateFeatureFlagEnv', () => {
+  it("accepts 'true', 'false' or unset for each NEXT_PUBLIC_FEATURE_* flag", () => {
+    expect(() => validateFeatureFlagEnv({})).not.toThrow();
+    expect(() =>
+      validateFeatureFlagEnv({
+        NEXT_PUBLIC_FEATURE_SUMMARIES: 'true',
+        NEXT_PUBLIC_FEATURE_PREFERENCES: 'false',
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects the values the API also rejects instead of reading them as off', () => {
+    for (const value of ['TRUE', '1', 'yes', '']) {
+      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_SUMMARIES: value })).toThrow(
+        /NEXT_PUBLIC_FEATURE_SUMMARIES/,
+      );
+      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_PREFERENCES: value })).toThrow(
+        /NEXT_PUBLIC_FEATURE_PREFERENCES/,
+      );
+    }
   });
 });

@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs/config';
 import { securityHeaders } from './src/config/securityHeaders';
+import { validateFeatureFlagEnv } from './src/env';
+
+validateFeatureFlagEnv();
 
 const nextConfig: NextConfig = {
   output: 'standalone',

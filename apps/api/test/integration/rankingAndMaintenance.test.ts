@@ -183,6 +183,54 @@ describe('rank recompute and daily job', () => {
     await app.close();
   });
 
+  it('purges the Summary of a 91-day-old unsaved story with the story', async () => {
+    const source = await createSource(prisma, 'summary-purge-hn', 'hn');
+    const story = await addStory('summarised-old', daysAgo(91), [{ sourceId: source.id }]);
+    await prisma.summary.create({
+      data: {
+        storyId: story.id,
+        tldr: ['one', 'two', 'three'],
+        basedOnComments: 0,
+        trigger: 'auto',
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1000,
+        outputTokens: 200,
+        costUsd: '0.000200',
+      },
+    });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect(await prisma.story.count({ where: { id: story.id } })).toBe(0);
+    expect(await prisma.summary.count({ where: { storyId: story.id } })).toBe(0);
+    await app.close();
+  });
+
+  it('deletes LlmUsage older than 400 days and RateLimitCounters older than 7 days', async () => {
+    const usage = { feature: 'copilot', model: 'claude-haiku-5-5', status: 'settled' } as const;
+    await prisma.llmUsage.createMany({
+      data: [
+        { ...usage, day: daysAgo(401), reservedUsd: '0.001', refId: 'expired' },
+        { ...usage, day: daysAgo(400), reservedUsd: '0.001', refId: 'kept' },
+      ],
+    });
+    await prisma.rateLimitCounter.createMany({
+      data: [
+        { key: 'expired', day: daysAgo(8), count: 3 },
+        { key: 'kept', day: daysAgo(7), count: 3 },
+      ],
+    });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect((await prisma.llmUsage.findMany()).map((row) => row.refId)).toEqual(['kept']);
+    expect((await prisma.rateLimitCounter.findMany()).map((row) => row.key)).toEqual(['kept']);
+    await app.close();
+  });
+
   it('AC-1.7.3 recomputes TagDailyStat for the last 3 UTC days idempotently', async () => {
     const source = await createSource(prisma, 'stat-hn', 'hn');
     await addStory(

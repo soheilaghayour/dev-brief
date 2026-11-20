@@ -27,6 +27,20 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...validEnv, INGEST_ON_BOOT: 'yes' })).toThrow(/INGEST_ON_BOOT/);
   });
 
+  it('reads the FEATURE_* phase flags as booleans that default to false', () => {
+    expect(loadEnv(validEnv)).toMatchObject({
+      FEATURE_SUMMARIES: false,
+      FEATURE_PREFERENCES: false,
+    });
+    expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toMatchObject({
+      FEATURE_SUMMARIES: true,
+      FEATURE_PREFERENCES: false,
+    });
+    expect(loadEnv({ ...validEnv, FEATURE_PREFERENCES: 'true' }).FEATURE_PREFERENCES).toBe(true);
+    expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'on' })).toThrow(/FEATURE_SUMMARIES/);
+    expect(() => loadEnv({ ...validEnv, FEATURE_PREFERENCES: '1' })).toThrow(/FEATURE_PREFERENCES/);
+  });
+
   it('names every missing required variable', () => {
     expect(() => loadEnv({})).toThrow(/APP_URL[\s\S]*DATABASE_URL/);
   });
