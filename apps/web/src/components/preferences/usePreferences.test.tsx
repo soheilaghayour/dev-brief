@@ -130,6 +130,70 @@ describe('usePreferences in account mode', () => {
   });
 });
 
+describe('usePreferences with overlapping account changes', () => {
+  it('AC-2.5.1 builds a second change made before the preferences load on the first', async () => {
+    let finishLoad: (prefs: Preferences) => void = () => {};
+    api.getPreferences.mockImplementation(() => new Promise((resolve) => (finishLoad = resolve)));
+    api.putPreferences.mockImplementation(async (prefs: Preferences) => prefs);
+    await render();
+
+    await act(async () => {
+      hook().setMode('tag', 'go', 'follow');
+      hook().setMode('tag', 'react', 'mute');
+    });
+    await act(async () => finishLoad(STORED));
+
+    await settle(() => expect(api.putPreferences).toHaveBeenCalledTimes(2));
+    expect(api.putPreferences).toHaveBeenLastCalledWith({
+      follow: { tags: ['rust', 'go'], sources: ['hn'] },
+      mute: { tags: ['react'], sources: [] },
+    });
+  });
+
+  it('AC-2.5.1 keeps a later change on screen when an earlier one fails, and refetches only after the last', async () => {
+    let stored = STORED;
+    api.getPreferences.mockImplementation(async () => stored);
+    api.putPreferences
+      .mockRejectedValueOnce(new Error('500'))
+      .mockImplementationOnce(async (prefs: Preferences) => (stored = prefs));
+    await render();
+    await settle(() => expect(hook().isReady).toBe(true));
+
+    await act(async () => {
+      hook().setMode('tag', 'go', 'follow');
+      hook().setMode('tag', 'react', 'mute');
+    });
+
+    await settle(() => expect(api.putPreferences).toHaveBeenCalledTimes(2));
+    await settle(() => expect(api.getPreferences).toHaveBeenCalledTimes(2));
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(PREFS_FAILED_NOTICE);
+    expect(hook().modeOf('tag', 'react')).toBe('mute');
+  });
+
+  it('AC-2.5.1 refetches once, after the last of several quick changes settles', async () => {
+    const answers: ((prefs: Preferences) => void)[] = [];
+    api.putPreferences.mockImplementation(
+      (prefs: Preferences) =>
+        new Promise<Preferences>((resolve) => answers.push(() => resolve(prefs))),
+    );
+    await render();
+    await settle(() => expect(hook().isReady).toBe(true));
+    await act(async () => {
+      hook().setMode('tag', 'go', 'follow');
+      hook().setMode('tag', 'react', 'mute');
+    });
+    await settle(() => expect(answers).toHaveLength(1));
+
+    await act(async () => answers[0]?.(STORED));
+    await settle(() => expect(answers).toHaveLength(2));
+    expect(api.getPreferences).toHaveBeenCalledTimes(1);
+
+    await act(async () => answers[1]?.(STORED));
+    await settle(() => expect(api.getPreferences).toHaveBeenCalledTimes(2));
+  });
+});
+
 describe('usePreferences in guest mode', () => {
   it('AC-2.5.1 keeps changes on the device, also while /me is pending', async () => {
     me.current = { data: null, isPending: true };

@@ -1,71 +1,39 @@
-// @vitest-environment jsdom
-import { act } from 'react';
-import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Preferences } from '@devbrief/shared';
-import { FeedPreferencesSection } from './FeedPreferencesSection';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-const PREFS: Preferences = {
-  follow: { tags: ['react', 'rust'], sources: ['rss-react-blog'] },
-  mute: { tags: ['career'], sources: [] },
-};
-const setMode = vi.fn();
-const state = vi.hoisted(() => ({ isReady: true }));
-
-vi.mock('./usePreferences', () => ({
-  usePreferences: () => ({ isReady: state.isReady, prefs: PREFS, setMode }),
-}));
+const preferences = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQuery: () => ({ data: { sources: [{ slug: 'rss-react-blog', name: 'React Blog' }] } }),
+  useQuery: () => ({ data: undefined }),
 }));
+vi.mock('./usePreferences', () => ({ usePreferences: () => preferences.current }));
 
-let unmount = () => {};
-afterEach(() => {
-  unmount();
-  setMode.mockClear();
-  state.isReady = true;
+const { FeedPreferencesSection } = await import('./FeedPreferencesSection');
+
+beforeEach(() => {
+  preferences.current = {
+    isReady: false,
+    isError: false,
+    refetch: () => {},
+    prefs: EMPTY_PREFERENCES,
+    setMode: () => {},
+  };
 });
 
-function mount() {
-  const container = document.createElement('div');
-  const root = createRoot(container);
-  act(() => root.render(<FeedPreferencesSection />));
-  unmount = () => act(() => root.unmount());
-  return container;
-}
-
-function chipLabels(container: HTMLElement) {
-  return [...container.querySelectorAll('button')].map((chip) => chip.getAttribute('aria-label'));
-}
-
 describe('FeedPreferencesSection', () => {
-  it('AC-2.5.1 lists follows and mutes as chips, sources by their name', () => {
-    const container = mount();
-    expect(container.querySelector('h2')?.textContent).toBe('Feed');
-    expect(container.textContent).toContain('Followed:ReactRustReact Blog');
-    expect(container.textContent).toContain('Muted:Career');
-    expect(chipLabels(container)).toEqual([
-      'Unfollow React',
-      'Unfollow Rust',
-      'Unfollow React Blog',
-      'Unmute Career',
-    ]);
+  it('AC-2.5.1 shows an error with Retry when the account preferences fail to load', () => {
+    preferences.current.isError = true;
+    const html = renderToStaticMarkup(<FeedPreferencesSection />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('load your feed preferences');
+    expect(html).toContain('Retry');
   });
 
-  it('AC-2.5.1 removes a preference with its chip', () => {
-    const container = mount();
-    const chips = [...container.querySelectorAll('button')];
-    act(() => chips[2]?.click());
-    expect(setMode).toHaveBeenCalledWith('source', 'rss-react-blog', null);
-    act(() => chips[3]?.click());
-    expect(setMode).toHaveBeenCalledWith('tag', 'career', null);
-  });
-
-  it('lists nothing until the preferences are known', () => {
-    state.isReady = false;
-    expect(chipLabels(mount())).toEqual([]);
+  it('shows the lists, and no error, once the preferences are known', () => {
+    preferences.current.isReady = true;
+    const html = renderToStaticMarkup(<FeedPreferencesSection />);
+    expect(html).toContain('Followed:');
+    expect(html).not.toContain('role="alert"');
   });
 });

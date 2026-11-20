@@ -28,7 +28,9 @@ export function PreferenceMenuDropdown<K extends PreferenceKind>({
   trigger,
 }: PreferenceMenuDropdownProps<K>) {
   const preferences = usePreferences();
-  const mode = preferences.modeOf(kind, value);
+  // Until the preferences are known the check states would be guesses, so the items wait.
+  const { isReady } = preferences;
+  const mode = isReady ? preferences.modeOf(kind, value) : null;
 
   function toggleMode(target: PreferenceMode) {
     preferences.setMode(kind, value, mode === target ? null : target);
@@ -46,10 +48,18 @@ export function PreferenceMenuDropdown<K extends PreferenceKind>({
       <DropdownMenuContent align="start">
         <DropdownMenuLabel>{label}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuCheckboxItem checked={mode === 'follow'} onCheckedChange={toggleFollow}>
+        <DropdownMenuCheckboxItem
+          checked={mode === 'follow'}
+          disabled={!isReady}
+          onCheckedChange={toggleFollow}
+        >
           {mode === 'follow' ? 'Unfollow' : 'Follow'}
         </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem checked={mode === 'mute'} onCheckedChange={toggleMute}>
+        <DropdownMenuCheckboxItem
+          checked={mode === 'mute'}
+          disabled={!isReady}
+          onCheckedChange={toggleMute}
+        >
           {mode === 'mute' ? 'Unmute' : 'Mute'}
         </DropdownMenuCheckboxItem>
       </DropdownMenuContent>

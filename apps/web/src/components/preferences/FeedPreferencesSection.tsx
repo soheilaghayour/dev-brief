@@ -46,9 +46,13 @@ function PreferenceList({ mode, chips }: { mode: PreferenceMode; chips: Chip[] }
 
 /** The followed and muted tags and sources as chips; × removes one (PRD §7.3). */
 export function FeedPreferencesSection() {
-  const { isReady, prefs, setMode } = usePreferences();
+  const { isReady, isError, refetch, prefs, setMode } = usePreferences();
   const { data: sources } = useQuery(sourcesQueryOptions);
   const sourceNames = new Map(sources?.sources.map((source) => [source.slug, source.name]));
+
+  function retry() {
+    void refetch();
+  }
 
   function chipsOf(lists: Preferences[PreferenceMode]): Chip[] {
     return [
@@ -75,6 +79,14 @@ export function FeedPreferencesSection() {
         Follow or mute a tag or source from its badge. Followed stories rank higher; muted ones
         never appear.
       </p>
+      {isError && (
+        <div role="alert" className="flex items-center gap-3">
+          <p className="text-muted-foreground text-sm">Couldn&apos;t load your feed preferences.</p>
+          <Button variant="outline" size="xs" onClick={retry}>
+            Retry
+          </Button>
+        </div>
+      )}
       {isReady && (
         <>
           <PreferenceList mode="follow" chips={chipsOf(prefs.follow)} />

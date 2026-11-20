@@ -7,9 +7,17 @@ import { PreferenceMenu } from './PreferenceMenu';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const preferences = vi.hoisted(() => ({ mode: null as PreferenceMode | null, setMode: vi.fn() }));
+const preferences = vi.hoisted(() => ({
+  mode: null as PreferenceMode | null,
+  isReady: true,
+  setMode: vi.fn(),
+}));
 vi.mock('./usePreferences', () => ({
-  usePreferences: () => ({ modeOf: () => preferences.mode, setMode: preferences.setMode }),
+  usePreferences: () => ({
+    isReady: preferences.isReady,
+    modeOf: () => preferences.mode,
+    setMode: preferences.setMode,
+  }),
 }));
 
 // Radix measures the trigger with ResizeObserver, which jsdom lacks.
@@ -24,6 +32,7 @@ let unmount = () => {};
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', NoopResizeObserver);
   preferences.mode = null;
+  preferences.isReady = true;
 });
 
 afterEach(() => {
@@ -64,6 +73,12 @@ async function openMenu() {
   return [...document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
 }
 
+function pressKey(target: Element | null, key: string) {
+  act(() => {
+    target?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  });
+}
+
 function itemStates(items: HTMLElement[]) {
   return items.map((item) => [item.textContent, item.getAttribute('aria-checked')]);
 }
@@ -89,5 +104,25 @@ describe('PreferenceMenu', () => {
     ]);
     act(() => items[0]?.click());
     expect(preferences.setMode).toHaveBeenCalledWith('tag', 'react', null);
+  });
+
+  it('AC-2.5.1 disables the items, with no check shown, until the preferences are known', async () => {
+    preferences.mode = 'follow';
+    preferences.isReady = false;
+    const items = await openMenu();
+    expect(itemStates(items)).toEqual([
+      ['Follow', 'false'],
+      ['Mute', 'false'],
+    ]);
+    expect(items.every((item) => item.hasAttribute('data-disabled'))).toBe(true);
+  });
+
+  it('AC-2.5.1 opens again with Space after Esc closed it', async () => {
+    await openMenu();
+    pressKey(document.activeElement, 'Escape');
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+
+    pressKey(document.querySelector('button[aria-haspopup="menu"]'), ' ');
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
   });
 });

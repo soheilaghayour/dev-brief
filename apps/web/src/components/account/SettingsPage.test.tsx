@@ -58,6 +58,16 @@ describe('SettingsPage', () => {
     }
   });
 
+  it('AC-2.5.1 names feed preferences in the guest note only while the preferences flag is on', () => {
+    useMe.mockReturnValue({ data: null, isPending: false });
+    features.preferences = true;
+    expect(renderToStaticMarkup(<SettingsPage />)).toContain('your saves and feed preferences');
+    features.preferences = false;
+    const html = renderToStaticMarkup(<SettingsPage />);
+    expect(html).toContain('As a guest, your saves stay on this device.');
+    expect(html).not.toContain('feed preferences');
+  });
+
   it('AC-2.5.1 has no Feed section in the HTML while the preferences flag is off', () => {
     useMe.mockReturnValue({ data: null, isPending: false });
     expect(renderToStaticMarkup(<SettingsPage />)).not.toContain('Feed preferences');
