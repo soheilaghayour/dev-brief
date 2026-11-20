@@ -60,4 +60,20 @@ describe('planPreferenceMerge', () => {
     ]);
     expect(plan.mergedCount).toBe(2);
   });
+
+  it('leaves a stored tag the taxonomy retired out of the cap, as GET hides it', () => {
+    const existing: PreferenceEntry[] = Array.from({ length: FEED_LIST_MAX }, (_, index) => ({
+      kind: 'tag',
+      value: `retired-tag-${index}`,
+      mode: 'follow',
+    }));
+    const plan = planPreferenceMerge({
+      incoming: { follow: { tags: ['rust'], sources: [] }, mute: none },
+      existing,
+    });
+    expect(plan).toEqual({
+      toCreate: [{ kind: 'tag', value: 'rust', mode: 'follow' }],
+      mergedCount: 1,
+    });
+  });
 });

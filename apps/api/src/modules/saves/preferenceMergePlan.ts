@@ -4,6 +4,7 @@ import {
   preferenceKey,
   type PreferenceEntry,
 } from '../../common/preferences/preferenceEntries.js';
+import { toPreferences } from '../../common/preferences/toPreferences.js';
 
 type PreferenceMergeInput = {
   incoming: Preferences;
@@ -26,7 +27,8 @@ export function planPreferenceMerge({
 }: PreferenceMergeInput): PreferenceMergePlan {
   const existingKeys = new Set(existing.map(preferenceKey));
   const listSizes = new Map<string, number>();
-  for (const entry of existing) {
+  // Only what GET returns counts toward the cap: a retired tag is hidden and must not take a slot.
+  for (const entry of preferenceEntries(toPreferences(existing))) {
     listSizes.set(listKey(entry), (listSizes.get(listKey(entry)) ?? 0) + 1);
   }
   const plan: PreferenceMergePlan = { toCreate: [], mergedCount: 0 };

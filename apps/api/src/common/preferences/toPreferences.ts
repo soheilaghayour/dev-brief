@@ -1,9 +1,5 @@
 import { TAG_SLUGS, type Preferences, type TagSlug } from '@devbrief/shared';
-import type {
-  PreferenceEntry,
-  PreferenceKind,
-  PreferenceMode,
-} from '../../common/preferences/preferenceEntries.js';
+import type { PreferenceEntry, PreferenceKind, PreferenceMode } from './preferenceEntries.js';
 
 // A tag retired by a taxonomy bump is dropped, so a stored set never fails the contract.
 const TAG_SLUG_SET: ReadonlySet<string> = new Set(TAG_SLUGS);

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Preferences } from '@devbrief/shared';
 import { preferenceEntries } from '../../common/preferences/preferenceEntries.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { toPreferences } from './toPreferences.js';
+import { toPreferences } from '../../common/preferences/toPreferences.js';
 
 @Injectable()
 export class PreferencesService {
