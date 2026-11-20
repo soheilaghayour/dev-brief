@@ -65,6 +65,15 @@ describe('feed benchmark at 40k stories', () => {
         'https://example.com/' || n,
         'Benchmark story ' || n, now(), now()
       FROM generate_series(10, ${total}, 10) AS n`;
+    // A source with a handful of stories, so a filter on it matches fewer than a page.
+    const tiny = await createSource(prisma, 'bench-tiny', 'rss');
+    await prisma.$executeRaw`
+      INSERT INTO "SourceItem" ("id", "storyId", "sourceId", "externalId", "url", "canonicalUrl", "title",
+        "publishedAt", "lastSeenAt")
+      SELECT 'tiny' || n, 'bench' || n, ${tiny.id}, n::text, 'https://example.com/' || n,
+        'https://example.com/' || n,
+        'Benchmark story ' || n, now(), now()
+      FROM generate_series(1, 5) AS n`;
     // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
     await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source"`;
     app = await createTestApp();
@@ -84,6 +93,10 @@ describe('feed benchmark at 40k stories', () => {
       // One stream finds no story, so only the page floor stops its scan.
       'top + boost matching nothing': { boostTags: 'vue', boostSources: 'no-such-source' },
       'top + boost matching everything': { boostSources: 'bench' },
+      // Fewer than a page match the filters, so the page floor finds no row to stop at.
+      'top + small source + boostTags': { sources: 'bench-tiny', boostTags: 'rust' },
+      'top + small source + boostSources': { sources: 'bench-tiny', boostSources: 'bench' },
+      'top + q matching nothing + boostTags': { q: 'zzqxnomatch', boostTags: 'rust' },
       'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
     };
   }, 180_000);
