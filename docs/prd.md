@@ -318,15 +318,15 @@ Acceptance criteria:
 **Clustering decision (O1, resolved 2026-11-20).** The owner chose AI-assisted clustering: a cheap deterministic pre-filter finds candidates, and one Claude Haiku 5.5 call per new story with candidates decides. The cluster UI below (F2.2) is the orchestrator's default, open to owner override.
 
 #### F2.1 Clustering (AI-assisted)
-The clustering step runs inside the ingestion run, after the sources settle and before the rank recompute (§4.3.1). It decides only the Stories created in this run, one at a time in `publishedAt` order (then `id`), so a story can match one created earlier in the same run. Each new Story S gets at most one decision, in the run that creates it.
+The clustering step runs inside the ingestion run, after the sources settle and before the rank recompute (§4.3.1). It decides only the Stories created in this run, which are those with `firstSeenAt ≥` the run's start, both times taken from the database clock. It decides them one at a time in `publishedAt` order (then `id`), so a story can match one created earlier in the same run. Each new Story S gets at most one decision, in the run that creates it.
 
 **1. Candidate pre-filter (pure, no LLM call)**
-- The window is every other Story with `publishedAt` within ±72 h of S. A Story in a cluster stands for its cluster: each cluster is offered at most once, through its best-scoring member, and a cluster that already holds `CLUSTER_MAX_SIZE = 12` stories is not offered.
+- The window is every other Story with `publishedAt` within ±72 h of S. That range, served by the `publishedAt` index, is what bounds the window query. A Story in a cluster stands for its cluster: each cluster is offered at most once, through its best-scoring member, and a cluster that already holds `CLUSTER_MAX_SIZE = 12` stories is not offered.
 - Signals:
-  - `trgm = similarity(S.normalizedTitle, C.normalizedTitle)` (`pg_trgm`, indexed)
+  - `trgm = similarity(S.normalizedTitle, C.normalizedTitle)`, the `pg_trgm` score, computed in the window query for each window story. A `similarity()` call can't use the GIN trigram index (§5.2). That index is kept for a future index-backed candidate search with the `%` operator.
   - `ent = jaccard(entityTokens(S), entityTokens(C))`. `entityTokens()` is a pure function in `packages/shared/src/core`. It keeps capitalised or product-like tokens, version strings (`v5.2`, `1.0`), repo slugs and domains, and drops a stoplist.
   - `link = 1` if either story's URL points at the same GitHub repo or the same domain and path prefix as the other, else 0.
-- `candidateScore = 0.55·trgm + 0.35·ent + 0.10·link`. A candidate needs `candidateScore ≥ CLUSTER_CANDIDATE_MIN_SCORE`. That floor starts at `0.25` and is tuned on the fixture for recall: at least 95% of the positive pairs must pass it. It decides only whether a call is worth making. The model makes the same-story decision.
+- `candidateScore = 0.55·trgm + 0.35·ent + 0.10·link`. A candidate needs `candidateScore ≥ CLUSTER_CANDIDATE_MIN_SCORE`. That floor starts at `0.20`, the value measured on the fixture, and is tuned for recall: at least 95% of the positive pairs must pass it. It decides only whether a call is worth making. The model makes the same-story decision.
 - The top 5 candidates by `candidateScore` (ties: newer `publishedAt`, then `id`) go to the model. With no candidate, there is **no LLM call** and S stays a single story.
 
 **2. Decision (one LLM call per new story with candidates)**
@@ -340,28 +340,35 @@ The clustering step runs inside the ingestion run, after the sources settle and 
 
 **3. Fail-safe**
 - If the call fails or is refused, if its output still fails validation after `LlmService`'s one retry, or if the ledger refuses the reservation (cap reached), S stays a single story and is never tried again.
+- Any other failure while deciding S, database errors included, also leaves S single.
 - A refused reservation or a provider error (5xx, 429, timeout, lost connection) also ends the step for this run, and the remaining new stories stay single. Invalid or refused output moves on to the next story.
 - The step checks the run's budget signal (§8.3) before each call.
+- A named constant caps the step's calls per run. The new stories past the cap stay single, and the auto-summaries step that runs after the rank recompute keeps its share of the run's 4-min budget.
 
 **4. Guards**
 - S is always a single story when it is decided. A decision therefore only adds one story to a cluster or pairs two single stories, so two existing multi-member clusters are never merged.
 - A cluster never holds more than `CLUSTER_MAX_SIZE` stories.
 
 **5. Representative and rank**
-- Every member is ranked by Appendix B with `k` counted over the whole cluster (§4). All members therefore carry the same cross-source bonus.
-- The **representative** (`isPrimary = true`, `Cluster.representativeStoryId`) is the member with the highest `rankScore`, with ties broken by `id desc`. `Cluster.rankScore` is the representative's `rankScore`, which is `max(member score) × (1 + 0.15 × (distinctSourceKinds − 1))`. It does not multiply the bonus a second time.
+- Every member is ranked by Appendix B with `k` counted over the whole cluster (§4). Here `k` is the number of distinct kinds across the SourceItems of the cluster's current members. All members therefore carry the same cross-source bonus.
+- The **representative** (`isPrimary = true`, `Cluster.representativeStoryId`) is the member with the highest `rankScore` among the members inside the Top window, with ties broken by `id desc`. Members outside the window don't compete. `Cluster.rankScore` is the representative's `rankScore`, which is `max(member score) × (1 + 0.15 × (distinctSourceKinds − 1))`. It does not multiply the bonus a second time.
 - Every rank recompute refreshes both.
+- Cluster upkeep is derived from the database's current state, meaning a cluster's actual members. It doesn't depend on what an earlier step remembers, so a purge that stopped part-way repairs itself on the next pass (§5.3).
+- A cluster left with fewer than 2 members is dissolved. The remaining story gets `clusterId = null` and `isPrimary = true`, and it **keeps** its `clusterScore`, which AC-2.1.3 stores for every decided story. A card never carries a `cluster` with fewer than 2 members.
 
-**6. Flag:** `FEATURE_CLUSTERS` in the API and `NEXT_PUBLIC_FEATURE_CLUSTERS` in the web build ship off. While the flag is off, the clustering step doesn't run, and feed and story responses match Phase 1: every story is listed, and no cluster fields are sent.
+**6. Flag:** `FEATURE_CLUSTERS` in the API and `NEXT_PUBLIC_FEATURE_CLUSTERS` in the web build ship off. While the flag is off, the clustering step doesn't run. The rank recompute ignores clusters entirely: each story's `k` counts only its own items, and no representative is picked. Feed and story responses match Phase 1 even after the flag was on: every story is listed, and no cluster fields are sent.
 
 **7. Fixture**
 - `apps/api/test/fixtures/cluster-pairs.json` holds ~50 hand-labelled pairs: ≥ 20 positive and ≥ 20 negative, including hard negatives such as two different "React 19.x" posts, or two posts about the same project that report different events.
+- Fixture stories have the shapes ingestion produces. HN and GitHub stories have a `null` excerpt, and GitHub titles read `owner/repo: description` (F2.4). The fixture holds no pair that ingestion's URL dedup (canonical URLs, AC-1.2.4) would already merge into one Story.
+- Labelling rule: several reports of the same event are a positive pair. Follow-up coverage of a distinct event is a negative pair, for example an IPO's pricing day and its trading debut, or a vulnerability disclosure and a vendor's mitigation post.
+- A held-out set of pairs is never used for tuning the constants, and its precision and recall are reported separately.
 - The model's reply for each pair is recorded once with a real key, in `apps/api/test/fixtures/llm/clusterMatch.v1.pairs.json`. CI replays the recording and never calls the live model.
 - The test runs each pair end to end: the pre-filter with the pair's other story as the only window story, then the recorded reply. A positive pair that the pre-filter cuts counts as a miss.
 
 Acceptance criteria:
 - **AC-2.1.1** With the recorded replies, the fixture test reaches precision ≥ 0.90 and recall ≥ 0.70, and `CLUSTER_CANDIDATE_MIN_SCORE` and `CLUSTER_MIN_CONFIDENCE` are named constants. While the recording is a placeholder (`"placeholder": true`), the test skips with a warning, doesn't count as passing, and clustering doesn't launch.
-- **AC-2.1.2** Clustering runs inside the ingestion run, after dedup and before the rank recompute. It makes at most one LLM call per new story and none for a story without candidates. Its non-LLM work (candidate selection and writes) adds ≤ 5 s to a run of 400 new items, measured in an integration test with seeded data and a mock model.
+- **AC-2.1.2** Clustering runs inside the ingestion run, after dedup and before the rank recompute. It makes at most one LLM call per new story and none for a story without candidates. Its non-LLM work (candidate selection and writes) adds ≤ 5 s to a run of 400 new items against a ±72 h window of 1,200 existing stories, measured in an integration test with that data seeded and a mock model.
 - **AC-2.1.3** Every story the model decided on stores `clusterScore`, so decisions can be debugged. It is the confidence for the matched candidate, or 0 when the model answered `none`, and it is stored whether or not the story joined. A story with no candidates or a failed call keeps `null`. The decision's `LlmUsage` row carries the story id as `refId`.
 - **AC-2.1.4** With `FEATURE_CLUSTERS` on, the feed returns only primary stories (`isPrimary = true`), and each card carries `cluster: { id, memberCount, sources[] }` when `memberCount > 1`. With the flag off, the feed returns every story and no `cluster` field.
 - **AC-2.1.5** Given the call fails, is refused, or the `cluster` or global cap is reached, then S stays a single story, no Cluster row changes, and S is not tried again. A refused reservation or a provider error makes no further call in that run.
@@ -586,7 +593,7 @@ Rules: `apps/*` may import from `packages/shared`, never from each other. `packa
 - Sessions in guards use `auth.api.getSession({ headers: fromNodeHeaders(req.headers) })`.
 - Validation goes through a Zod pipe (for example `nestjs-zod`, compatible with Zod 3.25) using the schemas from `packages/shared`. OpenAPI is generated from the same schemas with `@nestjs/swagger`.
 - Logging: structured JSON (`nestjs-pino`), with `x-request-id` propagated into logs and error responses.
-- Prisma 7 conventions: the connection URL lives in `prisma.config.ts` and the client uses the `@prisma/adapter-pg` driver adapter. The feed query, which needs FTS, a dynamic ORDER BY and a keyset cursor, uses parameterised `$queryRaw` tagged templates. Everything else uses the Prisma client.
+- Prisma 7 conventions: the connection URL lives in `prisma.config.ts` and the client uses the `@prisma/adapter-pg` driver adapter. A query the Prisma client can't express uses parameterised `$queryRaw` tagged templates, never built strings. Today there are two: the feed query (FTS, a dynamic ORDER BY and a keyset cursor) and the clustering window query (`pg_trgm` `similarity()`). Every other query uses the Prisma client.
 
 ### 4.3 Request and data flows
 
@@ -1109,7 +1116,7 @@ Migration rule: in Phase 1 **work item P1-02 creates the initial migrations**. A
 ### 5.3 Retention and data lifecycle
 | Data | Retention | Mechanism |
 |---|---|---|
-| `Story` + `SourceItem` (+ `Summary`, cluster membership) | 90 days after `publishedAt`, **unless the story is saved by any user** | Daily job deletes in batches of 1,000. A `Cluster` left with one member is dissolved, and that story becomes a single primary story again. A cluster that loses its representative gets a new one (F2.1 rule 5). |
+| `Story` + `SourceItem` (+ `Summary`, cluster membership) | 90 days after `publishedAt`, **unless the story is saved by any user** | Daily job deletes in batches of 1,000. Cluster upkeep then works from each cluster's current members in the database, not from the deleted batch, so a purge that stopped part-way repairs itself on the next run. It recounts `memberCount` and `sourceKinds`. A `Cluster` left with fewer than 2 members is dissolved, and its remaining story becomes a single primary story again (`isPrimary = true`, `clusterScore` kept). A cluster that loses its representative gets a new one (F2.1 rule 5). |
 | `TagDailyStat` | Forever (~18 tags × 365 days ≈ 6.6k rows/yr) | Daily upsert recomputes the last 3 days (late items and engagement drift) |
 | `IngestionRun` | 30 days | Daily job |
 | `Session` / `Verification` | Until expiry (session 30 days, rolling) | Better Auth plus a daily cleanup of expired rows |
