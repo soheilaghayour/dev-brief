@@ -6,8 +6,7 @@ Quickstart: [`README.md`](../README.md#run-locally).
 
 Get the pinned pnpm with `npm i -g corepack && corepack enable` (or `npm i -g pnpm@<version from packageManager>`), then `rehash` in zsh; older pnpm (e.g. Homebrew's 9.x) fails with "broken lockfile".
 
-`pnpm dev` builds `packages/shared` first. Rebuild it with `pnpm --filter @devbrief/shared build`
-after changing it while `pnpm dev` runs.
+`pnpm dev` builds `packages/shared` first, then keeps it rebuilt in watch mode; the API restarts when it changes (a `git pull` included; tsc doesn't delete `dist` files for removed or renamed sources, which is harmless through the `.` export). A pull that changes shared and the API together can log one `does not provide an export named` crash that recovers by itself once shared rebuilds. Running an app on its own (`pnpm --filter api dev`) needs `pnpm --filter @devbrief/shared dev` (or `build`) alongside it. After `git pull`, still run `pnpm i` if the lockfile changed.
 
 The `dev` scripts and the API's `db:*` scripts load the root `.env` over `.env.example`; the web `build` loads only `.env`. Commands are listed in [`CLAUDE.md`](../CLAUDE.md#commands).
 
