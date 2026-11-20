@@ -31,7 +31,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 
 | Variable                                                                               | api | web | Value in production                                                                            |
 | :------------------------------------------------------------------------------------- | :-- | :-- | :--------------------------------------------------------------------------------------------- |
-| `APP_URL`                                                                              | yes | yes | `https://devbrief.example`                                                                     |
+| `APP_URL`                                                                              | yes | yes | `https://devbrief.example`, also a build variable                                              |
 | `DATABASE_URL`                                                                         | yes |     | the Coolify Postgres internal URL                                                              |
 | `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same secret in both                                                                        |
 | `API_INTERNAL_URL`                                                                     |     | yes | `https://devbrief.example`: server-side calls go out and back in through the proxy (see below) |

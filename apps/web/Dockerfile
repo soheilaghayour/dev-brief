@@ -17,6 +17,9 @@ COPY apps/web apps/web
 # Public values the Next build inlines into the client bundle (SOURCE_COMMIT is the release); the source-map upload runs only with a token.
 ARG SOURCE_COMMIT=unknown
 ENV NEXT_PUBLIC_APP_VERSION=$SOURCE_COMMIT
+# APP_URL becomes metadataBase, the canonical URL and the OG tags, so the build needs the real origin.
+ARG APP_URL
+ENV APP_URL=$APP_URL
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG SENTRY_AUTH_TOKEN
 ARG SENTRY_ORG
