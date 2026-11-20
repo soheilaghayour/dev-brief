@@ -39,6 +39,8 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | yes |     | the production OAuth apps                                                                      |
 | `AUTH_TEST_MODE`                                                                       | yes |     | `false` (the API refuses `true` in production)                                                 |
 | `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                         |
+| `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                             |
+| `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag              |
 | `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                    |
 | `NEXT_PUBLIC_SENTRY_DSN`                                                               |     | yes | the `devbrief-web` project's DSN, build variable                                               |
 | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`                                    |     | yes | build variables for the source-map upload; without the token the upload is skipped             |
