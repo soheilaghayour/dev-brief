@@ -68,7 +68,7 @@ export class FeedService {
     // A small source is better a list of ids than an EXISTS probe: the planner can't size the subquery, and without
     // the list it walks the whole rankScore (Top) or publishedAt (Latest) index looking for the few matches.
     const sourceStoryIds = query.sources?.length
-      ? await this.smallSourceStoryIds(query.sources, this.features.clusters)
+      ? await this.smallSourceStoryIds(query.sources)
       : undefined;
     const filters = [
       // A cluster is its representative's one card: members never list on their own.
@@ -103,13 +103,9 @@ export class FeedService {
    * can't size a subquery, so an id list is what makes it look the few stories up instead of scanning; a big source
    * stays an EXISTS, which stops after a page in rankScore order.
    */
-  private async smallSourceStoryIds(slugs: string[], primaryOnly: boolean) {
+  private async smallSourceStoryIds(slugs: string[]) {
     const items = await this.prisma.sourceItem.findMany({
-      // Primary only, so a cluster counts by its representative's sources and the cap sizes the cards it can list.
-      where: {
-        source: { slug: { in: slugs } },
-        ...(primaryOnly && { story: { isPrimary: true } }),
-      },
+      where: { source: { slug: { in: slugs } } },
       select: { storyId: true },
       take: SMALL_SOURCE_STORIES + 1,
     });
