@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   aggregateTagStats,
+  planClusterUpkeep,
   ingestionRunCutoff,
   llmUsageCutoff,
   PURGE_BATCH_SIZE,
@@ -94,17 +95,70 @@ export class MaintenanceService {
 
   // Stories with a Save are skipped: Save.storyId is onDelete Restrict, and saved stories outlive retention.
   private async purgeStories(now: Date) {
+    const touchedClusterIds = new Set<string>();
     for (;;) {
       const batch = await this.prisma.story.findMany({
         where: { publishedAt: { lt: storyCutoff(now) }, saves: { none: {} } },
-        select: { id: true },
+        select: { id: true, clusterId: true },
         take: PURGE_BATCH_SIZE,
       });
-      if (batch.length === 0) return;
+      if (batch.length === 0) break;
+      for (const { clusterId } of batch) if (clusterId) touchedClusterIds.add(clusterId);
       await this.prisma.story.deleteMany({
         // Repeats the Save guard: a Save may land between the lookup and the delete.
         where: { id: { in: batch.map(({ id }) => id) }, saves: { none: {} } },
       });
+    }
+    await this.upkeepClusters([...touchedClusterIds]);
+  }
+
+  /** Recounts every cluster that lost members; one left (or none) dissolves it into a single primary story. */
+  private async upkeepClusters(clusterIds: string[]) {
+    for (const clusterId of clusterIds) {
+      const members = await this.prisma.story.findMany({
+        where: { clusterId },
+        select: {
+          id: true,
+          rankScore: true,
+          items: { select: { source: { select: { kind: true } } } },
+        },
+      });
+      const upkeep = planClusterUpkeep(
+        clusterId,
+        members.map(({ items, ...member }) => ({
+          ...member,
+          kinds: items.map((item) => item.source.kind),
+        })),
+      );
+      if (upkeep.action === 'dissolve') {
+        await this.prisma.$transaction([
+          this.prisma.story.updateMany({
+            where: { clusterId },
+            data: { clusterId: null, isPrimary: true, clusterScore: null },
+          }),
+          this.prisma.cluster.deleteMany({ where: { id: clusterId } }),
+        ]);
+        continue;
+      }
+      await this.prisma.$transaction([
+        this.prisma.cluster.update({
+          where: { id: clusterId },
+          data: {
+            memberCount: upkeep.memberCount,
+            sourceKinds: upkeep.sourceKinds,
+            representativeStoryId: upkeep.representativeStoryId,
+            rankScore: upkeep.rankScore,
+          },
+        }),
+        this.prisma.story.updateMany({
+          where: { clusterId },
+          data: { isPrimary: false },
+        }),
+        this.prisma.story.update({
+          where: { id: upkeep.representativeStoryId },
+          data: { isPrimary: true },
+        }),
+      ]);
     }
   }
 }

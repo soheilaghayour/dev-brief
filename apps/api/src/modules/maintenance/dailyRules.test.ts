@@ -3,6 +3,7 @@ import {
   aggregateTagStats,
   ingestionRunCutoff,
   llmUsageCutoff,
+  planClusterUpkeep,
   rateLimitCounterCutoff,
   storyCutoff,
   tagStatWindowStart,
@@ -52,5 +53,32 @@ describe('dailyRules', () => {
     expect(rust).toMatchObject({ storyCount: 2, engagementSum: 45 });
     expect(rust?.avgPercentile).toBeCloseTo(0.6);
     expect(rows).toHaveLength(3);
+  });
+
+  it('AC-2.1.7 re-picks the representative among the remaining members and recounts their kinds', () => {
+    const upkeep = planClusterUpkeep('c1', [
+      { id: 'a', rankScore: 3, kinds: ['hn', 'rss'] },
+      { id: 'b', rankScore: 5, kinds: ['rss'] },
+      { id: 'c', rankScore: 5, kinds: ['devto'] },
+    ]);
+    expect(upkeep).toEqual({
+      action: 'update',
+      clusterId: 'c1',
+      memberCount: 3,
+      sourceKinds: ['devto', 'hn', 'rss'],
+      representativeStoryId: 'c',
+      rankScore: 5,
+    });
+  });
+
+  it('AC-2.1.7 dissolves a cluster left with one member or none', () => {
+    expect(planClusterUpkeep('c1', [{ id: 'a', rankScore: 3, kinds: ['hn'] }])).toEqual({
+      action: 'dissolve',
+      clusterId: 'c1',
+    });
+    expect(planClusterUpkeep('c1', [])).toEqual({
+      action: 'dissolve',
+      clusterId: 'c1',
+    });
   });
 });

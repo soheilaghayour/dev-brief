@@ -1,3 +1,5 @@
+import type { SourceKind } from '@devbrief/shared';
+
 const MS_PER_DAY = 86_400_000;
 
 const TAG_STAT_DAYS = 3;
@@ -81,4 +83,44 @@ export function aggregateTagStats(stories: readonly TagStatStory[]) {
     ...row,
     avgPercentile: percentileSum / row.storyCount,
   }));
+}
+
+export interface ClusterMemberLeft {
+  id: string;
+  rankScore: number;
+  /** Source kinds of the member's items. */
+  kinds: readonly SourceKind[];
+}
+
+export type ClusterUpkeep =
+  | { action: 'dissolve'; clusterId: string }
+  | {
+      action: 'update';
+      clusterId: string;
+      memberCount: number;
+      sourceKinds: SourceKind[];
+      representativeStoryId: string;
+      rankScore: number;
+    };
+
+/** What the purge leaves of a cluster: gone when fewer than two members remain, else recounted with the best-scored member (ties by id desc) as representative. */
+export function planClusterUpkeep(
+  clusterId: string,
+  remaining: readonly ClusterMemberLeft[],
+): ClusterUpkeep {
+  if (remaining.length < 2) return { action: 'dissolve', clusterId };
+  const representative = remaining.reduce((best, member) =>
+    member.rankScore > best.rankScore ||
+    (member.rankScore === best.rankScore && member.id > best.id)
+      ? member
+      : best,
+  );
+  return {
+    action: 'update',
+    clusterId,
+    memberCount: remaining.length,
+    sourceKinds: [...new Set(remaining.flatMap((member) => member.kinds))].sort(),
+    representativeStoryId: representative.id,
+    rankScore: representative.rankScore,
+  };
 }
