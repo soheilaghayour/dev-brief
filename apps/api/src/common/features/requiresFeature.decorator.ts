@@ -7,7 +7,5 @@ export const FEATURE_ENV = {
   preferences: 'FEATURE_PREFERENCES',
 } as const satisfies Record<string, keyof Env>;
 
-export type Feature = keyof typeof FEATURE_ENV;
-
 /** Puts a route or controller behind a phase flag; FeatureGuard answers 404 FEATURE_DISABLED while it is off. */
-export const RequiresFeature = Reflector.createDecorator<Feature>();
+export const RequiresFeature = Reflector.createDecorator<keyof typeof FEATURE_ENV>();

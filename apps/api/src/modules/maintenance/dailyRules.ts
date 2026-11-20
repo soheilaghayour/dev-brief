@@ -11,9 +11,13 @@ function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
+function utcDaysBefore(now: Date, days: number) {
+  return new Date(startOfUtcDay(now).getTime() - days * MS_PER_DAY);
+}
+
 /** Start of the oldest UTC day the tag rollup recomputes: today and the days before it, TAG_STAT_DAYS in all. */
 export function tagStatWindowStart(now: Date) {
-  return new Date(startOfUtcDay(now).getTime() - (TAG_STAT_DAYS - 1) * MS_PER_DAY);
+  return utcDaysBefore(now, TAG_STAT_DAYS - 1);
 }
 
 /** Moment before which a Story is past retention. */
@@ -28,12 +32,12 @@ export function ingestionRunCutoff(now: Date) {
 
 /** UTC day before which an LlmUsage row is past retention. */
 export function llmUsageCutoff(now: Date) {
-  return new Date(startOfUtcDay(now).getTime() - LLM_USAGE_RETENTION_DAYS * MS_PER_DAY);
+  return utcDaysBefore(now, LLM_USAGE_RETENTION_DAYS);
 }
 
 /** UTC day before which a RateLimitCounter row is past retention. */
 export function rateLimitCounterCutoff(now: Date) {
-  return new Date(startOfUtcDay(now).getTime() - RATE_LIMIT_COUNTER_RETENTION_DAYS * MS_PER_DAY);
+  return utcDaysBefore(now, RATE_LIMIT_COUNTER_RETENTION_DAYS);
 }
 
 export interface TagStatStory {
