@@ -14,5 +14,9 @@ export const HealthSchema = z.object({
       lastSuccessAt: z.string().datetime().nullable(),
     }),
   ),
+  llm: z.object({
+    spentTodayUsd: z.number().nonnegative(),
+    capUsd: z.number().nonnegative(),
+  }),
 });
 export type Health = z.infer<typeof HealthSchema>;

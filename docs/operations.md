@@ -29,23 +29,24 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 
 [`.env.example`](../.env.example) lists every variable with its meaning. All are set in Coolify only; nothing secret is committed. The API and web both fail to start on an invalid environment, so a missing value shows up as a failed deploy, not as a broken site.
 
-| Variable                                                                               | api | web | Value in production                                                                            |
-| :------------------------------------------------------------------------------------- | :-- | :-- | :--------------------------------------------------------------------------------------------- |
-| `APP_URL`                                                                              | yes | yes | `https://devbrief.example`, also a build variable                                              |
-| `DATABASE_URL`                                                                         | yes |     | the Coolify Postgres internal URL                                                              |
-| `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same secret in both                                                                        |
-| `API_INTERNAL_URL`                                                                     |     | yes | `https://devbrief.example`: server-side calls go out and back in through the proxy (see below) |
-| `BETTER_AUTH_SECRET`                                                                   | yes |     | `openssl rand -base64 32`                                                                      |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | yes |     | the production OAuth apps                                                                      |
-| `AUTH_TEST_MODE`                                                                       | yes |     | `false` (the API refuses `true` in production)                                                 |
-| `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                         |
-| `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                             |
-| `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag              |
-| `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                    |
-| `NEXT_PUBLIC_SENTRY_DSN`                                                               |     | yes | the `devbrief-web` project's DSN, build variable                                               |
-| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`                                    |     | yes | build variables for the source-map upload; without the token the upload is skipped             |
-| `PORT`, `NODE_ENV`, `APP_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `HOSTNAME`               |     |     | set by the Dockerfiles; do not set them. The release is Coolify's `SOURCE_COMMIT` (the commit) |
-| `API_PROXY_URL`                                                                        |     |     | leave unset: it bakes a dev rewrite into the web build                                         |
+| Variable                                                                               | api | web | Value in production                                                                                       |
+| :------------------------------------------------------------------------------------- | :-- | :-- | :-------------------------------------------------------------------------------------------------------- |
+| `APP_URL`                                                                              | yes | yes | `https://devbrief.example`, also a build variable                                                         |
+| `DATABASE_URL`                                                                         | yes |     | the Coolify Postgres internal URL                                                                         |
+| `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same secret in both                                                                                   |
+| `API_INTERNAL_URL`                                                                     |     | yes | `https://devbrief.example`: server-side calls go out and back in through the proxy (see below)            |
+| `BETTER_AUTH_SECRET`                                                                   | yes |     | `openssl rand -base64 32`                                                                                 |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | yes |     | the production OAuth apps                                                                                 |
+| `AUTH_TEST_MODE`                                                                       | yes |     | `false` (the API refuses `true` in production)                                                            |
+| `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                                    |
+| `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                                        |
+| `ANTHROPIC_API_KEY`                                                                    | yes |     | required once `FEATURE_SUMMARIES` is `true` (see [Anthropic key](#anthropic-key-and-spend-limit-phase-2)) |
+| `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag                         |
+| `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                               |
+| `NEXT_PUBLIC_SENTRY_DSN`                                                               |     | yes | the `devbrief-web` project's DSN, build variable                                                          |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`                                    |     | yes | build variables for the source-map upload; without the token the upload is skipped                        |
+| `PORT`, `NODE_ENV`, `APP_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `HOSTNAME`               |     |     | set by the Dockerfiles; do not set them. The release is Coolify's `SOURCE_COMMIT` (the commit)            |
+| `API_PROXY_URL`                                                                        |     |     | leave unset: it bakes a dev rewrite into the web build                                                    |
 
 `API_INTERNAL_URL` is the public URL: see [DECISIONS.md](../DECISIONS.md).
 
@@ -105,9 +106,15 @@ To restore for real after data loss: create a new Postgres resource from the sam
 | :--- | :---------- | :---------- | :------------ | :-- |
 |      |             |             |               |     |
 
-## Spend limit (Phase 2)
+## Anthropic key and spend limit (Phase 2)
 
-Placeholder: set a monthly spend limit at the LLM provider before enabling Phase 2 summaries, to back the in-app daily caps ([§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)).
+The API refuses to start with `FEATURE_SUMMARIES=true` and no `ANTHROPIC_API_KEY`. Before turning summaries on:
+
+1. In the Anthropic Console, create an API key in a workspace used only by DevBrief, and set it as `ANTHROPIC_API_KEY` on the API application in Coolify. Never commit it.
+2. In the Console's limits for that workspace, set a monthly spend limit of $2. The in-app daily caps stop spend at $1.86 a month ([§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)); the provider limit is the backstop if they fail.
+3. After the deploy, `GET /api/v1/health` shows `llm.spentTodayUsd` against `llm.capUsd`.
+
+The caps and the per-token prices can be overridden with the `LLM_CAP_*` and `LLM_PRICE_*` variables listed in [`.env.example`](../.env.example); leave them unset in production unless the PRD changes them. Changing `LLM_MODEL` to a model without a price in `apps/api/src/modules/llm/budget.ts` also needs both price variables, or the API refuses to start.
 
 ## OAuth apps
 
