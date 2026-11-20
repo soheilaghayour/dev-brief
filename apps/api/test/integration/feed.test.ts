@@ -24,6 +24,19 @@ describe('GET /api/v1/feed', () => {
     expect(response.status).toBe(200);
     return FeedPageSchema.parse(response.body).items.map((item) => item.title);
   }
+  /** Every item of a query, read page by page through its cursors. */
+  async function pagedItems(params: Record<string, string | number>) {
+    const items: FeedPage['items'] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await getFeed({ ...params, ...(cursor ? { cursor } : {}) });
+      expect(response.status).toBe(200);
+      const page = FeedPageSchema.parse(response.body);
+      items.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return items;
+  }
 
   beforeAll(async () => {
     const hn = await createSource(prisma, 'hn', 'hn');
@@ -170,19 +183,6 @@ describe('GET /api/v1/feed', () => {
   });
 
   describe('AC-1.3.5 keyset pagination', () => {
-    async function pageThrough(sort: 'top' | 'latest') {
-      const seen: string[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await getFeed({ sort, limit: 2, ...(cursor ? { cursor } : {}) });
-        expect(response.status).toBe(200);
-        const page = FeedPageSchema.parse(response.body);
-        seen.push(...page.items.map((item) => item.id));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-      return seen;
-    }
-
     it('AC-1.3.5 pages through every story once, including ties on rankScore and publishedAt', async () => {
       const hn = await prisma.source.findUniqueOrThrow({ where: { slug: 'hn' } });
       const tieTime = hoursAgo(3);
@@ -198,7 +198,8 @@ describe('GET /api/v1/feed', () => {
         const all = FeedPageSchema.parse((await getFeed({ sort, limit: 50 })).body).items.map(
           (item) => item.id,
         );
-        expect(await pageThrough(sort)).toEqual(all);
+        const paged = await pagedItems({ sort, limit: 2 });
+        expect(paged.map((item) => item.id)).toEqual(all);
       }
       await prisma.story.deleteMany({ where: { title: { startsWith: 'Tie' } } });
     });
@@ -276,22 +277,30 @@ describe('GET /api/v1/feed', () => {
       expect(boosted.slice(4)).toEqual(['React compiler', 'Rust and React', 'Bun runtime news']);
 
       // A cursor on every row: one holding Rust borrow checker's raw 7, not 10.5, would skip three stories.
-      const paged: string[] = [];
-      let cursor: string | undefined;
-      do {
-        const response = await getFeed({
-          boostTags: 'rust',
-          limit: 1,
-          ...(cursor ? { cursor } : {}),
-        });
-        const page = FeedPageSchema.parse(response.body);
-        paged.push(...page.items.map((item) => item.title));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-      expect(paged).toEqual(boosted);
+      const paged = await pagedItems({ boostTags: 'rust', limit: 1 });
+      expect(paged.map((item) => item.title)).toEqual(boosted);
       await prisma.story.deleteMany({
         where: { title: { in: extra.map((story) => story.title) } },
       });
+    });
+
+    it('AC-2.5.2 the cursor pages followed stories whose boosted score does not divide back to their rankScore', async () => {
+      const source = await createSource(prisma, 'float-cursor', 'rss');
+      onTestFinished(() => removeSourceAndStories('float-cursor'));
+      for (const title of ['Float A', 'Float B']) {
+        await createStory(prisma, {
+          title,
+          publishedAt: hoursAgo(6),
+          // 0.7 × 1.5 / 1.5 < 0.7 in floats, so the cursor's index bound needs its slack to keep the second story.
+          rankScore: 0.7,
+          itemSourceIds: [source.id],
+        });
+      }
+      const query = { sources: 'float-cursor', boostSources: 'float-cursor' };
+      const all = await feedTitles(query);
+      expect([...all].sort()).toEqual(['Float A', 'Float B']);
+      const paged = await pagedItems({ ...query, limit: 1 });
+      expect(paged.map((item) => item.title)).toEqual(all);
     });
 
     it('AC-2.5.2 a muted tag does not hide a story with no tags', async () => {
