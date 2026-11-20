@@ -18,8 +18,8 @@ function item(id: string, overrides: Partial<RankItem> = {}): RankItem {
   };
 }
 
-function story(id: string, items: RankItem[]): RankStory {
-  return { id, publishedAt: PUBLISHED, items };
+function story(id: string, items: RankItem[], clusterId: string | null = null): RankStory {
+  return { id, publishedAt: PUBLISHED, items, clusterId };
 }
 
 describe('planRankUpdates', () => {
@@ -70,5 +70,74 @@ describe('planRankUpdates', () => {
         sourceKinds: ['hn', 'rss'],
       }),
     );
+  });
+
+  it('AC-2.1.7 counts k over the cluster, so a single-kind member carries the cluster bonus', () => {
+    const hn = item('h', { points: 5 });
+    const rss = item('r', { kind: 'rss' });
+    const plan = planRankUpdates({
+      stories: [story('a', [hn], 'c1'), story('b', [rss], 'c1')],
+      populationItems: [hn, rss],
+      clusters: [{ id: 'c1', sourceKinds: ['hn', 'rss'] }],
+      now: NOW,
+    });
+    expect(plan.stories[0]?.rankScore).toBe(
+      rankScore({ percentile: 0.5, publishedAt: PUBLISHED, now: NOW, sourceKinds: ['hn', 'rss'] }),
+    );
+    const alone = planRankUpdates({
+      stories: [story('a', [hn])],
+      populationItems: [hn, rss],
+      now: NOW,
+    });
+    expect(plan.stories[0]?.rankScore).toBeGreaterThan(alone.stories[0]?.rankScore ?? Infinity);
+  });
+
+  it('AC-2.1.7 makes the highest-scored member the representative and the cluster rank its score', () => {
+    const strong = item('strong', { points: 500 });
+    const weak = item('weak', { points: 1 });
+    const population = [
+      strong,
+      weak,
+      ...Array.from({ length: 10 }, (_, n) => item(`p${n}`, { points: n })),
+    ];
+    const stories = [story('a', [weak], 'c1'), story('b', [strong], 'c1')];
+    const clusters = [{ id: 'c1', sourceKinds: ['hn' as const] }];
+    const plan = planRankUpdates({ stories, populationItems: population, clusters, now: NOW });
+    const winner = plan.stories.find((entry) => entry.id === 'b');
+    expect(plan.clusters).toEqual([
+      { id: 'c1', representativeStoryId: 'b', rankScore: winner?.rankScore },
+    ]);
+
+    // Engagement swaps: the other member is now the stronger one.
+    const swapped = planRankUpdates({
+      stories: [story('a', [strong], 'c1'), story('b', [weak], 'c1')],
+      populationItems: population,
+      clusters,
+      now: NOW,
+    });
+    expect(swapped.clusters[0]?.representativeStoryId).toBe('a');
+  });
+
+  it('AC-2.1.7 breaks a score tie by id desc and lets an out-of-window member win', () => {
+    const tied = planRankUpdates({
+      stories: [story('a', [item('x')], 'c1'), story('b', [item('y')], 'c1')],
+      populationItems: [],
+      clusters: [{ id: 'c1', sourceKinds: ['hn'] }],
+      now: NOW,
+    });
+    expect(tied.clusters[0]?.representativeStoryId).toBe('b');
+
+    const withOutside = planRankUpdates({
+      stories: [story('a', [item('x')], 'c1')],
+      populationItems: [],
+      clusters: [{ id: 'c1', sourceKinds: ['hn'] }],
+      outsideMembers: [{ id: 'old', clusterId: 'c1', rankScore: 1e9 }],
+      now: NOW,
+    });
+    expect(withOutside.clusters[0]).toEqual({
+      id: 'c1',
+      representativeStoryId: 'old',
+      rankScore: 1e9,
+    });
   });
 });

@@ -62,3 +62,23 @@ export async function createStory(prisma: PrismaClient, options: StoryOptions) {
     },
   });
 }
+
+/** Groups existing stories into a Cluster directly (the clustering step is not under test): the representative is primary, the rest are not. */
+export async function createCluster(
+  prisma: PrismaClient,
+  options: { memberIds: string[]; representativeId: string; sourceKinds: SourceKind[] },
+) {
+  const cluster = await prisma.cluster.create({
+    data: {
+      representativeStoryId: options.representativeId,
+      memberCount: options.memberIds.length,
+      sourceKinds: options.sourceKinds,
+    },
+  });
+  await prisma.story.updateMany({
+    where: { id: { in: options.memberIds } },
+    data: { clusterId: cluster.id, isPrimary: false },
+  });
+  await prisma.story.update({ where: { id: options.representativeId }, data: { isPrimary: true } });
+  return cluster;
+}
