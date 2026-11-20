@@ -1,0 +1,199 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "catalogId": "https://devbrief.dev/a2ui/catalogs/devbrief/v1.json",
+      "dataModel": { "meta": { "subtitle": "Retrieving stories…" } }
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "components": [
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "TypeScript tooling: this week's debates",
+          "subtitle": { "@path": "/meta/subtitle" },
+          "children": []
+        }
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "updateDataModel": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "path": "/meta/subtitle",
+      "value": "Based on 14 stories · Nov 12–19 · HN, Dev.to, 3 blogs"
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "components": [
+        {
+          "id": "s0_takeaways",
+          "component": "KeyTakeaways",
+          "title": "Key takeaways",
+          "items": [
+            {
+              "text": "The native Go-based compiler preview dominated discussion; most reports cite 8–10× faster type-checks on large monorepos.",
+              "storyIds": ["cbriefts0001", "cbriefts0002"]
+            },
+            {
+              "text": "Biome vs. ESLint flat config remains split: speed wins small repos, plugin ecosystem keeps ESLint in larger ones.",
+              "storyIds": ["cbriefts0003"]
+            },
+            {
+              "text": "Several teams report dropping ts-node in favour of Node's built-in type stripping.",
+              "storyIds": ["cbriefts0004"]
+            }
+          ]
+        },
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "TypeScript tooling: this week's debates",
+          "subtitle": { "@path": "/meta/subtitle" },
+          "children": ["s0_takeaways"]
+        }
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "components": [
+        {
+          "id": "s1_story_0",
+          "component": "StoryClusterCard",
+          "storyId": "cbriefts0001",
+          "clusterId": "cbriefcl0044",
+          "title": "Native TypeScript compiler preview: what's new",
+          "url": "https://devblogs.microsoft.com/typescript/native-compiler-preview-november/",
+          "domain": "devblogs.microsoft.com",
+          "publishedAt": "2026-11-14T17:02:00Z",
+          "sources": [
+            {
+              "kind": "hn",
+              "label": "Hacker News",
+              "url": "https://news.ycombinator.com/item?id=46012873",
+              "points": 612,
+              "comments": 288,
+              "reactions": null,
+              "stars": null
+            },
+            {
+              "kind": "rss",
+              "label": "TypeScript Blog",
+              "url": "https://devblogs.microsoft.com/typescript/native-compiler-preview-november/",
+              "points": null,
+              "comments": null,
+              "reactions": null,
+              "stars": null
+            }
+          ],
+          "tags": ["typescript", "performance"],
+          "tldr": [
+            "The Go-based compiler preview now covers type-checking, emit and the language service.",
+            "Microsoft reports full builds about ten times faster on large codebases such as VS Code.",
+            "Compiler plugins and custom transformers are not supported yet; the team asks for feedback on the API."
+          ],
+          "note": "The anchor story for most of this week's threads."
+        },
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "TypeScript tooling: this week's debates",
+          "subtitle": { "@path": "/meta/subtitle" },
+          "children": ["s0_takeaways", "s1_story_0"]
+        }
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "components": [
+        {
+          "id": "s2_consensus",
+          "component": "ConsensusCallout",
+          "topic": "Adopting the native compiler now",
+          "verdict": "mixed",
+          "pros": [
+            {
+              "point": "Dramatic speedups in CI and editor responsiveness",
+              "storyIds": ["cbriefts0001"]
+            }
+          ],
+          "cons": [
+            {
+              "point": "Plugin/transformer APIs not yet at parity",
+              "storyIds": ["cbriefts0001", "cbriefts0005"]
+            }
+          ]
+        },
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "TypeScript tooling: this week's debates",
+          "subtitle": { "@path": "/meta/subtitle" },
+          "children": ["s0_takeaways", "s1_story_0", "s2_consensus"]
+        }
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "components": [
+        {
+          "id": "s3_velocity",
+          "component": "TechVelocityChart",
+          "title": "Story volume, last 7 days",
+          "window": "7d",
+          "metric": "stories",
+          "series": [
+            {
+              "tag": "typescript",
+              "label": "TypeScript",
+              "points": [
+                { "date": "2026-11-13", "value": 9 },
+                { "date": "2026-11-14", "value": 21 },
+                { "date": "2026-11-15", "value": 17 },
+                { "date": "2026-11-16", "value": 11 },
+                { "date": "2026-11-17", "value": 10 },
+                { "date": "2026-11-18", "value": 12 },
+                { "date": "2026-11-19", "value": 8 }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "s4_tags",
+          "component": "TagBadgeList",
+          "title": "Explore related",
+          "tags": [
+            { "slug": "javascript", "label": "JavaScript", "count": 48, "deltaPct": 12 },
+            { "slug": "performance", "label": "Performance", "count": 19, "deltaPct": 35 },
+            { "slug": "testing", "label": "Testing", "count": 7 }
+          ]
+        },
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "TypeScript tooling: this week's debates",
+          "subtitle": { "@path": "/meta/subtitle" },
+          "children": ["s0_takeaways", "s1_story_0", "s2_consensus", "s3_velocity", "s4_tags"]
+        }
+      ]
+    }
+  }
+]

@@ -207,6 +207,8 @@ links to them instead of restating them.
 - **`hasSummary` on a cached feed page can lag a new on-demand summary by up to 60 s.** That is the feed cache TTL ([§8.4](docs/prd.md#84-caching)), and clearing it on every on-demand summary isn't worth it.
 - **`INGEST_SCHEDULE` decides whether `AppModule.register(env)` imports `ScheduleModule`; unset it is on in production and off elsewhere.** Leaving the module out registers no cron at all (hourly ingestion and daily maintenance), where a guard inside each job would leave the scheduler running and prove less. Off by default in dev and test because developers run `ingest:once` by hand and a test app alive at :05 UTC would hit live sources; `createTestApp` and CI's e2e API force it off. `INGEST_ON_BOOT` is unchanged and independent. The daily job only touches the database, but it shares the module, and tests have no need of it.
 
+- **A2UI component ids are UAX #31 identifiers (`s0_takeaways`, `s1_story_0`, not the PRD's `s0-takeaways`), and only the `Briefing` may be `root`.** A2UI v1.0 requires component ids to follow UAX #31, which excludes hyphens ([spec](https://github.com/a2ui-project/a2ui/blob/main/specification/v1_0/docs/a2ui_protocol.md#catalog-entity-naming-rules)), and the pinned `MessageProcessor` rejects a hyphenated id. `A2uiComponentEntrySchema` enforces both rules, so an invalid entry fails on the server before it is sent ([§6.4.3](docs/prd.md#643-devbrief-a2ui-catalog-v1)).
+
 ## Open PM questions
 
 - Buying the domain (`devbrief.dev` is a placeholder): [O2](docs/prd.md#34-open-items).
