@@ -147,6 +147,9 @@ links to them instead of restating them.
 - **Source slugs in preferences are format-checked, not looked up.** A source that is later removed must not make a stored preference set invalid; the feed simply matches nothing. The format (lowercase words joined by hyphens) also keeps commas out of the comma-separated feed params.
 - **A value repeated within one preference list is stored once; only the same value in follow and mute is a 400.** A repeat has one meaning, and the table's key `(userId, kind, value)` holds it once; a conflict has none.
 - **`GET /me/preferences` is not counted against the per-user mutations limit; `PUT` is.** [§8.6](docs/prd.md#86-security-basics) limits mutations, and reads stay under the global per-IP limit like `GET /me/saves`; a client that refetches after every change would otherwise spend two mutations per toggle.
+- **`merged.preferences` counts the distinct guest `(kind, value)` pairs the account holds after the merge, whatever their mode.** It is the `merged.saves` rule: a repeated merge answers the same, and a pair the server already had counts though the server's mode was kept ([AC-2.5.3](docs/prd.md#f25-followmute)).
+- **A merge adds a guest preference only while that list in the account is under `FEED_LIST_MAX`; the rest are dropped and not counted.** Account and guest lists together can pass the cap, and a stored set over it would no longer give a valid feed URL or pass `PreferencesSchema`.
+- **The merge stores `preferences` whether or not `FEATURE_PREFERENCES` is on.** `/me/merge` is not a flagged route, and the web sends preferences only when its own flag let the guest create them.
 
 ## Open PM questions
 
