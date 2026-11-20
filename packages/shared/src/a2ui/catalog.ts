@@ -8,8 +8,18 @@ export const DynamicString = z.union([
   z.string(),
   z.object({ '@path': z.string().startsWith('/') }),
 ]);
+
+// A2UI v1.0 ids follow the ASCII subset of UAX #31 (no hyphens), and "root" is reserved for the Briefing.
+const ComponentId = z
+  .string()
+  .max(64)
+  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'A component id is an ASCII subset of a UAX #31 identifier')
+  .regex(/^(?!root$)/, 'Only the Briefing may have the id "root"');
 /** Child component ids in their static form; mirrors `CommonSchemas.ChildList`. */
-export const ChildIdList = z.array(z.string().min(1)).max(12);
+export const ChildIdList = z
+  .array(ComponentId)
+  .max(24)
+  .refine((ids) => new Set(ids).size === ids.length, 'Child ids must be unique');
 const StoryId = z.string().min(1);
 const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -103,12 +113,16 @@ export const DevBriefComponents = {
 
 export type DevBriefComponentName = keyof typeof DevBriefComponents;
 
-// A2UI v1.0 ids follow UAX #31 (no hyphens), and "root" is reserved for the Briefing.
-const ComponentId = z
-  .string()
-  .max(64)
-  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'A component id is a UAX #31 identifier')
-  .regex(/^(?!root$)/, 'Only the Briefing may have the id "root"');
+/** The component names each component may sit under; "Surface" is A2UI v1.0's name for the parent of a surface's root. */
+export const ALLOWED_PARENTS = {
+  Briefing: ['Surface'],
+  KeyTakeaways: ['Briefing'],
+  StoryClusterCard: ['Briefing'],
+  ConsensusCallout: ['Briefing'],
+  TechVelocityChart: ['Briefing'],
+  TagBadgeList: ['Briefing'],
+} satisfies Record<DevBriefComponentName, string[]>;
+
 const C = DevBriefComponents;
 
 /** A component entry in `updateComponents`: `{ id, component, ...props }`. */
@@ -122,32 +136,42 @@ export const A2uiComponentEntrySchema = z.discriminatedUnion('component', [
 ]);
 export type A2uiComponentEntry = z.infer<typeof A2uiComponentEntrySchema>;
 
-/** One A2UI v1.0 server → client envelope. */
+/** One A2UI v1.0 server → client envelope; strict like the pinned upstream envelopes. */
 export const A2uiServerMessageSchema = z.union([
-  z.object({
-    version: z.literal('1.0'),
-    createSurface: z.object({
-      surfaceId: z.string(),
-      catalogId: z.string().url(),
-      components: z.array(A2uiComponentEntrySchema).optional(),
-      dataModel: z.record(z.unknown()).optional(),
-    }),
-  }),
-  z.object({
-    version: z.literal('1.0'),
-    updateComponents: z.object({
-      surfaceId: z.string(),
-      components: z.array(A2uiComponentEntrySchema).min(1),
-    }),
-  }),
-  z.object({
-    version: z.literal('1.0'),
-    updateDataModel: z.object({
-      surfaceId: z.string(),
-      path: z.string().default('/'),
-      value: z.unknown(),
-    }),
-  }),
-  z.object({ version: z.literal('1.0'), deleteSurface: z.object({ surfaceId: z.string() }) }),
+  z
+    .object({
+      version: z.literal('1.0'),
+      createSurface: z
+        .object({
+          surfaceId: z.string(),
+          catalogId: z.literal(DEVBRIEF_CATALOG_ID),
+          components: z.array(A2uiComponentEntrySchema).min(1).optional(),
+          dataModel: z.record(z.unknown()).optional(),
+        })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      version: z.literal('1.0'),
+      updateComponents: z
+        .object({ surfaceId: z.string(), components: z.array(A2uiComponentEntrySchema).min(1) })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      version: z.literal('1.0'),
+      updateDataModel: z
+        .object({ surfaceId: z.string(), path: z.string().default('/'), value: z.unknown() })
+        .strict(),
+    })
+    .strict(),
+  z
+    .object({
+      version: z.literal('1.0'),
+      deleteSurface: z.object({ surfaceId: z.string() }).strict(),
+    })
+    .strict(),
 ]);
 export type A2uiServerMessage = z.infer<typeof A2uiServerMessageSchema>;

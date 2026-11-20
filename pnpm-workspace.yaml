@@ -23,6 +23,8 @@ overrides:
   '@prisma/config>effect': ^3.22.1
   # @a2ui/react's unused Markdown helper pins dompurify 3.4.11, which has moderate and low advisories.
   '@a2ui/markdown-it>dompurify': ^3.4.18
+  # @a2ui/markdown-it peers on web_core ^0.14; one 0.15.0 copy keeps MessageProcessor and A2uiSurface on the same signal instances.
+  '@a2ui/react>@a2ui/web_core': 0.15.0
 auditConfig:
   ignoreGhsas:
     - GHSA-mrhx-c7xc-m3w5

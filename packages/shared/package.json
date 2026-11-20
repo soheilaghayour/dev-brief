@@ -11,6 +11,7 @@
       "types": "./src/index.ts",
       "default": "./dist/index.js"
     },
+    "./a2ui/catalog.v1.json": "./src/a2ui/catalog.v1.json",
     "./a2ui/fixtures/*": "./src/a2ui/fixtures/*"
   },
   "scripts": {

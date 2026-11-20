@@ -14,6 +14,7 @@ import {
   DevBriefComponents,
   type DevBriefComponentName,
 } from '@devbrief/shared';
+import catalogDocument from '@devbrief/shared/a2ui/catalog.v1.json';
 import tsToolingBriefing from '@devbrief/shared/a2ui/fixtures/tsToolingBriefing.json';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -51,6 +52,10 @@ let container: HTMLDivElement | undefined;
 afterEach(() => container?.remove());
 
 describe('the pinned A2UI renderer', () => {
+  it('loads the generated catalog document through Catalog.fromJson', () => {
+    expect(Catalog.fromJson(catalogDocument).id).toBe(DEVBRIEF_CATALOG_ID);
+  });
+
   it('processes the shared tsToolingBriefing fixture and renders every component', async () => {
     const messages = A2uiServerMessageSchema.array().parse(tsToolingBriefing);
     const processor = new MessageProcessor<ReactCatalogComponent>([stubCatalog]);

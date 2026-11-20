@@ -184,6 +184,7 @@ overrides:
   better-call>zod: ^4.5.4
   '@prisma/config>effect': ^3.22.1
   '@a2ui/markdown-it>dompurify': ^3.4.18
+  '@a2ui/react>@a2ui/web_core': 0.15.0
 
 importers:
 

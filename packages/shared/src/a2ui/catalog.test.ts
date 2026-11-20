@@ -54,9 +54,19 @@ describe('A2uiComponentEntrySchema', () => {
 describe('ChildIdList', () => {
   const ids = (count: number) => Array.from({ length: count }, (_, index) => `s${index}_tags`);
 
-  it('accepts 12 children and rejects 13', () => {
-    expect(ChildIdList.safeParse(ids(12)).success).toBe(true);
-    expect(ChildIdList.safeParse(ids(13)).success).toBe(false);
+  it('accepts 24 children and rejects 25', () => {
+    expect(ChildIdList.safeParse(ids(24)).success).toBe(true);
+    expect(ChildIdList.safeParse(ids(25)).success).toBe(false);
+  });
+});
+
+describe('ChildIdList ids', () => {
+  it.each([
+    ['root', ['root']],
+    ['a hyphenated id', ['s0-takeaways']],
+    ['a duplicate id', ['s0_tags', 's0_tags']],
+  ])('rejects %s', (_label, children) => {
+    expect(ChildIdList.safeParse(children).success).toBe(false);
   });
 });
 
@@ -101,6 +111,31 @@ describe('A2uiServerMessageSchema', () => {
     expect(A2uiServerMessageSchema.safeParse(update).success).toBe(false);
     expect(A2uiServerMessageSchema.safeParse({ version: '0.9', ...update }).success).toBe(false);
     expect(A2uiServerMessageSchema.safeParse({ version: 'v1.0', ...update }).success).toBe(false);
+  });
+
+  it('rejects a catalogId other than the DevBrief catalog', () => {
+    const foreign = {
+      version: '1.0',
+      createSurface: { surfaceId, catalogId: 'https://example.com/other.json' },
+    };
+    expect(A2uiServerMessageSchema.safeParse(foreign).success).toBe(false);
+  });
+
+  it('rejects a createSurface with an empty components list', () => {
+    const empty = {
+      version: '1.0',
+      createSurface: { surfaceId, catalogId: DEVBRIEF_CATALOG_ID, components: [] },
+    };
+    expect(A2uiServerMessageSchema.safeParse(empty).success).toBe(false);
+  });
+
+  it('rejects an unknown key on an envelope or its body', () => {
+    const deleted = { version: '1.0', deleteSurface: { surfaceId } };
+    expect(A2uiServerMessageSchema.safeParse({ ...deleted, extra: 1 }).success).toBe(false);
+    expect(
+      A2uiServerMessageSchema.safeParse({ ...deleted, deleteSurface: { surfaceId, extra: 1 } })
+        .success,
+    ).toBe(false);
   });
 
   it('parses every message of the tsToolingBriefing fixture', () => {

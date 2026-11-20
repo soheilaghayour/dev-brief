@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { A2uiServerMessageSchema } from '../a2ui/catalog.js';
+import { EXAMPLE_QUESTIONS, type ExampleQuestion } from '../a2ui/exampleQuestions.js';
 import { ApiErrorCodeSchema } from './error.js';
 
 export const CopilotAskRequestSchema = z.object({
@@ -40,19 +41,16 @@ export const CopilotDoneEventSchema = z.object({
 });
 export type CopilotDoneEvent = z.infer<typeof CopilotDoneEventSchema>;
 
-/** The `data` schema of each SSE `event:` name on `POST /copilot/ask`. */
-export const COPILOT_EVENT_SCHEMAS = {
-  meta: CopilotMetaEventSchema,
-  a2ui: A2uiServerMessageSchema,
-  error: CopilotErrorEventSchema,
-  done: CopilotDoneEventSchema,
-} as const;
-export type CopilotEventName = keyof typeof COPILOT_EVENT_SCHEMAS;
+type ExampleSlug = ExampleQuestion['slug'];
+const EXAMPLE_SLUGS = EXAMPLE_QUESTIONS.map((example) => example.slug) as [
+  ExampleSlug,
+  ...ExampleSlug[],
+];
 
 export const ExampleBriefingListSchema = z.object({
   items: z.array(
     z.object({
-      slug: z.string(),
+      slug: z.enum(EXAMPLE_SLUGS),
       question: z.string(),
       messages: z.array(A2uiServerMessageSchema),
     }),
