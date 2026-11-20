@@ -21,7 +21,8 @@ function announceSave(outcome: ToggleOutcome) {
 }
 
 function toggle(storyId: string) {
-  announceSave(toggleGuestSave(storyId, new Date()));
+  // `now` is taken at click time; the write itself waits for the stored saves to load.
+  void toggleGuestSave(storyId, new Date()).then(announceSave);
 }
 
 /** Saves kept on this device, for a visitor who is not signed in. */

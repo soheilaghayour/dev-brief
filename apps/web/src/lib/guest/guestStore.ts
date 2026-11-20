@@ -10,7 +10,6 @@ import {
   toggleSave,
   type GuestData,
 } from './guestState';
-import { mergeStoredGuest, migrateGuestData } from './guestParser';
 import { browserLocalStorage, createGuestStorage } from './guestStorage';
 
 export const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
@@ -35,7 +34,7 @@ const flatStorage: PersistStorage<GuestData> = {
       guestStorage.useMemoryOnly();
       return null;
     }
-    // Not yet trusted: `migrate` and `merge` parse the value before it reaches the store.
+    // Not yet trusted: the parser's `migrate` and `merge` parse the value before it reaches the store.
     return stored && { state: stored.state as GuestData, version: stored.version };
   },
   setItem: (key, value) => {
@@ -89,9 +88,7 @@ export const useGuestStore = create<GuestStore>()(
         hintDismissed,
         pendingMerge,
       }),
-      // `merge` fills the fields the migration left out, so the partial value is safe here.
-      migrate: (stored, version) => migrateGuestData(stored, version) as GuestData,
-      merge: (stored, current) => ({ ...current, ...mergeStoredGuest(stored, current) }),
+      // `migrate` and `merge` (the Zod parser) are set by hydrateGuestStore once it has loaded.
     },
   ),
 );

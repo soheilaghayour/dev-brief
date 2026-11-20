@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { mergeSaves } from '@/lib/api/endpoints';
 import { useMe } from '@/lib/auth/useMe';
 import { guestMergeResult, planGuestMerge } from '@/lib/guest/guestMerge';
 import { latestGuestData, removeGuestSaves, setGuestPendingMerge } from '@/lib/guest/guestSaves';
@@ -13,15 +12,16 @@ import { notify } from './notify';
 let mergeInFlight: Promise<void> | null = null;
 
 async function mergeGuestSaves(queryClient: QueryClient) {
-  const plan = planGuestMerge(latestGuestData());
+  const plan = planGuestMerge(await latestGuestData());
   if (plan.action === 'none') return;
   if (plan.action === 'clearPending') {
-    setGuestPendingMerge(false);
+    await setGuestPendingMerge(false);
     return;
   }
-  setGuestPendingMerge(true);
+  await setGuestPendingMerge(true);
   let response;
   try {
+    const { mergeSaves } = await import('@/lib/api/endpoints');
     response = await mergeSaves(plan.request);
   } catch {
     // Local saves and the pending flag stay, so the next load tries again.
@@ -29,8 +29,8 @@ async function mergeGuestSaves(queryClient: QueryClient) {
   }
   // Only now that the server confirmed does the device let go of the saves.
   const result = guestMergeResult(plan.request, response);
-  removeGuestSaves(result.confirmedStoryIds);
-  setGuestPendingMerge(false);
+  await removeGuestSaves(result.confirmedStoryIds);
+  await setGuestPendingMerge(false);
   await queryClient.invalidateQueries({ queryKey: ['saves'] });
   if (result.notice) void notify(result.notice);
 }

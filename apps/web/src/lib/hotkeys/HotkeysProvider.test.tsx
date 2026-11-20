@@ -5,8 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HotkeysProvider, useShortcut } from './HotkeysProvider';
 import type { Shortcut } from './shortcutRules';
 
-vi.mock('next/dynamic', () => ({ default: () => () => null }));
-
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const SAVE = { id: 'save', keys: 's', description: 'Save', scope: 'Test' } satisfies Shortcut;
@@ -48,8 +46,9 @@ async function mount() {
   unmount = () => act(() => root.unmount());
   // The key bindings load lazily, after the first render.
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await import('./ShortcutBindings');
   });
+  await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
   return { onSave, onGoToSaved };
 }
 

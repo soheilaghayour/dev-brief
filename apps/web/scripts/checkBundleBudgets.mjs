@@ -2,14 +2,26 @@
 // Run after `next build`: pnpm --filter web size
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { findOverBudget, measureRoute } from './bundleSize.mjs';
+import {
+  findOverBudget,
+  MANIFEST_CHECK,
+  manifestMatchesHtml,
+  measureRoute,
+} from './bundleSize.mjs';
 
 const webDir = fileURLToPath(new URL('..', import.meta.url));
 const budgets = JSON.parse(readFileSync(`${webDir}bundle-budgets.json`, 'utf8'));
 
+const nextDir = `${webDir}.next`;
+// /feed and /story/[id] are measured from the build manifests, /saved from its HTML: the two methods must agree on /saved.
+if (!manifestMatchesHtml(nextDir, MANIFEST_CHECK.routeDir, MANIFEST_CHECK.htmlFile)) {
+  console.error('The manifest rule no longer matches the HTML; update dynamicRouteScripts.');
+  process.exit(1);
+}
+
 const sizes = {};
 for (const route of Object.keys(budgets)) {
-  sizes[route] = measureRoute(`${webDir}.next`, route);
+  sizes[route] = measureRoute(nextDir, route);
   console.log(
     `${route.padEnd(14)} ${sizes[route].toFixed(1).padStart(6)} KB / ${budgets[route]} KB`,
   );

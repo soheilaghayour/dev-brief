@@ -12,7 +12,7 @@ export function scriptPathsInHtml(html) {
   const paths = [];
   for (const [, attributes] of html.matchAll(/<script\b([^>]*)>/g)) {
     if (/\bnomodule\b/i.test(attributes)) continue;
-    const src = attributes.match(/\bsrc="\/_next\/([^"?]+)/);
+    const src = attributes.match(/\bsrc="[^"]*?\/_next\/([^"?]+)/);
     if (src) paths.push(src[1]);
   }
   return [...new Set(paths)];
@@ -36,7 +36,7 @@ export function findOverBudget(sizes, budgets) {
 // Prerendered routes have their HTML on disk; server-rendered ones need the build manifests,
 // which list what Next puts in the HTML: the root main files, the page entry, and the error
 // boundaries every app HTML preloads.
-function dynamicRouteScripts(nextDir, routeDir) {
+export function dynamicRouteScripts(nextDir, routeDir) {
   const buildManifest = JSON.parse(readFileSync(join(nextDir, 'build-manifest.json'), 'utf8'));
   globalThis.__RSC_MANIFEST = {};
   require(join(nextDir, 'server/app', routeDir, 'page_client-reference-manifest.js'));
@@ -52,6 +52,15 @@ function dynamicRouteScripts(nextDir, routeDir) {
   ];
 }
 
+/** Whether the manifest rule lists the same scripts as the prerendered HTML of a route in the same route group. */
+export function manifestMatchesHtml(nextDir, routeDir, htmlFile) {
+  const fromManifest = new Set(dynamicRouteScripts(nextDir, routeDir));
+  const fromHtml = new Set(
+    scriptPathsInHtml(readFileSync(join(nextDir, 'server/app', htmlFile), 'utf8')),
+  );
+  return fromManifest.size === fromHtml.size && [...fromHtml].every((p) => fromManifest.has(p));
+}
+
 /** Where each gated route lives in `.next/server/app`: a prerendered HTML file or a route directory. */
 const ROUTE_SOURCES = {
   '/': { html: 'index.html' },
@@ -60,14 +69,22 @@ const ROUTE_SOURCES = {
   '/story/[id]': { dir: '(app)/story/[id]' },
 };
 
-export function measureRoute(nextDir, route) {
+/** `/saved` is prerendered in the (app) group, so its HTML shows what the manifest rule must reproduce for `/feed` and `/story/[id]`. */
+export const MANIFEST_CHECK = { routeDir: '(app)/saved', htmlFile: 'saved.html' };
+
+function scriptsOf(nextDir, route) {
   const source = ROUTE_SOURCES[route];
   if (!source) throw new Error(`No build output known for route ${route}`);
-  if (source.html) {
-    const file = join(nextDir, 'server/app', source.html);
-    if (!existsSync(file))
-      throw new Error(`${route} is no longer prerendered; update ROUTE_SOURCES`);
-    return gzipKb(nextDir, scriptPathsInHtml(readFileSync(file, 'utf8')));
-  }
-  return gzipKb(nextDir, dynamicRouteScripts(nextDir, source.dir));
+  if (!source.html) return dynamicRouteScripts(nextDir, source.dir);
+  const file = join(nextDir, 'server/app', source.html);
+  if (!existsSync(file)) throw new Error(`${route} is no longer prerendered; update ROUTE_SOURCES`);
+  return scriptPathsInHtml(readFileSync(file, 'utf8'));
+}
+
+export function measureRoute(nextDir, route) {
+  const scripts = scriptsOf(nextDir, route);
+  // A pattern that matches nothing would otherwise measure 0 KB and pass forever.
+  if (scripts.length === 0)
+    throw new Error(`${route}: no scripts found; the measurement is broken`);
+  return gzipKb(nextDir, scripts);
 }

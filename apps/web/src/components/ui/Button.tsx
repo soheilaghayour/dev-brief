@@ -44,7 +44,7 @@ function Button({ className, variant, size, asChild = false, children, ...props 
       ...props,
       'data-slot': 'button',
       className: cn(classes, children.props.className),
-    } as object);
+    } as Partial<typeof children.props>);
   }
   return (
     <button data-slot="button" className={classes} {...props}>

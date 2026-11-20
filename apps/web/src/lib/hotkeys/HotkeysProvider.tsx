@@ -3,8 +3,6 @@
 import dynamic from 'next/dynamic';
 import {
   createContext,
-  lazy,
-  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -18,8 +16,9 @@ import { isSequenceLeader, SEQUENCE_TIMEOUT_MS, type Shortcut } from './shortcut
 import type { ShortcutBinding } from './ShortcutBindings';
 
 // react-hotkeys-hook is fetched after hydration: keys are only pressed once the page is up.
-const ShortcutBindings = lazy(() =>
-  import('./ShortcutBindings').then((module) => ({ default: module.ShortcutBindings })),
+const ShortcutBindings = dynamic(
+  () => import('./ShortcutBindings').then((module) => module.ShortcutBindings),
+  { ssr: false },
 );
 
 // The dialog (and Radix Dialog with it) is only fetched the first time it is opened.
@@ -43,6 +42,7 @@ export function HotkeysProvider({ children }: { children: ReactNode }) {
   const [isHelpOpen, setHelpOpen] = useState(false);
   const [hasOpenedHelp, setHasOpenedHelp] = useState(false);
 
+  // One live handler per shortcut id: a later registration replaces the earlier one.
   const register = useCallback((shortcut: Shortcut, handlerRef: ShortcutBinding['handlerRef']) => {
     setBindings((current) => [
       ...current.filter((binding) => binding.shortcut.id !== shortcut.id),
@@ -58,8 +58,6 @@ export function HotkeysProvider({ children }: { children: ReactNode }) {
 
   const help = useMemo(() => ({ isOpen: isHelpOpen, setOpen }), [isHelpOpen, setOpen]);
   const leaderPending = useRef(false);
-  const [isMounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     let leaderAt: number | null = null;
@@ -78,11 +76,7 @@ export function HotkeysProvider({ children }: { children: ReactNode }) {
         <HelpContext value={help}>
           <LeaderPendingContext value={leaderPending}>
             <GlobalShortcuts />
-            {isMounted && (
-              <Suspense fallback={null}>
-                <ShortcutBindings bindings={bindings} leaderPending={leaderPending} />
-              </Suspense>
-            )}
+            <ShortcutBindings bindings={bindings} leaderPending={leaderPending} />
             {children}
             {hasOpenedHelp && <ShortcutsHelpDialog />}
           </LeaderPendingContext>
