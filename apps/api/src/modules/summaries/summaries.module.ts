@@ -4,6 +4,7 @@ import { HttpClient } from '../../common/http/httpClient.js';
 import { IngestionModule } from '../ingestion/ingestion.module.js';
 import { LlmModule } from '../llm/llm.module.js';
 import { AutoSummariesStep } from './autoSummaries.step.js';
+import { OnDemandSummaryService } from './onDemandSummary.service.js';
 import { SummariesController } from './summaries.controller.js';
 import { SummariesService } from './summaries.service.js';
 import { SummaryInputsService } from './summaryInputs.service.js';
@@ -16,6 +17,7 @@ import { SummaryInputsService } from './summaryInputs.service.js';
     { provide: HttpClient, useFactory: () => new HttpClient() },
     SummaryInputsService,
     SummariesService,
+    OnDemandSummaryService,
     AutoSummariesStep,
   ],
   exports: [SummariesService],

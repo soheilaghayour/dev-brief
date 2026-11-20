@@ -65,6 +65,10 @@ export class ApiErrorFilter implements ExceptionFilter {
     const body: ApiError = { error: { ...detail, requestId } };
     // A handler may have set a public Cache-Control before it threw; an error must never be cached.
     response.setHeader('Cache-Control', PRIVATE_NO_STORE);
+    if (detail.code === 'QUOTA_EXCEEDED' && detail.resetsAt) {
+      const seconds = Math.ceil((Date.parse(detail.resetsAt) - Date.now()) / 1000);
+      response.setHeader('Retry-After', String(Math.max(0, seconds)));
+    }
     response.status(API_ERROR_STATUS[detail.code]).json(body);
   }
 }

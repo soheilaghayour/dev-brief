@@ -2,12 +2,12 @@ import { Global, Module } from '@nestjs/common';
 import { ENV } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { AUTH } from './auth.constants.js';
-import { AuthGuard } from './auth.guard.js';
+import { AuthGuard, OptionalAuthGuard } from './auth.guard.js';
 import { createAuth } from './auth.js';
 import { MeController } from './me.controller.js';
 import { MeService } from './me.service.js';
 
-/** Provides the Better Auth instance, the AuthGuard and the /me endpoints. */
+/** Provides the Better Auth instance, the AuthGuards and the /me endpoints. */
 @Global()
 @Module({
   controllers: [MeController],
@@ -18,8 +18,9 @@ import { MeService } from './me.service.js';
       useFactory: createAuth,
     },
     AuthGuard,
+    OptionalAuthGuard,
     MeService,
   ],
-  exports: [AUTH, AuthGuard],
+  exports: [AUTH, AuthGuard, OptionalAuthGuard],
 })
 export class AuthModule {}
