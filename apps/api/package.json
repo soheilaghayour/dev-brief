@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "dotenv -e ../../.env -e ../../.env.example -- nest start --watch",
+    "dev": "dotenv -e ../../.env -e ../../.env.example -- nest start --watch --exec \"node --watch-preserve-output --watch-path=../../packages/shared/dist\"",
     "build": "pnpm db:generate && nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",

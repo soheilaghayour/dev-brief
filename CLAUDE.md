@@ -34,7 +34,7 @@ changed script updates this list in the same commit.
 
 ```
 docker compose up -d                                     # local Postgres (dev and integration tests need it)
-pnpm dev                                                 # web + api in watch mode
+pnpm dev                                                 # shared + web + api in watch mode
 pnpm test                                                # Vitest: unit + API integration against real Postgres
 pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
 pnpm --filter web size                                   # after build: first-load JS per route against apps/web/bundle-budgets.json
