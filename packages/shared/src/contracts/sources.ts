@@ -1,5 +1,12 @@
 import { z } from 'zod';
+import { FEED_SOURCE_SLUG_MAX } from './feedLimits.js';
 import { SourceKindSchema } from './story.js';
+
+/** A source slug checked by format only, so a source removed later never invalidates stored preferences. */
+export const SourceSlugSchema = z
+  .string()
+  .max(FEED_SOURCE_SLUG_MAX)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A source slug is lowercase words joined by hyphens');
 
 export const SourceStatusSchema = z.enum(['healthy', 'stale', 'circuit_open']);
 export type SourceStatus = z.infer<typeof SourceStatusSchema>;

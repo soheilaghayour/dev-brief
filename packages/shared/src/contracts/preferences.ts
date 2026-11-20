@@ -1,12 +1,7 @@
 import { z } from 'zod';
-import { FEED_LIST_MAX, FEED_SOURCE_SLUG_MAX } from './feedLimits.js';
+import { FEED_LIST_MAX } from './feedLimits.js';
+import { SourceSlugSchema } from './sources.js';
 import { TagSlugSchema } from './story.js';
-
-/** A source slug by format only, so a source removed later never invalidates a stored set. */
-export const SourceSlugSchema = z
-  .string()
-  .max(FEED_SOURCE_SLUG_MAX)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'A source slug is lowercase words joined by hyphens');
 
 // Capped like the feed params they become, so a valid set always gives a valid feed URL.
 const PreferenceListsSchema = z.object({
