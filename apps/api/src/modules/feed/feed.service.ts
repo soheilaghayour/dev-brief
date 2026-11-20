@@ -51,6 +51,13 @@ export class FeedService {
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
   private selectPage(query: FeedQuery, keyset: Keyset | undefined) {
     const { exclusions, boost } = personalisation(query);
+    // A boosted Top page reads the matching stories up to three times, so a source filter is resolved once, up front.
+    const sourceStories =
+      query.sort === 'top' && boost && query.sources?.length
+        ? Prisma.sql`"sourceStories" AS MATERIALIZED (
+            SELECT DISTINCT si."storyId" FROM "SourceItem" si JOIN "Source" src ON src."id" = si."sourceId"
+            WHERE src."slug" = ANY(${query.sources}::text[]))`
+        : undefined;
     const filters = [
       ...(query.sort === 'top'
         ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
@@ -59,9 +66,11 @@ export class FeedService {
       ...(query.kinds?.length
         ? [sourceExists(Prisma.sql`src."kind"::text = ANY(${query.kinds}::text[])`)]
         : []),
-      ...(query.sources?.length
-        ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
-        : []),
+      ...(sourceStories
+        ? [Prisma.sql`s."id" IN (SELECT "storyId" FROM "sourceStories")`]
+        : query.sources?.length
+          ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
+          : []),
       ...(query.q
         ? [Prisma.sql`s."searchVector" @@ websearch_to_tsquery('english', ${query.q})`]
         : []),
@@ -71,7 +80,7 @@ export class FeedService {
     const pageQuery =
       query.sort === 'latest'
         ? latestPage(filters, keyset, limit)
-        : topPage(filters, boost, keyset, limit);
+        : topPage(filters, boost, sourceStories, keyset, limit);
     return this.prisma.$queryRaw<PageRow[]>(pageQuery);
   }
 
@@ -137,29 +146,59 @@ function latestPage(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: nu
 function topPage(
   filters: Prisma.Sql[],
   boost: Prisma.Sql | undefined,
+  sourceStories: Prisma.Sql | undefined,
   keyset: Keyset | undefined,
   limit: number,
 ) {
   if (!boost) return topStream(filters, 1, keyset, limit);
   const floor = Prisma.sql`(SELECT "rankScore" FROM "pageFloor")`;
+  // When fewer than a page match, the first rows are every match and the streams stay unread: they would
+  // scan the whole index for a floor of -infinity.
+  const matches = Prisma.sql`(SELECT "matches" FROM "pageFloor")`;
+  const enoughMatches = Prisma.sql`${matches} >= ${limit}`;
   // IS NOT TRUE is the exact complement of WHERE boost, so the streams split the stories even where the boost is NULL.
   const unboosted = Prisma.sql`${boost} IS NOT TRUE`;
   return Prisma.sql`
-    WITH "pageFloor" AS (${pageFloor(filters, keyset, limit)})
-    (${topStream([...filters, boost], FOLLOW_BOOST, keyset, limit, floor)})
+    WITH ${Prisma.join(
+      [
+        ...(sourceStories ? [sourceStories] : []),
+        Prisma.sql`"firstRows" AS MATERIALIZED (${firstRows(filters, boost, keyset, limit)})`,
+        Prisma.sql`"pageFloor" AS (SELECT count(*) AS "matches", min("rankScore") AS "rankScore" FROM "firstRows")`,
+      ],
+      ', ',
+    )}
+    (${topStream([...filters, boost, enoughMatches], FOLLOW_BOOST, keyset, limit, floor)})
     UNION ALL
-    (${topStream([...filters, unboosted], 1, keyset, limit, floor)})
+    (${topStream([...filters, unboosted, enoughMatches], 1, keyset, limit, floor)})
+    UNION ALL
+    (SELECT "id", "publishedAt", CASE WHEN "boosted" THEN "rankScore" * ${FOLLOW_BOOST}::double precision ELSE "rankScore" END
+      FROM "firstRows" WHERE ${matches} < ${limit})
     ORDER BY "sortScore" DESC, "id" DESC LIMIT ${limit}`;
 }
 
-/** The lowest score a boosted page can reach: the `limit`-th rankScore after the cursor even when boosted, or -infinity. */
-function pageFloor(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: number) {
-  // Each of these stories comes after the cursor and scores at least its rankScore, so `limit` stories reach the floor.
-  const after = keyset ? topKeyset(FOLLOW_BOOST, keyset) : [];
+/**
+ * The first `limit` stories after the cursor, by their own boosted or plain score, in index order. Each
+ * scores at least its rankScore, so the lowest rankScore among them is the page floor: no story below it
+ * can make the page. Fewer than `limit` rows means these are all the matching stories.
+ */
+function firstRows(
+  filters: Prisma.Sql[],
+  boost: Prisma.Sql,
+  keyset: Keyset | undefined,
+  limit: number,
+) {
+  const after = keyset
+    ? [
+        Prisma.sql`s."rankScore" <= ${keyset.sortKey}::double precision`,
+        Prisma.sql`CASE WHEN ${boost}
+          THEN (${scoreSql(FOLLOW_BOOST)}, s."id") < (${keyset.sortKey}::double precision, ${keyset.id})
+          ELSE (s."rankScore", s."id") < (${keyset.sortKey}::double precision, ${keyset.id}) END`,
+      ]
+    : [];
   return Prisma.sql`
-    SELECT CASE WHEN count(*) < ${limit} THEN '-infinity' ELSE min(p."rankScore") END AS "rankScore"
-    FROM (SELECT s."rankScore" FROM "Story" s ${whereClause([...filters, ...after])}
-      ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}) p`;
+    SELECT s."id", s."publishedAt", s."rankScore", (${boost}) IS TRUE AS "boosted" FROM "Story" s
+    ${whereClause([...filters, ...after])}
+    ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}`;
 }
 
 /** The first `limit` stories scored rankScore × `factor` after the keyset, down to the floor, in index order. */
