@@ -12,11 +12,12 @@ import { useTestDatabase } from './testDatabase.js';
 const STORY_COUNT = 40_000;
 const SAMPLES = 60;
 // Set FEED_BENCH_EXPLAIN=1 to print each shape's EXPLAIN (ANALYZE, BUFFERS) plan.
-const PRINT_PLANS = process.env.FEED_BENCH_EXPLAIN !== '0';
+const PRINT_PLANS = process.env.FEED_BENCH_EXPLAIN === '1';
 
-describe('feed benchmark (reported, not a gate)', () => {
+describe('feed benchmark at 40k stories', () => {
   const prisma = useTestDatabase();
   let app: INestApplication;
+  let shapes: Record<string, Record<string, string>>;
 
   beforeAll(async () => {
     const source = await createSource(prisma, 'bench', 'hn');
@@ -48,6 +49,21 @@ describe('feed benchmark (reported, not a gate)', () => {
     // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
     await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source"`;
     app = await createTestApp();
+    const boosts = { boostTags: 'rust,go', boostSources: 'hn' };
+    const firstBoostedPage = await getFeed(boosts);
+    shapes = {
+      'top + tags': { tags: 'react' },
+      'search (q)': { q: 'bun story' },
+      'latest + tags': { sort: 'latest', tags: 'rust' },
+      'top + boost': boosts,
+      'top + boost + mute': { ...boosts, excludeTags: 'python' },
+      'top + boost, cursor page': {
+        ...boosts,
+        cursor: FeedPageSchema.parse(firstBoostedPage.body).nextCursor ?? '',
+      },
+      'top + boostSources (1 in 10 match)': { boostSources: 'bench-minor' },
+      'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
+    };
   }, 120_000);
 
   afterAll(() => app.close());
@@ -73,23 +89,8 @@ describe('feed benchmark (reported, not a gate)', () => {
     return plan.map((row) => row['QUERY PLAN']).join('\n');
   }
 
-  it('prints the feed p95 server time per query shape at 40k stories', async () => {
+  it('prints the feed p95 server time per query shape (reported, not a gate)', async () => {
     const cache = app.get(LruCache);
-    const boosts = { boostTags: 'rust,go', boostSources: 'hn' };
-    const firstBoostedPage = await getFeed(boosts);
-    const shapes = {
-      'top + tags': { tags: 'react' },
-      'search (q)': { q: 'bun story' },
-      'latest + tags': { sort: 'latest', tags: 'rust' },
-      'top + boost': boosts,
-      'top + boost + mute': { ...boosts, excludeTags: 'python' },
-      'top + boost, cursor page': {
-        ...boosts,
-        cursor: FeedPageSchema.parse(firstBoostedPage.body).nextCursor ?? '',
-      },
-      'top + boostSources (1 in 10 match)': { boostSources: 'bench-minor' },
-      'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
-    };
     for (const [name, query] of Object.entries(shapes)) {
       const durations: number[] = [];
       for (let sample = 0; sample < SAMPLES; sample += 1) {
@@ -104,7 +105,15 @@ describe('feed benchmark (reported, not a gate)', () => {
       console.info(
         `feed p95 (${name}) at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`,
       );
-      if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${await explainFeedQuery(query)}`);
     }
   }, 240_000);
+
+  // A boosted sort over the whole window seq-scans Story, and its cost estimate turns on JIT compilation.
+  it('reads every query shape through an index, without JIT', async () => {
+    for (const [name, query] of Object.entries(shapes)) {
+      const plan = await explainFeedQuery(query);
+      if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${plan}`);
+      expect(plan, name).not.toMatch(/Seq Scan on "Story"|JIT:/);
+    }
+  });
 });
