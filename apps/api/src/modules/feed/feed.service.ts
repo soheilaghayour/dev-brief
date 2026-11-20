@@ -102,7 +102,8 @@ function sourceExists(sourceCondition: Prisma.Sql) {
 function personalisation(query: FeedQuery) {
   const { excludeTags, excludeSources, boostTags, boostSources } = query;
   const exclusions = [
-    ...(excludeTags?.length ? [Prisma.sql`NOT (s."tags" && ${excludeTags}::text[])`] : []),
+    // IS NOT TRUE, not NOT: a story with NULL tags matches no tag, so no tag mute hides it.
+    ...(excludeTags?.length ? [Prisma.sql`(s."tags" && ${excludeTags}::text[]) IS NOT TRUE`] : []),
     // A muted source hides a story only when every one of its sources is muted.
     ...(excludeSources?.length
       ? [sourceExists(Prisma.sql`src."slug" <> ALL(${excludeSources}::text[])`)]

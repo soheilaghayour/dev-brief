@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { ApiErrorSchema, FeedPageSchema, type FeedPage } from '@devbrief/shared';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
 import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { createTestApp } from './createTestApp.js';
@@ -216,6 +216,12 @@ describe('GET /api/v1/feed', () => {
   });
 
   describe('AC-2.5.2 personalisation params', () => {
+    // Runs even when the test fails, so a failure doesn't leak stories into the shared seed.
+    async function removeSourceAndStories(slug: string) {
+      await prisma.story.deleteMany({ where: { items: { some: { source: { slug } } } } });
+      await prisma.source.delete({ where: { slug } });
+    }
+
     it('AC-2.5.2 excludeTags hides every story carrying a muted tag, in Top and Latest', async () => {
       const blog = await prisma.source.findUniqueOrThrow({ where: { slug: 'blog' } });
       await createStory(prisma, {
@@ -286,6 +292,27 @@ describe('GET /api/v1/feed', () => {
       await prisma.story.deleteMany({
         where: { title: { in: extra.map((story) => story.title) } },
       });
+    });
+
+    it('AC-2.5.2 a muted tag does not hide a story with no tags', async () => {
+      const source = await createSource(prisma, 'untagged', 'rss');
+      onTestFinished(() => removeSourceAndStories('untagged'));
+      const story = await createStory(prisma, {
+        title: 'Untagged story',
+        publishedAt: hoursAgo(6),
+        rankScore: 2,
+        itemSourceIds: [source.id],
+      });
+      // Prisma writes an empty list, but the column is nullable, and NULL tags match no tag.
+      await prisma.$executeRaw`UPDATE "Story" SET "tags" = NULL WHERE "id" = ${story.id}`;
+      const queries: Record<string, string>[] = [
+        { sort: 'top', excludeTags: 'python' },
+        { sort: 'latest', excludeTags: 'python' },
+        { sort: 'top', excludeTags: 'python', boostTags: 'rust' },
+      ];
+      for (const query of queries) {
+        expect(await feedTitles({ ...query, sources: 'untagged' })).toEqual(['Untagged story']);
+      }
     });
 
     it('AC-2.5.2 a story matching a followed tag and a followed source is boosted once, not twice', async () => {
