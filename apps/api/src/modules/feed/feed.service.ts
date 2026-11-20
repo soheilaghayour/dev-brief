@@ -65,11 +65,11 @@ export class FeedService {
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
   private async selectPage(query: FeedQuery, keyset: Keyset | undefined) {
     const { exclusions, boost } = personalisation(query);
-    // A boosted Top page reads the matches up to three times; a small source is better a list of ids than an EXISTS probe.
-    const sourceStoryIds =
-      query.sort === 'top' && boost && query.sources?.length
-        ? await this.smallSourceStoryIds(query.sources)
-        : undefined;
+    // A small source is better a list of ids than an EXISTS probe: the planner can't size the subquery, and without
+    // the list it walks the whole rankScore (Top) or publishedAt (Latest) index looking for the few matches.
+    const sourceStoryIds = query.sources?.length
+      ? await this.smallSourceStoryIds(query.sources)
+      : undefined;
     const filters = [
       ...(query.sort === 'top'
         ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
