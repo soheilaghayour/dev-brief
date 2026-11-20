@@ -102,7 +102,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @devbrief/shared --filter web build
       - run: pnpm exec lhci autorun --config=lighthouserc.json
-      # Calibrates the CPU multiplier in lighthouserc.json to the runner (DECISIONS.md).
+      # Printed only to diagnose a result: the CPU multiplier stays fixed (DECISIONS.md).
       - name: Runner benchmark index
         if: always()
         run: jq '.environment.benchmarkIndex' .lighthouseci/lhr-*.json
