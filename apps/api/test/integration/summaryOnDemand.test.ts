@@ -57,7 +57,7 @@ describe('on-demand summaries', () => {
     const model = mockLanguageModel(doGenerate);
     app = await createTestApp(
       [],
-      { ...SUMMARIES_ON, ...envOverrides },
+      { ...SUMMARIES_ON, AUTH_TEST_MODE: 'true', ...envOverrides },
       {
         languageModel: model,
         upstreamFetch: summaryFixtureFetch({ hnFallbackId: RECORDED_THREAD_ID, failing }).fetch,
