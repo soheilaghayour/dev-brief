@@ -52,6 +52,7 @@ function toRawItem(article: DevtoArticle): RawItem {
     points: null,
     commentsCount: article.comments_count,
     reactionsCount: article.public_reactions_count,
+    stars: null,
     sourceTags: article.tag_list,
     excerpt: article.description ? toPlainText(article.description, EXCERPT_MAX_LENGTH) : null,
     readingTimeMinutes: article.reading_time_minutes ?? null,

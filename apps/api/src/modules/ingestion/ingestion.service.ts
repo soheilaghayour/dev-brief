@@ -148,22 +148,28 @@ export class IngestionService {
     if (!adapter) {
       return this.recordSkipped(source, runId, startedAt, `No adapter for ${source.kind}`);
     }
+    const unavailable = adapter.unavailableReason?.();
+    if (unavailable) return this.recordSkipped(source, runId, startedAt, unavailable);
 
     let fetching = true;
     let validators: CacheValidators | undefined;
+    let partialReason: string | undefined;
     try {
       const rawItems = await adapter.fetch(source, {
         signal,
         rememberValidators: (fresh) => void (validators = fresh),
+        reportPartial: (reason) => void (partialReason = reason),
       });
       fetching = false;
       const counts = await this.serialized(() => this.storeItems(source, rawItems, startedAt));
+      // A partial fetch still returned usable items, so it closes the circuit like a success.
       await this.prisma.source.update({
         where: { id: source.id },
         data: { ...nextSourceHealth(source, { ok: true }, new Date()), ...validators },
       });
-      await this.recordRun(source, runId, startedAt, 'success', counts);
-      return { ...counts, outcome: 'success' } satisfies SourceResult;
+      const outcome = partialReason === undefined ? 'success' : 'partial';
+      await this.recordRun(source, runId, startedAt, outcome, counts, partialReason);
+      return { ...counts, outcome } satisfies SourceResult;
     } catch (error) {
       const message = describeFailure(error, fetching && signal.aborted);
       this.logger.warn(`Source ${source.slug} failed: ${message}`);
@@ -258,6 +264,7 @@ export class IngestionService {
       points: raw.points,
       commentsCount: raw.commentsCount,
       reactionsCount: raw.reactionsCount,
+      stars: raw.stars,
       engagement: mapped.engagement,
       sourceTags: raw.sourceTags,
       lastSeenAt: now,

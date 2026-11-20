@@ -26,6 +26,7 @@ describe('HnAdapter', () => {
       points: payload?.score,
       commentsCount: payload?.descendants,
       reactionsCount: null,
+      stars: null,
       publishedAt: new Date((payload?.time ?? 0) * 1000),
       discussionUrl: `https://news.ycombinator.com/item?id=${first?.externalId}`,
     });

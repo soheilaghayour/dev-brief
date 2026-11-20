@@ -31,6 +31,7 @@ function rawItem(overrides: Partial<RawItem> = {}): RawItem {
     points: 10,
     commentsCount: 1,
     reactionsCount: null,
+    stars: null,
     sourceTags: [],
     excerpt: null,
     readingTimeMinutes: null,

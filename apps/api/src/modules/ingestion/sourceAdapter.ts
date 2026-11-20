@@ -12,6 +12,7 @@ export interface RawItem {
   points: number | null;
   commentsCount: number | null;
   reactionsCount: number | null;
+  stars: number | null;
   sourceTags: string[];
   excerpt: string | null;
   readingTimeMinutes: number | null;
@@ -27,10 +28,14 @@ export interface FetchContext {
   signal: AbortSignal;
   /** Asks the engine to store these on the Source after the run's items are saved. */
   rememberValidators?: (validators: CacheValidators) => void;
+  /** Tells the engine the items are usable but incomplete; the source run is then recorded as `partial`. */
+  reportPartial?: (reason: string) => void;
 }
 
 export interface SourceAdapter {
   readonly kind: SourceKind;
+  /** Why the adapter can't run, such as missing configuration; the engine then records the source as skipped. */
+  unavailableReason?(): string | null;
   /** Fetches and parses one source; throws when the source as a whole failed. */
   fetch(source: Source, context: FetchContext): Promise<RawItem[]>;
 }

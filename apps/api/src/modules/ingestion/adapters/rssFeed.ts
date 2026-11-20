@@ -96,6 +96,7 @@ function toRawItem(
     points: null,
     commentsCount: null,
     reactionsCount: null,
+    stars: null,
     sourceTags: item.rawCategories.map((tag) => tag.trim()).filter(Boolean),
     excerpt: body ? toPlainText(body, EXCERPT_MAX_LENGTH) || null : null,
     readingTimeMinutes: null,

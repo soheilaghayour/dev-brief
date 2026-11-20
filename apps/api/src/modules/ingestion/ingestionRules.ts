@@ -14,7 +14,7 @@ export const TITLE_DEDUP_WINDOW_MS = 72 * 60 * 60 * 1000;
 export const MAX_ERROR_LENGTH = 500;
 export const RUN_BUDGET_MESSAGE = 'Run budget exceeded; source aborted';
 
-export type SourceOutcome = 'success' | 'failed' | 'skipped';
+export type SourceOutcome = 'success' | 'partial' | 'failed' | 'skipped';
 
 export interface MappedItem {
   canonicalUrl: string;
@@ -80,13 +80,14 @@ export function reportsSourceFailure(consecutiveFailures: number) {
   return consecutiveFailures === FAILURES_TO_OPEN_CIRCUIT;
 }
 
-/** The overall run status: failed only when every source that ran failed, partial when some did, skipped when none ran. */
+/** The overall run status: failed only when every source that ran failed, success when all succeeded fully, skipped when none ran, else partial. */
 export function overallStatus(outcomes: readonly SourceOutcome[]) {
   const ran = outcomes.filter((outcome) => outcome !== 'skipped');
   if (ran.length === 0) return 'skipped' as const;
-  const failed = ran.filter((outcome) => outcome === 'failed').length;
-  if (failed === 0) return 'success' as const;
-  return failed === ran.length ? ('failed' as const) : ('partial' as const);
+  if (ran.every((outcome) => outcome === 'failed')) return 'failed' as const;
+  return ran.every((outcome) => outcome === 'success')
+    ? ('success' as const)
+    : ('partial' as const);
 }
 
 export function describeFailure(error: unknown, budgetExceeded: boolean) {
