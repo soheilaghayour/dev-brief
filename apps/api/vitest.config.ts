@@ -24,12 +24,13 @@ export default defineConfig({
     globalSetup: ['./test/integration/migrateDatabase.ts'],
   },
   resolve: {
-    alias: {
-      // Tests read the shared source (the entry its package.json `types` names), so they need no prior build.
-      '@devbrief/shared': fileURLToPath(
-        new URL('../../packages/shared/src/index.ts', import.meta.url),
-      ),
-    },
+    alias: [
+      // Tests read the shared source (the entry its package.json `types` names), so they need no prior build; subpaths resolve through its exports.
+      {
+        find: /^@devbrief\/shared$/,
+        replacement: fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
+      },
+    ],
   },
   plugins: [swc.vite({ module: { type: 'es6' } })],
 });

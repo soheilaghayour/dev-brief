@@ -1,3 +1,4 @@
+export * from './copilot.js';
 export * from './error.js';
 export * from './feed.js';
 export * from './feedLimits.js';

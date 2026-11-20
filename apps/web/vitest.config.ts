@@ -6,12 +6,13 @@ export default defineConfig({
   // tsconfig keeps JSX as-is for Next, so tests transform it themselves.
   oxc: { jsx: { runtime: 'automatic' } },
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-      // Tests run against the shared source, so they need no prior build of the package.
-      '@devbrief/shared': fileURLToPath(
-        new URL('../../packages/shared/src/index.ts', import.meta.url),
-      ),
-    },
+    alias: [
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+      // Tests run against the shared source, so they need no prior build of the package; subpaths resolve through its exports.
+      {
+        find: /^@devbrief\/shared$/,
+        replacement: fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
+      },
+    ],
   },
 });

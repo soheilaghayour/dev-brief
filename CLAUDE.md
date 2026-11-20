@@ -46,6 +46,7 @@ pnpm --filter api db:generate                            # regenerate the Prisma
 pnpm --filter api db:seed                                # seed sources (idempotent)
 pnpm --filter api db:seed:e2e                            # replaces all stories with fixed ones for Playwright (e2e DBs only, see ALLOW_DESTRUCTIVE_SEED)
 pnpm --filter api ingest:once                            # one full ingestion run
+pnpm --filter @devbrief/shared catalog:generate          # regenerate packages/shared/src/a2ui/catalog.v1.json from the catalog's Zod schemas
 ```
 
 ## Structure
@@ -78,6 +79,8 @@ packages/shared/
   src/contracts/                # Zod API schemas + inferred types, one file per resource
   src/core/                     # pure decision functions: canonicalizeUrl, normalizeTitle, taxonomy, tagStory, ranking, …
   src/a2ui/                     # DevBrief catalog prop schemas, BriefingPlan, catalog.v1.json (P3)
+  src/a2ui/fixtures/            # sample A2UI messages; tests import them as @devbrief/shared/a2ui/fixtures/* (package export)
+  scripts/                      # catalog.v1.json generator (catalog:generate) and its drift and v0.8-name tests
 e2e/                            # Playwright specs + config
 docs/                           # the PRD and the docs in the table above; provision.sh: the one-off production setup wizard
 .github/                        # workflows/ci.yml, ISSUE_TEMPLATE/
