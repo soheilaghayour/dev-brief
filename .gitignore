@@ -14,3 +14,5 @@ apps/api/src/generated
 test-results
 playwright-report
 .env.production
+.lighthouseci
+.lighthouseci-reports

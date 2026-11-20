@@ -6,18 +6,70 @@
       "startServerCommand": "pnpm --filter web start",
       "startServerReadyPattern": "Ready",
       "startServerReadyTimeout": 60000,
-      "settings": { "chromeFlags": "--no-sandbox" }
+      "settings": {
+        "chromeFlags": "--no-sandbox",
+        "throttlingMethod": "devtools",
+        "throttling": {
+          "cpuSlowdownMultiplier": 2
+        }
+      }
     },
     "assert": {
       "assertions": {
-        "categories:performance": ["error", { "minScore": 0.95 }],
-        "categories:accessibility": ["error", { "minScore": 0.95 }],
-        "categories:best-practices": ["error", { "minScore": 0.95 }],
-        "categories:seo": ["error", { "minScore": 0.95 }],
-        "largest-contentful-paint": ["error", { "maxNumericValue": 1800 }],
-        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.05 }],
-        "total-blocking-time": ["error", { "maxNumericValue": 150 }]
+        "categories:performance": [
+          "error",
+          {
+            "minScore": 0.95,
+            "aggregationMethod": "median-run"
+          }
+        ],
+        "categories:accessibility": [
+          "error",
+          {
+            "minScore": 0.95,
+            "aggregationMethod": "median-run"
+          }
+        ],
+        "categories:best-practices": [
+          "error",
+          {
+            "minScore": 0.95,
+            "aggregationMethod": "median-run"
+          }
+        ],
+        "categories:seo": [
+          "error",
+          {
+            "minScore": 0.95,
+            "aggregationMethod": "median-run"
+          }
+        ],
+        "largest-contentful-paint": [
+          "error",
+          {
+            "maxNumericValue": 1800,
+            "aggregationMethod": "median-run"
+          }
+        ],
+        "cumulative-layout-shift": [
+          "error",
+          {
+            "maxNumericValue": 0.05,
+            "aggregationMethod": "median-run"
+          }
+        ],
+        "total-blocking-time": [
+          "error",
+          {
+            "maxNumericValue": 150,
+            "aggregationMethod": "median-run"
+          }
+        ]
       }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci-reports"
     }
   }
 }
