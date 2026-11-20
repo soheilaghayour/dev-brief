@@ -100,15 +100,13 @@ describe('authentication', () => {
   const prisma = useTestDatabase();
 
   beforeAll(async () => {
-    process.env.AUTH_TEST_MODE = 'true';
-    app = await createTestApp();
+    app = await createTestApp([], { AUTH_TEST_MODE: 'true' });
   });
   afterEach(() => {
     vi.restoreAllMocks();
   });
   afterAll(async () => {
     await app.close();
-    delete process.env.AUTH_TEST_MODE;
   });
 
   it('AC-1.5.2 sets a httpOnly, Secure, SameSite=Lax, host-only session cookie', async () => {
@@ -281,14 +279,12 @@ describe('authentication', () => {
 
 describe('the test-only sign-in route', () => {
   it('returns 404 when AUTH_TEST_MODE is off', async () => {
-    process.env.AUTH_TEST_MODE = 'false';
-    const app = await createTestApp();
+    const app = await createTestApp([], { AUTH_TEST_MODE: 'false' });
     try {
       const response = await authPost(app, SIGN_IN_PATH).send({});
       expect(response.status).toBe(404);
     } finally {
       await app.close();
-      delete process.env.AUTH_TEST_MODE;
     }
   });
 });
