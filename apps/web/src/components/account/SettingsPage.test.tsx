@@ -5,6 +5,13 @@ const useMe = vi.fn();
 vi.mock('@/lib/auth/useMe', () => ({ useMe: () => useMe() }));
 vi.mock('@/lib/auth/useSignOut', () => ({ useSignOut: () => vi.fn() }));
 vi.mock('./DeleteAccountDialog', () => ({ DeleteAccountDialog: () => null }));
+const features = vi.hoisted(() => ({ preferences: false }));
+vi.mock('@/config/features', () => ({
+  isFeatureEnabled: (flag: 'preferences') => features[flag],
+}));
+vi.mock('@/components/preferences/FeedPreferencesSection', () => ({
+  FeedPreferencesSection: () => <section>Feed preferences</section>,
+}));
 
 const { SettingsPage } = await import('./SettingsPage');
 
@@ -17,7 +24,10 @@ const user = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-beforeEach(() => useMe.mockReset());
+beforeEach(() => {
+  useMe.mockReset();
+  features.preferences = false;
+});
 
 describe('SettingsPage', () => {
   it('AC-1.6.3 shows Appearance and "Clear local data" to a guest, without an Account section', () => {
@@ -38,5 +48,18 @@ describe('SettingsPage', () => {
     expect(html).toContain('Sign out');
     expect(html).toContain('Delete account');
     expect(html).not.toContain('Clear local data');
+  });
+
+  it('AC-2.5.1 shows the Feed section to guests and users while the preferences flag is on', () => {
+    features.preferences = true;
+    for (const data of [null, user]) {
+      useMe.mockReturnValue({ data, isPending: false });
+      expect(renderToStaticMarkup(<SettingsPage />)).toContain('Feed preferences');
+    }
+  });
+
+  it('AC-2.5.1 has no Feed section in the HTML while the preferences flag is off', () => {
+    useMe.mockReturnValue({ data: null, isPending: false });
+    expect(renderToStaticMarkup(<SettingsPage />)).not.toContain('Feed preferences');
   });
 });

@@ -170,6 +170,7 @@ links to them instead of restating them.
 - **Every tag and source badge opens Follow / Mute, on the feed, Saved and the story page; the landing preview's badges stay plain.** The preview is static and shows the same stories to everyone, so it ignores preferences.
 - **Until the personalised first page arrives, the feed shows the server-rendered page with muted cards hidden by the API's own exclusion rule.** The server can't read a guest's `localStorage`, and "muted items never appear" ([AC-2.5.2](docs/prd.md#f25-followmute)) rules out a flash of muted cards or a skeleton in place of the rendered page.
 - **Feed params from preferences stay out of the URL and join only the request and the `['feed', …]` key.** The URL holds the filters chosen for this view; preferences are standing personal state, and a shared link must not carry them.
+- **Settings names a preferred source by its name from `GET /sources`, and by its slug once the source list no longer has it.** A removed source stays a valid preference (format-checked slugs, above), so the user can still see and remove it.
 
 ## Open PM questions
 
