@@ -68,9 +68,10 @@ jobs:
       - run: pnpm --filter web build
         env:
           API_PROXY_URL: http://localhost:3001
-      - run: pnpm --filter web size
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
+      # After e2e, so a size overrun does not hide a failing smoke test.
+      - run: pnpm --filter web size
 
   lighthouse:
     name: lighthouse
