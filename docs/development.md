@@ -4,6 +4,8 @@
 
 Quickstart: [`README.md`](../README.md#run-locally).
 
+Get the pinned pnpm with `corepack enable`; older pnpm (e.g. Homebrew's 9.x) fails with "broken lockfile". Node 25+ no longer bundles corepack, so run `npm i -g corepack && corepack enable` first (or `npm i -g pnpm@<version from packageManager>`), then `rehash` in zsh.
+
 `pnpm dev` builds `packages/shared` first. Rebuild it with `pnpm --filter @devbrief/shared build`
 after changing it while `pnpm dev` runs.
 
