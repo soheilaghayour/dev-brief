@@ -6,6 +6,7 @@ const GENERATION_FAILED = "Couldn't generate a summary. Try again.";
 const MESSAGES = {
   SPEND_CAP_REACHED: 'Daily AI budget reached — try again tomorrow',
   GENERATION_FAILED,
+  RATE_LIMITED: 'Too many requests. Wait a minute and try again.',
   UPSTREAM_UNAVAILABLE: "Couldn't load the discussion. Try again later.",
 } as const;
 

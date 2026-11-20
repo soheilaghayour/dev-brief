@@ -24,7 +24,7 @@ test('AC-2.3.6 a summary without consensus says there is not enough discussion y
   await expect(page.getByText('Not enough discussion yet')).toBeVisible();
 });
 
-test('AC-2.3.1 the feed marks a summarised story with a TL;DR badge that opens the story', async ({
+test('the feed marks a summarised story with a TL;DR badge that opens the story', async ({
   page,
 }) => {
   await page.goto('/feed?sort=latest');

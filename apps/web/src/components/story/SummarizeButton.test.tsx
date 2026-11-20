@@ -11,6 +11,11 @@ import { SummarizeButton } from './SummarizeButton';
 
 const api = vi.hoisted(() => ({ summarizeStory: vi.fn() }));
 vi.mock('@/lib/api/endpoints', () => api);
+const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: navigation.replace }),
+  usePathname: () => '/story/story-1',
+}));
 vi.mock('@/lib/guest/loadDeviceId', () => ({ loadDeviceId: async () => 'device-1' }));
 vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
 const me = vi.hoisted(() => ({ user: null as { id: string } | null }));
@@ -28,8 +33,9 @@ let container: HTMLDivElement;
 let unmount = () => {};
 let queryClient: QueryClient;
 
-async function render(autoStart = false) {
+async function render(autoStart = false, cached?: StorySummary) {
   queryClient = new QueryClient();
+  if (cached) queryClient.setQueryData(['summary', 'story-1'], cached);
   const root = createRoot(container);
   unmount = () => act(() => root.unmount());
   await act(async () => {
@@ -57,6 +63,7 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.append(container);
   api.summarizeStory.mockReset();
+  navigation.replace.mockReset();
   me.user = null;
 });
 
@@ -101,6 +108,23 @@ describe('SummarizeButton', () => {
     expect(container.textContent).toContain('First point');
   });
 
+  it('removes ?summarize=1 from the URL once it has started, so a reload does not summarize again', async () => {
+    api.summarizeStory.mockResolvedValue(SUMMARY);
+
+    await render(true);
+
+    expect(navigation.replace).toHaveBeenCalledTimes(1);
+    expect(navigation.replace).toHaveBeenCalledWith('/story/story-1', { scroll: false });
+  });
+
+  it('does not start for ?summarize=1 when the summary is already cached', async () => {
+    await render(true, SUMMARY);
+
+    expect(api.summarizeStory).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('First point');
+    expect(navigation.replace).toHaveBeenCalledTimes(1);
+  });
+
   it('AC-2.3.4 shows the budget copy on 503 SPEND_CAP_REACHED', async () => {
     api.summarizeStory.mockRejectedValue(
       new ApiError('SPEND_CAP_REACHED', 'cap', 'r1', 503, undefined),
@@ -142,6 +166,7 @@ describe('SummarizeButton', () => {
 
   it.each([
     ['GENERATION_FAILED', 502, "Couldn't generate a summary. Try again."],
+    ['RATE_LIMITED', 429, 'Too many requests. Wait a minute and try again.'],
     ['UPSTREAM_UNAVAILABLE', 503, "Couldn't load the discussion. Try again later."],
   ] as const)('shows the copy for %s', async (code, status, copy) => {
     api.summarizeStory.mockRejectedValue(new ApiError(code, 'x', 'r1', status, undefined));

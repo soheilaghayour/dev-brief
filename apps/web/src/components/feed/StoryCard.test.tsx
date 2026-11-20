@@ -150,14 +150,14 @@ describe('StoryCard', () => {
     expect(html.match(/data-tag=/g)).toHaveLength(2);
   });
 
-  it('AC-2.3.1 links a TL;DR badge to the story page when the story has a summary', () => {
+  it('links a TL;DR badge to the story page when the story has a summary', () => {
     features.summaries = true;
     const html = render({ ...STORY, hasSummary: true });
     features.summaries = false;
     expect(html).toMatch(/<a[^>]*href="\/story\/story-1"[^>]*><span[^>]*>TL;DR<\/span><\/a>/);
   });
 
-  it('AC-2.3.1 shows no TL;DR badge without a summary or while the summaries flag is off', () => {
+  it('shows no TL;DR badge without a summary or while the summaries flag is off', () => {
     features.summaries = true;
     expect(render({ ...STORY, hasSummary: false })).not.toContain('TL;DR');
     features.summaries = false;

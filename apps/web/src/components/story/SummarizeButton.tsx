@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoaderCircleIcon, SparklesIcon } from 'lucide-react';
 import type { StorySummary } from '@devbrief/shared';
@@ -32,6 +33,8 @@ async function requestSummary(storyId: string) {
 /** The Summarize button; on success the summary takes its place without a reload. */
 export function SummarizeButton({ storyId, autoStart }: { storyId: string; autoStart: boolean }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const { data: user } = useMe();
   const summaryKey = ['summary', storyId];
   // Nothing fetches this query: the mutation primes it, and it never goes stale.
@@ -56,8 +59,10 @@ export function SummarizeButton({ storyId, autoStart }: { storyId: string; autoS
   useEffect(() => {
     if (!autoStart || hasStarted.current) return;
     hasStarted.current = true;
-    request.mutate();
-  }, [autoStart, request]);
+    summarize();
+    // Without this a reload or back/forward would summarize again.
+    router.replace(pathname, { scroll: false });
+  });
 
   if (stored.data) return <SummaryView summary={stored.data} />;
 
