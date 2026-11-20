@@ -15,6 +15,8 @@ type StoryCardProps = {
   compact?: boolean;
   /** The card j/k currently points at. */
   isActive?: boolean;
+  /** Tag and source badges open Follow / Mute; off where preferences don't apply, like the landing preview. */
+  hasPreferenceMenus?: boolean;
 };
 
 export function StoryCard({
@@ -23,6 +25,7 @@ export function StoryCard({
   onToggleSave,
   compact = false,
   isActive = false,
+  hasPreferenceMenus = false,
 }: StoryCardProps) {
   const visibleTags = story.tags.slice(0, MAX_VISIBLE_TAGS);
   const hiddenTagCount = story.tags.length - visibleTags.length;
@@ -53,14 +56,18 @@ export function StoryCard({
         </h2>
         <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           {story.sources.map((source) => (
-            <SourceBadge key={`${source.slug}:${source.itemUrl}`} source={source} />
+            <SourceBadge
+              key={`${source.slug}:${source.itemUrl}`}
+              source={source}
+              hasMenu={hasPreferenceMenus}
+            />
           ))}
           <RelativeTime iso={story.publishedAt} />
           {!compact && story.readingTimeMinutes !== null && (
             <span>{story.readingTimeMinutes} min read</span>
           )}
           {visibleTags.map((tag) => (
-            <TagBadge key={tag} slug={tag} />
+            <TagBadge key={tag} slug={tag} hasMenu={hasPreferenceMenus} />
           ))}
           {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
         </div>

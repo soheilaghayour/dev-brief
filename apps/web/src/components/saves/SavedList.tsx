@@ -132,6 +132,7 @@ export function SavedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => toggleStory(story.id)}
           isActive={story.id === activeId}
+          hasPreferenceMenus
         />
       ))}
       {saved.loadMoreFailed && (

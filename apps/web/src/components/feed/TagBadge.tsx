@@ -1,7 +1,27 @@
 import type { TagSlug } from '@devbrief/shared';
-import { Badge } from '@/components/ui/Badge';
 import { TAG_LABELS } from '@devbrief/shared';
+import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
+import { Badge } from '@/components/ui/Badge';
+import { isFeatureEnabled } from '@/config/features';
 
-export function TagBadge({ slug }: { slug: TagSlug }) {
-  return <Badge data-tag={slug}>{TAG_LABELS[slug]}</Badge>;
+type TagBadgeProps = {
+  slug: TagSlug;
+  /** Opens Follow / Mute when clicked; off where preferences don't apply, like the landing preview. */
+  hasMenu?: boolean;
+};
+
+export function TagBadge({ slug, hasMenu = false }: TagBadgeProps) {
+  const label = TAG_LABELS[slug];
+  if (!hasMenu || !isFeatureEnabled('preferences')) return <Badge data-tag={slug}>{label}</Badge>;
+  return (
+    <PreferenceMenu
+      kind="tag"
+      value={slug}
+      label={label}
+      variant="secondary"
+      data={{ 'data-tag': slug }}
+    >
+      {label}
+    </PreferenceMenu>
+  );
 }

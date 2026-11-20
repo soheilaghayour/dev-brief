@@ -39,7 +39,7 @@ export function StoryHeader({ story }: { story: StoryDetail }) {
           first seen <RelativeTime iso={story.firstSeenAt} style="long" />
         </span>
         {story.tags.map((tag) => (
-          <TagBadge key={tag} slug={tag} />
+          <TagBadge key={tag} slug={tag} hasMenu />
         ))}
       </p>
       {story.excerpt && <p className="max-w-3xl leading-relaxed">{story.excerpt}</p>}

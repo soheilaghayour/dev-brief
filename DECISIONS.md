@@ -166,6 +166,8 @@ links to them instead of restating them.
 - **A guest's `prefs` join the v1 guest store without a version bump, and a stored set that fails `PreferencesSchema` reads as empty.** Stored v1 data without the field reads as empty preferences, the `pendingMerge` rule, so the `devbrief:guest:v1` key of [AC-1.4.2](docs/prd.md#f14-guest-saves) stays; a set that breaks one rule (a cap, a value both followed and muted) can't be trusted in part, and sending it would fail the whole merge.
 - **A follow or mute that would take a list past `FEED_LIST_MAX` is refused with a toast.** A longer list would make every feed request and the merge fail validation; dropping an older entry would undo a choice the user made, as the 500-saves rule avoids.
 - **An account change sends the full preference set with `PUT`, built from the stored set, which is fetched first when it hasn't loaded.** `PUT` replaces the set, so a change built on an empty placeholder would erase the account's other preferences.
+- **The badge "context menu" is a dropdown opened by click, Enter or Space, not a right-click menu.** A right-click menu can't be reached by keyboard or on touch screens ([§7.1](docs/prd.md#71-design-references-and-system) sets WCAG AA).
+- **Every tag and source badge opens Follow / Mute, on the feed, Saved and the story page; the landing preview's badges stay plain.** The preview is static and shows the same stories to everyone, so it ignores preferences.
 
 ## Open PM questions
 

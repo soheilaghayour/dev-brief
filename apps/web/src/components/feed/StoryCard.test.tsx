@@ -3,6 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { StoryCard } from './StoryCard';
 
+const features = vi.hoisted(() => ({ preferences: false }));
+vi.mock('@/config/features', () => ({
+  isFeatureEnabled: (flag: 'preferences') => features[flag],
+}));
+
 const STORY: StoryCardData = {
   id: 'story-1',
   title: 'Native TS compiler preview ships',
@@ -48,7 +53,10 @@ const STORY: StoryCardData = {
   ],
 };
 
-function render(story: StoryCardData, props: { isSaved?: boolean; compact?: boolean } = {}) {
+function render(
+  story: StoryCardData,
+  props: { isSaved?: boolean; compact?: boolean; hasPreferenceMenus?: boolean } = {},
+) {
   return renderToStaticMarkup(
     <StoryCard story={story} isSaved={props.isSaved ?? false} onToggleSave={() => {}} {...props} />,
   );
@@ -115,5 +123,29 @@ describe('StoryCard', () => {
 
     expect(error).not.toHaveBeenCalled();
     error.mockRestore();
+  });
+
+  const menuTriggers = (html: string) => html.match(/<button[^>]*aria-haspopup="menu"/g) ?? [];
+
+  it('AC-2.5.1 makes every tag and source badge a menu trigger where preferences apply', () => {
+    features.preferences = true;
+    const html = render(STORY, { hasPreferenceMenus: true });
+    // Two tags and three sources; the badges keep their data attributes on the trigger.
+    expect(menuTriggers(html)).toHaveLength(5);
+    expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-tag="typescript"/);
+    expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-source-kind="hn"/);
+    features.preferences = false;
+  });
+
+  it('keeps the badges plain without hasPreferenceMenus, as in the landing preview', () => {
+    features.preferences = true;
+    expect(menuTriggers(render(STORY))).toHaveLength(0);
+    features.preferences = false;
+  });
+
+  it('AC-2.5.1 renders the badges without a menu while the preferences flag is off', () => {
+    const html = render(STORY, { hasPreferenceMenus: true });
+    expect(menuTriggers(html)).toHaveLength(0);
+    expect(html.match(/data-tag=/g)).toHaveLength(2);
   });
 });

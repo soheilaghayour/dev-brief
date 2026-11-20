@@ -18,7 +18,7 @@ export function SourceItemList({ items }: { items: StoryDetail['items'] }) {
             key={`${item.slug}:${item.itemUrl}`}
             className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5"
           >
-            <SourceBadge source={item} />
+            <SourceBadge source={item} hasMenu />
             <span className="text-muted-foreground text-xs">
               {item.author && <>by {item.author} · </>}
               <RelativeTime iso={item.publishedAt} style="long" />
