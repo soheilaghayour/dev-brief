@@ -9,7 +9,10 @@ export function PendingToast() {
   const [Toaster, setToaster] = useState<ComponentType | null>(null);
 
   useEffect(() => {
-    void showPendingToast().then((loaded) => loaded && setToaster(() => loaded));
+    void showPendingToast()
+      .then((loaded) => loaded && setToaster(() => loaded))
+      // A chunk lost to a mid-session deploy only drops the toast.
+      .catch(() => {});
   }, []);
 
   return Toaster && <Toaster />;

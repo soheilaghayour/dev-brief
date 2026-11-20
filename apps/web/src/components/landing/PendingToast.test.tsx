@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const sonner = { loaded: vi.fn(), success: vi.fn() };
+const toaster = { loaded: vi.fn() };
 
 let unmount = () => {};
 
@@ -17,7 +18,10 @@ beforeEach(() => {
     sonner.loaded();
     return { toast: { success: sonner.success } };
   });
-  vi.doMock('@/components/ui/Toaster', () => ({ Toaster: () => <div data-testid="toaster" /> }));
+  vi.doMock('@/components/ui/Toaster', () => {
+    toaster.loaded();
+    return { Toaster: () => <div data-testid="toaster" /> };
+  });
   window.sessionStorage.clear();
 });
 afterEach(() => unmount());
@@ -46,6 +50,7 @@ describe('PendingToast', () => {
     const container = await mountPendingToast();
     await act(async () => {});
     expect(sonner.loaded).not.toHaveBeenCalled();
+    expect(toaster.loaded).not.toHaveBeenCalled();
     expect(container.innerHTML).toBe('');
   });
 });
