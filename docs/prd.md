@@ -440,7 +440,7 @@ Acceptance criteria:
 
 #### F3.2 Example briefings
 - **AC-3.2.1** `pnpm --filter api briefings:generate` runs the real copilot pipeline for 3 configured questions and stores the message arrays in `ExampleBriefing`. It is a manual, one-off command costing about $0.005 in total.
-- **AC-3.2.2** The landing page renders them through the same `@a2ui/react` surface (lazy, client-only) from ISR-embedded JSON, with no API call at view time.
+- **AC-3.2.2** The landing page renders them through the same `@a2ui/react` surface (lazy, client-only) from ISR-embedded JSON, with no API call at view time. Client-only is required, not optional: `@a2ui/react` can't be imported on the server (§6.4.3), so the surface loads through `next/dynamic(…, { ssr: false })` inside a Client Component.
 
 #### F3.3 Tech Radar
 - **AC-3.3.1** `/radar` has a window toggle (7d/30d), a metric toggle (stories/engagement), a "Top movers" table (tag, current window total, previous window total, Δ%), and a multi-line Recharts chart for up to 5 selected tags. The default is the top 5 movers.
@@ -461,7 +461,7 @@ Acceptance criteria:
 | O1 | **Resolved 2026-11-20.** The owner chose AI-assisted clustering: a deterministic pre-filter, then one Claude Haiku 5.5 decision per new story with candidates, with a fail-safe to "unclustered" (F2.1). The cluster UI is the orchestrator's default, open to owner override (F2.2). Embeddings are reconsidered only if fixture or production accuracy stays below target. | PM + user | Done 2026-11-20 |
 | O2 | Buy the domain (`devbrief.dev` is a placeholder) and update `APP_URL`, the OAuth callbacks and the OG metadata. | User | Before the public launch of Phase 1 |
 | O3 | The GitHub "trending" proxy (new repos by stars) is not true star velocity. Decide whether daily star snapshots are worth it. | PM | Phase 2 review |
-| O4 | `@a2ui/react` is pre-1.0. Re-check the latest version, the React v1.0 support status and SSR behaviour when Phase 3 starts, then pin the exact version. | Eng | Start of Phase 3 |
+| O4 | **Resolved 2026-11-20.** `@a2ui/react` and `@a2ui/web_core` are pinned to exactly 0.15.0, which speaks A2UI v1.0 on React 19, Next 16 and the workspace's Zod 3.25. The renderer is client-only by necessity, not by choice: importing `@a2ui/react` on the server throws (§6.4.3). Its lazy chunk is ≈ 89 KB gzip. The findings are in `DECISIONS.md`. | Eng | Done 2026-11-20 |
 | O5 | **Monthly LLM budget.** With the cluster cap, the per-feature caps add up to $0.075/day once the copilot ships, while the global cap stays at $0.064/day to keep the < $2.00/month promise (§8.1). On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot then serves its example-briefing fallback. A budget of $2.50/month would allow a $0.08/day global cap. | User | Before Phase 3 |
 
 ---
@@ -1290,9 +1290,9 @@ export const StorySummarySchema = z.object({
 | 24 | GET | `/api/v1/copilot/examples` | public | none | `{ items: [{ slug, question, messages: A2uiMessage[] }] }` |
 | 25 | GET | `/api/v1/radar` | public | `window=7d\|30d`, `metric=stories\|engagement`, `tags?` (≤ 5) | `RadarSchema` `{ window, metric, series: [{ tag, points: [{ date, value }] }], movers: [{ tag, current, previous, deltaPct }] }` |
 | 26 | GET / POST | `/api/v1/me/collections` | user | POST `{ name, description? }` | list / created `Collection` |
-| 27 | PATCH / DELETE | `/api/v1/me/collections/:id` | user | `{ name?, description?, position? }` | `Collection` / 204 |
+| 27 | GET / PATCH / DELETE | `/api/v1/me/collections/:id` | user | PATCH `{ name?, description?, position? }` | GET `CollectionDetailSchema` `{ collection, items: [{ story: StoryCard, position, addedAt, note, noteUpdatedAt }] }` in `position` order, unpaginated (the board view) / `Collection` / 204 |
 | 28 | PUT / DELETE | `/api/v1/me/collections/:id/items/:storyId` | user | `{ position? }` | 200 / 204 (PUT also saves the story if needed) |
-| 29 | PATCH | `/api/v1/me/saves/:storyId` | user | `{ note: string(≤ 20000) \| null }` | `SaveSchema` incl. `note`, `noteUpdatedAt` |
+| 29 | GET / PATCH | `/api/v1/me/saves/:storyId` | user | PATCH `{ note: string(≤ 20000) \| null }` | `SaveSchema` incl. `note`, `noteUpdatedAt`, or 404 when the story isn't saved (GET serves the story page's note editor) |
 | 30 | POST | `/api/v1/me/merge` | user | adds `collections?: [{ slug, name, items: [{ storyId, position }] }]`, `notes?: [{ storyId, note, updatedAt }]` | adds counts |
 
 The digest export is client-side (`renderDigestMarkdown`), so it has no endpoint.
@@ -1310,19 +1310,21 @@ The digest export is client-side (`renderDigestMarkdown`), so it has no endpoint
 | `done` | `{ usage?: { inputTokens, outputTokens, costUsd } }` | Last. **End of turn is signalled by the transport (this event plus stream close), not by an A2UI message.** |
 
 #### 6.4.3 DevBrief A2UI catalog v1
-- `catalogId`: `https://devbrief.dev/a2ui/catalogs/devbrief/v1.json`. The JSON Schema catalog document is generated from the Zod schemas below and committed at `packages/shared/src/a2ui/catalog.v1.json`, with matching `$id` and `catalogId`.
-- Spec version: **A2UI v1.0**. Every envelope carries `"version": "1.0"`. Server messages use `createSurface`, `updateComponents`, `updateDataModel` and `deleteSurface` only. The deprecated v0.8 names (`surfaceUpdate`, `dataModelUpdate`, `beginRendering`) must not appear anywhere.
-- Only the DevBrief catalog is registered: `new MessageProcessor([devbriefCatalog])`. The basic catalog is not used. Its Web Components do not server-render and we do not need them.
+- `catalogId`: `https://devbrief.dev/a2ui/catalogs/devbrief/v1.json`. The JSON Schema catalog document is generated from the Zod schemas below (`pnpm --filter @devbrief/shared catalog:generate`) and committed at `packages/shared/src/a2ui/catalog.v1.json`. As A2UI v1.0 requires, it carries `catalogId`, a matching `$id` and `protocolVersion: "1.0"`, and each component declares its `allowedParents` (the table below). A test fails when the committed file differs from the generated one.
+- Spec version: **A2UI v1.0**. Every envelope carries `"version": "1.0"`. Server messages use `createSurface`, `updateComponents`, `updateDataModel` and `deleteSurface` only. The deprecated v0.8 names (`surfaceUpdate`, `dataModelUpdate`, `beginRendering`) must not appear in source under `apps/`, `packages/` and `e2e/`. This PRD and `CLAUDE.md` name them on purpose, to forbid them.
+- Package: `@a2ui/react` and `@a2ui/web_core`, both pinned to exactly **0.15.0** (O4). The renderer (`A2uiSurface`, `createComponentImplementation`) is imported from the root `@a2ui/react` entry, which has no `/v1_0` subpath (its `/v0_9` and `/v0_8` subpaths are the legacy protocols). Core types (`MessageProcessor`, `Catalog`, `CommonSchemas`) come from `@a2ui/web_core/v1_0`.
+- **Client-only is required.** Importing `@a2ui/react` on the server throws `HTMLElement is not defined`, because it defines a custom element class when the module loads. Every surface is therefore loaded with `next/dynamic(…, { ssr: false })` inside a Client Component, and never appears in a route's first-load JS (§8.5). `@a2ui/web_core/v1_0` imports cleanly on the server.
+- Only the DevBrief catalog is registered: `new MessageProcessor([devbriefCatalog])`. The basic catalog is not used, because DevBrief needs none of its components.
 - No `Action` props in v1. Every interaction is local: links, expand/collapse and chart hover. There are no renderer→agent messages.
-- Component properties sit directly on the component object, with no `props` wrapper. Children are referenced by id. There must be exactly one component with `id: "root"`, and it must be a `Briefing`.
-- Data binding: `DynamicString` fields accept a literal or `{"@path": "/json/pointer"}`. The server uses `updateDataModel` only for `/meta` (subtitle and status line). Everything else is literal, server-injected data.
+- Component properties sit directly on the component object, with no `props` wrapper. Children are referenced by id. There must be exactly one component with `id: "root"`, and it must be a `Briefing`. Every other component's id is an identifier in the ASCII subset of UAX #31 (letters, digits and `_`, not starting with a digit), as A2UI v1.0 requires: it contains no hyphens and is never `root`.
+- Data binding: `DynamicString` fields accept a literal or `{"@path": "/json/pointer"}`. DevBrief's `DynamicString` is a subset of upstream `CommonSchemas.DynamicString`, which also accepts other dynamic forms DevBrief never sends. The server uses `updateDataModel` only for `/meta` (subtitle and status line). Everything else is literal, server-injected data.
 
-Shared prop schemas (`packages/shared/src/a2ui/catalog.ts`) are the single source for server-side validation. The web catalog (`apps/web/src/features/copilot/catalog.tsx`) wraps the same fields, using `CommonSchemas.DynamicString` / `CommonSchemas.ChildList` from `@a2ui/web_core/v1_0` where marked, and implements each component with `createComponentImplementation(Api, ({ props, buildChild }) => …)`. A web contract test runs every fixture message through the real `MessageProcessor` so the two definitions cannot drift.
+Shared prop schemas (`packages/shared/src/a2ui/catalog.ts`) are the single source for server-side validation. The web catalog (`apps/web/src/features/copilot/catalog.tsx`) wraps the same fields, using `CommonSchemas.DynamicString` / `CommonSchemas.ChildList` from `@a2ui/web_core/v1_0` where marked, and implements each component with `createComponentImplementation(Api, ({ props, buildChild }) => …)` from `@a2ui/react`. The pinned 0.15.0 enforces `allowedParents` and `allowedChildren`, so the web catalog declares the same parents as the catalog document, from the one `ALLOWED_PARENTS` table in `packages/shared/src/a2ui/catalog.ts`. A web contract test runs every fixture message through the real `MessageProcessor` so the two definitions cannot drift.
 
 ```ts
 // packages/shared/src/a2ui/catalog.ts  (server validation mirror; spec-shaped)
-export const DynamicString = z.union([z.string(), z.object({ '@path': z.string().startsWith('/') })]); // ≙ CommonSchemas.DynamicString
-export const ChildIdList = z.array(z.string().min(1)).max(12);                                     // ≙ CommonSchemas.ChildList (static form)
+export const DynamicString = z.union([z.string(), z.object({ '@path': z.string().startsWith('/') })]); // ⊂ CommonSchemas.DynamicString
+export const ChildIdList = z.array(z.string().min(1)).max(24);                                     // ≙ CommonSchemas.ChildList (static form); 24 = §6.4.4 sections.max(6) × picks.max(4)
 const StoryId = z.string().min(1);
 const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -1400,8 +1402,21 @@ export const DevBriefComponents = {
   }),
 } as const;
 
+// "Surface" is the A2UI v1.0 name for the parent of a surface's root component.
+export const ALLOWED_PARENTS = {
+  Briefing: ['Surface'],
+  KeyTakeaways: ['Briefing'],
+  StoryClusterCard: ['Briefing'],
+  ConsensusCallout: ['Briefing'],
+  TechVelocityChart: ['Briefing'],
+  TagBadgeList: ['Briefing'],
+} satisfies Record<keyof typeof DevBriefComponents, string[]>;
+
 // A component entry in updateComponents: { id, component, ...props }. Root must be a Briefing with id "root".
-const ComponentId = z.string().min(1).max(64);
+// A2UI v1.0 ids are UAX #31 identifiers (ASCII subset: no hyphens), and "root" is reserved for the Briefing.
+const ComponentId = z.string().max(64)
+  .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'A component id is a UAX #31 identifier')
+  .regex(/^(?!root$)/, 'Only the Briefing may have the id "root"');
 const C = DevBriefComponents;
 export const A2uiComponentEntrySchema = z.discriminatedUnion('component', [
   C.Briefing.extend({ id: z.literal('root'), component: z.literal('Briefing') }),
@@ -1424,7 +1439,7 @@ export const A2uiServerMessageSchema = z.union([
 
 | Component | Purpose | `allowedParents` | Key render notes |
 |---|---|---|---|
-| `Briefing` | Root layout: title, subtitle, vertical stack of sections | none (root only) | Sticky title, with a subtitle from `/meta/subtitle` such as "Based on 14 stories · Nov 12–19" |
+| `Briefing` | Root layout: title, subtitle, vertical stack of sections | `["Surface"]` (A2UI's name for a surface's root slot, so it is only valid as `root`) | Sticky title, with a subtitle from `/meta/subtitle` such as "Based on 14 stories · Nov 12–19" |
 | `KeyTakeaways` | The 5th catalog component, giving a scannable summary first | `Briefing` | Footnote chips `[1]` scroll to the matching `StoryClusterCard` in the same surface |
 | `StoryClusterCard` | A cited story with source stats | `Briefing` | Same visual language as the feed `StoryCard`, links to `/story/[id]` |
 | `ConsensusCallout` | Pros/cons and a verdict | `Briefing` | Verdict pill colour plus icon, never colour alone |
@@ -1449,43 +1464,43 @@ export const BriefingPlanSchema = z.object({
 ```
 Compiler rules (`apps/api/src/modules/copilot/compileBriefing.ts`, a pure function with unit tests):
 1. `storyIds` not in the retrieved set are dropped, and a section left empty is dropped.
-2. `stories` becomes one `StoryClusterCard` per pick. Title, URL, sources, tags and TL;DR come from the DB. Only `note` comes from the LLM.
+2. `stories` becomes one `StoryClusterCard` per pick. Title, URL, sources, tags and TL;DR come from the DB. Only `note` comes from the LLM. Each card is a direct child of `root`, like every other section's component, so the largest legal plan (6 `stories` sections × 4 picks) compiles to 24 `root` children: that is why `ChildIdList` caps at 24 (§6.4.3), and a valid plan never fails the cap.
 3. `velocity` becomes a `TechVelocityChart` with series queried from `TagDailyStat`.
 4. `tags` becomes a `TagBadgeList` with counts and deltas from `TagDailyStat`.
-5. Component ids are deterministic: `s{index}-{kind}` and `s{index}-story-{n}`. After each new section, `root` is re-sent with the extended `children` list.
+5. Component ids are deterministic: `s{index}_{kind}` and `s{index}_story_{n}` (e.g. `s0_takeaways`, `s1_story_0`). They use `_`, never `-`, because a hyphenated id fails `ComponentId` (§6.4.3): every non-root entry would be skipped under rule 6, and the user would see an empty Briefing. After each new section, `root` is re-sent with the extended `children` list.
 6. Every outgoing entry is parsed with `A2uiComponentEntrySchema` and every envelope with the A2UI envelope schema. If an entry fails, that section is skipped and logged. It never reaches the client.
 
 #### 6.4.5 Example streamed sequence
 Question: **"What were this week's TypeScript tooling debates?"**
 ```text
 event: meta
-data: {"queryId":"cq_8f2k","cached":false,"quota":{"limit":3,"remaining":2,"resetsAt":"2026-11-20T00:00:00Z"}}
+data: {"queryId":"cbriefq0ts001","cached":false,"quota":{"limit":3,"remaining":2,"resetsAt":"2026-11-20T00:00:00Z"}}
 
 event: a2ui
-data: {"version":"1.0","createSurface":{"surfaceId":"briefing-cq_8f2k","catalogId":"https://devbrief.dev/a2ui/catalogs/devbrief/v1.json","dataModel":{"meta":{"subtitle":"Retrieving stories…"}}}}
+data: {"version":"1.0","createSurface":{"surfaceId":"briefing-cbriefq0ts001","catalogId":"https://devbrief.dev/a2ui/catalogs/devbrief/v1.json","dataModel":{"meta":{"subtitle":"Retrieving stories…"}}}}
 
 event: a2ui
-data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cq_8f2k","components":[{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":[]}]}}
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":[]}]}}
 
 event: a2ui
-data: {"version":"1.0","updateDataModel":{"surfaceId":"briefing-cq_8f2k","path":"/meta/subtitle","value":"Based on 14 stories · Nov 12–19 · HN, Dev.to, 3 blogs"}}
+data: {"version":"1.0","updateDataModel":{"surfaceId":"briefing-cbriefq0ts001","path":"/meta/subtitle","value":"Based on 14 stories · Nov 12–19 · HN, Dev.to, 3 blogs"}}
 
 event: a2ui
-data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cq_8f2k","components":[{"id":"s0-takeaways","component":"KeyTakeaways","title":"Key takeaways","items":[{"text":"The native Go-based compiler preview dominated discussion; most reports cite 8–10× faster type-checks on large monorepos.","storyIds":["st_a1","st_b7"]},{"text":"Biome vs. ESLint flat config remains split: speed wins small repos, plugin ecosystem keeps ESLint in larger ones.","storyIds":["st_c3"]},{"text":"Several teams report dropping ts-node in favour of Node's built-in type stripping.","storyIds":["st_d9"]}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0-takeaways"]}]}}
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s0_takeaways","component":"KeyTakeaways","title":"Key takeaways","items":[{"text":"The native Go-based compiler preview dominated discussion; most reports cite 8–10× faster type-checks on large monorepos.","storyIds":["cbriefts0001","cbriefts0002"]},{"text":"Biome vs. ESLint flat config remains split: speed wins small repos, plugin ecosystem keeps ESLint in larger ones.","storyIds":["cbriefts0003"]},{"text":"Several teams report dropping ts-node in favour of Node's built-in type stripping.","storyIds":["cbriefts0004"]}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways"]}]}}
 
 event: a2ui
-data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cq_8f2k","components":[{"id":"s1-story-0","component":"StoryClusterCard","storyId":"st_a1","clusterId":"cl_44","title":"Native TypeScript compiler preview: what's new","url":"https://devblogs.microsoft.com/typescript/…","domain":"devblogs.microsoft.com","publishedAt":"2026-11-14T17:02:00Z","sources":[{"kind":"hn","label":"Hacker News","url":"https://news.ycombinator.com/item?id=…","points":612,"comments":288,"reactions":null,"stars":null},{"kind":"rss","label":"TypeScript Blog","url":"https://devblogs.microsoft.com/typescript/…","points":null,"comments":null,"reactions":null,"stars":null}],"tags":["typescript","performance"],"tldr":["…","…","…"],"note":"The anchor story for most of this week's threads."},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0-takeaways","s1-story-0"]}]}}
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s1_story_0","component":"StoryClusterCard","storyId":"cbriefts0001","clusterId":"cbriefcl0044","title":"Native TypeScript compiler preview: what's new","url":"https://devblogs.microsoft.com/typescript/native-compiler-preview-november/","domain":"devblogs.microsoft.com","publishedAt":"2026-11-14T17:02:00Z","sources":[{"kind":"hn","label":"Hacker News","url":"https://news.ycombinator.com/item?id=46012873","points":612,"comments":288,"reactions":null,"stars":null},{"kind":"rss","label":"TypeScript Blog","url":"https://devblogs.microsoft.com/typescript/native-compiler-preview-november/","points":null,"comments":null,"reactions":null,"stars":null}],"tags":["typescript","performance"],"tldr":["The Go-based compiler preview now covers type-checking, emit and the language service.","Microsoft reports full builds about ten times faster on large codebases such as VS Code.","Compiler plugins and custom transformers are not supported yet; the team asks for feedback on the API."],"note":"The anchor story for most of this week's threads."},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0"]}]}}
 
 event: a2ui
-data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cq_8f2k","components":[{"id":"s2-consensus","component":"ConsensusCallout","topic":"Adopting the native compiler now","verdict":"mixed","pros":[{"point":"Dramatic speedups in CI and editor responsiveness","storyIds":["st_a1"]}],"cons":[{"point":"Plugin/transformer APIs not yet at parity","storyIds":["st_a1","st_e2"]}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0-takeaways","s1-story-0","s2-consensus"]}]}}
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s2_consensus","component":"ConsensusCallout","topic":"Adopting the native compiler now","verdict":"mixed","pros":[{"point":"Dramatic speedups in CI and editor responsiveness","storyIds":["cbriefts0001"]}],"cons":[{"point":"Plugin/transformer APIs not yet at parity","storyIds":["cbriefts0001","cbriefts0005"]}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0","s2_consensus"]}]}}
 
 event: a2ui
-data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cq_8f2k","components":[{"id":"s3-velocity","component":"TechVelocityChart","title":"Story volume, last 7 days","window":"7d","metric":"stories","series":[{"tag":"typescript","label":"TypeScript","points":[{"date":"2026-11-13","value":9},{"date":"2026-11-14","value":21},{"date":"2026-11-15","value":17},{"date":"2026-11-16","value":11},{"date":"2026-11-17","value":10},{"date":"2026-11-18","value":12},{"date":"2026-11-19","value":8}]}]},{"id":"s4-tags","component":"TagBadgeList","title":"Explore related","tags":[{"slug":"javascript","label":"JavaScript","count":48,"deltaPct":12},{"slug":"performance","label":"Performance","count":19,"deltaPct":35},{"slug":"testing","label":"Testing","count":7}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0-takeaways","s1-story-0","s2-consensus","s3-velocity","s4-tags"]}]}}
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s3_velocity","component":"TechVelocityChart","title":"Story volume, last 7 days","window":"7d","metric":"stories","series":[{"tag":"typescript","label":"TypeScript","points":[{"date":"2026-11-13","value":9},{"date":"2026-11-14","value":21},{"date":"2026-11-15","value":17},{"date":"2026-11-16","value":11},{"date":"2026-11-17","value":10},{"date":"2026-11-18","value":12},{"date":"2026-11-19","value":8}]}]},{"id":"s4_tags","component":"TagBadgeList","title":"Explore related","tags":[{"slug":"javascript","label":"JavaScript","count":48,"deltaPct":12},{"slug":"performance","label":"Performance","count":19,"deltaPct":35},{"slug":"testing","label":"Testing","count":7}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0","s2_consensus","s3_velocity","s4_tags"]}]}}
 
 event: done
 data: {"usage":{"inputTokens":5480,"outputTokens":912,"costUsd":0.001004}}
 ```
-(The `…` placeholders stand for real values. Literal ellipses never appear in actual output.)
+The `a2ui` events above are, in order, the messages of the shared fixture `packages/shared/src/a2ui/fixtures/tsToolingBriefing.json`, which the package exports as `@devbrief/shared/a2ui/fixtures/*`. That fixture is the one source for the web contract test (§8.7), the landing's sample fallback (AC-L2, AC-3.2.2) and the e2e seed; none of them keeps its own copy.
 
 Client handling: one `MessageProcessor` per briefing. Each `a2ui` event's data is parsed and passed to `processor.processMessages([msg])`. The client renders `<A2uiSurface surface={…}/>` for the surface in `processor.model.surfacesMap`, subscribing with `onSurfaceCreated` / `onSurfaceDeleted`, and shows `<BriefingSkeleton/>` until the `root` component exists. Closing the command bar aborts the fetch (`AbortController`) and disposes the processor and its subscriptions.
 
@@ -1794,6 +1809,8 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 | `/feed` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
 | `/saved` first-load JS | ≤ 190 KB gzip (shell included) | `pnpm --filter web size` |
 | `/story/[id]` first-load JS | ≤ 195 KB gzip (shell included) | `pnpm --filter web size` |
+| `/radar` first-load JS (P3) | ≤ 195 KB gzip (shell included). A ceiling: the route's budget is its measured size rounded up to the next 5 KB, confirmed when the route is first measured. | `pnpm --filter web size` |
+| `/collections/[slug]` first-load JS (P3) | ≤ 190 KB gzip (shell included). A ceiling: the measured size rounded up to the next 5 KB, confirmed when the route is first measured. | `pnpm --filter web size` |
 | Lazy chunks | Recharts, A2UI renderer and Markdown editor are never in landing or feed first-load | `pnpm --filter web size` plus a bundle-analyzer report on PRs |
 | Feed API p95 server time | ≤ 150 ms at 40k stories | Integration benchmark on seeded data (non-blocking, reported) |
 | `/feed` SSR TTFB (prod) | ≤ 400 ms | Post-deploy smoke |
@@ -1830,7 +1847,7 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 |---|---|---|---|
 | Unit | Vitest | `packages/shared/src/core` (canonicalizeUrl, normalizeTitle, tagStory, ranking, entityTokens, digest), the copilot compiler, budget math, cursor codec | Core coverage ≥ 90% lines |
 | API integration | Vitest + Supertest + real PostgreSQL (GitHub Actions service container), `prisma migrate deploy` per run, truncation between files | Every endpoint in §6 (happy path, validation error, auth error), ingestion with recorded fixtures, retention, merge idempotency | All pass |
-| Contract | Vitest | Every API response in integration tests is parsed with its shared Zod schema. (P3) Every fixture A2UI message is processed by the real `MessageProcessor`. | All pass |
+| Contract | Vitest | Every API response in integration tests is parsed with its shared Zod schema. (P3) Every fixture A2UI message, starting with the shared `packages/shared/src/a2ui/fixtures/*.json` (exported as `@devbrief/shared/a2ui/fixtures/*`, §6.4.5), is processed by the real `MessageProcessor` with the real web catalog. | All pass |
 | E2E smoke | Playwright (Chromium) against the built web + api + Postgres | (1) Landing renders and the CTA reaches the feed. (2) A guest filters by tag, saves, reloads, and the save persists on `/saved`. (3) Sign-in via the test-mode route shows the user menu. (4) A guest saves, signs in, the save is merged, and it appears in `/saved` from the server. | All pass |
 | Performance | Lighthouse CI on `/` (3 runs, median), `pnpm --filter web size` | §8.5 | Fails below budget |
 | Static | ESLint (flat config, `typescript-eslint`, `jsx-a11y`), Prettier check, `tsc -b` | All packages | Zero errors |
