@@ -14,6 +14,5 @@ test('debug idle', async ({ page }) => {
   });
   await page.goto('/feed');
   await page.waitForTimeout(10000);
-  console.log('DEBUG-PENDING', JSON.stringify([...pending.keys()]));
-  console.log('DEBUG-LOG', JSON.stringify(log));
+  throw new Error(`DEBUG-PENDING ${JSON.stringify([...pending.keys()])} DEBUG-LOG ${JSON.stringify(log)}`);
 });
