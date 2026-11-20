@@ -5,7 +5,6 @@ import {
   committedUsd,
   costFromUsage,
   estimateTokens,
-  roundUsd,
   utcDay,
   worstCaseCostUsd,
 } from './budget.js';
@@ -188,12 +187,5 @@ describe('utcDay', () => {
     expect(lateEvening.getDate()).toBe(11);
     expect(utcDay(lateEvening).toISOString()).toBe('2026-03-10T00:00:00.000Z');
     expect(utcDay(new Date('2026-03-11T00:00:00Z')).toISOString()).toBe('2026-03-11T00:00:00.000Z');
-  });
-});
-
-describe('roundUsd', () => {
-  it('rounds to six decimals', () => {
-    expect(roundUsd(0.0000004)).toBe(0);
-    expect(roundUsd(0.1 + 0.2)).toBe(0.3);
   });
 });

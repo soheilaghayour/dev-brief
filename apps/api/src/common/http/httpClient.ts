@@ -54,7 +54,8 @@ function isRetryable(error: unknown) {
   return error instanceof Error && (error.name === 'TimeoutError' || error instanceof TypeError);
 }
 
-function sleep(ms: number, signal?: AbortSignal) {
+/** Resolves after `ms`, or rejects with the signal's reason once it aborts. */
+export function sleep(ms: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) {
       reject(signal.reason);

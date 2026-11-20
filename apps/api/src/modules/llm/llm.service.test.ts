@@ -1,15 +1,18 @@
 import { APICallError } from 'ai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { z } from 'zod';
-import { mockLanguageModel, modelReply, RECORDED_USAGE } from '../../../test/mockLanguageModel.js';
+import {
+  mockLanguageModel,
+  modelReply,
+  RECORDED_USAGE,
+  TldrSchema,
+  VALID_TLDR as VALID,
+} from '../../../test/mockLanguageModel.js';
 import { budgetFromEnv } from './budget.js';
 import { GenerationFailedError, SpendCapReachedError } from './llm.errors.js';
 import { LlmService } from './llm.service.js';
 import type { Reservation, SpendLedgerService, TokenUsage } from './spendLedger.service.js';
 
 const budget = budgetFromEnv({ LLM_MODEL: 'claude-haiku-5-5' });
-const TldrSchema = z.object({ tldr: z.array(z.string()).length(3) });
-const VALID = { tldr: ['one', 'two', 'three'] };
 const request = {
   feature: 'summary_auto',
   schema: TldrSchema,

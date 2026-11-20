@@ -9,6 +9,7 @@ import {
   Output,
 } from 'ai';
 import type { z } from 'zod';
+import { sleep } from '../../common/http/httpClient.js';
 import type { LlmFeature } from '../../generated/prisma/client.js';
 import { type Budget, estimateTokens } from './budget.js';
 import { GenerationFailedError } from './llm.errors.js';
@@ -21,12 +22,8 @@ import {
 
 export const LANGUAGE_MODEL = Symbol('LANGUAGE_MODEL');
 
-/** PRD §8.3: each attempt gets 30 s; 5xx, 429 and a lost connection get one retry, after a pause. */
+/** PRD §8.3: each attempt gets 30 s. */
 const CALL_TIMEOUT_MS = 30_000;
-const PROVIDER_RETRIES = 1;
-const PROVIDER_RETRY_DELAY_MS = 2_000;
-/** PRD §8.2: output that fails the schema is retried once, then the call fails closed. */
-const SCHEMA_RETRIES = 1;
 
 // PRD §8.1: no thinking and the lowest effort, so `maxOutputTokens` bounds what a call bills.
 const MINIMAL_THINKING = {
@@ -52,11 +49,21 @@ export type StructuredResult<OBJECT> = {
 
 type StructuredOutput<OBJECT> = ReturnType<typeof Output.object<OBJECT>>;
 
-type Attempt<OBJECT> =
-  | { kind: 'generated'; object: OBJECT; usage: TokenUsage }
-  | { kind: 'invalid_output'; usage: TokenUsage }
-  | { kind: 'refused'; usage: TokenUsage }
-  | { kind: 'provider_error'; usage: TokenUsage | null; retryable: boolean; error: unknown };
+type Failure =
+  | { kind: 'invalid_output' | 'refused'; usage: TokenUsage }
+  | { kind: 'provider_error'; usage: TokenUsage | null; retryable: boolean; cause: unknown };
+
+type Attempt<OBJECT> = { kind: 'generated'; object: OBJECT; usage: TokenUsage } | Failure;
+
+/** How often each failure is retried, and after what pause, before the call fails closed. */
+const RETRY_POLICY = {
+  // PRD §8.2: output that fails the schema gets one retry.
+  invalid_output: { retries: 1, delayMs: 0 },
+  // The same input refuses again.
+  refused: { retries: 0, delayMs: 0 },
+  // PRD §8.3: one retry, for the errors `providerFailure` marks retryable.
+  provider_error: { retries: 1, delayMs: 2_000 },
+} satisfies Record<Failure['kind'], { retries: number; delayMs: number }>;
 
 /** The only way the API calls a model: every attempt reserves its worst case, calls, then settles. */
 @Injectable()
@@ -73,7 +80,7 @@ export class LlmService {
   ): Promise<StructuredResult<OBJECT>> {
     const output = Output.object({ schema: request.schema });
     const inputTokens = await estimateInputTokens(request, output);
-    const retriesLeft = { invalid_output: SCHEMA_RETRIES, provider_error: PROVIDER_RETRIES };
+    const retried = { invalid_output: 0, refused: 0, provider_error: 0 };
     for (;;) {
       const reservation = await this.ledger.reserve(
         {
@@ -89,11 +96,15 @@ export class LlmService {
       const outcome = await this.callModel(request, output, inputTokens);
       if (outcome.kind === 'generated') return this.settle(reservation, outcome);
       await this.ledger.fail(reservation, outcome.usage);
-      if (!isRetried(outcome, retriesLeft)) {
-        const cause = outcome.kind === 'provider_error' ? outcome.error : undefined;
-        throw new GenerationFailedError(outcome.kind, { cause });
+      const policy = RETRY_POLICY[outcome.kind];
+      const retryable = outcome.kind !== 'provider_error' || outcome.retryable;
+      if (!retryable || retried[outcome.kind] >= policy.retries) {
+        throw new GenerationFailedError(outcome.kind, {
+          cause: outcome.kind === 'provider_error' ? outcome.cause : undefined,
+        });
       }
-      if (outcome.kind === 'provider_error') await pause(PROVIDER_RETRY_DELAY_MS);
+      retried[outcome.kind] += 1;
+      if (policy.delayMs > 0) await sleep(policy.delayMs);
     }
   }
 
@@ -161,7 +172,7 @@ function billedTokens(usage: LanguageModelUsage | undefined, worstCase: TokenUsa
   };
 }
 
-function providerFailure(error: unknown, worstCase: TokenUsage): Attempt<never> {
+function providerFailure(error: unknown, worstCase: TokenUsage): Failure {
   const status = APICallError.isInstance(error) ? error.statusCode : undefined;
   // An error status is not billed. A 200 that failed to parse or read, a timeout or a lost connection may have been, at unknown usage.
   if (status !== undefined && status >= 400) {
@@ -169,27 +180,11 @@ function providerFailure(error: unknown, worstCase: TokenUsage): Attempt<never> 
       kind: 'provider_error',
       usage: null,
       retryable: status === 429 || status >= 500,
-      error,
+      cause: error,
     };
   }
   // The SDK wraps a lost connection as a retryable APICallError with no status.
   const lostConnection =
     APICallError.isInstance(error) && status === undefined && error.isRetryable;
-  return { kind: 'provider_error', usage: worstCase, retryable: lostConnection, error };
-}
-
-// A refusal is never retried: the same input refuses again.
-function isRetried(
-  outcome: Exclude<Attempt<unknown>, { kind: 'generated' }>,
-  retriesLeft: Record<'invalid_output' | 'provider_error', number>,
-) {
-  if (outcome.kind === 'refused') return false;
-  if (outcome.kind === 'provider_error' && !outcome.retryable) return false;
-  if (retriesLeft[outcome.kind] === 0) return false;
-  retriesLeft[outcome.kind] -= 1;
-  return true;
-}
-
-function pause(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return { kind: 'provider_error', usage: worstCase, retryable: lostConnection, cause: error };
 }

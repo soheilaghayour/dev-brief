@@ -4,7 +4,7 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { overallStatus, sourceStatus } from '../../common/source-status/sourceStatus.js';
-import { type Budget, roundUsd } from '../llm/budget.js';
+import type { Budget } from '../llm/budget.js';
 import { LLM_BUDGET, SpendLedgerService } from '../llm/spendLedger.service.js';
 
 /** /health must answer 503, not hang, when the database host stops responding. */
@@ -33,7 +33,7 @@ export class HealthService {
       db: 'ok',
       version: this.env.APP_VERSION,
       sources: reported,
-      llm: { spentTodayUsd: roundUsd(spentTodayUsd), capUsd: this.budget.caps.global },
+      llm: { spentTodayUsd, capUsd: this.budget.caps.global },
     };
   }
 

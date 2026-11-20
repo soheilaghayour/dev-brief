@@ -8,6 +8,7 @@ import {
   costFromUsage,
   type LedgerStatus,
   utcDay,
+  utcDayNumber,
   worstCaseCostUsd,
 } from './budget.js';
 import { SpendCapReachedError } from './llm.errors.js';
@@ -24,9 +25,7 @@ const RESERVE_TRANSACTION = {
   timeout: 10_000,
 } as const;
 
-const MS_PER_DAY = 86_400_000;
-
-export type ReserveRequest = {
+type ReserveRequest = {
   feature: LlmFeature;
   model: string;
   inputTokens: number;
@@ -65,7 +64,7 @@ export class SpendLedgerService {
     const worstCaseUsd = worstCaseCostUsd(request, this.budget.prices);
     return this.prisma.$transaction(async (tx) => {
       // Raw SQL because Prisma has no advisory-lock API; the lock makes concurrent reservations read each other's rows.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LEDGER_LOCK_KEY}::int, ${day.getTime() / MS_PER_DAY}::int)`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LEDGER_LOCK_KEY}::int, ${utcDayNumber(now)}::int)`;
       const rows = await committedRows(tx, day);
       const decision = capDecision(
         {

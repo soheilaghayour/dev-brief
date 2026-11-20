@@ -6,7 +6,7 @@ export const LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY = 0.012;
 export const LLM_CAP_COPILOT_USD_DAY = 0.028;
 export const LLM_CAP_GLOBAL_USD_DAY = 0.06;
 
-export type ModelPrice = { inputPerMTok: number; outputPerMTok: number };
+type ModelPrice = { inputPerMTok: number; outputPerMTok: number };
 
 /** USD per 1M tokens, keyed by model (PRD §8.2); prompts stay under 100K tokens, so only the base tier applies. */
 export const LLM_PRICES_PER_MTOK: Readonly<Record<string, ModelPrice>> = {
@@ -122,14 +122,14 @@ export function committedUsd(
   return microUsd / MICRO_USD_PER_USD;
 }
 
-/** Midnight UTC of `now`'s UTC day, the ledger's day bucket. */
-export function utcDay(now: Date) {
-  return new Date(Math.floor(now.getTime() / MS_PER_DAY) * MS_PER_DAY);
+/** Days since the epoch of `now`'s UTC day, which keys the ledger's per-day lock. */
+export function utcDayNumber(now: Date) {
+  return Math.floor(now.getTime() / MS_PER_DAY);
 }
 
-/** Rounds to the ledger's six decimals. */
-export function roundUsd(usd: number) {
-  return toMicroUsd(usd) / MICRO_USD_PER_USD;
+/** Midnight UTC of `now`'s UTC day, the ledger's day bucket. */
+export function utcDay(now: Date) {
+  return new Date(utcDayNumber(now) * MS_PER_DAY);
 }
 
 // Integer micro-dollars, so 20 × $0.00075 lands exactly on a $0.015 cap.
