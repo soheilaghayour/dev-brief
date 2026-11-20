@@ -64,11 +64,11 @@ describe('feed benchmark (reported, not a gate)', () => {
     const spy = vi.spyOn(app.get(PrismaService), '$queryRaw');
     app.get(LruCache).clear();
     await getFeed(query);
-    const [strings, ...values] = spy.mock.calls[0] ?? [];
+    const [feedQuery] = spy.mock.calls[0] ?? [];
     spy.mockRestore();
-    if (!Array.isArray(strings)) throw new Error('the feed query is not a tagged template');
+    if (!(feedQuery instanceof Prisma.Sql)) throw new Error('the feed query is not a Prisma.Sql');
     const plan = await prisma.$queryRaw<{ 'QUERY PLAN': string }[]>(
-      Prisma.sql`EXPLAIN (ANALYZE, BUFFERS) ${Prisma.sql(strings, ...values)}`,
+      Prisma.sql`EXPLAIN (ANALYZE, BUFFERS) ${feedQuery}`,
     );
     return plan.map((row) => row['QUERY PLAN']).join('\n');
   }

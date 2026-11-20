@@ -156,6 +156,7 @@ links to them instead of restating them.
 - **A muted tag hides a story; a muted source hides it only when every one of its sources is muted.** A muted source must not hide a link the user also sees through a source they kept; a muted topic should never show.
 - **Mute wins over follow on the same story.** "Muted items never appear" ([AC-2.5.2](docs/prd.md#f25-followmute)), so exclusion runs in the `WHERE` and the boost only reorders what is left.
 - **The follow boost applies once (×1.5), however many followed tags or sources match.** [Appendix B §5](docs/prd.md#appendix-b--ranking-formula) states a single multiplier; it is `FOLLOW_BOOST` in `core/ranking.ts`.
+- **A boosted Top page reads followed and other stories as two streams in `(rankScore, id)` index order, each stopping after a page, and merges them by boosted score.** Within a stream the boost is one factor, so index order is score order; sorting by the boosted expression instead scored and sorted the whole 7-day window, and its cost estimate turned on JIT compilation that took longer than the query ([§8.5](docs/prd.md#85-performance-budgets)). The one order this can change: two followed stories whose rankScores differ in the last bit of a double, which boosting can round to one score.
 
 ## Open PM questions
 

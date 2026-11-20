@@ -50,8 +50,8 @@ export class FeedService {
 
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
   private selectPage(query: FeedQuery, keyset: Keyset | undefined) {
-    const { exclusions, sortScore } = personalisation(query);
-    const conditions = [
+    const { exclusions, boost } = personalisation(query);
+    const filters = [
       ...(query.sort === 'top'
         ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
         : []),
@@ -66,18 +66,13 @@ export class FeedService {
         ? [Prisma.sql`s."searchVector" @@ websearch_to_tsquery('english', ${query.q})`]
         : []),
       ...exclusions,
-      ...(keyset ? [keysetCondition(query.sort, keyset, sortScore)] : []),
     ];
-    const where = conditions.length
-      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
-      : Prisma.empty;
-    const orderBy =
-      query.sort === 'top'
-        ? Prisma.sql`ORDER BY "sortScore" DESC, s."id" DESC`
-        : Prisma.sql`ORDER BY s."publishedAt" DESC, s."id" DESC`;
-    return this.prisma.$queryRaw<PageRow[]>`
-      SELECT s."id", s."publishedAt", ${sortScore} AS "sortScore" FROM "Story" s
-      ${where} ${orderBy} LIMIT ${query.limit + 1}`;
+    const limit = query.limit + 1;
+    const page =
+      query.sort === 'latest'
+        ? latestPage(filters, keyset, limit)
+        : topPage(filters, boost, keyset, limit);
+    return this.prisma.$queryRaw<PageRow[]>(page);
   }
 
   private async loadCards(ids: string[]) {
@@ -91,6 +86,10 @@ export class FeedService {
       return story ? [toStoryCard(story)] : [];
     });
   }
+}
+
+function whereClause(conditions: Prisma.Sql[]) {
+  return conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}` : Prisma.empty;
 }
 
 function sourceExists(sourceCondition: Prisma.Sql) {
@@ -109,23 +108,70 @@ function personalisation(query: FeedQuery) {
       ? [sourceExists(Prisma.sql`src."slug" <> ALL(${excludeSources}::text[])`)]
       : []),
   ];
-  const boosts = [
+  const follows = [
     ...(boostTags?.length ? [Prisma.sql`s."tags" && ${boostTags}::text[]`] : []),
     ...(boostSources?.length
       ? [sourceExists(Prisma.sql`src."slug" = ANY(${boostSources}::text[])`)]
       : []),
   ];
   // One multiplier however many follows match.
-  const sortScore = boosts.length
-    ? Prisma.sql`(s."rankScore" * CASE WHEN ${Prisma.join(boosts, ' OR ')}
-          THEN ${FOLLOW_BOOST}::double precision ELSE 1 END)`
-    : Prisma.sql`s."rankScore"`;
-  return { exclusions, sortScore };
+  const boost = follows.length ? Prisma.sql`(${Prisma.join(follows, ' OR ')})` : undefined;
+  return { exclusions, boost };
 }
 
-// Both sorts end with id desc, so a row-wise comparison continues exactly after the cursor row.
-function keysetCondition(sort: FeedQuery['sort'], { sortKey, id }: Keyset, sortScore: Prisma.Sql) {
-  return sort === 'top'
-    ? Prisma.sql`(${sortScore}, s."id") < (${sortKey}::double precision, ${id})`
-    : Prisma.sql`(s."publishedAt", s."id") < (${sortKey}, ${id})`;
+function latestPage(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: number) {
+  const after = keyset
+    ? [Prisma.sql`(s."publishedAt", s."id") < (${keyset.sortKey}, ${keyset.id})`]
+    : [];
+  return Prisma.sql`
+    SELECT s."id", s."publishedAt", s."rankScore" AS "sortScore" FROM "Story" s
+    ${whereClause([...filters, ...after])} ORDER BY s."publishedAt" DESC, s."id" DESC LIMIT ${limit}`;
+}
+
+/**
+ * Top, ordered by rankScore with the follow boost applied: boosted and unboosted stories are two
+ * streams, each read in (rankScore, id) index order, merged by their effective score.
+ */
+function topPage(
+  filters: Prisma.Sql[],
+  boost: Prisma.Sql | undefined,
+  keyset: Keyset | undefined,
+  limit: number,
+) {
+  if (!boost) return topStream(filters, 1, keyset, limit);
+  // IS NOT TRUE, not NOT: a story with NULL tags makes the boost NULL, and it counts as unboosted.
+  return Prisma.sql`
+    (${topStream([...filters, boost], FOLLOW_BOOST, keyset, limit)})
+    UNION ALL
+    (${topStream([...filters, Prisma.sql`${boost} IS NOT TRUE`], 1, keyset, limit)})
+    ORDER BY "sortScore" DESC, "id" DESC LIMIT ${limit}`;
+}
+
+/** The first `limit` stories after the keyset whose score is rankScore × `factor`, in index order. */
+function topStream(
+  conditions: Prisma.Sql[],
+  factor: number,
+  keyset: Keyset | undefined,
+  limit: number,
+) {
+  const score =
+    factor === 1
+      ? Prisma.sql`s."rankScore"`
+      : Prisma.sql`(s."rankScore" * ${factor}::double precision)`;
+  return Prisma.sql`
+    SELECT s."id", s."publishedAt", ${score} AS "sortScore" FROM "Story" s
+    ${whereClause([...conditions, ...(keyset ? topKeyset(score, factor, keyset) : [])])}
+    ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}`;
+}
+
+// The order ends with id desc, so a row-wise comparison continues exactly after the cursor row.
+function topKeyset(score: Prisma.Sql, factor: number, { sortKey, id }: Keyset) {
+  const after = Prisma.sql`(${score}, s."id") < (${sortKey}::double precision, ${id})`;
+  if (factor === 1) return [after];
+  // An index bound for the boosted stream: its slack covers float rounding, and `after` stays exact.
+  return [
+    after,
+    Prisma.sql`s."rankScore" <= ${sortKey}::double precision / ${factor}::double precision
+      * ${1 + 4 * Number.EPSILON}::double precision`,
+  ];
 }
