@@ -117,6 +117,7 @@ links to them instead of restating them.
 - **The FAQ is native `<details>` and the mobile nav a `<details>` menu, not Radix.** [§2.1](docs/prd.md#21-section-by-section-layout) names an accordion; native elements do the job with no JS on a page with a 150 KB budget.
 - **A web-only `getFeed` option lets the landing fetch stay cacheable.** The feed page keeps `no-store`; a no-store fetch would make the landing route dynamic.
 - **Lighthouse CI runs as its own `lighthouse` job on a build without an API (the sample page); the `check` job starts the API before the web build.** The Lighthouse gate needs no database, and the e2e landing tests need the page generated from the seeded stories ([AC-L1](docs/prd.md#25-landing-acceptance-criteria)).
+- **The logo link does not prefetch `/`.** On Next 16.4.6 the segment prefetches of an ISR page (`revalidate`) never answer after the first page load, so every later `/feed` load keeps requests pending and Playwright's `networkidle` never fires; without `revalidate` the hang disappears. Clicking the logo still navigates normally. Remove `prefetch={false}` when an upgrade fixes it.
 
 ## Open PM questions
 
