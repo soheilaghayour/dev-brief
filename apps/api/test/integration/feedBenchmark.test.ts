@@ -1,14 +1,18 @@
 import type { INestApplication } from '@nestjs/common';
 import { FeedPageSchema } from '@devbrief/shared';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
+import { PrismaService } from '../../src/common/prisma/prisma.service.js';
+import { Prisma } from '../../src/generated/prisma/client.js';
 import { createTestApp } from './createTestApp.js';
 import { createSource } from './seedStories.js';
 import { useTestDatabase } from './testDatabase.js';
 
 const STORY_COUNT = 40_000;
 const SAMPLES = 60;
+// Set FEED_BENCH_EXPLAIN=1 to print each shape's EXPLAIN (ANALYZE, BUFFERS) plan.
+const PRINT_PLANS = process.env.FEED_BENCH_EXPLAIN !== '0';
 
 describe('feed benchmark (reported, not a gate)', () => {
   const prisma = useTestDatabase();
@@ -41,6 +45,8 @@ describe('feed benchmark (reported, not a gate)', () => {
         'https://example.com/' || n,
         'Benchmark story ' || n, now(), now()
       FROM generate_series(10, ${STORY_COUNT}, 10) AS n`;
+    // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
+    await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source"`;
     app = await createTestApp();
   }, 120_000);
 
@@ -52,6 +58,20 @@ describe('feed benchmark (reported, not a gate)', () => {
       .get('/api/v1/feed')
       .set('x-internal-token', process.env.INTERNAL_API_TOKEN ?? '')
       .query(query);
+
+  /** Captures the feed query a request runs and returns its EXPLAIN (ANALYZE, BUFFERS) plan. */
+  async function explainFeedQuery(query: Record<string, string>) {
+    const spy = vi.spyOn(app.get(PrismaService), '$queryRaw');
+    app.get(LruCache).clear();
+    await getFeed(query);
+    const [strings, ...values] = spy.mock.calls[0] ?? [];
+    spy.mockRestore();
+    if (!Array.isArray(strings)) throw new Error('the feed query is not a tagged template');
+    const plan = await prisma.$queryRaw<{ 'QUERY PLAN': string }[]>(
+      Prisma.sql`EXPLAIN (ANALYZE, BUFFERS) ${Prisma.sql(strings, ...values)}`,
+    );
+    return plan.map((row) => row['QUERY PLAN']).join('\n');
+  }
 
   it('prints the feed p95 server time per query shape at 40k stories', async () => {
     const cache = app.get(LruCache);
@@ -84,6 +104,7 @@ describe('feed benchmark (reported, not a gate)', () => {
       console.info(
         `feed p95 (${name}) at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`,
       );
+      if (PRINT_PLANS) console.info(`QUERY PLAN (${name})\n${await explainFeedQuery(query)}`);
     }
   }, 240_000);
 });
