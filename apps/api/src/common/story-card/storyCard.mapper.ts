@@ -6,14 +6,15 @@ import {
   type StorySummary,
 } from '@devbrief/shared';
 import type { Prisma, Summary } from '../../generated/prisma/client.js';
+import type { Env } from '../env/env.module.js';
 
-/** The Prisma include every story read uses, so the mapper below sees the same shape everywhere. */
+/** The Prisma include every story read uses, so the mapper below sees the same shape everywhere; a card needs only whether a summary exists. */
 export const storyWithItems = {
   items: {
     include: { source: true },
     orderBy: [{ engagement: 'desc' }, { id: 'asc' }],
   },
-  summary: true,
+  summary: { select: { id: true } },
 } satisfies Prisma.StoryInclude;
 
 export type StoryWithItems = Prisma.StoryGetPayload<{ include: typeof storyWithItems }>;
@@ -34,6 +35,11 @@ export function toSourceRef(item: ItemWithSource): SourceRef {
 
 /** The phase flags the mappers read; a field behind an off flag is left out, so flag-off responses match Phase 1. */
 export type StoryFeatures = { summaries: boolean };
+
+/** The phase flags the story mappers read, from the validated env. */
+export function storyFeatures(env: Pick<Env, 'FEATURE_SUMMARIES'>): StoryFeatures {
+  return { summaries: env.FEATURE_SUMMARIES };
+}
 
 export function toStorySummary(summary: Summary): StorySummary {
   return {

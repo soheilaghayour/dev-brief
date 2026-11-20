@@ -3,6 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import {
   ApiErrorSchema,
   FeedPageSchema,
+  SavedStoryPageSchema,
   StoryDetailSchema,
   StoryLookupResponseSchema,
   StorySummarySchema,
@@ -237,7 +238,7 @@ describe('summary reads', () => {
         createdAt: utcDay(new Date()),
       },
     });
-    flagOn = await createTestApp([], SUMMARIES_ON);
+    flagOn = await createTestApp([], { ...SUMMARIES_ON, AUTH_TEST_MODE: 'true' });
     flagOff = await createTestApp();
   });
 
@@ -300,6 +301,33 @@ describe('summary reads', () => {
     expect(detail).toMatchObject({ hasSummary: true, summary: { tldr: MODEL_OUTPUT.tldr } });
     const plain = StoryDetailSchema.parse((await get(flagOn, `/api/v1/stories/${plainId}`)).body);
     expect(plain).toMatchObject({ hasSummary: false, summary: null });
+  });
+
+  it('the saves list carries hasSummary with the flag on', async () => {
+    const origin = process.env.APP_URL ?? '';
+    const signIn = await request(flagOn.getHttpServer())
+      .post('/api/auth/test/sign-in')
+      .set('Origin', origin)
+      .send({ email: 'summary-saver@example.com' });
+    expect(signIn.status).toBe(200);
+    const cookie = (signIn.get('Set-Cookie') ?? []).map((c) => c.split(';')[0]).join('; ');
+    for (const id of [summarisedId, plainId]) {
+      const saved = await request(flagOn.getHttpServer())
+        .put(`/api/v1/me/saves/${id}`)
+        .set('Origin', origin)
+        .set('Cookie', cookie);
+      expect(saved.status).toBe(200);
+    }
+
+    const response = await get(flagOn, '/api/v1/me/saves').set('Cookie', cookie);
+
+    const hasSummaryById = Object.fromEntries(
+      SavedStoryPageSchema.parse(response.body).items.map(({ story }) => [
+        story.id,
+        story.hasSummary,
+      ]),
+    );
+    expect(hasSummaryById).toEqual({ [summarisedId]: true, [plainId]: false });
   });
 
   it('feed, lookup and story detail leave both fields out with the flag off', async () => {

@@ -5,6 +5,7 @@ import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   type StoryFeatures,
+  storyFeatures,
   storyWithItems,
   toSourceRef,
   toStoryCard,
@@ -19,13 +20,14 @@ export class StoriesService {
     private readonly prisma: PrismaService,
     @Inject(ENV) env: Env,
   ) {
-    this.features = { summaries: env.FEATURE_SUMMARIES };
+    this.features = storyFeatures(env);
   }
 
   async getDetail(id: string): Promise<StoryDetail> {
     const story = await this.prisma.story.findUnique({
       where: { id },
-      include: storyWithItems,
+      // The detail shows the summary itself; cards only say whether there is one.
+      include: { ...storyWithItems, summary: true },
     });
     if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
     return {

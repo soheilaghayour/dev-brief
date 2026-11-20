@@ -11,6 +11,7 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   type StoryFeatures,
+  storyFeatures,
   storyWithItems,
   toStoryCard,
 } from '../../common/story-card/storyCard.mapper.js';
@@ -29,7 +30,7 @@ export class FeedService {
     private readonly cache: LruCache,
     @Inject(ENV) env: Env,
   ) {
-    this.features = { summaries: env.FEATURE_SUMMARIES };
+    this.features = storyFeatures(env);
   }
 
   async getPage(requested: FeedQuery): Promise<FeedPage> {

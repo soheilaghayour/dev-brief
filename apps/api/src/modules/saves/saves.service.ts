@@ -17,6 +17,7 @@ import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { lockPreferenceWrites } from '../../common/preferences/preferenceWriteLock.js';
 import {
   type StoryFeatures,
+  storyFeatures,
   storyWithItems,
   toStoryCard,
 } from '../../common/story-card/storyCard.mapper.js';
@@ -70,7 +71,7 @@ export class SavesService {
     private readonly prisma: PrismaService,
     @Inject(ENV) env: Env,
   ) {
-    this.features = { summaries: env.FEATURE_SUMMARIES };
+    this.features = storyFeatures(env);
   }
 
   async list(userId: string, { cursor, limit }: PaginationQuery): Promise<SavedStoryPage> {
