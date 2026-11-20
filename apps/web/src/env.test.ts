@@ -43,6 +43,9 @@ describe('validateFeatureFlagEnv', () => {
         NEXT_PUBLIC_FEATURE_SUMMARIES: 'true',
         NEXT_PUBLIC_FEATURE_PREFERENCES: 'false',
         NEXT_PUBLIC_FEATURE_CLUSTERS: 'true',
+        NEXT_PUBLIC_FEATURE_COPILOT: 'true',
+        NEXT_PUBLIC_FEATURE_RADAR: 'false',
+        NEXT_PUBLIC_FEATURE_COLLECTIONS: 'true',
       }),
     ).not.toThrow();
   });
@@ -57,6 +60,15 @@ describe('validateFeatureFlagEnv', () => {
       );
       expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_CLUSTERS: value })).toThrow(
         /NEXT_PUBLIC_FEATURE_CLUSTERS/,
+      );
+      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_COPILOT: value })).toThrow(
+        /NEXT_PUBLIC_FEATURE_COPILOT/,
+      );
+      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_RADAR: value })).toThrow(
+        /NEXT_PUBLIC_FEATURE_RADAR/,
+      );
+      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_COLLECTIONS: value })).toThrow(
+        /NEXT_PUBLIC_FEATURE_COLLECTIONS/,
       );
     }
   });

@@ -70,7 +70,10 @@ jobs:
           # The e2e run reaches the Phase 2 UI and routes; Lighthouse builds with every flag off.
           FEATURE_SUMMARIES: 'true'
           FEATURE_PREFERENCES: 'true'
-          # Summaries need a key to boot; e2e never calls the LLM, so a placeholder does.
+          FEATURE_COPILOT: 'true'
+          FEATURE_RADAR: 'true'
+          FEATURE_COLLECTIONS: 'true'
+          # Summaries and the copilot need a key to boot; e2e never calls the LLM, so a placeholder does.
           ANTHROPIC_API_KEY: ci-placeholder-not-a-key
           IP_HASH_SECRET: ci-placeholder-ip-hash-secret-0123456789
       - run: pnpm --filter web build
@@ -78,6 +81,9 @@ jobs:
           API_PROXY_URL: http://localhost:3001
           NEXT_PUBLIC_FEATURE_SUMMARIES: 'true'
           NEXT_PUBLIC_FEATURE_PREFERENCES: 'true'
+          NEXT_PUBLIC_FEATURE_COPILOT: 'true'
+          NEXT_PUBLIC_FEATURE_RADAR: 'true'
+          NEXT_PUBLIC_FEATURE_COLLECTIONS: 'true'
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
       # After e2e, so a size overrun does not hide a failing smoke test.

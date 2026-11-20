@@ -25,6 +25,9 @@ describe('FEATURES', () => {
     vi.stubEnv('NEXT_PUBLIC_FEATURE_SUMMARIES', undefined);
     vi.stubEnv('NEXT_PUBLIC_FEATURE_PREFERENCES', undefined);
     vi.stubEnv('NEXT_PUBLIC_FEATURE_CLUSTERS', undefined);
+    vi.stubEnv('NEXT_PUBLIC_FEATURE_COPILOT', undefined);
+    vi.stubEnv('NEXT_PUBLIC_FEATURE_RADAR', undefined);
+    vi.stubEnv('NEXT_PUBLIC_FEATURE_COLLECTIONS', undefined);
     const features = await loadFeatures();
 
     expect(features).toEqual(ALL_OFF);
@@ -37,8 +40,22 @@ describe('FEATURES', () => {
     ['summaries', 'NEXT_PUBLIC_FEATURE_SUMMARIES'],
     ['preferences', 'NEXT_PUBLIC_FEATURE_PREFERENCES'],
     ['clusters', 'NEXT_PUBLIC_FEATURE_CLUSTERS'],
+    ['copilot', 'NEXT_PUBLIC_FEATURE_COPILOT'],
+    ['radar', 'NEXT_PUBLIC_FEATURE_RADAR'],
+    ['collections', 'NEXT_PUBLIC_FEATURE_COLLECTIONS'],
   ])('AC-L7 turns on only %s when %s=true', async (flag, variable) => {
     vi.stubEnv(variable, 'true');
     expect(await loadFeatures()).toEqual({ ...ALL_OFF, [flag]: true });
+  });
+
+  it.each([
+    'NEXT_PUBLIC_FEATURE_COPILOT',
+    'NEXT_PUBLIC_FEATURE_RADAR',
+    'NEXT_PUBLIC_FEATURE_COLLECTIONS',
+  ])('reads %s as true only for the literal string "true"', async (variable) => {
+    for (const value of ['TRUE', '1', 'yes', 'false', '']) {
+      vi.stubEnv(variable, value);
+      expect(await loadFeatures()).toEqual(ALL_OFF);
+    }
   });
 });
