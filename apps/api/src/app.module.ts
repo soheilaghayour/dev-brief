@@ -4,6 +4,7 @@ import { CommonModule } from './common/common.module.js';
 import { loadEnv } from './env.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ClustersModule } from './modules/clusters/clusters.module.js';
 import { FeedModule } from './modules/feed/feed.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { IngestionModule } from './modules/ingestion/ingestion.module.js';
@@ -26,6 +27,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
     HealthModule,
     FeedModule,
     StoriesModule,
+    ClustersModule,
     SummariesHttpModule,
     SavesModule,
     PreferencesModule,

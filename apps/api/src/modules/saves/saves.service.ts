@@ -15,11 +15,11 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { lockPreferenceWrites } from '../../common/preferences/preferenceWriteLock.js';
+import { toStoryCards } from '../../common/story-card/clusterCards.js';
 import {
   type StoryFeatures,
   storyFeatures,
   storyWithItems,
-  toStoryCard,
 } from '../../common/story-card/storyCard.mapper.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { planSaveMerge } from './mergePlan.js';
@@ -92,9 +92,14 @@ export class SavesService {
     });
     const pageRows = rows.slice(0, limit);
     const lastRow = pageRows.at(-1);
+    const cards = await toStoryCards(
+      this.prisma,
+      pageRows.map((row) => row.story),
+      this.features,
+    );
     return {
-      items: pageRows.map((row) => ({
-        story: toStoryCard(row.story, this.features),
+      items: pageRows.map((row, index) => ({
+        story: cards[index]!,
         savedAt: row.savedAt.toISOString(),
       })),
       nextCursor:
