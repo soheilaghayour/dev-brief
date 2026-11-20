@@ -149,7 +149,10 @@ links to them instead of restating them.
 - **`GET /me/preferences` is not counted against the per-user mutations limit; `PUT` is.** [§8.6](docs/prd.md#86-security-basics) limits mutations, and reads stay under the global per-IP limit like `GET /me/saves`; a client that refetches after every change would otherwise spend two mutations per toggle.
 - **`merged.preferences` counts the distinct guest `(kind, value)` pairs the account holds after the merge, whatever their mode.** It is the `merged.saves` rule: a repeated merge answers the same, and a pair the server already had counts though the server's mode was kept ([AC-2.5.3](docs/prd.md#f25-followmute)).
 - **A merge adds a guest preference only while that list in the account is under `FEED_LIST_MAX`; the rest are dropped and not counted.** Account and guest lists together can pass the cap, and a stored set over it would no longer give a valid feed URL or pass `PreferencesSchema`.
-- **The merge stores `preferences` whether or not `FEATURE_PREFERENCES` is on.** `/me/merge` is not a flagged route, and the web sends preferences only when its own flag let the guest create them.
+- **Only the `/me/preferences` routes sit behind `FEATURE_PREFERENCES`; the feed's personalisation params and the merge's `preferences` work with it off.** They are additive inputs to routes that are not flagged, and the web sends them only when its own flag lets a user create preferences.
+- **A muted tag hides a story; a muted source hides it only when every one of its sources is muted.** A muted source must not hide a link the user also sees through a source they kept; a muted topic should never show.
+- **Mute wins over follow on the same story.** "Muted items never appear" ([AC-2.5.2](docs/prd.md#f25-followmute)), so exclusion runs in the `WHERE` and the boost only reorders what is left.
+- **The follow boost applies once (×1.5), however many followed tags or sources match.** [Appendix B §5](docs/prd.md#appendix-b--ranking-formula) states a single multiplier; it is `FOLLOW_BOOST` in `core/ranking.ts`.
 
 ## Open PM questions
 

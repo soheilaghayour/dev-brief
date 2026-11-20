@@ -59,7 +59,8 @@ describe('GET /api/v1/feed', () => {
         itemSourceIds: seed.sources,
       });
     }
-    app = await createTestApp();
+    // The personalisation params are plain feed filters: they work with the preferences flag off.
+    app = await createTestApp([], { FEATURE_PREFERENCES: 'false' });
   });
 
   afterAll(() => app.close());
@@ -163,6 +164,8 @@ describe('GET /api/v1/feed', () => {
     }
     expect(await prisma.story.count()).toBe(5);
     expect((await getFeed({ sources: `x'); DROP TABLE "Story"; --` })).body.items).toEqual([]);
+    expect((await getFeed({ excludeSources: `x'); DROP TABLE "Story"; --` })).status).toBe(200);
+    expect((await getFeed({ boostSources: `x' OR '1'='1` })).status).toBe(200);
     expect(await prisma.story.count()).toBe(5);
   });
 
@@ -209,6 +212,139 @@ describe('GET /api/v1/feed', () => {
       const mismatched = await getFeed({ sort: 'latest', cursor: topPage.body.nextCursor });
       expect(mismatched.status).toBe(400);
       expect(ApiErrorSchema.parse(mismatched.body).error.code).toBe('INVALID_CURSOR');
+    });
+  });
+
+  describe('AC-2.5.2 personalisation params', () => {
+    it('AC-2.5.2 excludeTags hides every story carrying a muted tag, in Top and Latest', async () => {
+      const blog = await prisma.source.findUniqueOrThrow({ where: { slug: 'blog' } });
+      await createStory(prisma, {
+        title: 'Career ladders',
+        publishedAt: hoursAgo(4),
+        rankScore: 4,
+        tags: ['career', 'go'],
+        itemSourceIds: [blog.id],
+      });
+      expect(await feedTitles()).toContain('Career ladders');
+      for (const sort of ['top', 'latest']) {
+        const response = await getFeed({ sort, excludeTags: 'career' });
+        const page = FeedPageSchema.parse(response.body);
+        expect(page.items.length).toBeGreaterThan(0);
+        expect(page.items.filter((item) => item.tags.includes('career'))).toEqual([]);
+      }
+      await prisma.story.deleteMany({ where: { title: 'Career ladders' } });
+    });
+
+    it('AC-2.5.2 excludeSources hides a story only when every one of its sources is muted', async () => {
+      expect(await feedTitles({ excludeSources: 'hn' })).toEqual([
+        'React compiler',
+        'Rust and React',
+        'Bun runtime news',
+      ]);
+      expect(await feedTitles({ excludeSources: 'hn,devto' })).toEqual(['Bun runtime news']);
+    });
+
+    it('AC-2.5.2 boostTags ranks a followed story at 0.7× its neighbour above it, and the cursor pages every story once', async () => {
+      const blog = await prisma.source.findUniqueOrThrow({ where: { slug: 'blog' } });
+      await createStory(prisma, {
+        title: 'Neighbour',
+        publishedAt: hoursAgo(5),
+        rankScore: 10,
+        tags: ['go'],
+        itemSourceIds: [blog.id],
+      });
+      await createStory(prisma, {
+        title: 'Rust borrow checker',
+        publishedAt: hoursAgo(6),
+        rankScore: 7,
+        tags: ['rust'],
+        itemSourceIds: [blog.id],
+      });
+      const unboosted = await feedTitles({ limit: 2 });
+      expect(unboosted).toEqual(['Neighbour', 'TypeScript 7']);
+
+      const boosted = await feedTitles({ boostTags: 'rust' });
+      expect(boosted).toEqual([
+        'Rust borrow checker',
+        'Neighbour',
+        'TypeScript 7',
+        'React compiler',
+        'Rust and React',
+        'Bun runtime news',
+      ]);
+
+      const paged: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const response = await getFeed({
+          boostTags: 'rust',
+          limit: 2,
+          ...(cursor ? { cursor } : {}),
+        });
+        const page = FeedPageSchema.parse(response.body);
+        paged.push(...page.items.map((item) => item.title));
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      expect(paged).toEqual(boosted);
+      await prisma.story.deleteMany({
+        where: { title: { in: ['Neighbour', 'Rust borrow checker'] } },
+      });
+    });
+
+    it('AC-2.5.2 a story matching a followed tag and a followed source is boosted once, not twice', async () => {
+      // Stacked, React compiler would score 5 × 1.5 × 1.5 = 11.25 and pass TypeScript 7 (9).
+      expect(await feedTitles({ boostTags: 'react', boostSources: 'devto' })).toEqual([
+        'TypeScript 7',
+        'React compiler',
+        'Rust and React',
+        'Bun runtime news',
+      ]);
+    });
+
+    it('AC-2.5.2 a mute wins over a follow on the same story', async () => {
+      expect(await feedTitles({ boostTags: 'rust', excludeTags: 'react' })).toEqual([
+        'TypeScript 7',
+        'Bun runtime news',
+      ]);
+      expect(await feedTitles({ boostSources: 'devto', excludeSources: 'devto' })).toEqual([
+        'TypeScript 7',
+        'React compiler',
+        'Bun runtime news',
+      ]);
+    });
+
+    it('AC-2.5.2 Latest ignores boosts', async () => {
+      expect(await feedTitles({ sort: 'latest', boostTags: 'rust' })).toEqual(
+        await feedTitles({ sort: 'latest' }),
+      );
+    });
+
+    it('AC-2.5.2 personalised responses keep the public cache header, and reordered params share one cache entry', async () => {
+      const prismaService = app.get(PrismaService);
+      const spy = vi.spyOn(prismaService, '$queryRaw');
+      const first = await getFeed({ excludeTags: 'career,go', boostSources: 'hn,devto' });
+      const second = await getFeed({ boostSources: 'devto,hn', excludeTags: 'go,career' });
+      for (const response of [first, second]) {
+        expect(response.status).toBe(200);
+        expect(response.headers['cache-control']).toBe(
+          'public, max-age=60, stale-while-revalidate=300',
+        );
+      }
+      expect(second.body).toEqual(first.body);
+      expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockRestore();
+    });
+
+    it('rejects an unknown tag in excludeTags or boostTags', async () => {
+      const invalid: Record<string, string>[] = [
+        { excludeTags: 'not-a-tag' },
+        { boostTags: 'react,not-a-tag' },
+      ];
+      for (const params of invalid) {
+        const response = await getFeed(params);
+        expect(response.status).toBe(400);
+        expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
+      }
     });
   });
 

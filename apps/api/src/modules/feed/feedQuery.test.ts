@@ -43,4 +43,38 @@ describe('feedCacheKey', () => {
     expect(feedCacheKey(baseQuery)).not.toBe(feedCacheKey({ ...baseQuery, sort: 'latest' }));
     expect(feedCacheKey(baseQuery)).not.toBe(feedCacheKey({ ...baseQuery, q: 'bun' }));
   });
+
+  it('normalises the personalisation params: order and repeats do not matter', () => {
+    expect(
+      feedCacheKey({
+        ...baseQuery,
+        excludeTags: ['career', 'go', 'career'],
+        excludeSources: ['hn', 'devto'],
+        boostTags: ['rust', 'react'],
+        boostSources: ['rss-b', 'rss-a'],
+      }),
+    ).toBe(
+      feedCacheKey({
+        ...baseQuery,
+        excludeTags: ['go', 'career'],
+        excludeSources: ['devto', 'hn'],
+        boostTags: ['react', 'rust'],
+        boostSources: ['rss-a', 'rss-b', 'rss-a'],
+      }),
+    );
+    expect(feedCacheKey({ ...baseQuery, boostTags: [] })).toBe(feedCacheKey(baseQuery));
+  });
+
+  it('keeps each personalisation param apart: the same value in another param is another key', () => {
+    const keys = new Set([
+      feedCacheKey(baseQuery),
+      feedCacheKey({ ...baseQuery, tags: ['rust'] }),
+      feedCacheKey({ ...baseQuery, excludeTags: ['rust'] }),
+      feedCacheKey({ ...baseQuery, boostTags: ['rust'] }),
+      feedCacheKey({ ...baseQuery, sources: ['hn'] }),
+      feedCacheKey({ ...baseQuery, excludeSources: ['hn'] }),
+      feedCacheKey({ ...baseQuery, boostSources: ['hn'] }),
+    ]);
+    expect(keys.size).toBe(7);
+  });
 });

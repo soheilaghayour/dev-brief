@@ -30,7 +30,16 @@ export function getHealth() {
 
 /** `isPerRequest: false` leaves the fetch cacheable, for statically generated pages. */
 export function getFeed(
-  { tags, kinds, sources, ...rest }: FeedParams = {},
+  {
+    tags,
+    kinds,
+    sources,
+    excludeTags,
+    excludeSources,
+    boostTags,
+    boostSources,
+    ...rest
+  }: FeedParams = {},
   { isPerRequest = true } = {},
 ) {
   const query = {
@@ -38,6 +47,10 @@ export function getFeed(
     tags: tags?.join(','),
     kinds: kinds?.join(','),
     sources: sources?.join(','),
+    excludeTags: excludeTags?.join(','),
+    excludeSources: excludeSources?.join(','),
+    boostTags: boostTags?.join(','),
+    boostSources: boostSources?.join(','),
   };
   // Per request by default: the feed's first page renders from fresh API data (PRD §8.4).
   const cache = isPerRequest ? 'no-store' : undefined;

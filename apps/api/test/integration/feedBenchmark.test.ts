@@ -42,6 +42,8 @@ describe('feed benchmark (reported, not a gate)', () => {
       'top + tags': { tags: 'react' },
       'search (q)': { q: 'bun story' },
       'latest + tags': { sort: 'latest', tags: 'rust' },
+      'top + boost': { boostTags: 'rust,go', boostSources: 'hn' },
+      'top + boost + mute': { boostTags: 'rust,go', boostSources: 'hn', excludeTags: 'python' },
     };
     for (const [name, query] of Object.entries(shapes)) {
       const durations: number[] = [];
