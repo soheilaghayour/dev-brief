@@ -9,11 +9,11 @@ import {
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { toStoryCards } from '../../common/story-card/clusterCards.js';
 import {
   type StoryFeatures,
   storyFeatures,
   storyWithItems,
-  toStoryCard,
 } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
@@ -68,9 +68,11 @@ export class FeedService {
     // A small source is better a list of ids than an EXISTS probe: the planner can't size the subquery, and without
     // the list it walks the whole rankScore (Top) or publishedAt (Latest) index looking for the few matches.
     const sourceStoryIds = query.sources?.length
-      ? await this.smallSourceStoryIds(query.sources)
+      ? await this.smallSourceStoryIds(query.sources, this.features.clusters)
       : undefined;
     const filters = [
+      // A cluster is its representative's one card: members never list on their own.
+      ...(this.features.clusters ? [Prisma.sql`s."isPrimary" = true`] : []),
       ...(query.sort === 'top'
         ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
         : []),
@@ -101,9 +103,13 @@ export class FeedService {
    * can't size a subquery, so an id list is what makes it look the few stories up instead of scanning; a big source
    * stays an EXISTS, which stops after a page in rankScore order.
    */
-  private async smallSourceStoryIds(slugs: string[]) {
+  private async smallSourceStoryIds(slugs: string[], primaryOnly: boolean) {
     const items = await this.prisma.sourceItem.findMany({
-      where: { source: { slug: { in: slugs } } },
+      // Primary only, so a cluster counts by its representative's sources and the cap sizes the cards it can list.
+      where: {
+        source: { slug: { in: slugs } },
+        ...(primaryOnly && { story: { isPrimary: true } }),
+      },
       select: { storyId: true },
       take: SMALL_SOURCE_STORIES + 1,
     });
@@ -118,10 +124,8 @@ export class FeedService {
       include: storyWithItems,
     });
     const storyById = new Map(stories.map((story) => [story.id, story]));
-    return ids.flatMap((id) => {
-      const story = storyById.get(id);
-      return story ? [toStoryCard(story, this.features)] : [];
-    });
+    const ordered = ids.flatMap((id) => storyById.get(id) ?? []);
+    return toStoryCards(this.prisma, ordered, this.features);
   }
 }
 
@@ -135,7 +139,7 @@ function sourceExists(sourceCondition: Prisma.Sql) {
     WHERE si."storyId" = s."id" AND ${sourceCondition})`;
 }
 
-/** Mutes and follows, applied per story: the one place a cluster-level rule would replace. */
+/** Mutes and follows, applied per story. With clusters on only representatives are queried, so a cluster is muted or boosted by the story its card shows. */
 function personalisation(query: FeedQuery) {
   const { excludeTags, excludeSources, boostTags, boostSources } = query;
   const exclusions = [
