@@ -25,8 +25,8 @@ import { usePreviewSaves } from './usePreviewSaves';
 type HeroPreviewProps = {
   /** The last 24 h of top stories, embedded in the static HTML. */
   stories: readonly StoryCardData[];
-  /** The count behind "Showing 6 of N stories today". */
-  storiesToday: number;
+  /** The count behind "Showing 6 of N stories today"; absent when the stats endpoint failed. */
+  storiesToday: number | undefined;
   isSample: boolean;
   host: string;
 };
@@ -40,12 +40,14 @@ export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPrevi
   const [tag, setTag] = useState<PreviewTag>('all');
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [hasChosenTag, setHasChosenTag] = useState(false);
 
   const shown = visibleStories(stories, tag);
   const activeStory = shown[activeIndex];
 
   function chooseTag(next: PreviewTag) {
     setTag(next);
+    setHasChosenTag(true);
     setActiveIndex(0);
   }
 
@@ -82,7 +84,7 @@ export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPrevi
       onKeyDown={handleKeyDown}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      className="bg-card/80 relative overflow-hidden rounded-xl border shadow-2xl shadow-black/10 ring-1 ring-white/5 dark:shadow-black/40"
+      className="bg-card/80 relative overflow-hidden rounded-xl border shadow-overlay/20 dark:shadow-overlay ring-border/50 shadow-2xl ring-1"
     >
       <div className="from-primary/0 via-primary/60 to-primary/0 absolute inset-x-8 top-0 h-px bg-gradient-to-r" />
       <div className="flex items-center gap-3 border-b px-4 py-2.5">
@@ -118,8 +120,11 @@ export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPrevi
         {shown.map((story, index) => (
           <div
             key={story.id}
-            className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-backwards"
-            style={{ animationDelay: `${index * 30}ms` }}
+            className={cn(
+              hasChosenTag &&
+                'animate-in fade-in slide-in-from-bottom-1 fill-mode-backwards duration-300',
+            )}
+            style={hasChosenTag ? { animationDelay: `${index * 30}ms` } : undefined}
           >
             <StoryCard
               story={story}
@@ -147,7 +152,9 @@ export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPrevi
           href="/feed"
           className="text-foreground group inline-flex items-center gap-1 rounded-sm font-medium"
         >
-          Showing {shown.length} of {storiesToday} stories today
+          {storiesToday === undefined
+            ? `Showing ${shown.length} stories`
+            : `Showing ${shown.length} of ${storiesToday} stories today`}
           <span className="inline-flex items-center gap-0.5">
             Open full feed
             <ArrowRightIcon

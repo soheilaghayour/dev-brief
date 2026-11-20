@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { BookmarkIcon } from 'lucide-react';
-import { enabledItems, type FeatureFlag, type Features } from '@/config/features';
+import { isFeatureEnabled, type FeatureFlag, type Features } from '@/config/features';
 import { SectionHeading } from './SectionHeading';
 
 type BentoTile = {
@@ -85,7 +85,7 @@ const TILES: readonly BentoTile[] = [
 
 /** The bento tiles whose phase flag is on. */
 export function visibleTiles(features?: Features) {
-  return enabledItems(TILES, features);
+  return TILES.filter((tile) => !tile.flag || isFeatureEnabled(tile.flag, features));
 }
 
 export function FeatureBento() {

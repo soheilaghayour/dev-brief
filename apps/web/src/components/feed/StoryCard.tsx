@@ -11,7 +11,7 @@ type StoryCardProps = {
   story: StoryCardData;
   isSaved: boolean;
   onToggleSave: () => void;
-  /** Denser rows for previews: no tags and no reading time. */
+  /** Denser rows for previews: tags stay, the reading time goes. */
   compact?: boolean;
   /** The card j/k currently points at. */
   isActive?: boolean;
@@ -59,8 +59,10 @@ export function StoryCard({
           {!compact && story.readingTimeMinutes !== null && (
             <span>{story.readingTimeMinutes} min read</span>
           )}
-          {!compact && visibleTags.map((tag) => <TagBadge key={tag} slug={tag} />)}
-          {!compact && hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
+          {visibleTags.map((tag) => (
+            <TagBadge key={tag} slug={tag} />
+          ))}
+          {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
         </div>
       </div>
       <SaveButton isSaved={isSaved} onToggleSave={onToggleSave} />

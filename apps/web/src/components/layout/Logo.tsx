@@ -5,6 +5,7 @@ export function Logo() {
   return (
     <Link
       href="/"
+      // Next's client router stalls segment prefetches of the ISR `/`.
       prefetch={false}
       className="flex items-center gap-2 rounded-md font-semibold tracking-tight"
     >

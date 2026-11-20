@@ -89,9 +89,9 @@ describe('StoryCard', () => {
     expect(render(STORY, { isSaved: true })).toMatch(/<button[^>]*aria-pressed="true"/);
   });
 
-  it('drops tags and reading time in the compact density', () => {
+  it('keeps the tags but drops the reading time in the compact density', () => {
     const html = render(STORY, { compact: true });
-    expect(html).not.toContain('data-tag=');
+    expect(html).toContain('data-tag=');
     expect(html).not.toContain('min read');
   });
 

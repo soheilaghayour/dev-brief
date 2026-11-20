@@ -1,4 +1,4 @@
-import { enabledItems, type FeatureFlag, type Features } from '@/config/features';
+import { isFeatureEnabled, type FeatureFlag, type Features } from '@/config/features';
 
 export const REPO_URL = 'https://github.com/soheilaghayour/dev-brief';
 export const PRD_URL = `${REPO_URL}/blob/main/docs/prd.md`;
@@ -23,5 +23,5 @@ const NAV_LINKS: readonly NavLink[] = [
 ];
 
 export function getLandingNav(features?: Features) {
-  return enabledItems(NAV_LINKS, features);
+  return NAV_LINKS.filter((link) => !link.flag || isFeatureEnabled(link.flag, features));
 }

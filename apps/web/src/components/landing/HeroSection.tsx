@@ -38,7 +38,7 @@ export function HeroSection({ data, host }: HeroSectionProps) {
         <div className="mx-auto mt-14 max-w-3xl">
           <HeroPreview
             stories={stories}
-            storiesToday={stats?.storiesToday ?? stories.length}
+            storiesToday={stats?.storiesToday}
             isSample={isSample}
             host={host}
           />

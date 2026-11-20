@@ -4,7 +4,7 @@ import { followOtherTabs, hydrateGuestStore } from '@/lib/guest/hydrateGuestStor
 
 /** Loads the guest store and reports the saved ids now and on every change, here or in another tab. */
 export function connectGuestSaves(onChange: (savedIds: ReadonlySet<string>) => void) {
-  hydrateGuestStore();
+  void hydrateGuestStore();
   function publish() {
     onChange(new Set(useGuestStore.getState().saves.map((save) => save.storyId)));
   }
