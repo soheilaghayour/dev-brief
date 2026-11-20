@@ -232,7 +232,7 @@ test('AC-1.3.11 the sidebar lists tags with 7-day counts and sources with health
   await openFeed(page);
   const sidebar = page.getByRole('complementary');
   await expect(sidebar.getByRole('checkbox', { name: /^React\b.*\d+$/ })).toBeVisible();
-  for (const kind of ['hn', 'devto', 'rss']) {
+  for (const kind of ['hn', 'devto', 'rss', 'github']) {
     const row = sidebar.locator(`[data-kind="${kind}"]`);
     await expect(row.locator('[data-status="healthy"]')).toHaveAttribute('title', /^Last updated /);
   }

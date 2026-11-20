@@ -9,6 +9,8 @@ after changing it while `pnpm dev` runs.
 
 The `dev` scripts and the API's `db:*` scripts load the root `.env` over `.env.example`; the web `build` loads only `.env`. Commands are listed in [`CLAUDE.md`](../CLAUDE.md#commands).
 
+A variable exported in your shell wins over `.env`: a `GITHUB_TOKEN` there (some tools export one) becomes the GitHub source's token, so use a fine-grained token with no permissions ([§8.6](prd.md#86-security-basics)).
+
 ## Phase flags
 
 A phase feature is off until both of its flags are on: the API reads `FEATURE_<NAME>` at boot, and the web build inlines `NEXT_PUBLIC_FEATURE_<NAME>`, so rebuild the web app after changing it. To turn on summaries locally, put `FEATURE_SUMMARIES=true` and `NEXT_PUBLIC_FEATURE_SUMMARIES=true` in the root `.env` and restart `pnpm dev`. `FEATURE_PREFERENCES` and `NEXT_PUBLIC_FEATURE_PREFERENCES` work the same way.

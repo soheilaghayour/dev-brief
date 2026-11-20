@@ -132,7 +132,7 @@ describe('ingestion of GitHub', () => {
     });
   });
 
-  it('AC-1.2.4 joins a repo that is also on HN into the HN Story by canonical URL', async () => {
+  it('joins a repo that is also on HN into the HN Story by canonical URL (exact dedup)', async () => {
     await createSources('hn', 'github');
     const { service } = await createApp([
       new HnAdapter(new HttpClient(hnFixtureFetch(), () => 0)),
@@ -151,7 +151,7 @@ describe('ingestion of GitHub', () => {
     expect(story.items.map((item) => item.source.kind).sort()).toEqual(['github', 'hn']);
   });
 
-  it('AC-1.2.6 creates nothing on a second run over the same pages and refreshes stars', async () => {
+  it('creates nothing on a second run over the same pages and refreshes stars (idempotent re-ingest)', async () => {
     await createSources('github');
     const { service } = await createApp([githubAdapter()]);
 
