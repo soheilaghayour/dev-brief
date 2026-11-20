@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // Next regenerates apps/web/AGENTS.md otherwise; agent rules live only in CLAUDE.md.
   agentRules: false,
+  // Inlines the stylesheet into <head>: the external <link> blocks render and costs a second round trip (DECISIONS.md).
+  experimental: { inlineCss: true },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders(process.env.NODE_ENV) }];
   },

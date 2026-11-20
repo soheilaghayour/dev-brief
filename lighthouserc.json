@@ -10,7 +10,7 @@
         "chromeFlags": "--no-sandbox",
         "throttlingMethod": "devtools",
         "throttling": {
-          "cpuSlowdownMultiplier": 2
+          "cpuSlowdownMultiplier": 4
         }
       }
     },

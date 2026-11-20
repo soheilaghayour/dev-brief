@@ -103,6 +103,7 @@ jobs:
         if: always()
         with:
           name: lighthouse-reports
+          include-hidden-files: true
           path: .lighthouseci-reports
 
   images:
