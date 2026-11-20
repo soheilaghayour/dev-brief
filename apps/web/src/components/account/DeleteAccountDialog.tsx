@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { deleteMe } from '@/lib/api/endpoints';
-import { ME_QUERY_KEY } from '@/lib/auth/useMe';
+import { ME_QUERY_KEY } from '@/lib/auth/meQueryKey';
 import { clearGuestData } from '@/lib/guest/clear';
 import { queuePendingToast } from '@/lib/toast/pendingToast';
 
