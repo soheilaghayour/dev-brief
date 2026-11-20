@@ -348,6 +348,41 @@ describe('GET /api/v1/feed', () => {
       }
     });
 
+    // The column is nullable, and NULL tags match no tag.
+    async function createNullTagStory(slug: string) {
+      const source = await createSource(prisma, slug, 'rss');
+      onTestFinished(() => removeSourceAndStories(slug));
+      const story = await createStory(prisma, {
+        title: 'Null tags story',
+        publishedAt: hoursAgo(6),
+        rankScore: 7,
+        itemSourceIds: [source.id],
+      });
+      await prisma.$executeRaw`UPDATE "Story" SET "tags" = NULL WHERE "id" = ${story.id}`;
+    }
+
+    it('AC-2.5.2 boostSources boosts a story with NULL tags when its source is followed', async () => {
+      await createNullTagStory('nulltags-source');
+      // Unboosted, 7 ranks below TypeScript 7 (9); boosted, 7 × 1.5 = 10.5 ranks above it.
+      expect((await feedTitles()).slice(0, 2)).toEqual(['TypeScript 7', 'Null tags story']);
+      expect((await feedTitles({ boostSources: 'nulltags-source' })).slice(0, 2)).toEqual([
+        'Null tags story',
+        'TypeScript 7',
+      ]);
+    });
+
+    it('AC-2.5.2 boostTags scores a story with NULL tags unboosted', async () => {
+      await createNullTagStory('nulltags-tags');
+      // Boosted, it would score 10.5 and pass React compiler (5 × 1.5 = 7.5); unboosted, 7 ranks below it.
+      expect(await feedTitles({ boostTags: 'react,rust,typescript' })).toEqual([
+        'TypeScript 7',
+        'React compiler',
+        'Null tags story',
+        'Rust and React',
+        'Bun runtime news',
+      ]);
+    });
+
     it('AC-2.5.2 a story matching a followed tag and a followed source is boosted once, not twice', async () => {
       // Stacked, React compiler would score 5 × 1.5 × 1.5 = 11.25 and pass TypeScript 7 (9).
       expect(await feedTitles({ boostTags: 'react', boostSources: 'devto' })).toEqual([
