@@ -1,12 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { SOURCE_KINDS } from '@devbrief/shared';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { formatRelativeTime } from '@/lib/format/formatRelativeTime';
 import { sourcesQueryOptions } from './feedQueries';
 import { HealthDot } from './HealthDot';
 import { kindHealth, type KindHealth } from './sourceHealth';
-import { FILTER_KINDS, SOURCE_KIND_LABELS } from './sourceKinds';
+import { SOURCE_KIND_LABELS } from './sourceKinds';
 import { useFeedFilters } from './useFeedFilters';
 
 function tooltipFor({ lastSuccessAt }: KindHealth) {
@@ -24,7 +25,7 @@ export function SourceFilterList() {
       <legend className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
         Sources
       </legend>
-      {FILTER_KINDS.map((kind) => {
+      {SOURCE_KINDS.map((kind) => {
         const health = data ? kindHealth(data.sources, kind) : null;
         return (
           <div
