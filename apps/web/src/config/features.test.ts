@@ -24,6 +24,7 @@ describe('FEATURES', () => {
   it('AC-L7 ships with every phase flag off when no NEXT_PUBLIC_FEATURE_* is set', async () => {
     vi.stubEnv('NEXT_PUBLIC_FEATURE_SUMMARIES', undefined);
     vi.stubEnv('NEXT_PUBLIC_FEATURE_PREFERENCES', undefined);
+    vi.stubEnv('NEXT_PUBLIC_FEATURE_CLUSTERS', undefined);
     const features = await loadFeatures();
 
     expect(features).toEqual(ALL_OFF);
@@ -35,6 +36,7 @@ describe('FEATURES', () => {
   it.each([
     ['summaries', 'NEXT_PUBLIC_FEATURE_SUMMARIES'],
     ['preferences', 'NEXT_PUBLIC_FEATURE_PREFERENCES'],
+    ['clusters', 'NEXT_PUBLIC_FEATURE_CLUSTERS'],
   ])('AC-L7 turns on only %s when %s=true', async (flag, variable) => {
     vi.stubEnv(variable, 'true');
     expect(await loadFeatures()).toEqual({ ...ALL_OFF, [flag]: true });

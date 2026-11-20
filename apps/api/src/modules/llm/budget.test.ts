@@ -16,7 +16,13 @@ describe('budgetFromEnv', () => {
   it('AC-2.6.1 defaults to the §8.1 caps and the seeded Haiku 5.5 price', () => {
     expect(defaultBudget).toEqual({
       model: 'claude-haiku-5-5',
-      caps: { summary_auto: 0.015, summary_on_demand: 0.012, copilot: 0.028, global: 0.06 },
+      caps: {
+        summary_auto: 0.015,
+        summary_on_demand: 0.012,
+        cluster: 0.02,
+        copilot: 0.028,
+        global: 0.064,
+      },
       prices: { 'claude-haiku-5-5': { inputPerMTok: 0.1, outputPerMTok: 0.5 } },
     });
   });
@@ -26,6 +32,7 @@ describe('budgetFromEnv', () => {
       LLM_MODEL: 'claude-haiku-5-5',
       LLM_CAP_SUMMARY_AUTO_USD_DAY: 0.001,
       LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: 0.002,
+      LLM_CAP_CLUSTER_USD_DAY: 0.005,
       LLM_CAP_COPILOT_USD_DAY: 0.003,
       LLM_CAP_GLOBAL_USD_DAY: 0.004,
       LLM_PRICE_INPUT_PER_MTOK: 1,
@@ -34,6 +41,7 @@ describe('budgetFromEnv', () => {
     expect(budget.caps).toEqual({
       summary_auto: 0.001,
       summary_on_demand: 0.002,
+      cluster: 0.005,
       copilot: 0.003,
       global: 0.004,
     });
@@ -159,10 +167,44 @@ describe('capDecision', () => {
     ).toEqual({ allowed: false, cap: 'feature' });
   });
 
+  it('AC-2.1.5 fits 160 cluster decisions of $0.000125 under the cluster cap and refuses the 161st', () => {
+    const worstCaseUsd = 0.000125;
+    let spent = 0;
+    for (let call = 1; call <= 160; call++) {
+      expect(
+        capDecision(
+          { spentFeatureUsd: spent, spentGlobalUsd: spent, worstCaseUsd, feature: 'cluster' },
+          caps,
+        ),
+      ).toEqual({ allowed: true });
+      spent += worstCaseUsd;
+    }
+    expect(
+      capDecision(
+        { spentFeatureUsd: spent, spentGlobalUsd: spent, worstCaseUsd, feature: 'cluster' },
+        caps,
+      ),
+    ).toEqual({ allowed: false, cap: 'feature' });
+  });
+
+  it('AC-2.6.1 lets the global cap refuse a copilot call that passes $0.064 while the other features sit at their caps', () => {
+    const spend = { spentFeatureUsd: 0.0275, worstCaseUsd: 0.0005, feature: 'copilot' } as const;
+    const otherFeaturesAtCap = 0.015 + 0.012 + 0.02;
+    expect(capDecision({ ...spend, spentGlobalUsd: otherFeaturesAtCap + 0.0275 }, caps)).toEqual({
+      allowed: false,
+      cap: 'global',
+    });
+    expect(capDecision({ ...spend, spentGlobalUsd: 0.0635 }, caps)).toEqual({ allowed: true });
+    expect(capDecision({ ...spend, spentGlobalUsd: 0.063501 }, caps)).toEqual({
+      allowed: false,
+      cap: 'global',
+    });
+  });
+
   it('AC-2.6.1 refuses a call that fits its feature but not the global cap', () => {
     const spend = { spentFeatureUsd: 0, worstCaseUsd: 0.00075, feature: 'copilot' } as const;
-    expect(capDecision({ ...spend, spentGlobalUsd: 0.05925 }, caps)).toEqual({ allowed: true });
-    expect(capDecision({ ...spend, spentGlobalUsd: 0.059251 }, caps)).toEqual({
+    expect(capDecision({ ...spend, spentGlobalUsd: 0.06325 }, caps)).toEqual({ allowed: true });
+    expect(capDecision({ ...spend, spentGlobalUsd: 0.063251 }, caps)).toEqual({
       allowed: false,
       cap: 'global',
     });

@@ -28,7 +28,7 @@ describe('GET /api/v1/health', () => {
     expect(health.sources).toEqual([
       { slug: 'fresh', kind: 'hn', status: 'healthy', lastSuccessAt: expect.any(String) },
     ]);
-    expect(health.llm).toEqual({ spentTodayUsd: 0, capUsd: 0.06 });
+    expect(health.llm).toEqual({ spentTodayUsd: 0, capUsd: 0.064 });
   });
 
   it('AC-1.7.1 reports degraded when an enabled source is stale or has an open circuit', async () => {
@@ -57,7 +57,10 @@ describe('GET /api/v1/health', () => {
 
     expect(response.status).toBe(200);
     // The settled row at its cost plus the open reservation at its worst case.
-    expect(HealthSchema.parse(response.body).llm).toEqual({ spentTodayUsd: 0.00105, capUsd: 0.06 });
+    expect(HealthSchema.parse(response.body).llm).toEqual({
+      spentTodayUsd: 0.00105,
+      capUsd: 0.064,
+    });
   });
 
   it('AC-1.7.1 answers 503 UPSTREAM_UNAVAILABLE when the database is unreachable', async () => {

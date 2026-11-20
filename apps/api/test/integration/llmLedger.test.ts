@@ -126,7 +126,7 @@ describe('LLM spend ledger', () => {
   });
 
   it('AC-2.6.1 refuses a call the global cap has no room for, without calling the model', async () => {
-    // Other features hold $0.0595 of the $0.060 global cap; summary_auto itself has spent nothing.
+    // Other features hold $0.0635 of the $0.064 global cap; summary_auto itself has spent nothing.
     await addUsage({
       feature: 'copilot',
       status: 'settled',
@@ -139,7 +139,7 @@ describe('LLM spend ledger', () => {
       reservedUsd: '0.012',
       costUsd: '0.012',
     });
-    await addUsage({ feature: 'copilot', status: 'reserved', reservedUsd: '0.0195' });
+    await addUsage({ feature: 'copilot', status: 'reserved', reservedUsd: '0.0235' });
     const { llm, model } = await createLlm(async () => modelReply(VALID));
 
     await expect(llm.generateStructured(SUMMARY_CALL)).rejects.toMatchObject({

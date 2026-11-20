@@ -47,6 +47,7 @@ describe('loadEnv', () => {
     expect(loadEnv(validEnv)).toMatchObject({
       FEATURE_SUMMARIES: false,
       FEATURE_PREFERENCES: false,
+      FEATURE_CLUSTERS: false,
     });
     expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS })).toMatchObject(
       {
@@ -121,7 +122,7 @@ describe('loadEnv', () => {
   it('requires ANTHROPIC_API_KEY only when FEATURE_SUMMARIES=true', () => {
     expect(loadEnv(validEnv).ANTHROPIC_API_KEY).toBeUndefined();
     expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toThrow(
-      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true/,
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
     );
     expect(() =>
       loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: '' }),
@@ -129,6 +130,17 @@ describe('loadEnv', () => {
     expect(
       loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS }).ANTHROPIC_API_KEY,
     ).toBe('test-key');
+  });
+
+  it('requires ANTHROPIC_API_KEY when FEATURE_CLUSTERS=true', () => {
+    expect(() => loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'true' })).toThrow(
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
+    );
+    expect(
+      loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'true', ANTHROPIC_API_KEY: 'test-key' })
+        .FEATURE_CLUSTERS,
+    ).toBe(true);
+    expect(() => loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'on' })).toThrow(/FEATURE_CLUSTERS/);
   });
 
   it('requires IP_HASH_SECRET of 32+ characters only when FEATURE_SUMMARIES=true', () => {

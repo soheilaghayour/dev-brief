@@ -3,8 +3,9 @@ import type { LlmFeature } from '../../generated/prisma/client.js';
 /** Daily spend caps in USD (PRD §8.1); `budgetFromEnv` applies their env overrides. */
 export const LLM_CAP_SUMMARY_AUTO_USD_DAY = 0.015;
 export const LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY = 0.012;
+export const LLM_CAP_CLUSTER_USD_DAY = 0.02;
 export const LLM_CAP_COPILOT_USD_DAY = 0.028;
-export const LLM_CAP_GLOBAL_USD_DAY = 0.06;
+export const LLM_CAP_GLOBAL_USD_DAY = 0.064;
 
 type ModelPrice = { inputPerMTok: number; outputPerMTok: number };
 
@@ -26,6 +27,7 @@ export type BudgetEnv = {
   LLM_MODEL: string;
   LLM_CAP_SUMMARY_AUTO_USD_DAY?: number;
   LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY?: number;
+  LLM_CAP_CLUSTER_USD_DAY?: number;
   LLM_CAP_COPILOT_USD_DAY?: number;
   LLM_CAP_GLOBAL_USD_DAY?: number;
   LLM_PRICE_INPUT_PER_MTOK?: number;
@@ -50,6 +52,7 @@ export function budgetFromEnv(env: BudgetEnv): Budget {
     caps: {
       summary_auto: env.LLM_CAP_SUMMARY_AUTO_USD_DAY ?? LLM_CAP_SUMMARY_AUTO_USD_DAY,
       summary_on_demand: env.LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY ?? LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY,
+      cluster: env.LLM_CAP_CLUSTER_USD_DAY ?? LLM_CAP_CLUSTER_USD_DAY,
       copilot: env.LLM_CAP_COPILOT_USD_DAY ?? LLM_CAP_COPILOT_USD_DAY,
       global: env.LLM_CAP_GLOBAL_USD_DAY ?? LLM_CAP_GLOBAL_USD_DAY,
     },

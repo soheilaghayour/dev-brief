@@ -5,6 +5,7 @@ import type { Env } from '../env/env.module.js';
 export const FEATURE_ENV = {
   summaries: 'FEATURE_SUMMARIES',
   preferences: 'FEATURE_PREFERENCES',
+  clusters: 'FEATURE_CLUSTERS',
 } as const satisfies Record<string, keyof Env>;
 
 /** Puts a route or controller behind a phase flag; FeatureGuard answers 404 FEATURE_DISABLED while it is off. */
