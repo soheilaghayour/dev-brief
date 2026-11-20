@@ -13,13 +13,17 @@ The `dev` scripts and the API's `db:*` scripts load the root `.env` over `.env.e
 
 A variable exported in your shell wins over `.env`: a `GITHUB_TOKEN` there (some tools export one) becomes the GitHub source's token, so use a fine-grained token with no permissions ([§8.6](prd.md#86-security-basics)).
 
+## Cron jobs
+
+`INGEST_SCHEDULE` registers the hourly ingestion (:05 UTC) and the daily maintenance (03:15 UTC). Unset, it is on in production and off elsewhere, and `.env.example` sets it to `false`, so `pnpm dev` ingests only when you run `pnpm --filter api ingest:once`; set it to `true` in `.env` to try the schedule. `createTestApp` forces it off (a test opts in with `createTestApp([], { INGEST_SCHEDULE: 'true' })`), and so does CI's e2e API, so no test touches the live sources. `INGEST_ON_BOOT` is independent of it.
+
 ## Phase flags
 
 A phase feature is off until both of its flags are on: the API reads `FEATURE_<NAME>` at boot, and the web build inlines `NEXT_PUBLIC_FEATURE_<NAME>`, so rebuild the web app after changing it. To turn on summaries locally, put `FEATURE_SUMMARIES=true` and `NEXT_PUBLIC_FEATURE_SUMMARIES=true` in the root `.env` and restart `pnpm dev`. `FEATURE_PREFERENCES` and `NEXT_PUBLIC_FEATURE_PREFERENCES` work the same way. Summaries also need an `ANTHROPIC_API_KEY`; `AUTO_SUMMARIES=true` additionally summarises the top stories after each ingestion run, which calls the live model.
 
 ## End-to-end tests
 
-`pnpm e2e` runs Playwright against the built apps and starts the API with `AUTH_TEST_MODE=true`. Build the web app with the dev proxy baked in first, since Next fixes rewrites at build time: `API_PROXY_URL=http://localhost:3001 pnpm build`. The session cookie is `Secure`; Chrome and Firefox accept it on `http://localhost`, Safari may not.
+`pnpm e2e` runs Playwright against the built apps and starts the API with `AUTH_TEST_MODE=true`; start that API with `INGEST_SCHEDULE=false` (the default outside production) so e2e runs never hit the live sources. Build the web app with the dev proxy baked in first, since Next fixes rewrites at build time: `API_PROXY_URL=http://localhost:3001 pnpm build`. The session cookie is `Secure`; Chrome and Firefox accept it on `http://localhost`, Safari may not.
 
 ## Database
 

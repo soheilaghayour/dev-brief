@@ -22,34 +22,35 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 8. **Secrets.** Generate `BETTER_AUTH_SECRET` and `INTERNAL_API_TOKEN` (the wizard does); `INTERNAL_API_TOKEN` must be identical in `api` and `web`.
 9. **OAuth apps and the GitHub source token.** Register the production apps with the callbacks in [OAuth apps](#oauth-apps), and create the token in [GitHub source token](#github-source-token).
 10. **Auto-deploy.** On both applications enable automatic deployment from `main` (Coolify's GitHub App, or the webhook URL added to the repository). CI must be green before merging, as ever; Coolify deploys the push.
-11. **Seed the sources** once, after the first deploy: in the API application's Terminal run `node dist/cli/seed.js`. It is idempotent. Set `INGEST_ON_BOOT=true` so the first start fills the feed; the hourly job takes over from there.
+11. **Seed the sources** once, after the first deploy: in the API application's Terminal run `node dist/cli/seed.js`. It is idempotent. Set `INGEST_ON_BOOT=true` so the first start fills the feed; the hourly job takes over from there (it needs `INGEST_SCHEDULE=true`).
 12. **Check the deploy.** `SMOKE_BASE_URL=https://devbrief.example pnpm smoke:prod` (see [Post-deploy checks](#post-deploy-checks)).
 
 ## Environment variables
 
 [`.env.example`](../.env.example) lists every variable with its meaning. All are set in Coolify only; nothing secret is committed. The API and web both fail to start on an invalid environment, so a missing value shows up as a failed deploy, not as a broken site.
 
-| Variable                                                                               | api | web | Value in production                                                                                       |
-| :------------------------------------------------------------------------------------- | :-- | :-- | :-------------------------------------------------------------------------------------------------------- |
-| `APP_URL`                                                                              | yes | yes | `https://devbrief.example`, also a build variable                                                         |
-| `DATABASE_URL`                                                                         | yes |     | the Coolify Postgres internal URL                                                                         |
-| `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same secret in both                                                                                   |
-| `API_INTERNAL_URL`                                                                     |     | yes | `https://devbrief.example`: server-side calls go out and back in through the proxy (see below)            |
-| `BETTER_AUTH_SECRET`                                                                   | yes |     | `openssl rand -base64 32`                                                                                 |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | yes |     | the production OAuth apps                                                                                 |
-| `AUTH_TEST_MODE`                                                                       | yes |     | `false` (the API refuses `true` in production)                                                            |
-| `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                                    |
-| `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                                        |
-| `IP_HASH_SECRET`                                                                       | yes |     | 32+ random characters (`openssl rand -base64 32`); required once `FEATURE_SUMMARIES` is `true`            |
-| `ANTHROPIC_API_KEY`                                                                    | yes |     | required once `FEATURE_SUMMARIES` is `true` (see [Anthropic key](#anthropic-key-and-spend-limit-phase-2)) |
-| `AUTO_SUMMARIES`                                                                       | yes |     | `true` together with `FEATURE_SUMMARIES`; off, no summary is made after ingestion runs                    |
-| `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag                         |
-| `GITHUB_TOKEN`                                                                         | yes |     | the fine-grained token from [GitHub source token](#github-source-token); unset skips GitHub               |
-| `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                               |
-| `NEXT_PUBLIC_SENTRY_DSN`                                                               |     | yes | the `devbrief-web` project's DSN, build variable                                                          |
-| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`                                    |     | yes | build variables for the source-map upload; without the token the upload is skipped                        |
-| `PORT`, `NODE_ENV`, `APP_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `HOSTNAME`               |     |     | set by the Dockerfiles; do not set them. The release is Coolify's `SOURCE_COMMIT` (the commit)            |
-| `API_PROXY_URL`                                                                        |     |     | leave unset: it bakes a dev rewrite into the web build                                                    |
+| Variable                                                                               | api | web | Value in production                                                                                              |
+| :------------------------------------------------------------------------------------- | :-- | :-- | :--------------------------------------------------------------------------------------------------------------- |
+| `APP_URL`                                                                              | yes | yes | `https://devbrief.example`, also a build variable                                                                |
+| `DATABASE_URL`                                                                         | yes |     | the Coolify Postgres internal URL                                                                                |
+| `INTERNAL_API_TOKEN`                                                                   | yes | yes | the same secret in both                                                                                          |
+| `API_INTERNAL_URL`                                                                     |     | yes | `https://devbrief.example`: server-side calls go out and back in through the proxy (see below)                   |
+| `BETTER_AUTH_SECRET`                                                                   | yes |     | `openssl rand -base64 32`                                                                                        |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | yes |     | the production OAuth apps                                                                                        |
+| `AUTH_TEST_MODE`                                                                       | yes |     | `false` (the API refuses `true` in production)                                                                   |
+| `INGEST_SCHEDULE`                                                                      | yes |     | `true` (the default in production, but set it): off, neither the hourly ingestion nor the daily maintenance runs |
+| `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                                           |
+| `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                                               |
+| `IP_HASH_SECRET`                                                                       | yes |     | 32+ random characters (`openssl rand -base64 32`); required once `FEATURE_SUMMARIES` is `true`                   |
+| `ANTHROPIC_API_KEY`                                                                    | yes |     | required once `FEATURE_SUMMARIES` is `true` (see [Anthropic key](#anthropic-key-and-spend-limit-phase-2))        |
+| `AUTO_SUMMARIES`                                                                       | yes |     | `true` together with `FEATURE_SUMMARIES`; off, no summary is made after ingestion runs                           |
+| `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag                                |
+| `GITHUB_TOKEN`                                                                         | yes |     | the fine-grained token from [GitHub source token](#github-source-token); unset skips GitHub                      |
+| `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                                      |
+| `NEXT_PUBLIC_SENTRY_DSN`                                                               |     | yes | the `devbrief-web` project's DSN, build variable                                                                 |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`                                    |     | yes | build variables for the source-map upload; without the token the upload is skipped                               |
+| `PORT`, `NODE_ENV`, `APP_VERSION`, `NEXT_PUBLIC_APP_VERSION`, `HOSTNAME`               |     |     | set by the Dockerfiles; do not set them. The release is Coolify's `SOURCE_COMMIT` (the commit)                   |
+| `API_PROXY_URL`                                                                        |     |     | leave unset: it bakes a dev rewrite into the web build                                                           |
 
 `API_INTERNAL_URL` is the public URL: see [DECISIONS.md](../DECISIONS.md).
 

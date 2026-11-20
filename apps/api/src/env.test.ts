@@ -32,6 +32,17 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...validEnv, INGEST_ON_BOOT: 'yes' })).toThrow(/INGEST_ON_BOOT/);
   });
 
+  it('defaults INGEST_SCHEDULE to on in production and off elsewhere, and an explicit value wins', () => {
+    expect(loadEnv(validEnv).INGEST_SCHEDULE).toBe(false);
+    expect(loadEnv({ ...validEnv, NODE_ENV: 'test' }).INGEST_SCHEDULE).toBe(false);
+    expect(loadEnv({ ...validEnv, NODE_ENV: 'production' }).INGEST_SCHEDULE).toBe(true);
+    expect(
+      loadEnv({ ...validEnv, NODE_ENV: 'production', INGEST_SCHEDULE: 'false' }).INGEST_SCHEDULE,
+    ).toBe(false);
+    expect(loadEnv({ ...validEnv, INGEST_SCHEDULE: 'true' }).INGEST_SCHEDULE).toBe(true);
+    expect(() => loadEnv({ ...validEnv, INGEST_SCHEDULE: 'yes' })).toThrow(/INGEST_SCHEDULE/);
+  });
+
   it('reads the FEATURE_* phase flags as booleans that default to false', () => {
     expect(loadEnv(validEnv)).toMatchObject({
       FEATURE_SUMMARIES: false,

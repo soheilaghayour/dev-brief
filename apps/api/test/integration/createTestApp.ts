@@ -48,12 +48,14 @@ export async function createTestApp(
     upstreamFetch = UNSCRIPTED_UPSTREAM,
   }: { languageModel?: LanguageModel; upstreamFetch?: typeof fetch } = {},
 ) {
+  // The cron jobs stay off unless a test opts in: an app alive at :05 UTC would ingest from live sources.
+  const env = loadEnv({ ...process.env, INGEST_SCHEDULE: 'false', ...envOverrides });
   const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
+    imports: [AppModule.register(env)],
     controllers,
   })
     .overrideProvider(ENV)
-    .useValue(loadEnv({ ...process.env, ...envOverrides }))
+    .useValue(env)
     .overrideProvider(LANGUAGE_MODEL)
     .useValue(languageModel)
     .overrideProvider(SummaryInputsService)

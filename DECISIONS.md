@@ -196,6 +196,7 @@ links to them instead of restating them.
 - **`u` on the feed opens the story page with `?summarize=1` and starts the summary there.** Feed cards have no room for a panel, and the result needs a place to render in place.
 - **The e2e suite checks stored summaries only; generation is covered by integration and component tests.** CI never calls the live LLM, and a mock-LLM switch in the production API would be test-only code in the shipped app.
 - **`hasSummary` on a cached feed page can lag a new on-demand summary by up to 60 s.** That is the feed cache TTL ([§8.4](docs/prd.md#84-caching)), and clearing it on every on-demand summary isn't worth it.
+- **`INGEST_SCHEDULE` decides whether `AppModule.register(env)` imports `ScheduleModule`; unset it is on in production and off elsewhere.** Leaving the module out registers no cron at all (hourly ingestion and daily maintenance), where a guard inside each job would leave the scheduler running and prove less. Off by default in dev and test because developers run `ingest:once` by hand and a test app alive at :05 UTC would hit live sources; `createTestApp` and CI's e2e API force it off. `INGEST_ON_BOOT` is unchanged and independent. The daily job only touches the database, but it shares the module, and tests have no need of it.
 
 ## Open PM questions
 

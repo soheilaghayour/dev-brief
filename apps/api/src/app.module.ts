@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, type DynamicModule } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CommonModule } from './common/common.module.js';
+import { loadEnv } from './env.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { FeedModule } from './modules/feed/feed.module.js';
@@ -34,8 +35,17 @@ import { TagsModule } from './modules/tags/tags.module.js';
     IngestionModule,
     RankingModule,
     MaintenanceModule,
-    ScheduleModule.forRoot(),
   ],
   providers: [IngestionScheduler],
 })
-export class AppModule {}
+export class AppModule {
+  /** Registers the cron jobs only when INGEST_SCHEDULE is on, so a test app or an e2e API never runs them against live sources. */
+  static register(
+    env: Pick<ReturnType<typeof loadEnv>, 'INGEST_SCHEDULE'> = loadEnv(),
+  ): DynamicModule {
+    return {
+      module: AppModule,
+      imports: env.INGEST_SCHEDULE ? [ScheduleModule.forRoot()] : [],
+    };
+  }
+}

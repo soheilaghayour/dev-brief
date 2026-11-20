@@ -27,6 +27,8 @@ const EnvSchema = z
     DATABASE_URL: z.string().url(),
     INTERNAL_API_TOKEN: z.string().min(16),
     INGEST_ON_BOOT: BooleanFlagSchema,
+    /** Registers the cron jobs (hourly ingestion, daily maintenance); unset means on in production and off elsewhere. */
+    INGEST_SCHEDULE: z.enum(['true', 'false']).optional(),
     /** Lets `db:seed:e2e` wipe a database whose name does not mark it as a test one. */
     ALLOW_DESTRUCTIVE_SEED: z
       .enum(['0', '1'])
@@ -77,7 +79,13 @@ const EnvSchema = z
       message:
         'may be true only outside production with a loopback APP_URL (localhost, 127.0.0.1, ::1)',
     },
-  );
+  )
+  .transform((env) => ({
+    ...env,
+    INGEST_SCHEDULE: env.INGEST_SCHEDULE
+      ? env.INGEST_SCHEDULE === 'true'
+      : env.NODE_ENV === 'production',
+  }));
 
 /** Parses the environment and throws one readable error listing every invalid variable. */
 export function loadEnv(source: Record<string, string | undefined> = process.env) {

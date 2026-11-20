@@ -37,7 +37,9 @@ describe('a source that never finished a run', () => {
   beforeAll(async () => {
     await createSource(prisma, 'fresh', 'hn', { lastSuccessAt: new Date() });
     await createSource(prisma, 'new-feed', 'rss');
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule.register({ INGEST_SCHEDULE: false })],
+    })
       .overrideProvider(SOURCE_ADAPTERS)
       .useValue([failingRss])
       .compile();
