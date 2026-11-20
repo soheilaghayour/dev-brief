@@ -17,6 +17,7 @@ const csv = <T extends z.ZodTypeAny>(item: T) =>
     .pipe(z.array(item).max(FEED_LIST_MAX))
     .describe('Comma-separated list');
 
+// Looser than SourceSlugSchema, as PRD §6.1 types it: an unknown or odd slug just matches nothing.
 const sourceSlugParam = z.string().max(FEED_SOURCE_SLUG_MAX);
 
 export const FeedQuerySchema = PaginationQuerySchema.extend({

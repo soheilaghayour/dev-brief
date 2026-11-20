@@ -25,7 +25,8 @@ export function preferenceEntries(preferences: Preferences) {
     ...entriesOfMode(preferences, 'follow'),
     ...entriesOfMode(preferences, 'mute'),
   ]) {
-    if (!entries.has(preferenceKey(entry))) entries.set(preferenceKey(entry), entry);
+    const key = preferenceKey(entry);
+    if (!entries.has(key)) entries.set(key, entry);
   }
   return [...entries.values()];
 }
