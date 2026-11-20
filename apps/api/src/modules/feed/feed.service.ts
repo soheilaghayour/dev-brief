@@ -135,7 +135,7 @@ function sourceExists(sourceCondition: Prisma.Sql) {
     WHERE si."storyId" = s."id" AND ${sourceCondition})`;
 }
 
-/** Mutes and follows, applied per story. With clusters on only representatives are queried, so a cluster is muted or boosted by the story its card shows. */
+/** Mutes and follows, applied per story: with clusters on that is the representative's. */
 function personalisation(query: FeedQuery) {
   const { excludeTags, excludeSources, boostTags, boostSources } = query;
   const exclusions = [

@@ -22,6 +22,8 @@ async function loadCardClusters(
     select: { id: true, stories: { select: { items: { include: { source: true } } } } },
   });
   for (const row of rows) {
+    // A cluster of one story is no cluster: such a card carries no `cluster`.
+    if (row.stories.length < 2) continue;
     // The combined source line: every member's items, most engaged first.
     const items = row.stories
       .flatMap((member) => member.items)

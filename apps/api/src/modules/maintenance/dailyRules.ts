@@ -1,4 +1,5 @@
 import type { SourceKind } from '@devbrief/shared';
+import { pickBest } from '../ranking/rankPlan.js';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -103,18 +104,30 @@ export type ClusterUpkeep =
       rankScore: number;
     };
 
-/** What the purge leaves of a cluster: gone when fewer than two members remain, else recounted with the best-scored member (ties by id desc) as representative. */
+export interface StoredCluster {
+  representativeStoryId: string;
+  memberCount: number;
+  members: readonly { id: string; isPrimary: boolean }[];
+}
+
+/** Whether the stored cluster is broken: fewer than two members, a wrong count, or a representative that is missing or not the one primary. */
+export function clusterNeedsUpkeep(cluster: StoredCluster) {
+  const primaries = cluster.members.filter((member) => member.isPrimary);
+  return (
+    cluster.members.length < 2 ||
+    cluster.memberCount !== cluster.members.length ||
+    primaries.length !== 1 ||
+    primaries[0]?.id !== cluster.representativeStoryId
+  );
+}
+
+/** What a broken cluster becomes: gone when fewer than two members remain, else recounted with the best-scored member as representative. */
 export function planClusterUpkeep(
   clusterId: string,
   remaining: readonly ClusterMemberLeft[],
 ): ClusterUpkeep {
-  if (remaining.length < 2) return { action: 'dissolve', clusterId };
-  const representative = remaining.reduce((best, member) =>
-    member.rankScore > best.rankScore ||
-    (member.rankScore === best.rankScore && member.id > best.id)
-      ? member
-      : best,
-  );
+  const representative = pickBest(remaining);
+  if (remaining.length < 2 || !representative) return { action: 'dissolve', clusterId };
   return {
     action: 'update',
     clusterId,

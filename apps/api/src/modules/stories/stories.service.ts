@@ -32,6 +32,8 @@ export class StoriesService {
     });
     if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
     const [card] = await toStoryCards(this.prisma, [story], this.features);
+    const clusterMembers =
+      this.features.clusters && story.clusterId ? await this.otherMembers(story.clusterId, id) : [];
     return {
       ...card!,
       firstSeenAt: story.firstSeenAt.toISOString(),
@@ -41,8 +43,7 @@ export class StoriesService {
         author: item.author,
         publishedAt: item.publishedAt.toISOString(),
       })),
-      ...(this.features.clusters &&
-        story.clusterId && { clusterMembers: await this.otherMembers(story.clusterId, id) }),
+      ...(clusterMembers.length > 0 && { clusterMembers }),
       ...(this.features.summaries && {
         summary: story.summary && toStorySummary(story.summary),
       }),

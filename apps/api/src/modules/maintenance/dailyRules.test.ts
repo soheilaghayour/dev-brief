@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateTagStats,
+  clusterNeedsUpkeep,
   ingestionRunCutoff,
   llmUsageCutoff,
   planClusterUpkeep,
@@ -55,7 +56,7 @@ describe('dailyRules', () => {
     expect(rows).toHaveLength(3);
   });
 
-  it('AC-2.1.7 re-picks the representative among the remaining members and recounts their kinds', () => {
+  it('§5.3 re-picks the representative among the remaining members and recounts their kinds', () => {
     const upkeep = planClusterUpkeep('c1', [
       { id: 'a', rankScore: 3, kinds: ['hn', 'rss'] },
       { id: 'b', rankScore: 5, kinds: ['rss'] },
@@ -71,7 +72,7 @@ describe('dailyRules', () => {
     });
   });
 
-  it('AC-2.1.7 dissolves a cluster left with one member or none', () => {
+  it('§5.3 dissolves a cluster left with one member or none', () => {
     expect(planClusterUpkeep('c1', [{ id: 'a', rankScore: 3, kinds: ['hn'] }])).toEqual({
       action: 'dissolve',
       clusterId: 'c1',
@@ -80,5 +81,26 @@ describe('dailyRules', () => {
       action: 'dissolve',
       clusterId: 'c1',
     });
+  });
+
+  it('§5.3 flags a cluster that is short of members, miscounted, or without exactly the representative as primary', () => {
+    const ok = {
+      representativeStoryId: 'a',
+      memberCount: 2,
+      members: [
+        { id: 'a', isPrimary: true },
+        { id: 'b', isPrimary: false },
+      ],
+    };
+    expect(clusterNeedsUpkeep(ok)).toBe(false);
+    expect(clusterNeedsUpkeep({ ...ok, representativeStoryId: 'gone' })).toBe(true);
+    expect(clusterNeedsUpkeep({ ...ok, memberCount: 3 })).toBe(true);
+    expect(clusterNeedsUpkeep({ ...ok, members: [{ id: 'a', isPrimary: true }] })).toBe(true);
+    expect(
+      clusterNeedsUpkeep({ ...ok, members: ok.members.map((m) => ({ ...m, isPrimary: false })) }),
+    ).toBe(true);
+    expect(
+      clusterNeedsUpkeep({ ...ok, members: ok.members.map((m) => ({ ...m, isPrimary: true })) }),
+    ).toBe(true);
   });
 });

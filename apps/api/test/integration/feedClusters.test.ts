@@ -54,7 +54,7 @@ describe('feed with clusters', () => {
     const compilerRep = await story('Compiler ships', 10, ['react'], hn.id);
     const compilerMember = await story('Deep dive writeup', 4, ['rust'], devto.id, 3);
     const bunRep = await story('Bun news', 8, ['javascript'], blog.id);
-    const bunMember = await story('Bun benchmark notes', 3, ['react'], devto.id, 3);
+    const bunMember = await story('Bun benchmark notes', 3, ['react', 'go'], devto.id, 3);
     await story('Plain typescript', 6, ['typescript'], hn.id);
     clusterId = (
       await createCluster(prisma, {
@@ -176,6 +176,10 @@ describe('feed with clusters', () => {
         'Plain typescript',
       ]);
     }
+    // go is held only by Bun's non-representative member: counting it would put Bun (8 * 1.5 = 12) above Compiler (10).
+    const unmoved = ['Compiler ships', 'Bun news', 'Plain typescript'];
+    expect(await titles({ boostTags: 'go' })).toEqual(unmoved);
+    expect(await pagedTitles({ boostTags: 'go', limit: 1 })).toEqual(unmoved);
     // react boosts the Compiler cluster's representative.
     expect((await titles({ boostTags: 'react' }))[0]).toBe('Compiler ships');
   });

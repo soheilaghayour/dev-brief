@@ -23,34 +23,60 @@ export interface RankStory {
   clusterId: string | null;
 }
 
-/** A cluster member published before the window: it keeps its stored score but still competes to be the representative. */
-export interface RankedClusterMember {
+/** A cluster as stored, with every member (in the window or not). */
+export interface RankCluster {
   id: string;
-  clusterId: string;
+  sourceKinds: readonly SourceKind[];
+  representativeStoryId: string;
   rankScore: number;
+  members: readonly { id: string; isPrimary: boolean; kinds: readonly SourceKind[] }[];
+}
+
+export interface ClusterPlan {
+  id: string;
+  representativeStoryId: string;
+  rankScore: number;
+  /** Union of the members' source kinds, sorted. */
+  sourceKinds: SourceKind[];
+  /** Whether the Cluster row itself differs from the stored one. */
+  stale: boolean;
+  /** The members whose `isPrimary` must change. */
+  flips: { id: string; isPrimary: boolean }[];
 }
 
 export interface RankPlan {
   items: { id: string; engagement: number; percentile: number }[];
   stories: { id: string; engagementPercentile: number; rankScore: number }[];
   /** One entry per cluster with a member in the window. */
-  clusters: { id: string; representativeStoryId: string; rankScore: number }[];
+  clusters: ClusterPlan[];
 }
 
-/**
- * Scores every Story from its items, counting a clustered story's source kinds over its whole cluster, then picks each
- * touched cluster's representative: the member with the highest score, ties by id desc. `populationItems` are the items
- * published in the trailing window, whose engagements form each kind's percentile sample.
- */
+/** The member with the highest score, ties by id desc. */
+export function pickBest<T extends { id: string; rankScore: number }>(members: readonly T[]) {
+  return members.reduce<T | undefined>(
+    (best, member) =>
+      !best ||
+      member.rankScore > best.rankScore ||
+      (member.rankScore === best.rankScore && member.id > best.id)
+        ? member
+        : best,
+    undefined,
+  );
+}
+
+/** Scores every Story (`k` counted over its whole cluster), then picks each touched cluster's representative from its in-window members. */
 export function planRankUpdates(input: {
   stories: readonly RankStory[];
   populationItems: readonly RankItem[];
-  clusters?: readonly { id: string; sourceKinds: readonly SourceKind[] }[];
-  outsideMembers?: readonly RankedClusterMember[];
+  clusters?: readonly RankCluster[];
   now: Date;
 }): RankPlan {
+  const clusters = input.clusters ?? [];
   const clusterKinds = new Map(
-    (input.clusters ?? []).map((cluster) => [cluster.id, cluster.sourceKinds]),
+    clusters.map((cluster) => [
+      cluster.id,
+      [...new Set(cluster.members.flatMap((member) => member.kinds))].sort(),
+    ]),
   );
   const engagementsByKind = new Map<SourceKind, number[]>();
   for (const item of input.populationItems) {
@@ -59,9 +85,7 @@ export function planRankUpdates(input: {
     engagementsByKind.set(item.kind, engagements);
   }
 
-  const clusterIdByStory = new Map(
-    input.stories.flatMap((story) => (story.clusterId ? [[story.id, story.clusterId]] : [])),
-  );
+  const scoredMembers = new Map<string, { id: string; rankScore: number }[]>();
   const plan: RankPlan = { items: [], stories: [], clusters: [] };
   for (const story of input.stories) {
     const itemPercentiles: number[] = [];
@@ -77,44 +101,38 @@ export function planRankUpdates(input: {
       itemPercentiles.push(percentile);
     }
     const engagementPercentile = storyPercentile(itemPercentiles);
-    plan.stories.push({
-      id: story.id,
-      engagementPercentile,
-      rankScore: rankScore({
-        percentile: engagementPercentile,
-        publishedAt: story.publishedAt,
-        now: input.now,
-        sourceKinds:
-          (story.clusterId && clusterKinds.get(story.clusterId)) ||
-          story.items.map((item) => item.kind),
-      }),
+    const kinds = (story.clusterId && clusterKinds.get(story.clusterId)) || undefined;
+    const score = rankScore({
+      percentile: engagementPercentile,
+      publishedAt: story.publishedAt,
+      now: input.now,
+      sourceKinds: kinds ?? story.items.map((item) => item.kind),
     });
-  }
-  plan.clusters = pickRepresentatives([
-    ...plan.stories.flatMap(({ id, rankScore }) => {
-      const clusterId = clusterIdByStory.get(id);
-      return clusterId ? [{ id, clusterId, rankScore }] : [];
-    }),
-    ...(input.outsideMembers ?? []),
-  ]);
-  return plan;
-}
-
-function pickRepresentatives(members: readonly RankedClusterMember[]) {
-  const best = new Map<string, RankedClusterMember>();
-  for (const member of members) {
-    const current = best.get(member.clusterId);
-    if (
-      !current ||
-      member.rankScore > current.rankScore ||
-      (member.rankScore === current.rankScore && member.id > current.id)
-    ) {
-      best.set(member.clusterId, member);
+    plan.stories.push({ id: story.id, engagementPercentile, rankScore: score });
+    if (story.clusterId && kinds) {
+      const members = scoredMembers.get(story.clusterId) ?? [];
+      members.push({ id: story.id, rankScore: score });
+      scoredMembers.set(story.clusterId, members);
     }
   }
-  return [...best].map(([id, { id: representativeStoryId, rankScore }]) => ({
-    id,
-    representativeStoryId,
-    rankScore,
-  }));
+  plan.clusters = clusters.flatMap((cluster) => {
+    const best = pickBest(scoredMembers.get(cluster.id) ?? []);
+    if (!best) return [];
+    const sourceKinds = clusterKinds.get(cluster.id) ?? [];
+    return {
+      id: cluster.id,
+      representativeStoryId: best.id,
+      rankScore: best.rankScore,
+      sourceKinds,
+      stale:
+        cluster.representativeStoryId !== best.id ||
+        cluster.rankScore !== best.rankScore ||
+        cluster.sourceKinds.length !== sourceKinds.length ||
+        [...cluster.sourceKinds].sort().some((kind, index) => kind !== sourceKinds[index]),
+      flips: cluster.members
+        .filter((member) => member.isPrimary !== (member.id === best.id))
+        .map((member) => ({ id: member.id, isPrimary: member.id === best.id })),
+    };
+  });
+  return plan;
 }

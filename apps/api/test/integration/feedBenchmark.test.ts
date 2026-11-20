@@ -83,7 +83,6 @@ describe('feed benchmark at 40k stories', () => {
         'https://example.com/' || n,
         'Benchmark story ' || n, now(), now()
       FROM generate_series(1, 5) AS n`;
-    // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
     await prisma.$executeRaw`
       INSERT INTO "Cluster" ("id", "representativeStoryId", "memberCount", "sourceKinds", "rankScore", "updatedAt")
       SELECT 'cluster' || n, 'bench' || n, 2, ARRAY['hn']::"SourceKind"[], 0, now()
@@ -94,6 +93,7 @@ describe('feed benchmark at 40k stories', () => {
       FROM (SELECT "id", substring("id" from 6)::int AS n FROM "Story"
         WHERE substring("id" from 6)::int <= ${CLUSTERED_STORY_COUNT}) AS numbered
       WHERE "Story"."id" = numbered."id"`;
+    // Production tables are analysed by autovacuum; without this the planner sees freshly bulk-loaded tables.
     await prisma.$executeRaw`ANALYZE "Story", "SourceItem", "Source", "Cluster"`;
     apps.off = await createTestApp([], { FEATURE_CLUSTERS: 'false' });
     apps.on = await createTestApp([], { FEATURE_CLUSTERS: 'true', ANTHROPIC_API_KEY: 'test-key' });
@@ -145,8 +145,8 @@ describe('feed benchmark at 40k stories', () => {
   }
 
   afterAll(async () => {
-    await apps.off.close();
-    await apps.on.close();
+    await apps.off?.close();
+    await apps.on?.close();
   });
 
   // The internal token skips the per-IP limit, which the samples would otherwise exhaust.

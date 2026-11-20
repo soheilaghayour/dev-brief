@@ -2,12 +2,14 @@ import type { INestApplication } from '@nestjs/common';
 import {
   ApiErrorSchema,
   ClusterDetailSchema,
+  FeedPageSchema,
   SavedStoryPageSchema,
   StoryDetailSchema,
   StoryLookupResponseSchema,
 } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { LruCache } from '../../src/common/cache/lru.cache.js';
 import { loadEnv } from '../../src/env.js';
 import { createTestApp } from './createTestApp.js';
 import { createCluster, createSource, createStory } from './seedStories.js';
@@ -92,7 +94,7 @@ describe('cluster reads', () => {
     expect(ApiErrorSchema.parse(response.body).error.code).toBe('FEATURE_DISABLED');
   });
 
-  it('AC-2.2.2 returns cluster and the other members for a non-representative member', async () => {
+  it('§6.1 returns cluster and clusterMembers (the other members) for a non-representative member', async () => {
     const response = await request(on.getHttpServer()).get(`/api/v1/stories/${memberId}`);
     const detail = StoryDetailSchema.parse(response.body);
     expect(detail.cluster).toMatchObject({ id: clusterId, memberCount: 2 });
@@ -101,7 +103,7 @@ describe('cluster reads', () => {
     expect(detail.id).toBe(memberId);
   });
 
-  it('AC-2.2.2 omits cluster and clusterMembers with the flag off, and for a single story', async () => {
+  it('§6.1 omits cluster and clusterMembers with the flag off, and for a single story', async () => {
     const flagOff = await request(off.getHttpServer()).get(`/api/v1/stories/${memberId}`);
     expect(flagOff.status).toBe(200);
     expect(flagOff.body).not.toHaveProperty('cluster');
@@ -140,5 +142,92 @@ describe('cluster reads', () => {
 
     const page = SavedStoryPageSchema.parse(response.body);
     expect(page.items[0]?.story.cluster).toMatchObject({ id: clusterId, memberCount: 2 });
+  });
+
+  async function signInCookie(email: string) {
+    const signIn = await request(on.getHttpServer())
+      .post('/api/auth/test/sign-in')
+      .set('Origin', env.APP_URL)
+      .send({ email });
+    return (signIn.get('Set-Cookie') ?? []).map((c) => c.split(';')[0]).join('; ');
+  }
+
+  it('sends no cluster field for a one-story cluster in the feed, story detail or saves list', async () => {
+    const hn = await prisma.source.findFirstOrThrow({ where: { slug: 'hn' } });
+    const lone = await createStory(prisma, {
+      title: 'Lone story',
+      publishedAt: new Date(),
+      itemSourceIds: [hn.id],
+    });
+    await createCluster(prisma, {
+      memberIds: [lone.id],
+      representativeId: lone.id,
+      sourceKinds: ['hn'],
+    });
+    const cookie = await signInCookie('lone-saver@example.com');
+    await request(on.getHttpServer())
+      .put(`/api/v1/me/saves/${lone.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', env.APP_URL);
+
+    const feed = await request(on.getHttpServer()).get('/api/v1/feed').query({ q: 'Lone' });
+    const detail = await request(on.getHttpServer()).get(`/api/v1/stories/${lone.id}`);
+    const saves = await request(on.getHttpServer()).get('/api/v1/me/saves').set('Cookie', cookie);
+
+    expect(FeedPageSchema.parse(feed.body).items.map((item) => item.id)).toEqual([lone.id]);
+    expect(StoryDetailSchema.parse(detail.body).id).toBe(lone.id);
+    expect(SavedStoryPageSchema.parse(saves.body).items.map((item) => item.story.id)).toEqual([
+      lone.id,
+    ]);
+    for (const body of [feed.text, detail.text, saves.text]) {
+      expect(body).not.toContain('cluster');
+    }
+  });
+
+  it('serves a clustered story byte for byte as when unclustered with the flag off, in feed, detail and saves', async () => {
+    const hn = await prisma.source.findFirstOrThrow({ where: { slug: 'hn' } });
+    const devto = await prisma.source.findFirstOrThrow({ where: { slug: 'devto' } });
+    const pair = [
+      await createStory(prisma, {
+        title: 'Flagoff pair a',
+        publishedAt: new Date(),
+        rankScore: 3,
+        itemSourceIds: [hn.id],
+      }),
+      await createStory(prisma, {
+        title: 'Flagoff pair b',
+        publishedAt: new Date(),
+        rankScore: 2,
+        itemSourceIds: [devto.id],
+      }),
+    ];
+    const member = pair[1]!;
+    await createCluster(prisma, {
+      memberIds: pair.map((story) => story.id),
+      representativeId: pair[0]!.id,
+      sourceKinds: ['hn', 'devto'],
+    });
+    const cookie = await signInCookie('flagoff-saver@example.com');
+    await request(off.getHttpServer())
+      .put(`/api/v1/me/saves/${member.id}`)
+      .set('Cookie', cookie)
+      .set('Origin', env.APP_URL);
+    const bodies = async () => ({
+      feed: (await request(off.getHttpServer()).get('/api/v1/feed').query({ q: 'Flagoff' })).body,
+      detail: (await request(off.getHttpServer()).get(`/api/v1/stories/${member.id}`)).body,
+      saves: (await request(off.getHttpServer()).get('/api/v1/me/saves').set('Cookie', cookie))
+        .body,
+    });
+
+    const clustered = await bodies();
+    off.get(LruCache).clear();
+    await prisma.story.update({
+      where: { id: member.id },
+      data: { clusterId: null, isPrimary: true, clusterScore: null },
+    });
+    const unclustered = await bodies();
+
+    expect(clustered).toEqual(unclustered);
+    expect(clustered.saves.items).toHaveLength(1);
   });
 });
