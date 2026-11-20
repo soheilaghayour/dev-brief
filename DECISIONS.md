@@ -124,6 +124,9 @@ links to them instead of restating them.
 - **Sign-in from the landing page returns to `/feed`.** The landing page has no state to return to.
 - **The Under the hood badges show only what is shipped in Phase 1.** Tailwind stands where the Vercel AI SDK and A2UI will come with their phases.
 
+- **All non-cluster Phase 2 models (`Summary`, `FeedPreference`, `LlmUsage`, `RateLimitCounter`) land in one migration, before any feature uses them.** The migration rule ([§5.2](docs/prd.md#52-prisma-schema)) allows one schema branch open at a time, so the summaries, ledger and preferences issues would otherwise hold the schema lock in turn; the PRD fixes the models' shape, so a model with no user yet is acceptable.
+- **`Cluster`, the cluster fields on `Story` and `pg_trgm` wait for the clustering review ([O1](docs/prd.md#34-open-items)).** The review may change the method, and with it the columns; F2.1 declares its own migration.
+
 ## Open PM questions
 
 - Clustering method, thresholds and UI, to revisit with the user before Phase 2 issues exist: [PRD §3.4 O1](docs/prd.md#34-open-items).
