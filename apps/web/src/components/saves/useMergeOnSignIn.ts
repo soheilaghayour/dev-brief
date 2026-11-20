@@ -6,7 +6,7 @@ import { useMe } from '@/lib/auth/useMe';
 import { guestMergeResult, planGuestMerge } from '@/lib/guest/guestMerge';
 import { latestGuestData, removeGuestSaves, setGuestPendingMerge } from '@/lib/guest/guestSaves';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
-import { notify } from './notify';
+import { notify } from '@/lib/toast/notify';
 
 // Shared by every caller in this tab, so a remount or a second effect run never sends the merge twice.
 let mergeInFlight: Promise<void> | null = null;
