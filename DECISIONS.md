@@ -126,6 +126,10 @@ links to them instead of restating them.
 
 - **All non-cluster Phase 2 models (`Summary`, `FeedPreference`, `LlmUsage`, `RateLimitCounter`) land in one migration, before any feature uses them.** The migration rule ([§5.2](docs/prd.md#52-prisma-schema)) allows one schema branch open at a time, so the summaries, ledger and preferences issues would otherwise hold the schema lock in turn; the PRD fixes the models' shape, so a model with no user yet is acceptable.
 - **`Cluster`, the cluster fields on `Story` and `pg_trgm` wait for the clustering review ([O1](docs/prd.md#34-open-items)).** The review may change the method, and with it the columns; F2.1 declares its own migration.
+- **Phase flags come from env, all off by default: `FEATURE_*` for the API, the build-time `NEXT_PUBLIC_FEATURE_*` for the web.** Constants alone couldn't be switched on for the e2e build or for a Phase 2 launch; turning Phase 2 on in production is a Coolify env change the owner makes, and no issue flips a default.
+- **Only `summaries` and `preferences` are wired to env so far.** `clusters` is wired with F2.1, and the Phase 3 flags with their own phase.
+- **`FeatureGuard` runs before every other guard.** A route behind an off flag then answers like an unknown route, 404, and never 403 `FORBIDDEN_ORIGIN`, 429 or 401 first ([CLAUDE.md](CLAUDE.md): an off feature's routes return 404 `FEATURE_DISABLED`).
+- **`LlmUsage` and `RateLimitCounter` retention counts whole UTC days: a row goes once its `day` is more than 400 or 7 days before today.** [§5.3](docs/prd.md#53-retention-and-data-lifecycle) gives the periods; both tables are bucketed by UTC day, so the cutoff is a day, not a moment.
 
 ## Open PM questions
 

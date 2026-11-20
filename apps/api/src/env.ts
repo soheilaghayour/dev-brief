@@ -30,6 +30,14 @@ const EnvSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
+    FEATURE_SUMMARIES: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    FEATURE_PREFERENCES: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
   })
   // Fails closed on the public origin too: an unset NODE_ENV defaults to development.
   .refine(

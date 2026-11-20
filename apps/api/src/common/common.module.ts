@@ -5,6 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { CacheModule } from './cache/cache.module.js';
 import { ENV, EnvModule, type Env } from './env/env.module.js';
 import { ApiErrorFilter } from './errors/apiError.filter.js';
+import { FeatureGuard } from './features/feature.guard.js';
 import { pinoHttpOptions } from './logging/pinoHttpOptions.js';
 import { OriginGuard } from './origin-guard/origin.guard.js';
 import { RATE_LIMIT_PER_MINUTE, RateLimitGuard } from './rate-limit/rateLimit.guard.js';
@@ -28,6 +29,8 @@ import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.
     }),
   ],
   providers: [
+    // First, so a route behind an off flag answers like an unknown route: 404, never 403 or 429.
+    { provide: APP_GUARD, useClass: FeatureGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: OriginGuard },
     { provide: APP_FILTER, useClass: ApiErrorFilter },

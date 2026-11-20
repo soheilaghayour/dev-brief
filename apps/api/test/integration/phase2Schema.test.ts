@@ -1,5 +1,9 @@
+import { ApiErrorSchema } from '@devbrief/shared';
+import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import type { Prisma } from '../../src/generated/prisma/client.js';
+import { createTestApp } from './createTestApp.js';
+import { ProbeController } from './probe.controller.js';
 import { createSource, createStory } from './seedStories.js';
 import { useTestDatabase } from './testDatabase.js';
 
@@ -85,5 +89,18 @@ describe('Phase 2 schema', () => {
     expect(usage).toMatchObject({ feature: 'summary_auto', status: 'reserved', costUsd: null });
     expect(usage.reservedUsd.toString()).toBe('0.001');
     expect(counter.count).toBe(0);
+  });
+
+  it('answers a @RequiresFeature route with 404 FEATURE_DISABLED while its flag is off', async () => {
+    const off = await createTestApp([ProbeController], { FEATURE_SUMMARIES: false });
+    const disabled = await request(off.getHttpServer()).get('/api/v1/probe/summaries');
+    await off.close();
+    const on = await createTestApp([ProbeController], { FEATURE_SUMMARIES: true });
+    const enabled = await request(on.getHttpServer()).get('/api/v1/probe/summaries');
+    await on.close();
+
+    expect(disabled.status).toBe(404);
+    expect(ApiErrorSchema.parse(disabled.body).error.code).toBe('FEATURE_DISABLED');
+    expect(enabled.status).toBe(200);
   });
 });
