@@ -57,9 +57,11 @@ describe('ingestion run budget', () => {
       {
         kind: 'devto',
         fetch: (_source, { signal }) =>
-          new Promise((_resolve, reject) =>
-            signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
-          ),
+          new Promise((_resolve, reject) => {
+            // An abort listener never fires on a signal that is already aborted.
+            if (signal.aborted) return reject(signal.reason);
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          }),
       },
     ];
     const moduleRef = await Test.createTestingModule({
