@@ -3,39 +3,18 @@
 import { useEffect } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useMe } from '@/lib/auth/useMe';
-import { guestMergeResult, planGuestMerge } from '@/lib/guest/guestMerge';
-import { latestGuestData, removeGuestSaves, setGuestPendingMerge } from '@/lib/guest/guestSaves';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
-import { notify } from '@/lib/toast/notify';
 
 // Shared by every caller in this tab, so a remount or a second effect run never sends the merge twice.
 let mergeInFlight: Promise<void> | null = null;
 
-async function mergeGuestSaves(queryClient: QueryClient) {
-  const plan = planGuestMerge(await latestGuestData());
-  if (plan.action === 'none') return;
-  if (plan.action === 'clearPending') {
-    await setGuestPendingMerge(false);
-    return;
-  }
-  await setGuestPendingMerge(true);
-  let response;
-  try {
-    const { mergeSaves } = await import('@/lib/api/endpoints');
-    response = await mergeSaves(plan.request);
-  } catch {
-    // Local saves and the pending flag stay, so the next load tries again.
-    return;
-  }
-  // Only now that the server confirmed does the device let go of the saves.
-  const result = guestMergeResult(plan.request, response);
-  await removeGuestSaves(result.confirmedStoryIds);
-  await setGuestPendingMerge(false);
-  await queryClient.invalidateQueries({ queryKey: ['saves'] });
-  if (result.notice) void notify(result.notice);
+// The merge code loads only for a signed-in visit, so a guest's first-load JS doesn't carry it.
+async function loadAndMerge(queryClient: QueryClient) {
+  const { mergeGuestData } = await import('./mergeGuestData');
+  await mergeGuestData(queryClient);
 }
 
-/** Moves the device's saves into the account once a signed-in user is known and the guest store has loaded. */
+/** Moves the device's saves and preferences into the account once a signed-in user is known and the guest store has loaded. */
 export function useMergeOnSignIn() {
   const queryClient = useQueryClient();
   const { data: user } = useMe();
@@ -44,7 +23,7 @@ export function useMergeOnSignIn() {
 
   useEffect(() => {
     if (!userId || !isGuestStoreReady || mergeInFlight) return;
-    mergeInFlight = mergeGuestSaves(queryClient).finally(() => {
+    mergeInFlight = loadAndMerge(queryClient).finally(() => {
       mergeInFlight = null;
     });
   }, [userId, isGuestStoreReady, queryClient]);
