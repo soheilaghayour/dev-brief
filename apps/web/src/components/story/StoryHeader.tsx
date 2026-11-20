@@ -3,7 +3,7 @@ import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react';
 import type { StoryDetail } from '@devbrief/shared';
 import { RelativeTime } from '@/components/feed/RelativeTime';
 import { TagBadge } from '@/components/feed/TagBadge';
-import { LazyPreferenceMenu } from '@/components/preferences/LazyPreferenceMenu';
+import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { Button } from '@/components/ui/Button';
 import { StorySaveButton } from './StorySaveButton';
 
@@ -40,7 +40,7 @@ export function StoryHeader({ story }: { story: StoryDetail }) {
           first seen <RelativeTime iso={story.firstSeenAt} style="long" />
         </span>
         {story.tags.map((tag) => (
-          <TagBadge key={tag} slug={tag} menu={LazyPreferenceMenu} />
+          <TagBadge key={tag} slug={tag} menu={PreferenceMenu} />
         ))}
       </p>
       {story.excerpt && <p className="max-w-3xl leading-relaxed">{story.excerpt}</p>}

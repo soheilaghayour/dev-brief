@@ -22,6 +22,16 @@ describe('scriptPathsInHtml', () => {
     expect(scriptPathsInHtml(html)).toEqual(['static/chunks/a.js', 'static/chunks/b.js']);
   });
 
+  it('counts scripts the HTML preloads, once, and not other preloads', () => {
+    const html = `
+      <link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/lazy.js"/>
+      <link rel="modulepreload" href="/_next/static/chunks/mod.js?dpl=1"/>
+      <link rel="preload" href="/_next/static/media/f.woff2" as="font" crossorigin=""/>
+      <link rel="stylesheet" href="/_next/static/chunks/s.css"/>
+      <script src="/_next/static/chunks/lazy.js" async=""></script>`;
+    expect(scriptPathsInHtml(html)).toEqual(['static/chunks/lazy.js', 'static/chunks/mod.js']);
+  });
+
   it('finds scripts behind an asset prefix', () => {
     const html = '<script src="https://cdn.example.com/_next/static/chunks/a.js"></script>';
     expect(scriptPathsInHtml(html)).toEqual(['static/chunks/a.js']);
