@@ -21,6 +21,7 @@ export function toSourceRef(item: ItemWithSource): SourceRef {
     points: item.points,
     comments: item.commentsCount,
     reactions: item.reactionsCount,
+    stars: item.stars,
   };
 }
 

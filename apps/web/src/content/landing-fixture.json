@@ -18,7 +18,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1001",
           "points": 612,
           "comments": 288,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         },
         {
           "kind": "rss",
@@ -27,7 +28,8 @@
           "itemUrl": "https://devblogs.microsoft.com/typescript/native-preview",
           "points": null,
           "comments": null,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -47,7 +49,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1002",
           "points": 301,
           "comments": 97,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -67,7 +70,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1003",
           "points": 188,
           "comments": 64,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         },
         {
           "kind": "devto",
@@ -76,7 +80,8 @@
           "itemUrl": "https://dev.to/example/react-compiler",
           "points": null,
           "comments": 12,
-          "reactions": 95
+          "reactions": 95,
+          "stars": null
         }
       ]
     },
@@ -96,7 +101,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1004",
           "points": 254,
           "comments": 121,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -116,7 +122,8 @@
           "itemUrl": "https://netflixtechblog.com/idempotent-apis",
           "points": null,
           "comments": null,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -136,7 +143,8 @@
           "itemUrl": "https://www.joshwcomeau.com/css/anchor-positioning",
           "points": null,
           "comments": null,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -156,7 +164,8 @@
           "itemUrl": "https://blog.cloudflare.com/distributed-rate-limiter",
           "points": null,
           "comments": null,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         },
         {
           "kind": "hn",
@@ -165,7 +174,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1007",
           "points": 143,
           "comments": 40,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -185,7 +195,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1008",
           "points": 402,
           "comments": 310,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         },
         {
           "kind": "devto",
@@ -194,7 +205,8 @@
           "itemUrl": "https://dev.to/example/back-to-monolith",
           "points": null,
           "comments": 45,
-          "reactions": 210
+          "reactions": 210,
+          "stars": null
         }
       ]
     },
@@ -214,7 +226,8 @@
           "itemUrl": "https://simonwillison.net/2026/sqlite-production",
           "points": null,
           "comments": null,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -234,7 +247,8 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1010",
           "points": 176,
           "comments": 88,
-          "reactions": null
+          "reactions": null,
+          "stars": null
         }
       ]
     },
@@ -254,7 +268,8 @@
           "itemUrl": "https://dev.to/example/ts-migration",
           "points": null,
           "comments": 18,
-          "reactions": 132
+          "reactions": 132,
+          "stars": null
         }
       ]
     },
@@ -274,7 +289,8 @@
           "itemUrl": "https://dev.to/example/rsc-explained",
           "points": null,
           "comments": 9,
-          "reactions": 88
+          "reactions": 88,
+          "stars": null
         }
       ]
     }

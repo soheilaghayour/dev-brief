@@ -16,6 +16,7 @@ export const SourceRefSchema = z.object({
   points: z.number().int().nullable(),
   comments: z.number().int().nullable(),
   reactions: z.number().int().nullable(),
+  stars: z.number().int().nullable(),
 });
 export type SourceRef = z.infer<typeof SourceRefSchema>;
 

@@ -41,6 +41,7 @@ function story(id: string): StoryCard {
         points: null,
         comments: null,
         reactions: null,
+        stars: null,
       },
     ],
   };

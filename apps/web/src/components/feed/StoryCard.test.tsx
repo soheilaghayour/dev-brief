@@ -23,6 +23,7 @@ const STORY: StoryCardData = {
       points: 320,
       comments: 141,
       reactions: null,
+      stars: null,
     },
     {
       kind: 'devto',
@@ -32,6 +33,7 @@ const STORY: StoryCardData = {
       points: null,
       comments: 12,
       reactions: 95,
+      stars: null,
     },
     {
       kind: 'rss',
@@ -41,6 +43,7 @@ const STORY: StoryCardData = {
       points: null,
       comments: null,
       reactions: null,
+      stars: null,
     },
   ],
 };

@@ -31,6 +31,7 @@ function story(id: string, hoursAgo: number): StoryCard {
         points: 1,
         comments: 1,
         reactions: null,
+        stars: null,
       },
     ],
     rankScore: 1,
