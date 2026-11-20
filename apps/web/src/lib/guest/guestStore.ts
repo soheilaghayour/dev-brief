@@ -82,9 +82,10 @@ export const useGuestStore = create<GuestStore>()(
       storage: flatStorage,
       // Hydrating after mount keeps the server HTML and the first client render equal.
       skipHydration: true,
-      partialize: ({ deviceId, saves, hintDismissed, pendingMerge }) => ({
+      partialize: ({ deviceId, saves, prefs, hintDismissed, pendingMerge }) => ({
         deviceId,
         saves,
+        prefs,
         hintDismissed,
         pendingMerge,
       }),

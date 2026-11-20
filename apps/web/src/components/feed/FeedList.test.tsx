@@ -1,15 +1,31 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FeedPage, StoryCard } from '@devbrief/shared';
+import type { FeedPage, Preferences, StoryCard } from '@devbrief/shared';
+import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
+import { toFeedParams } from '@/lib/guest/preferences';
 import { FeedList } from './FeedList';
+import { feedQueryOptions } from './feedQueries';
 
 const query = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
+const preferences = vi.hoisted(() => ({ prefs: undefined as Preferences | undefined }));
 
-vi.mock('@tanstack/react-query', () => ({ useInfiniteQuery: () => query.current }));
+vi.mock('@tanstack/react-query', () => ({
+  useInfiniteQuery: () => query.current,
+  useQueryClient: () => ({}),
+}));
+vi.mock('@/components/preferences/usePreferenceState', () => ({
+  usePreferenceState: () => {
+    const prefs = preferences.prefs ?? EMPTY_PREFERENCES;
+    return { prefs, feedParams: toFeedParams(prefs) };
+  },
+}));
 vi.mock('@/components/saves/useSaves', () => ({
   useSaves: () => ({ isSaved: () => false, toggle: () => {} }),
 }));
-vi.mock('./feedQueries', () => ({ feedQueryOptions: () => ({}) }));
+vi.mock('./feedQueries', () => ({
+  feedQueryOptions: vi.fn(() => ({})),
+  personalisedPlaceholder: () => () => undefined,
+}));
 vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
 vi.mock('./useFeedFilters', () => ({
   useFeedFilters: () => ({
@@ -20,7 +36,7 @@ vi.mock('./useFeedFilters', () => ({
   }),
 }));
 
-function story(id: string): StoryCard {
+function story(id: string, tags: StoryCard['tags'] = []): StoryCard {
   return {
     id,
     title: `Story ${id}`,
@@ -29,7 +45,7 @@ function story(id: string): StoryCard {
     excerpt: null,
     author: null,
     publishedAt: '2026-11-19T10:00:00.000Z',
-    tags: [],
+    tags,
     readingTimeMinutes: null,
     rankScore: 1,
     sources: [
@@ -47,7 +63,10 @@ function story(id: string): StoryCard {
   };
 }
 
-const page = (...ids: string[]): FeedPage => ({ items: ids.map(story), nextCursor: null });
+const page = (...ids: string[]): FeedPage => ({
+  items: ids.map((id) => story(id)),
+  nextCursor: null,
+});
 
 function mockQuery(overrides: Record<string, unknown>) {
   query.current = {
@@ -62,7 +81,10 @@ function mockQuery(overrides: Record<string, unknown>) {
   };
 }
 
-beforeEach(() => mockQuery({}));
+beforeEach(() => {
+  mockQuery({});
+  preferences.prefs = undefined;
+});
 
 describe('FeedList', () => {
   it('AC-1.3.9 shows skeleton rows while the first page loads', () => {
@@ -101,5 +123,24 @@ describe('FeedList', () => {
     const html = renderToStaticMarkup(<FeedList />);
     expect(html.match(/data-story-id="b"/g)).toHaveLength(1);
     expect(html.match(/data-story-id=/g)).toHaveLength(3);
+  });
+
+  it('AC-2.5.2 hides the muted cards of the server-rendered page and requests the feed with excludeTags', () => {
+    preferences.prefs = { ...EMPTY_PREFERENCES, mute: { tags: ['career'], sources: [] } };
+    mockQuery({
+      data: {
+        pages: [
+          { items: [story('a', ['react']), story('b', ['career', 'rust'])], nextCursor: null },
+        ],
+        pageParams: [undefined],
+      },
+      isPlaceholderData: true,
+    });
+    const html = renderToStaticMarkup(<FeedList />);
+    expect(html).toContain('data-story-id="a"');
+    expect(html).not.toContain('data-story-id="b"');
+    expect(feedQueryOptions).toHaveBeenLastCalledWith(expect.anything(), {
+      excludeTags: ['career'],
+    });
   });
 });

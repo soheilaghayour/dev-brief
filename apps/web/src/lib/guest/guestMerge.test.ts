@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { guestMergeResult, planGuestMerge } from './guestMerge';
-import { MAX_GUEST_SAVES } from './guestState';
+import { EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
 import { migrateGuestData } from './guestParser';
 
 const save = (storyId: string) => ({ storyId, savedAt: '2026-05-01T10:00:00.000Z' });
@@ -8,25 +8,58 @@ const save = (storyId: string) => ({ storyId, savedAt: '2026-05-01T10:00:00.000Z
 describe('planGuestMerge', () => {
   it('AC-1.5.5 sends all local saves in one request', () => {
     const saves = [save('a'), save('b')];
-    expect(planGuestMerge({ saves, pendingMerge: false })).toEqual({
+    expect(planGuestMerge({ saves, prefs: EMPTY_PREFERENCES, pendingMerge: false })).toEqual({
       action: 'merge',
       request: { version: 1, saves },
     });
   });
 
   it('merges any remaining local saves, pending flag or not', () => {
-    expect(planGuestMerge({ saves: [save('a')], pendingMerge: true }).action).toBe('merge');
-    expect(planGuestMerge({ saves: [save('a')], pendingMerge: false }).action).toBe('merge');
+    expect(
+      planGuestMerge({ saves: [save('a')], prefs: EMPTY_PREFERENCES, pendingMerge: true }).action,
+    ).toBe('merge');
+    expect(
+      planGuestMerge({ saves: [save('a')], prefs: EMPTY_PREFERENCES, pendingMerge: false }).action,
+    ).toBe('merge');
   });
 
   it('does nothing without saves, and only clears a stale pending flag', () => {
-    expect(planGuestMerge({ saves: [], pendingMerge: false })).toEqual({ action: 'none' });
-    expect(planGuestMerge({ saves: [], pendingMerge: true })).toEqual({ action: 'clearPending' });
+    expect(planGuestMerge({ saves: [], prefs: EMPTY_PREFERENCES, pendingMerge: false })).toEqual({
+      action: 'none',
+    });
+    expect(planGuestMerge({ saves: [], prefs: EMPTY_PREFERENCES, pendingMerge: true })).toEqual({
+      action: 'clearPending',
+    });
+  });
+
+  const prefs = {
+    follow: { tags: ['rust' as const], sources: [] },
+    mute: { tags: [], sources: ['hn'] },
+  };
+
+  it('AC-2.5.3 sends the device preferences with the saves, and alone when there are no saves', () => {
+    expect(planGuestMerge({ saves: [save('a')], prefs, pendingMerge: false })).toEqual({
+      action: 'merge',
+      request: { version: 1, saves: [save('a')], preferences: prefs },
+    });
+    expect(planGuestMerge({ saves: [], prefs, pendingMerge: false })).toEqual({
+      action: 'merge',
+      request: { version: 1, saves: [], preferences: prefs },
+    });
+  });
+
+  it('leaves preferences out of the request when the device holds none', () => {
+    const plan = planGuestMerge({
+      saves: [save('a')],
+      prefs: EMPTY_PREFERENCES,
+      pendingMerge: false,
+    });
+    expect(plan.action === 'merge' && 'preferences' in plan.request).toBe(false);
   });
 
   it('never sends more saves than one merge accepts', () => {
     const saves = Array.from({ length: MAX_GUEST_SAVES + 3 }, (_, index) => save(`s${index}`));
-    const plan = planGuestMerge({ saves, pendingMerge: false });
+    const plan = planGuestMerge({ saves, prefs: EMPTY_PREFERENCES, pendingMerge: false });
     expect(plan.action === 'merge' && plan.request.saves).toHaveLength(MAX_GUEST_SAVES);
   });
 });
@@ -60,6 +93,23 @@ describe('guestMergeResult', () => {
       missingStoryIds: ['a', 'gone'],
     });
     expect(result.notice).toBeNull();
+  });
+
+  it('AC-2.5.3 confirms the sent preferences, and the toast still counts saves only', () => {
+    const sent = { ...EMPTY_PREFERENCES, follow: { tags: ['rust' as const], sources: [] } };
+    const result = guestMergeResult(
+      { ...request, preferences: sent },
+      { merged: { saves: 1, preferences: 1 }, skipped: { saves: 1 }, missingStoryIds: ['gone'] },
+    );
+    expect(result.confirmedPreferences).toEqual(sent);
+    expect(result.notice).toBe('1 saved story synced');
+    expect(
+      guestMergeResult(request, {
+        merged: { saves: 1, preferences: 0 },
+        skipped: { saves: 1 },
+        missingStoryIds: ['gone'],
+      }).confirmedPreferences,
+    ).toBeUndefined();
   });
 });
 

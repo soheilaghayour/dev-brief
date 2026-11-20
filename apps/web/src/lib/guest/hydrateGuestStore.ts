@@ -27,6 +27,12 @@ export function hydrateGuestStore() {
   return loading;
 }
 
+// Every change waits for the parser, loads the store and re-reads storage, so it builds on what any tab stored instead of replacing it.
+export async function loadLatestGuestStore() {
+  await hydrateGuestStore();
+  await useGuestStore.persist.rehydrate();
+}
+
 /** Reloads the guest store when another tab changes it; returns the unsubscribe. */
 export function followOtherTabs() {
   function reload(event: StorageEvent) {

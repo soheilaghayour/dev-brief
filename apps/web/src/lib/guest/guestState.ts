@@ -1,12 +1,19 @@
-import type { Save } from '@devbrief/shared';
+import type { Preferences, Save } from '@devbrief/shared';
 
 export const GUEST_STATE_VERSION = 1;
 /** Matches what one merge request accepts (PRD §6.2), so every local save can reach the account. */
 export const MAX_GUEST_SAVES = 500;
 
+/** No follows and no mutes: a new guest's preferences, and what invalid stored ones read as. */
+export const EMPTY_PREFERENCES: Preferences = {
+  follow: { tags: [], sources: [] },
+  mute: { tags: [], sources: [] },
+};
+
 export type GuestData = {
   deviceId: string;
   saves: Save[];
+  prefs: Preferences;
   hintDismissed: boolean;
   /** Set while a guest → account merge has started and not yet been confirmed by the server. */
   pendingMerge: boolean;
@@ -15,7 +22,13 @@ export type GuestData = {
 export type ToggleOutcome = 'added' | 'removed' | 'full';
 
 export function createGuestData(deviceId: string): GuestData {
-  return { deviceId, saves: [], hintDismissed: false, pendingMerge: false };
+  return {
+    deviceId,
+    saves: [],
+    prefs: EMPTY_PREFERENCES,
+    hintDismissed: false,
+    pendingMerge: false,
+  };
 }
 
 /** Adds the story, or removes it when saved already; a full list refuses new saves rather than dropping old ones. */

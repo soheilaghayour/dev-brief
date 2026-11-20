@@ -1,11 +1,5 @@
 import { useGuestStore } from './guestStore';
-import { hydrateGuestStore } from './hydrateGuestStore';
-
-// Every change waits for the parser, loads the store and re-reads storage, so it builds on the saves any tab stored instead of replacing them.
-async function loadLatest() {
-  await hydrateGuestStore();
-  await useGuestStore.persist.rehydrate();
-}
+import { loadLatestGuestStore as loadLatest } from './hydrateGuestStore';
 
 export async function toggleGuestSave(storyId: string, now: Date) {
   await loadLatest();

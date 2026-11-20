@@ -25,4 +25,24 @@ function Badge({
   );
 }
 
-export { Badge };
+// A badge that opens something: the same look, plus the hover and pointer of a control.
+function BadgeButton({
+  className,
+  variant,
+  ...props
+}: ComponentProps<'button'> & VariantProps<typeof badgeVariants>) {
+  return (
+    <button
+      type="button"
+      data-slot="badge"
+      className={cn(
+        badgeVariants({ variant }),
+        'hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent cursor-pointer',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Badge, BadgeButton };

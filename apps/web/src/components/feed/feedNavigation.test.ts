@@ -108,6 +108,12 @@ describe('isEnterOnInteractiveElement', () => {
     expect(isEnterOnInteractiveElement('Enter', icon)).toBe(true);
   });
 
+  it('is true for Enter on a menu item, such as Follow in a badge menu', () => {
+    const item = document.createElement('div');
+    item.setAttribute('role', 'menuitemcheckbox');
+    expect(isEnterOnInteractiveElement('Enter', item)).toBe(true);
+  });
+
   it('is false on the page body or for other keys', () => {
     expect(isEnterOnInteractiveElement('Enter', document.body)).toBe(false);
     expect(isEnterOnInteractiveElement('o', document.createElement('a'))).toBe(false);

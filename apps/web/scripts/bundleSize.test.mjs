@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   dynamicRouteScripts,
@@ -20,6 +21,16 @@ describe('scriptPathsInHtml', () => {
       <script>inline()</script>
       <script src="/_next/static/chunks/b.js?dpl=1" async=""></script>`;
     expect(scriptPathsInHtml(html)).toEqual(['static/chunks/a.js', 'static/chunks/b.js']);
+  });
+
+  it('counts scripts the HTML preloads, once, and not other preloads', () => {
+    const html = `
+      <link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/lazy.js"/>
+      <link rel="modulepreload" href="/_next/static/chunks/mod.js?dpl=1"/>
+      <link rel="preload" href="/_next/static/media/f.woff2" as="font" crossorigin=""/>
+      <link rel="stylesheet" href="/_next/static/chunks/s.css"/>
+      <script src="/_next/static/chunks/lazy.js" async=""></script>`;
+    expect(scriptPathsInHtml(html)).toEqual(['static/chunks/lazy.js', 'static/chunks/mod.js']);
   });
 
   it('finds scripts behind an asset prefix', () => {
@@ -135,5 +146,25 @@ describe('manifestMatchesHtml', () => {
     );
 
     expect(manifestMatchesHtml(nextDir, '(app)/x', 'saved.html')).toBe(false);
+  });
+});
+
+// The gate measures /feed and /story/[id] from build manifests, which cannot show the preload link of a server-rendered dynamic import.
+describe('next/dynamic', () => {
+  it('is used only where its chunk is not server-rendered into the first load', () => {
+    const srcDir = fileURLToPath(new URL('../src', import.meta.url));
+    const users = readdirSync(srcDir, { recursive: true })
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .filter((file) => readFileSync(join(srcDir, file), 'utf8').includes("from 'next/dynamic'"))
+      .map((file) => file.replaceAll('\\', '/'))
+      .sort();
+
+    // Each renders its dynamic part with `ssr: false` or only after an interaction; a new user needs the same, and a place here.
+    expect(users).toEqual([
+      'components/account/LazyAccountSlot.tsx',
+      'components/layout/LazyToaster.tsx',
+      'components/layout/SheetLauncher.tsx',
+      'lib/hotkeys/HotkeysProvider.tsx',
+    ]);
   });
 });

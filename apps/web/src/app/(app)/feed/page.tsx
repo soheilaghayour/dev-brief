@@ -1,10 +1,11 @@
+import { headers } from 'next/headers';
 import type { SearchParams } from 'nuqs/server';
 import { Suspense } from 'react';
 import { ActiveFilters } from '@/components/feed/ActiveFilters';
 import { FeedList } from '@/components/feed/FeedList';
 import { GuestHintBar } from '@/components/saves/GuestHintBar';
 import { loadFeedSearchParams, toFeedFilters } from '@/components/feed/feedParams';
-import { feedQueryOptions } from '@/components/feed/feedQueries';
+import { prefetchFeed } from '@/components/feed/prefetchFeed';
 import { getServerQueryClient, PrefetchedQueries } from '@/lib/query/PrefetchedQueries';
 
 export const metadata = { title: 'Feed' };
@@ -12,7 +13,7 @@ export const metadata = { title: 'Feed' };
 export default async function FeedPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const filters = toFeedFilters(loadFeedSearchParams(await searchParams));
   // Awaited, so the first page is in the HTML; a failed fetch (no server retry) leaves the client to retry.
-  await getServerQueryClient().prefetchInfiniteQuery(feedQueryOptions(filters));
+  await prefetchFeed(getServerQueryClient(), filters, (await headers()).get('cookie'));
 
   return (
     <PrefetchedQueries>
