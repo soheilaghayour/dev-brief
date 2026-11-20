@@ -98,7 +98,10 @@ describe('Phase 2 schema', () => {
 
     beforeAll(async () => {
       off = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'false' });
-      on = await createTestApp([ProbeController], { FEATURE_SUMMARIES: 'true' });
+      on = await createTestApp([ProbeController], {
+        FEATURE_SUMMARIES: 'true',
+        ANTHROPIC_API_KEY: 'test-key',
+      });
     });
     afterAll(async () => {
       await off.close();

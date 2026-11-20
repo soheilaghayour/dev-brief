@@ -68,6 +68,8 @@ jobs:
           # The e2e run reaches the Phase 2 UI and routes; Lighthouse builds with every flag off.
           FEATURE_SUMMARIES: 'true'
           FEATURE_PREFERENCES: 'true'
+          # Summaries need a key to boot; e2e never calls the LLM, so a placeholder does.
+          ANTHROPIC_API_KEY: ci-placeholder-not-a-key
       - run: pnpm --filter web build
         env:
           API_PROXY_URL: http://localhost:3001
