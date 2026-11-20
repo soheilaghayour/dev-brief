@@ -44,14 +44,6 @@ function Stars({ count }: { count: number }) {
 
 /** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
 export function SourceBadge({ source }: SourceBadgeProps) {
-  if (source.kind === 'github') {
-    return (
-      <Badge variant="outline" data-source-kind={source.kind}>
-        <span className="text-foreground font-medium">{source.name}</span>
-        {source.stars !== null && <Stars count={source.stars} />}
-      </Badge>
-    );
-  }
   if (source.kind === 'hn' || source.kind === 'devto') {
     const score = source.kind === 'hn' ? source.points : source.reactions;
     return (
@@ -72,6 +64,7 @@ export function SourceBadge({ source }: SourceBadgeProps) {
   return (
     <Badge variant="outline" data-source-kind={source.kind}>
       <span className="text-foreground font-medium">{source.name}</span>
+      {source.stars !== null && <Stars count={source.stars} />}
     </Badge>
   );
 }

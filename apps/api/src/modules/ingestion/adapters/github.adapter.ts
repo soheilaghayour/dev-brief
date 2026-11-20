@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
-import { HttpClient } from '../../../common/http/httpClient.js';
+import { HttpClient, parseJsonBody } from '../../../common/http/httpClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
 import type { FetchContext, RawItem, SourceAdapter } from '../sourceAdapter.js';
 
@@ -11,7 +11,7 @@ const CREATED_WITHIN_DAYS = 7;
 const MIN_STARS = 50;
 const TITLE_MAX_LENGTH = 140;
 // PRD §8.3 sets the stop threshold.
-export const MIN_RATE_LIMIT_REMAINING = 5;
+const MIN_RATE_LIMIT_REMAINING = 5;
 export const GITHUB_TOKEN_MISSING = 'GITHUB_TOKEN not set';
 const DAY_MS = 86_400_000;
 const MAX_RETRY_AFTER_MS = 30_000;
@@ -46,7 +46,7 @@ const GithubRepoSchema = z.object({
 type GithubRepo = z.infer<typeof GithubRepoSchema>;
 
 /** The search URL for one page: repos created after the UTC date 7 days before `now`, most stars first. */
-export function searchUrl(now: Date, page: number) {
+function searchUrl(now: Date, page: number) {
   const since = new Date(now.getTime() - CREATED_WITHIN_DAYS * DAY_MS).toISOString().slice(0, 10);
   const query = new URLSearchParams({
     q: `created:>${since} stars:>${MIN_STARS}`,
@@ -86,11 +86,6 @@ function toRawItem(repo: GithubRepo): RawItem {
   };
 }
 
-/** True when the response reports fewer than 5 search requests left; a missing header is not low. */
-function isRateLimitLow(remainingHeader: string | null) {
-  return remainingHeader !== null && Number(remainingHeader) < MIN_RATE_LIMIT_REMAINING;
-}
-
 /** Reads new repositories gaining stars from the GitHub Search API: at most two serial pages. */
 @Injectable()
 export class GithubAdapter implements SourceAdapter {
@@ -114,7 +109,8 @@ export class GithubAdapter implements SourceAdapter {
     let invalid = 0;
 
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const response = await this.http.get(searchUrl(now, page), {
+      const url = searchUrl(now, page);
+      const response = await this.http.get(url, {
         ...REQUEST_OPTIONS,
         headers: {
           Accept: 'application/vnd.github+json',
@@ -123,7 +119,9 @@ export class GithubAdapter implements SourceAdapter {
         },
         signal,
       });
-      const { incomplete_results, items } = SearchPageSchema.parse(JSON.parse(response.text));
+      const { incomplete_results, items } = SearchPageSchema.parse(
+        parseJsonBody(response.text, url),
+      );
       // GitHub ends a slow search early and says so; the items it did return are still valid.
       if (incomplete_results) partialReasons.push(`GitHub search incomplete on page ${page}`);
       for (const repo of items) {
@@ -134,7 +132,8 @@ export class GithubAdapter implements SourceAdapter {
       }
 
       const remaining = response.headers.get('x-ratelimit-remaining');
-      if (isRateLimitLow(remaining)) {
+      // A missing header says nothing about the limit.
+      if (remaining !== null && Number(remaining) < MIN_RATE_LIMIT_REMAINING) {
         partialReasons.push(
           `GitHub rate limit low (${remaining} requests left); stopped after page ${page}`,
         );

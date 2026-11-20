@@ -19,7 +19,7 @@ function tooltipFor({ lastSuccessAt }: KindHealth) {
 
 /** The source kinds `/sources` lists, as filters, each with a health dot (the worst status among its sources). */
 export function SourceFilterList() {
-  const { data, isPending } = useQuery(sourcesQueryOptions);
+  const { data, isPending, isError } = useQuery(sourcesQueryOptions);
   const { filters, toggleKind } = useFeedFilters();
 
   return (
@@ -31,9 +31,7 @@ export function SourceFilterList() {
         Array.from({ length: PLACEHOLDER_ROWS }, (_, index) => (
           <Skeleton key={index} className="mx-2 my-1.5 h-4" />
         ))}
-      {!isPending && !data && (
-        <p className="text-muted-foreground px-2 py-1">Sources unavailable.</p>
-      )}
+      {isError && <p className="text-muted-foreground px-2 py-1">Sources unavailable.</p>}
       {data &&
         listedKinds(data.sources).map(({ kind, health }) => (
           <div

@@ -4,16 +4,8 @@ const fixtureDir = new URL('./fixtures/github/', import.meta.url);
 
 export type GithubFixtureName = 'search-page-1' | 'search-page-2' | 'search-short';
 
-export function readGithubFixture(name: GithubFixtureName) {
+function readGithubFixture(name: GithubFixtureName) {
   return readFileSync(new URL(`${name}.json`, fixtureDir), 'utf8');
-}
-
-export function githubFixtureRepos(name: GithubFixtureName) {
-  return (
-    JSON.parse(readGithubFixture(name)) as {
-      items: { id: number; full_name: string; stargazers_count: number }[];
-    }
-  ).items;
 }
 
 /** The moment the search pages were recorded; `created:>` in their query is 7 days before it. */

@@ -98,6 +98,15 @@ async function readCapped(response: Response, maxBytes: number) {
   return text + decoder.decode();
 }
 
+/** Parses a response body from `url` as JSON, failing with an `HttpError`; the caller validates the shape. */
+export function parseJsonBody(text: string, url: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new HttpError(`Invalid JSON from ${url}`);
+  }
+}
+
 /** Wraps `fetch` with a timeout, retries with full-jitter backoff, `Retry-After` handling, a size cap and the bot User-Agent. */
 @Injectable()
 export class HttpClient {
@@ -132,11 +141,7 @@ export class HttpClient {
   /** Fetches a URL and parses the body as JSON; the caller validates the shape. */
   async getJson(url: string, options: HttpRequestOptions): Promise<unknown> {
     const { text } = await this.get(url, options);
-    try {
-      return JSON.parse(text) as unknown;
-    } catch {
-      throw new HttpError(`Invalid JSON from ${url}`);
-    }
+    return parseJsonBody(text, url);
   }
 
   private async attempt(url: string, options: HttpRequestOptions): Promise<HttpResponse> {

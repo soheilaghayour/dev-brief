@@ -2,23 +2,15 @@ import { Logger } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HttpClient } from '../../../common/http/httpClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
-import {
-  GITHUB_FIXTURE_NOW,
-  githubFixtureFetch,
-  githubFixtureRepos,
-} from '../../../../test/githubFixtureFetch.js';
+import { GITHUB_FIXTURE_NOW, githubFixtureFetch } from '../../../../test/githubFixtureFetch.js';
 import { GITHUB_TOKEN_MISSING, GithubAdapter } from './github.adapter.js';
 
 const source = { slug: 'github', kind: 'github' } as Source;
 const signal = new AbortController().signal;
 
-function adapterWith(fetchStub: typeof fetch) {
+function adapterWith(fetchStub: typeof fetch, now = GITHUB_FIXTURE_NOW) {
   // random = 0 makes retry backoff instant
-  return new GithubAdapter(
-    new HttpClient(fetchStub, () => 0),
-    'test-token',
-    () => GITHUB_FIXTURE_NOW,
-  );
+  return new GithubAdapter(new HttpClient(fetchStub, () => 0), 'test-token', () => now);
 }
 
 function spyFetch(base: typeof fetch = githubFixtureFetch()) {
@@ -49,23 +41,14 @@ describe('GithubAdapter', () => {
 
   it('uses the UTC date 7 days before now in the created filter', async () => {
     const stub = spyFetch();
-    const lateEvening = new Date('2026-11-20T23:30:00Z');
-    const adapter = new GithubAdapter(
-      new HttpClient(stub, () => 0),
-      'test-token',
-      () => lateEvening,
-    );
-    await adapter.fetch(source, { signal });
+    await adapterWith(stub, new Date('2026-11-20T23:30:00Z')).fetch(source, { signal });
     const query = new URL(String(stub.mock.calls[0]?.[0])).searchParams.get('q');
     expect(query).toBe('created:>2026-11-13 stars:>50');
   });
 
   it('maps a recorded repo: id, html_url, owner, created_at, stars and lowercased language + topics', async () => {
     const items = await adapterWith(githubFixtureFetch()).fetch(source, { signal });
-    const recorded = githubFixtureRepos('search-page-2').find(
-      ({ full_name }) => full_name === 'replit/datacat',
-    );
-    expect(items.find((item) => item.externalId === String(recorded?.id))).toEqual({
+    expect(items.find((item) => item.externalId === '1460835528')).toEqual({
       externalId: '1460835528',
       url: 'https://github.com/replit/datacat',
       discussionUrl: null,

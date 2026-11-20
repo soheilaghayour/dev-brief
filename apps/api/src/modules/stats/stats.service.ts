@@ -24,11 +24,9 @@ export class StatsService {
         select: { lastSuccessAt: true, lastErrorAt: true },
       }),
     ]);
-    const successes = sources.flatMap(({ lastSuccessAt }) =>
-      lastSuccessAt ? [lastSuccessAt] : [],
-    );
-    const lastIngestedAt = successes.reduce<Date | null>(
-      (latest, next) => (latest && latest > next ? latest : next),
+    const lastIngestedAt = sources.reduce<Date | null>(
+      (latest, { lastSuccessAt }) =>
+        lastSuccessAt && (!latest || lastSuccessAt > latest) ? lastSuccessAt : latest,
       null,
     );
     const stats: Stats = {
