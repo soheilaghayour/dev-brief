@@ -287,7 +287,7 @@ describe('summary reads', () => {
   });
 
   it('feed, lookup and story detail carry hasSummary and the detail its summary with the flag on', async () => {
-    const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=new')).body);
+    const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=latest')).body);
     const hasSummaryById = Object.fromEntries(feed.items.map((card) => [card.id, card.hasSummary]));
     expect(hasSummaryById).toEqual({ [summarisedId]: true, [plainId]: false });
 
@@ -303,7 +303,7 @@ describe('summary reads', () => {
   });
 
   it('feed, lookup and story detail leave both fields out with the flag off', async () => {
-    const feed = await get(flagOff, '/api/v1/feed?sort=new');
+    const feed = await get(flagOff, '/api/v1/feed?sort=latest');
     FeedPageSchema.parse(feed.body);
     expect(feed.body.items[0]).not.toHaveProperty('hasSummary');
 
