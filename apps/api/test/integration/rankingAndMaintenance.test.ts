@@ -528,6 +528,22 @@ describe('rank recompute and daily job', () => {
     await app.close();
   });
 
+  it('deletes a 31-day-old CopilotQuery and keeps a 29-day-old one', async () => {
+    const query = { question: 'q', questionHash: 'h', status: 'complete', messages: [] } as const;
+    await prisma.copilotQuery.createMany({
+      data: [
+        { ...query, id: 'expired', createdAt: daysAgo(31) },
+        { ...query, id: 'kept', createdAt: daysAgo(29) },
+      ],
+    });
+    const app = await createApp();
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect((await prisma.copilotQuery.findMany()).map((row) => row.id)).toEqual(['kept']);
+    await app.close();
+  });
+
   it('AC-1.7.3 recomputes TagDailyStat for the last 3 UTC days idempotently', async () => {
     const source = await createSource(prisma, 'stat-hn', 'hn');
     await addStory(

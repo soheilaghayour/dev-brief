@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   aggregateTagStats,
   clusterNeedsUpkeep,
+  copilotQueryCutoff,
   ingestionRunCutoff,
   planClusterUpkeep,
   llmUsageCutoff,
@@ -59,6 +60,13 @@ export class MaintenanceService {
         () =>
           this.prisma.rateLimitCounter.deleteMany({
             where: { day: { lt: rateLimitCounterCutoff(now) } },
+          }),
+      ],
+      [
+        'copilot query purge',
+        () =>
+          this.prisma.copilotQuery.deleteMany({
+            where: { createdAt: { lt: copilotQueryCutoff(now) } },
           }),
       ],
     ] as const;

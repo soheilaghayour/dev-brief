@@ -255,6 +255,47 @@ describe('authentication', () => {
     expect((await withApp(app).get('/api/v1/me').set('Cookie', cookie)).status).toBe(401);
   });
 
+  it("DELETE /me removes the user's collections, items and CopilotQuery rows and leaves other rows", async () => {
+    const doomed = await signIn(app, { email: 'doomed-p3@example.com' });
+    const bystander = await signIn(app, { email: 'bystander-p3@example.com' });
+    const story = await createStory(prisma, {
+      title: 'Shared story',
+      publishedAt: new Date(),
+      itemSourceIds: [],
+    });
+    const query = { question: 'q', questionHash: 'h', status: 'complete', messages: [] } as const;
+    for (const { userId } of [doomed, bystander]) {
+      await prisma.save.create({ data: { userId, storyId: story.id } });
+      await prisma.collection.create({
+        data: {
+          userId,
+          name: 'Reading',
+          slug: 'reading',
+          position: 0,
+          items: { create: { userId, storyId: story.id, position: 0 } },
+        },
+      });
+      await prisma.copilotQuery.create({ data: { ...query, userId } });
+    }
+    await prisma.copilotQuery.create({ data: { ...query, guestKey: 'guest-digest' } });
+
+    const response = await withApp(app)
+      .delete('/api/v1/me')
+      .set('Cookie', doomed.cookie)
+      .set('Origin', env.APP_URL);
+    expect(response.status).toBe(204);
+
+    const gone = { where: { userId: doomed.userId } };
+    expect(await prisma.collection.count(gone)).toBe(0);
+    expect(await prisma.collectionItem.count(gone)).toBe(0);
+    expect(await prisma.copilotQuery.count(gone)).toBe(0);
+    const kept = { where: { userId: bystander.userId } };
+    expect(await prisma.collection.count(kept)).toBe(1);
+    expect(await prisma.collectionItem.count(kept)).toBe(1);
+    expect(await prisma.copilotQuery.count(kept)).toBe(1);
+    expect(await prisma.copilotQuery.count({ where: { guestKey: 'guest-digest' } })).toBe(1);
+  });
+
   it('AC-1.5.8 after sign-out the session no longer authenticates', async () => {
     const clientIp = freshClientIp();
     const { cookie } = await signIn(app, { email: 'leaving@example.com' }, clientIp);

@@ -6,6 +6,7 @@ const MS_PER_DAY = 86_400_000;
 const TAG_STAT_DAYS = 3;
 const STORY_RETENTION_DAYS = 90;
 const INGESTION_RUN_RETENTION_DAYS = 30;
+const COPILOT_QUERY_RETENTION_DAYS = 30;
 const LLM_USAGE_RETENTION_DAYS = 400;
 const RATE_LIMIT_COUNTER_RETENTION_DAYS = 7;
 export const PURGE_BATCH_SIZE = 1000;
@@ -31,6 +32,11 @@ export function storyCutoff(now: Date) {
 /** Moment before which an IngestionRun is past retention. */
 export function ingestionRunCutoff(now: Date) {
   return new Date(now.getTime() - INGESTION_RUN_RETENTION_DAYS * MS_PER_DAY);
+}
+
+/** Moment before which a CopilotQuery is past retention. */
+export function copilotQueryCutoff(now: Date) {
+  return new Date(now.getTime() - COPILOT_QUERY_RETENTION_DAYS * MS_PER_DAY);
 }
 
 /** UTC day before which an LlmUsage row is past retention. */
