@@ -53,16 +53,43 @@ jobs:
       - name: Schema matches migrations (no drift)
         run: pnpm --filter api exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - run: pnpm test
-      - run: pnpm build
-        env:
-          API_PROXY_URL: http://localhost:3001
-      - run: pnpm --filter web size
+      - run: pnpm --filter @devbrief/shared --filter api build
       - run: pnpm --filter api db:seed
       - run: pnpm --filter api db:seed:e2e
         env:
           ALLOW_DESTRUCTIVE_SEED: '1'
+      # The landing page is generated from live stories at build time, so the API runs during the web build and the e2e run.
+      - name: Start the API
+        run: |
+          nohup pnpm --filter api start > api.log 2>&1 &
+          curl --fail --silent --retry 30 --retry-delay 2 --retry-connrefused http://localhost:3001/api/v1/health
+        env:
+          AUTH_TEST_MODE: 'true'
+      - run: pnpm --filter web build
+        env:
+          API_PROXY_URL: http://localhost:3001
+      - run: pnpm --filter web size
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
+
+  lighthouse:
+    name: lighthouse
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: http://localhost:3000
+      # Nothing listens here, so the build renders the landing page from its fixture.
+      API_INTERNAL_URL: http://localhost:3001
+      INTERNAL_API_TOKEN: ci-internal-token-0123
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @devbrief/shared --filter web build
+      - run: npx -y @lhci/cli@0.15.1 autorun --config=lighthouserc.json
 
   images:
     name: images

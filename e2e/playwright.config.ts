@@ -22,7 +22,8 @@ export default defineConfig({
       // Registers the test-only sign-in route for this run alone.
       env: { AUTH_TEST_MODE: 'true' },
       url: `${API_URL}/api/v1/health`,
-      reuseExistingServer: !process.env.CI,
+      // CI starts the API before the web build, which generates the landing page from its data.
+      reuseExistingServer: true,
       timeout: 60_000,
     },
     {
