@@ -129,7 +129,9 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...summariesOn, IP_HASH_SECRET: 'too-short' })).toThrow(
       /IP_HASH_SECRET/,
     );
-    expect(loadEnv({ ...summariesOn, ...SUMMARIES_SECRETS }).IP_HASH_SECRET).toBe(SUMMARIES_SECRETS.IP_HASH_SECRET);
+    expect(loadEnv({ ...summariesOn, ...SUMMARIES_SECRETS }).IP_HASH_SECRET).toBe(
+      SUMMARIES_SECRETS.IP_HASH_SECRET,
+    );
   });
 
   it('reads LLM_MODEL with the Haiku 5.5 default', () => {

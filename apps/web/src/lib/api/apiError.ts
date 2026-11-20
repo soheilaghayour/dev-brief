@@ -8,6 +8,8 @@ export class ApiError extends Error {
     readonly requestId: string,
     readonly status: number,
     readonly details: ApiErrorBody['error']['details'],
+    /** When a quota error lets the caller try again. */
+    readonly resetsAt?: string,
   ) {
     super(message);
     this.name = 'ApiError';

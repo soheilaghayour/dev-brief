@@ -63,8 +63,8 @@ async function toApiError(response: Response) {
       response.status,
     );
   }
-  const { code, message, requestId, details } = parsed.data.error;
-  return new ApiError(code, message, requestId, response.status, details);
+  const { code, message, requestId, details, resetsAt } = parsed.data.error;
+  return new ApiError(code, message, requestId, response.status, details, resetsAt);
 }
 
 /** Creates the typed client: every response is parsed with its shared schema, every error becomes an ApiError. */

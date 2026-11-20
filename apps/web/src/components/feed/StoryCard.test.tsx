@@ -4,9 +4,9 @@ import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { StoryCard } from './StoryCard';
 
-const features = vi.hoisted(() => ({ preferences: false }));
+const features = vi.hoisted(() => ({ preferences: false, summaries: false }));
 vi.mock('@/config/features', () => ({
-  isFeatureEnabled: (flag: 'preferences') => features[flag],
+  isFeatureEnabled: (flag: 'preferences' | 'summaries') => features[flag],
 }));
 
 const STORY: StoryCardData = {
@@ -148,5 +148,19 @@ describe('StoryCard', () => {
     const html = render(STORY, { preferenceMenu: PreferenceMenu });
     expect(menuTriggers(html)).toHaveLength(0);
     expect(html.match(/data-tag=/g)).toHaveLength(2);
+  });
+
+  it('AC-2.3.1 links a TL;DR badge to the story page when the story has a summary', () => {
+    features.summaries = true;
+    const html = render({ ...STORY, hasSummary: true });
+    features.summaries = false;
+    expect(html).toMatch(/<a[^>]*href="\/story\/story-1"[^>]*><span[^>]*>TL;DR<\/span><\/a>/);
+  });
+
+  it('AC-2.3.1 shows no TL;DR badge without a summary or while the summaries flag is off', () => {
+    features.summaries = true;
+    expect(render({ ...STORY, hasSummary: false })).not.toContain('TL;DR');
+    features.summaries = false;
+    expect(render({ ...STORY, hasSummary: true })).not.toContain('TL;DR');
   });
 });

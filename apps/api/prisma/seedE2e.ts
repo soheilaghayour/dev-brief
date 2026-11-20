@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { Prisma, PrismaClient } from '../src/generated/prisma/client.js';
 import { loadEnv } from '../src/env.js';
 import { seedSources } from '../src/cli/seedSources.js';
 
@@ -28,6 +28,16 @@ const SOURCE_CYCLE = [
   ['hn', 'rss-typescript-blog'],
   ['devto', 'hn'],
   ['rss-vercel-blog'],
+];
+
+/** Fixed stories that carry a stored summary, so specs can check how one renders without a model call. */
+export const SUMMARISED_STORY_ID = e2eStoryId(4);
+export const SUMMARISED_NO_CONSENSUS_STORY_ID = e2eStoryId(5);
+
+const SUMMARY_TLDR = [
+  'First point of the fixture summary.',
+  'Second point of the fixture summary.',
+  'Third point of the fixture summary.',
 ];
 
 type StorySeed = {
@@ -115,6 +125,31 @@ async function seedStory(prisma: PrismaClient, seed: StorySeed) {
   }
 }
 
+async function seedSummary(
+  prisma: PrismaClient,
+  storyId: string,
+  consensus: Prisma.InputJsonValue | typeof Prisma.DbNull,
+  basedOnComments: number,
+) {
+  const fields = {
+    tldr: SUMMARY_TLDR,
+    consensus,
+    suggestedTags: [],
+    basedOnComments,
+    trigger: 'auto' as const,
+    model: 'claude-haiku-5-5',
+    promptVersion: 1,
+    inputTokens: 1800,
+    outputTokens: 240,
+    costUsd: '0.000300',
+  };
+  await prisma.summary.upsert({
+    where: { storyId },
+    create: { storyId, ...fields },
+    update: fields,
+  });
+}
+
 /** Throws unless the database is marked as a throwaway one (name ends in `_test` or `e2e`) or the run opts in. */
 export function assertDestructiveSeedAllowed(databaseUrl: string, allowDestructive: boolean) {
   const databaseName = new URL(databaseUrl).pathname.slice(1);
@@ -131,6 +166,13 @@ export async function seedE2e(prisma: PrismaClient, now = new Date()) {
   // Saves go first: they restrict deleting their story.
   await prisma.$transaction([prisma.save.deleteMany(), prisma.story.deleteMany()]);
   for (const seed of buildStorySeeds(now)) await seedStory(prisma, seed);
+  await seedSummary(
+    prisma,
+    SUMMARISED_STORY_ID,
+    { verdict: 'mixed', pros: ['Fixture pro.'], cons: ['Fixture con.'], basedOnComments: 12 },
+    12,
+  );
+  await seedSummary(prisma, SUMMARISED_NO_CONSENSUS_STORY_ID, Prisma.DbNull, 3);
   await prisma.source.updateMany({
     data: { lastSuccessAt: now, consecutiveFailures: 0, circuitOpenUntil: null },
   });

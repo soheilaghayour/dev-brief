@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { TAG_SLUGS } from '@devbrief/shared';
-import { assertDestructiveSeedAllowed, seedE2e } from '../../prisma/seedE2e.js';
+import {
+  assertDestructiveSeedAllowed,
+  seedE2e,
+  SUMMARISED_NO_CONSENSUS_STORY_ID,
+  SUMMARISED_STORY_ID,
+} from '../../prisma/seedE2e.js';
 import { useTestDatabase } from './testDatabase.js';
 
 describe('end-to-end seed', () => {
@@ -20,6 +25,20 @@ describe('end-to-end seed', () => {
       expect(story.items.length).toBeGreaterThan(0);
       expect(story.tags.every((tag) => (TAG_SLUGS as readonly string[]).includes(tag))).toBe(true);
     }
+  });
+
+  it('gives one story a stored summary with consensus and another one without', async () => {
+    await seedE2e(prisma, now);
+
+    const withConsensus = await prisma.summary.findUniqueOrThrow({
+      where: { storyId: SUMMARISED_STORY_ID },
+    });
+    const withoutConsensus = await prisma.summary.findUniqueOrThrow({
+      where: { storyId: SUMMARISED_NO_CONSENSUS_STORY_ID },
+    });
+    expect(withConsensus.consensus).toMatchObject({ verdict: 'mixed', basedOnComments: 12 });
+    expect(withoutConsensus.consensus).toBeNull();
+    expect(await prisma.summary.count()).toBe(2);
   });
 
   it('removes stories that are not fixtures', async () => {
