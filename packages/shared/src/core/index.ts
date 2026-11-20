@@ -6,3 +6,4 @@ export * from './tagStory.js';
 export * from './taxonomy.js';
 export * from './scrubSentryEvent.js';
 export * from './securityHeaders.js';
+export * from './clustering.js';
