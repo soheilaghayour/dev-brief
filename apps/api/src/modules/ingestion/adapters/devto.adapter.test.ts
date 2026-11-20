@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEVTO_REQUEST_GAP_MS } from '../../../common/devto/devtoApi.js';
 import { HttpClient } from '../../../common/http/httpClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
 import {
@@ -6,7 +7,7 @@ import {
   fixtureOverlappingArticles,
   fixtureTopArticles,
 } from '../../../../test/devtoFixtureFetch.js';
-import { DEVTO_REQUEST_GAP_MS, DevtoAdapter } from './devto.adapter.js';
+import { DevtoAdapter } from './devto.adapter.js';
 
 const source = { slug: 'devto', kind: 'devto' } as Source;
 const signal = new AbortController().signal;

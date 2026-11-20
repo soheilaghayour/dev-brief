@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import Parser from 'rss-parser';
 import { z } from 'zod';
 import type { RawItem } from '../sourceAdapter.js';
-import { EXCERPT_MAX_LENGTH, toPlainText } from './plainText.js';
+import { EXCERPT_MAX_LENGTH, toPlainText } from '../../../common/text/plainText.js';
 
 export const MAX_ITEMS_PER_FEED = 20;
 export const MAX_ITEM_AGE_MS = 7 * 24 * 60 * 60 * 1000;
