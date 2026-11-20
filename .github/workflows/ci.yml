@@ -82,7 +82,8 @@ jobs:
           NEXT_PUBLIC_FEATURE_SUMMARIES: 'true'
           NEXT_PUBLIC_FEATURE_PREFERENCES: 'true'
           NEXT_PUBLIC_FEATURE_COPILOT: 'true'
-          NEXT_PUBLIC_FEATURE_RADAR: 'true'
+          # Radar's web flag turns on with #86, which also updates the AC-L7 spec (no /radar page yet).
+          NEXT_PUBLIC_FEATURE_RADAR: 'false'
           NEXT_PUBLIC_FEATURE_COLLECTIONS: 'true'
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e

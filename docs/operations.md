@@ -113,7 +113,7 @@ To restore for real after data loss: create a new Postgres resource from the sam
 
 ## Anthropic key and spend limit (Phase 2)
 
-The API refuses to start with `FEATURE_SUMMARIES=true`, `FEATURE_CLUSTERS=true` or `FEATURE_COPILOT=true` and no `ANTHROPIC_API_KEY` or `IP_HASH_SECRET`. Before turning summaries or clusters on:
+The API refuses to start with `FEATURE_SUMMARIES=true`, `FEATURE_CLUSTERS=true` or `FEATURE_COPILOT=true` and no `ANTHROPIC_API_KEY`. Summaries and the copilot also need `IP_HASH_SECRET`; clusters do not. Before turning summaries or clusters on:
 
 1. Record the real AC-2.3.7 model reply ([issue #57](https://github.com/soheilaghayour/dev-brief/issues/57), steps in [`apps/api/test/fixtures/llm/README.md`](../apps/api/test/fixtures/llm/README.md)). Until then the fixture holds a hand-written placeholder and its tests are skipped, so the prompt-injection defence is unproven against the real model.
 2. In the Anthropic Console, create an API key in a workspace used only by DevBrief, and set it as `ANTHROPIC_API_KEY` on the API application in Coolify. Never commit it.

@@ -174,7 +174,7 @@ describe('loadEnv', () => {
     );
   });
 
-  it('requires IP_HASH_SECRET of 32+ characters only when FEATURE_SUMMARIES=true', () => {
+  it('requires IP_HASH_SECRET of 32+ characters when summaries or copilot is on', () => {
     const summariesOn = { ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
     expect(loadEnv(validEnv).IP_HASH_SECRET).toBeUndefined();
     expect(() => loadEnv(summariesOn)).toThrow(
