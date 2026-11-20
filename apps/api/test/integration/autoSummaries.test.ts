@@ -263,7 +263,7 @@ describe('auto summaries', () => {
 
     await current
       .get(AutoSummariesStep)
-      .run({ runId: 'spent', now: new Date(), signal: AbortSignal.abort() });
+      .run({ runId: 'spent', startedAt: new Date(), now: new Date(), signal: AbortSignal.abort() });
 
     expect(upstreamRequests).toHaveLength(0);
     expect(model.doGenerateCalls).toHaveLength(0);

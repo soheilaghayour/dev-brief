@@ -67,6 +67,13 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...summariesOn, AUTO_SUMMARIES: 'yes' })).toThrow(/AUTO_SUMMARIES/);
   });
 
+  it('reads AUTO_CLUSTERING as a boolean that defaults to false, so a clusters-on API makes no clustering calls unasked', () => {
+    const clustersOn = { ...validEnv, FEATURE_CLUSTERS: 'true', ANTHROPIC_API_KEY: 'test-key' };
+    expect(loadEnv(clustersOn).AUTO_CLUSTERING).toBe(false);
+    expect(loadEnv({ ...clustersOn, AUTO_CLUSTERING: 'true' }).AUTO_CLUSTERING).toBe(true);
+    expect(() => loadEnv({ ...clustersOn, AUTO_CLUSTERING: 'yes' })).toThrow(/AUTO_CLUSTERING/);
+  });
+
   it('names every missing required variable', () => {
     expect(() => loadEnv({})).toThrow(/APP_URL[\s\S]*DATABASE_URL/);
   });

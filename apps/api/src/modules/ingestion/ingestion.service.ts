@@ -82,7 +82,7 @@ export class IngestionService {
         return { ...NO_COUNTS, outcome: 'failed' };
       });
 
-      await this.runPostRunSteps(runId, budget.signal);
+      await this.runPostRunSteps(runId, startedAt, budget.signal);
 
       const status = overallStatus(results.map(({ outcome }) => outcome));
       await this.prisma.ingestionRun.create({
@@ -219,10 +219,10 @@ export class IngestionService {
     });
   }
 
-  private async runPostRunSteps(runId: string, signal: AbortSignal) {
+  private async runPostRunSteps(runId: string, startedAt: Date, signal: AbortSignal) {
     for (const step of this.postRunSteps.list()) {
       try {
-        await step.run({ runId, now: new Date(), signal });
+        await step.run({ runId, startedAt, now: new Date(), signal });
       } catch (error) {
         this.logger.error(`Post-run step ${step.name} failed: ${String(error)}`);
       }

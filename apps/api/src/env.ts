@@ -50,6 +50,8 @@ const EnvSchema = z
     FEATURE_CLUSTERS: BooleanFlagSchema,
     /** Summarises the top stories after each ingestion run; takes effect only with FEATURE_SUMMARIES. */
     AUTO_SUMMARIES: BooleanFlagSchema,
+    /** Clusters the new stories after each ingestion run; takes effect only with FEATURE_CLUSTERS. */
+    AUTO_CLUSTERING: BooleanFlagSchema,
     /** Derives the daily salt of the stored IP digests (PRD §8.6); required when FEATURE_SUMMARIES=true. */
     IP_HASH_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
     ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),

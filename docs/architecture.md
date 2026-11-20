@@ -24,6 +24,15 @@ The caps, the price table and the cost math live in `llm/budget.ts`, as pure fun
 
 Reservations are serialised per UTC day: each runs in one transaction that first takes `pg_advisory_xact_lock(<ledger key>, <UTC day number>)`, so two concurrent reservations can't both read the spend from before the other's row. A reservation that times out fails closed with `SpendCapReachedError`.
 
+### Clustering
+
+`apps/api/src/modules/clustering/` groups stories that report the same event. `ClusteringStep` is the first post-run step (before the rank recompute) and runs when both `FEATURE_CLUSTERS` and `AUTO_CLUSTERING` are on. It decides the stories this run created (`firstSeenAt` at or after the run's start), one at a time in `publishedAt`, then `id` order:
+
+1. **Pre-filter.** `ClusterPoolService` loads the other stories within ±72 h with their cluster's size and the `pg_trgm` `similarity()` of the normalised titles (a parameterised `$queryRaw`); this run's not-yet-decided stories are left out. `rankClusterCandidates` (`packages/shared/src/core/clustering.ts`) scores `0.55·trgm + 0.35·ent + 0.10·link`, offers each cluster once through its best member, skips clusters of 12, drops scores under `CLUSTER_CANDIDATE_MIN_SCORE` and keeps the top 5. No candidate means no model call and a `null` `clusterScore`.
+2. **Decision.** One `LlmService.generateStructured` call (feature `cluster`, `refId` the story) with the `clusterMatch.v1` prompt: S and the candidates in `<source>` blocks, the candidates labelled `c1`..`c5` and mapped back by the server. `clusterDecision` joins S to the matched candidate at confidence `CLUSTER_MIN_CONFIDENCE` or more; `clusterScore` stores the confidence, or 0 for `none`.
+3. **Writes.** `ClusterMembershipService` writes each decision in one transaction: S joins the matched cluster, or pairs with the matched single story in a new `Cluster` whose representative is that story. Two multi-member clusters never merge. Representative and rank upkeep follow in the rank recompute.
+4. **Fail-safe.** `clusterFailureAction`: a spent cap or a provider error stops the step for the run; invalid or refused output leaves that story single and moves on. The run's signal is checked before each call, and a story is never decided in a later run.
+
 ### Summaries
 
 `apps/api/src/modules/summaries/` builds a story's TL;DR and community consensus. `SummariesService.generate(storyId, trigger, { userId?, signal? })` returns `{ kind: 'cached' | 'created', summary }`: a story with a `Summary` row is answered from it with no fetch and no LLM call, and only a successful call writes a row.
