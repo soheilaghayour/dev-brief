@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- AlterEnum
-ALTER TYPE "LlmFeature" ADD VALUE 'cluster';
+ALTER TYPE "LlmFeature" ADD VALUE 'cluster' BEFORE 'copilot';
 
 -- AlterTable
 ALTER TABLE "Story" ADD COLUMN     "clusterId" TEXT,

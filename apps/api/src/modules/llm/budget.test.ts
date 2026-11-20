@@ -167,7 +167,7 @@ describe('capDecision', () => {
     ).toEqual({ allowed: false, cap: 'feature' });
   });
 
-  it('AC-2.1.5 fits 160 cluster decisions of $0.000125 under the cluster cap and refuses the 161st', () => {
+  it('§8.1 / AC-2.6.1 fits 160 cluster decisions of $0.000125 under the cluster cap and refuses the 161st', () => {
     const worstCaseUsd = 0.000125;
     let spent = 0;
     for (let call = 1; call <= 160; call++) {
@@ -188,17 +188,20 @@ describe('capDecision', () => {
   });
 
   it('AC-2.6.1 lets the global cap refuse a copilot call that passes $0.064 while the other features sit at their caps', () => {
-    const spend = { spentFeatureUsd: 0.0275, worstCaseUsd: 0.0005, feature: 'copilot' } as const;
     const otherFeaturesAtCap = 0.015 + 0.012 + 0.02;
-    expect(capDecision({ ...spend, spentGlobalUsd: otherFeaturesAtCap + 0.0275 }, caps)).toEqual({
-      allowed: false,
-      cap: 'global',
-    });
-    expect(capDecision({ ...spend, spentGlobalUsd: 0.0635 }, caps)).toEqual({ allowed: true });
-    expect(capDecision({ ...spend, spentGlobalUsd: 0.063501 }, caps)).toEqual({
-      allowed: false,
-      cap: 'global',
-    });
+    const spend = { worstCaseUsd: 0.0005, feature: 'copilot' } as const;
+    expect(
+      capDecision(
+        { ...spend, spentFeatureUsd: 0.0165, spentGlobalUsd: otherFeaturesAtCap + 0.0165 },
+        caps,
+      ),
+    ).toEqual({ allowed: true });
+    expect(
+      capDecision(
+        { ...spend, spentFeatureUsd: 0.016501, spentGlobalUsd: otherFeaturesAtCap + 0.016501 },
+        caps,
+      ),
+    ).toEqual({ allowed: false, cap: 'global' });
   });
 
   it('AC-2.6.1 refuses a call that fits its feature but not the global cap', () => {

@@ -119,7 +119,7 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...validEnv, NODE_ENV: 'production' }).AUTH_TEST_MODE).toBe(false);
   });
 
-  it('requires ANTHROPIC_API_KEY only when FEATURE_SUMMARIES=true', () => {
+  it('requires ANTHROPIC_API_KEY only when an LLM feature flag (FEATURE_SUMMARIES or FEATURE_CLUSTERS) is on', () => {
     expect(loadEnv(validEnv).ANTHROPIC_API_KEY).toBeUndefined();
     expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toThrow(
       /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
@@ -173,6 +173,7 @@ describe('loadEnv', () => {
         ...validEnv,
         LLM_CAP_SUMMARY_AUTO_USD_DAY: '0.02',
         LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: '0',
+        LLM_CAP_CLUSTER_USD_DAY: '0.005',
         LLM_CAP_COPILOT_USD_DAY: '0.03',
         LLM_CAP_GLOBAL_USD_DAY: '0.07',
         LLM_PRICE_INPUT_PER_MTOK: '0.2',
@@ -181,6 +182,7 @@ describe('loadEnv', () => {
     ).toMatchObject({
       LLM_CAP_SUMMARY_AUTO_USD_DAY: 0.02,
       LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: 0,
+      LLM_CAP_CLUSTER_USD_DAY: 0.005,
       LLM_CAP_COPILOT_USD_DAY: 0.03,
       LLM_CAP_GLOBAL_USD_DAY: 0.07,
       LLM_PRICE_INPUT_PER_MTOK: 0.2,

@@ -27,18 +27,22 @@ describe('cluster schema', () => {
     expect(story).toMatchObject({ isPrimary: true, clusterId: null, clusterScore: null });
   });
 
-  it('sets a member story back to unclustered when its cluster is deleted', async () => {
+  it('deleting a cluster sets its members clusterId to null', async () => {
+    await prisma.$executeRaw`
+      INSERT INTO "Story" ("id", "canonicalUrl", "url", "domain", "title", "normalizedTitle", "publishedAt", "tags", "taggerVersion")
+      VALUES ('member-story', 'https://example.com/b', 'https://example.com/b', 'example.com', 'B', 'b', now(), '{}', 1)`;
     const cluster = await prisma.cluster.create({
-      data: { representativeStoryId: 'old-story', memberCount: 1, sourceKinds: ['hn'] },
+      data: { representativeStoryId: 'member-story', memberCount: 1, sourceKinds: ['hn'] },
     });
     await prisma.story.update({
-      where: { id: 'old-story' },
+      where: { id: 'member-story' },
       data: { clusterId: cluster.id, isPrimary: false, clusterScore: 0.9 },
     });
 
     await prisma.cluster.delete({ where: { id: cluster.id } });
 
-    const story = await prisma.story.findUniqueOrThrow({ where: { id: 'old-story' } });
+    const story = await prisma.story.findUniqueOrThrow({ where: { id: 'member-story' } });
     expect(story.clusterId).toBeNull();
+    // The FK does not reset isPrimary (or clusterScore); the cluster upkeep in #79 must.
   });
 });
