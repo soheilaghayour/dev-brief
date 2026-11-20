@@ -42,6 +42,7 @@ describe('validateFeatureFlagEnv', () => {
       validateFeatureFlagEnv({
         NEXT_PUBLIC_FEATURE_SUMMARIES: 'true',
         NEXT_PUBLIC_FEATURE_PREFERENCES: 'false',
+        NEXT_PUBLIC_FEATURE_CLUSTERS: 'true',
       }),
     ).not.toThrow();
   });
@@ -53,6 +54,9 @@ describe('validateFeatureFlagEnv', () => {
       );
       expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_PREFERENCES: value })).toThrow(
         /NEXT_PUBLIC_FEATURE_PREFERENCES/,
+      );
+      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_CLUSTERS: value })).toThrow(
+        /NEXT_PUBLIC_FEATURE_CLUSTERS/,
       );
     }
   });

@@ -14,6 +14,7 @@ const PhaseFlagSchema = z.enum(['true', 'false']).optional();
 const FeatureFlagEnvSchema = z.object({
   NEXT_PUBLIC_FEATURE_SUMMARIES: PhaseFlagSchema,
   NEXT_PUBLIC_FEATURE_PREFERENCES: PhaseFlagSchema,
+  NEXT_PUBLIC_FEATURE_CLUSTERS: PhaseFlagSchema,
 });
 
 /** The public origin for absolute URLs in metadata; `next build` runs without environment, so a missing APP_URL gives the local default. */

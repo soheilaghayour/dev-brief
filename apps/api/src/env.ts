@@ -47,6 +47,7 @@ const EnvSchema = z
     AUTH_TEST_MODE: BooleanFlagSchema,
     FEATURE_SUMMARIES: BooleanFlagSchema,
     FEATURE_PREFERENCES: BooleanFlagSchema,
+    FEATURE_CLUSTERS: BooleanFlagSchema,
     /** Summarises the top stories after each ingestion run; takes effect only with FEATURE_SUMMARIES. */
     AUTO_SUMMARIES: BooleanFlagSchema,
     /** Derives the daily salt of the stored IP digests (PRD §8.6); required when FEATURE_SUMMARIES=true. */
@@ -55,16 +56,21 @@ const EnvSchema = z
     LLM_MODEL: z.string().min(1).default('claude-haiku-5-5'),
     LLM_CAP_SUMMARY_AUTO_USD_DAY: UsdCapSchema,
     LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: UsdCapSchema,
+    LLM_CAP_CLUSTER_USD_DAY: UsdCapSchema,
     LLM_CAP_COPILOT_USD_DAY: UsdCapSchema,
     LLM_CAP_GLOBAL_USD_DAY: UsdCapSchema,
     LLM_PRICE_INPUT_PER_MTOK: UsdPriceSchema,
     LLM_PRICE_OUTPUT_PER_MTOK: UsdPriceSchema,
   })
   // Dev and CI run without a key; an enabled LLM feature must not boot without one.
-  .refine((env) => !env.FEATURE_SUMMARIES || env.ANTHROPIC_API_KEY !== undefined, {
-    path: ['ANTHROPIC_API_KEY'],
-    message: 'is required when FEATURE_SUMMARIES=true',
-  })
+  .refine(
+    (env) =>
+      !(env.FEATURE_SUMMARIES || env.FEATURE_CLUSTERS) || env.ANTHROPIC_API_KEY !== undefined,
+    {
+      path: ['ANTHROPIC_API_KEY'],
+      message: 'is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true',
+    },
+  )
   .refine((env) => !env.FEATURE_SUMMARIES || env.IP_HASH_SECRET !== undefined, {
     path: ['IP_HASH_SECRET'],
     message: 'is required when FEATURE_SUMMARIES=true',

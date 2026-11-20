@@ -47,6 +47,7 @@ describe('loadEnv', () => {
     expect(loadEnv(validEnv)).toMatchObject({
       FEATURE_SUMMARIES: false,
       FEATURE_PREFERENCES: false,
+      FEATURE_CLUSTERS: false,
     });
     expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS })).toMatchObject(
       {
@@ -118,10 +119,10 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...validEnv, NODE_ENV: 'production' }).AUTH_TEST_MODE).toBe(false);
   });
 
-  it('requires ANTHROPIC_API_KEY only when FEATURE_SUMMARIES=true', () => {
+  it('requires ANTHROPIC_API_KEY only when an LLM feature flag (FEATURE_SUMMARIES or FEATURE_CLUSTERS) is on', () => {
     expect(loadEnv(validEnv).ANTHROPIC_API_KEY).toBeUndefined();
     expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toThrow(
-      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true/,
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
     );
     expect(() =>
       loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: '' }),
@@ -129,6 +130,17 @@ describe('loadEnv', () => {
     expect(
       loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS }).ANTHROPIC_API_KEY,
     ).toBe('test-key');
+  });
+
+  it('requires ANTHROPIC_API_KEY when FEATURE_CLUSTERS=true', () => {
+    expect(() => loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'true' })).toThrow(
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
+    );
+    expect(
+      loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'true', ANTHROPIC_API_KEY: 'test-key' })
+        .FEATURE_CLUSTERS,
+    ).toBe(true);
+    expect(() => loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'on' })).toThrow(/FEATURE_CLUSTERS/);
   });
 
   it('requires IP_HASH_SECRET of 32+ characters only when FEATURE_SUMMARIES=true', () => {
@@ -161,6 +173,7 @@ describe('loadEnv', () => {
         ...validEnv,
         LLM_CAP_SUMMARY_AUTO_USD_DAY: '0.02',
         LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: '0',
+        LLM_CAP_CLUSTER_USD_DAY: '0.005',
         LLM_CAP_COPILOT_USD_DAY: '0.03',
         LLM_CAP_GLOBAL_USD_DAY: '0.07',
         LLM_PRICE_INPUT_PER_MTOK: '0.2',
@@ -169,6 +182,7 @@ describe('loadEnv', () => {
     ).toMatchObject({
       LLM_CAP_SUMMARY_AUTO_USD_DAY: 0.02,
       LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: 0,
+      LLM_CAP_CLUSTER_USD_DAY: 0.005,
       LLM_CAP_COPILOT_USD_DAY: 0.03,
       LLM_CAP_GLOBAL_USD_DAY: 0.07,
       LLM_PRICE_INPUT_PER_MTOK: 0.2,
