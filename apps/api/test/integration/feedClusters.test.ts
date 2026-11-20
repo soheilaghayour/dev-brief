@@ -165,7 +165,10 @@ describe('feed with clusters', () => {
     // limit 1 forces the two-stream path (a page and one more match); the default limit reads the first rows.
     expect(await pagedTitles({ boostTags: 'typescript', limit: 1 })).toEqual(boosted);
     // rust and devto match members only: nothing is boosted, and members stay out.
-    for (const boost of [{ boostTags: 'rust' }, { boostSources: 'devto' }]) {
+    for (const boost of [{ boostTags: 'rust' }, { boostSources: 'devto' }] as Record<
+      string,
+      string
+    >[]) {
       expect(await titles(boost)).toEqual(['Compiler ships', 'Bun news', 'Plain typescript']);
       expect(await pagedTitles({ ...boost, limit: 1 })).toEqual([
         'Compiler ships',
