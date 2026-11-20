@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { HttpClient } from '../../common/http/httpClient.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { IngestionModule } from '../ingestion/ingestion.module.js';
 import { LlmModule } from '../llm/llm.module.js';
+import { AutoSummariesStep } from './autoSummaries.step.js';
 import { SummariesController } from './summaries.controller.js';
 import { SummariesService } from './summaries.service.js';
 import { SummaryInputsService } from './summaryInputs.service.js';
 
 @Module({
-  imports: [LlmModule],
+  imports: [IngestionModule, LlmModule],
   controllers: [SummariesController],
   providers: [
     // HttpClient and SummaryInputsService take optional seams for tests, so Nest can't infer their dependencies.
@@ -19,6 +21,7 @@ import { SummaryInputsService } from './summaryInputs.service.js';
       inject: [PrismaService, HttpClient],
     },
     SummariesService,
+    AutoSummariesStep,
   ],
   exports: [SummariesService],
 })

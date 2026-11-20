@@ -45,6 +45,8 @@ const EnvSchema = z
     AUTH_TEST_MODE: BooleanFlagSchema,
     FEATURE_SUMMARIES: BooleanFlagSchema,
     FEATURE_PREFERENCES: BooleanFlagSchema,
+    /** Summarises the top stories after each ingestion run; takes effect only with FEATURE_SUMMARIES. */
+    AUTO_SUMMARIES: BooleanFlagSchema,
     ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     LLM_MODEL: z.string().min(1).default('claude-haiku-5-5'),
     LLM_CAP_SUMMARY_AUTO_USD_DAY: UsdCapSchema,
