@@ -114,7 +114,7 @@ links to them instead of restating them.
 - **The preview's `s` key writes to the real guest store, loaded after hydration and bypassing `useSaves()`.** The mode hooks pull TanStack Query into first-load JS, which the static landing page can't carry; the visitor is a guest there by definition, and a signed-in user's save is merged on the next load.
 - **The preview takes its keys on its own focusable window, and Enter opens a card only when the window itself has focus.** Enter on a chip or link keeps its native meaning.
 - **The footer's "Source status" links to the feed's source-health line (`/feed#source-status`), not to JSON.** The sidebar already shows every source's health dot.
-- **The FAQ is native `<details>` and the mobile nav a `<details>` menu, not Radix.** [§2.1](docs/prd.md#21-section-by-section-layout) names an accordion; native elements do the job with no JS on a page that has a 165 KB budget.
+- **The FAQ is native `<details>` and the mobile nav a `<details>` menu, not Radix.** [§2.1](docs/prd.md#21-section-by-section-layout) names an accordion; native elements do the job with no JS on a page with a 150 KB budget.
 - **A web-only `getFeed` option lets the landing fetch stay cacheable.** The feed page keeps `no-store`; a no-store fetch would make the landing route dynamic.
 - **Lighthouse CI runs as its own `lighthouse` job on a build without an API (the sample page); the `check` job starts the API before the web build.** The Lighthouse gate needs no database, and the e2e landing tests need the page generated from the seeded stories ([AC-L1](docs/prd.md#25-landing-acceptance-criteria)).
 
