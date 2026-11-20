@@ -198,9 +198,7 @@ describe('auto summaries', () => {
     await ingestion.run();
 
     // One request and its 2 retries, all for the top story.
-    expect(upstreamRequests).toEqual(
-      Array(3).fill('https://hn.algolia.com/api/v1/items/1000'),
-    );
+    expect(upstreamRequests).toEqual(Array(3).fill('https://hn.algolia.com/api/v1/items/1000'));
     expect(model.doGenerateCalls).toHaveLength(0);
   });
 

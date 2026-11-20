@@ -38,7 +38,10 @@ describe('flattenComments', () => {
   it('keeps comments while they fit in the token budget and skips one that does not', () => {
     const tree = [comment('a'.repeat(8)), comment('b'.repeat(40)), comment('c'.repeat(8))];
 
-    expect(flattenComments([tree], { maxTokens: 20, tokensOf })).toEqual(['a'.repeat(8), 'c'.repeat(8)]);
+    expect(flattenComments([tree], { maxTokens: 20, tokensOf })).toEqual([
+      'a'.repeat(8),
+      'c'.repeat(8),
+    ]);
     expect(flattenComments([tree], { maxTokens: 14, tokensOf })).toEqual(['a'.repeat(8)]);
   });
 

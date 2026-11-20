@@ -62,9 +62,9 @@ describe('inputFailureScope', () => {
     expect(inputFailureScope(http(404))).toBe('story');
     // No status: invalid JSON or a body over the size cap.
     expect(inputFailureScope(http())).toBe('story');
-    expect(inputFailureScope(z.object({ children: z.array(z.unknown()) }).safeParse({}).error)).toBe(
-      'story',
-    );
+    expect(
+      inputFailureScope(z.object({ children: z.array(z.unknown()) }).safeParse({}).error),
+    ).toBe('story');
   });
 
   it('blames the upstream for 5xx, 429, other 4xx, timeouts, lost connections and aborts', () => {

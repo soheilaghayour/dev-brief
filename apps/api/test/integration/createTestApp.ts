@@ -22,7 +22,9 @@ const UNSCRIPTED_MODEL = mockLanguageModel(async () => {
 
 // No test reaches a live source, so a test app that scripts no upstream fails any summary fetch.
 const UNSCRIPTED_UPSTREAM: typeof fetch = async () => {
-  throw new Error('This test app has no scripted upstream: pass an upstreamFetch to createTestApp.');
+  throw new Error(
+    'This test app has no scripted upstream: pass an upstreamFetch to createTestApp.',
+  );
 };
 
 /** A SummaryInputsService override whose HN Algolia and Dev.to requests go to `upstreamFetch`, with instant retries and no Dev.to gap. */

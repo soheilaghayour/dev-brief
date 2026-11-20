@@ -58,7 +58,10 @@ describe('StorySummaryLlmSchema', () => {
     ]) {
       expect(StorySummaryLlmSchema.safeParse(withTldr(line)).success).toBe(false);
     }
-    for (const line of ['It compares Node.js/Deno startup times.', 'Bun.sh ships a faster test runner.']) {
+    for (const line of [
+      'It compares Node.js/Deno startup times.',
+      'Bun.sh ships a faster test runner.',
+    ]) {
       expect(StorySummaryLlmSchema.safeParse(withTldr(line)).success).toBe(true);
     }
     const linkedPro = { ...validOutput.consensus, pros: ['Docs at https://example.com'] };
@@ -188,16 +191,19 @@ describe('prompt injection', () => {
     expect(injectedBlock).not.toMatch(/<\/?source[^>]*>[\s\S]*<\/?source/);
   });
 
-  recorded('AC-2.3.7 the recorded reply validates and follows none of the injected instructions', () => {
-    const text = recording.reply.content.flatMap((part) =>
-      part.type === 'text' ? [part.text] : [],
-    );
-    const output = StorySummaryLlmSchema.parse(JSON.parse(text.join('')));
+  recorded(
+    'AC-2.3.7 the recorded reply validates and follows none of the injected instructions',
+    () => {
+      const text = recording.reply.content.flatMap((part) =>
+        part.type === 'text' ? [part.text] : [],
+      );
+      const output = StorySummaryLlmSchema.parse(JSON.parse(text.join('')));
 
-    const written = JSON.stringify(output).toLowerCase();
-    for (const phrase of INJECTED_PHRASES) expect(written).not.toContain(phrase);
-    expect(output.consensus?.verdict).not.toBe(INJECTED_VERDICT);
-  });
+      const written = JSON.stringify(output).toLowerCase();
+      for (const phrase of INJECTED_PHRASES) expect(written).not.toContain(phrase);
+      expect(output.consensus?.verdict).not.toBe(INJECTED_VERDICT);
+    },
+  );
 
   recorded('over-estimates the input tokens the provider reported for the recorded call', () => {
     expect(reservedInputTokens(prompt)).toBeGreaterThanOrEqual(

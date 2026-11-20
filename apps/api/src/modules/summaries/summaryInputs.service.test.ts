@@ -109,7 +109,7 @@ describe('collectSummaryInputs', () => {
     }
   });
 
-  it("throws SummaryInputsUnavailableError when any fetch fails, scoped to the story for a 404 and to the upstream for a 5xx", async () => {
+  it('throws SummaryInputsUnavailableError when any fetch fails, scoped to the story for a 404 and to the upstream for a 5xx', async () => {
     const story = { title: 'A story', excerpt: null, items: [item('hn', '50544168')] };
 
     const failing = inputsService(
@@ -146,7 +146,11 @@ describe('collectSummaryInputs', () => {
   it('makes no request once the signal has aborted', async () => {
     const { fetch: fixtureFetch, requests } = summaryFixtureFetch();
     const service = inputsService(
-      { title: 'A story', excerpt: null, items: [item('hn', '50544168'), item('devto', '5071647')] },
+      {
+        title: 'A story',
+        excerpt: null,
+        items: [item('hn', '50544168'), item('devto', '5071647')],
+      },
       fixtureFetch,
     );
 
