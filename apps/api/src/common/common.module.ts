@@ -9,6 +9,7 @@ import { FeatureGuard } from './features/feature.guard.js';
 import { pinoHttpOptions } from './logging/pinoHttpOptions.js';
 import { OriginGuard } from './origin-guard/origin.guard.js';
 import { RATE_LIMIT_PER_MINUTE, RateLimitGuard } from './rate-limit/rateLimit.guard.js';
+import { UserRateLimitModule } from './rate-limit/userRateLimit.module.js';
 import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.js';
 
 /** Wires the cross-cutting conventions every feature module relies on. */
@@ -16,6 +17,7 @@ import { OutputValidationInterceptor } from './zod/outputValidation.interceptor.
   imports: [
     EnvModule,
     CacheModule,
+    UserRateLimitModule,
     LoggerModule.forRootAsync({
       inject: [ENV],
       useFactory: (env: Env) => ({

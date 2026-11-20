@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { FeedPageSchema } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LruCache } from '../../src/common/cache/lru.cache.js';
@@ -31,27 +32,50 @@ describe('feed benchmark (reported, not a gate)', () => {
         'https://example.com/' || n,
         'Benchmark story ' || n, now(), now()
       FROM generate_series(1, ${STORY_COUNT}) AS n`;
+    // A second source on one story in ten, so a source boost or mute matches only a share of the feed.
+    const minor = await createSource(prisma, 'bench-minor', 'devto');
+    await prisma.$executeRaw`
+      INSERT INTO "SourceItem" ("id", "storyId", "sourceId", "externalId", "url", "canonicalUrl", "title",
+        "publishedAt", "lastSeenAt")
+      SELECT 'minor' || n, 'bench' || n, ${minor.id}, n::text, 'https://example.com/' || n,
+        'https://example.com/' || n,
+        'Benchmark story ' || n, now(), now()
+      FROM generate_series(10, ${STORY_COUNT}, 10) AS n`;
     app = await createTestApp();
   }, 120_000);
 
   afterAll(() => app.close());
 
+  // The internal token skips the per-IP limit, which the samples would otherwise exhaust.
+  const getFeed = (query: Record<string, string>) =>
+    request(app.getHttpServer())
+      .get('/api/v1/feed')
+      .set('x-internal-token', process.env.INTERNAL_API_TOKEN ?? '')
+      .query(query);
+
   it('prints the feed p95 server time per query shape at 40k stories', async () => {
     const cache = app.get(LruCache);
+    const boosts = { boostTags: 'rust,go', boostSources: 'hn' };
+    const firstBoostedPage = await getFeed(boosts);
     const shapes = {
       'top + tags': { tags: 'react' },
       'search (q)': { q: 'bun story' },
       'latest + tags': { sort: 'latest', tags: 'rust' },
+      'top + boost': boosts,
+      'top + boost + mute': { ...boosts, excludeTags: 'python' },
+      'top + boost, cursor page': {
+        ...boosts,
+        cursor: FeedPageSchema.parse(firstBoostedPage.body).nextCursor ?? '',
+      },
+      'top + boostSources (1 in 10 match)': { boostSources: 'bench-minor' },
+      'top + excludeSources (hides 9 in 10)': { excludeSources: 'bench' },
     };
     for (const [name, query] of Object.entries(shapes)) {
       const durations: number[] = [];
       for (let sample = 0; sample < SAMPLES; sample += 1) {
         cache.clear();
         const started = performance.now();
-        const response = await request(app.getHttpServer())
-          .get('/api/v1/feed')
-          .set('x-internal-token', process.env.INTERNAL_API_TOKEN ?? '')
-          .query(query);
+        const response = await getFeed(query);
         durations.push(performance.now() - started);
         expect(response.status).toBe(200);
       }
@@ -61,5 +85,5 @@ describe('feed benchmark (reported, not a gate)', () => {
         `feed p95 (${name}) at ${STORY_COUNT} stories: ${p95.toFixed(1)} ms (target <= 150 ms)`,
       );
     }
-  }, 120_000);
+  }, 240_000);
 });

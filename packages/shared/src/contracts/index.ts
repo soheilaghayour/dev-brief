@@ -4,6 +4,7 @@ export * from './feedLimits.js';
 export * from './health.js';
 export * from './me.js';
 export * from './pagination.js';
+export * from './preferences.js';
 export * from './saves.js';
 export * from './sources.js';
 export * from './stats.js';

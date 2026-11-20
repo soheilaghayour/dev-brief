@@ -1,6 +1,6 @@
 import { encodeCursor, InvalidCursorError, type FeedQuery } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { feedCacheKey, parseKeyset } from './feedQuery.js';
+import { effectiveFeedQuery, feedCacheKey, parseKeyset } from './feedQuery.js';
 
 const baseQuery: FeedQuery = { sort: 'top', limit: 20 };
 
@@ -42,5 +42,54 @@ describe('feedCacheKey', () => {
   it('differs when any part of the query differs', () => {
     expect(feedCacheKey(baseQuery)).not.toBe(feedCacheKey({ ...baseQuery, sort: 'latest' }));
     expect(feedCacheKey(baseQuery)).not.toBe(feedCacheKey({ ...baseQuery, q: 'bun' }));
+  });
+
+  it('normalises the personalisation params: order and repeats do not matter', () => {
+    expect(
+      feedCacheKey({
+        ...baseQuery,
+        excludeTags: ['career', 'go', 'career'],
+        excludeSources: ['hn', 'devto'],
+        boostTags: ['rust', 'react'],
+        boostSources: ['rss-b', 'rss-a'],
+      }),
+    ).toBe(
+      feedCacheKey({
+        ...baseQuery,
+        excludeTags: ['go', 'career'],
+        excludeSources: ['devto', 'hn'],
+        boostTags: ['react', 'rust'],
+        boostSources: ['rss-a', 'rss-b', 'rss-a'],
+      }),
+    );
+    expect(feedCacheKey({ ...baseQuery, boostTags: [] })).toBe(feedCacheKey(baseQuery));
+  });
+
+  it('keeps each personalisation param apart: the same value in another param is another key', () => {
+    const keys = new Set([
+      feedCacheKey(baseQuery),
+      feedCacheKey({ ...baseQuery, tags: ['rust'] }),
+      feedCacheKey({ ...baseQuery, excludeTags: ['rust'] }),
+      feedCacheKey({ ...baseQuery, boostTags: ['rust'] }),
+      feedCacheKey({ ...baseQuery, sources: ['hn'] }),
+      feedCacheKey({ ...baseQuery, excludeSources: ['hn'] }),
+      feedCacheKey({ ...baseQuery, boostSources: ['hn'] }),
+    ]);
+    expect(keys.size).toBe(7);
+  });
+});
+
+describe('effectiveFeedQuery', () => {
+  const boosts = { boostTags: ['rust' as const], boostSources: ['hn'] };
+
+  it('drops the boost params on Latest, so it shares a cache entry with the unboosted query', () => {
+    const latest: FeedQuery = { ...baseQuery, sort: 'latest' };
+    expect(feedCacheKey(effectiveFeedQuery({ ...latest, ...boosts }))).toBe(
+      feedCacheKey(effectiveFeedQuery(latest)),
+    );
+  });
+
+  it('keeps them on Top', () => {
+    expect(effectiveFeedQuery({ ...baseQuery, ...boosts })).toEqual({ ...baseQuery, ...boosts });
   });
 });

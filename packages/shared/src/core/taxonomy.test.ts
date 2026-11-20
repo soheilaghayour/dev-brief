@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tagStory } from './tagStory.js';
-import { TAG_SLUGS, TAXONOMY, TAXONOMY_VERSION, type TagSlug } from './taxonomy.js';
+import { isTagSlug, TAG_SLUGS, TAXONOMY, TAXONOMY_VERSION, type TagSlug } from './taxonomy.js';
 
 function tagTitle(title: string) {
   return tagStory({ title, url: 'https://example.com/post', sourceTags: [], categories: [] });
@@ -102,6 +102,11 @@ describe('taxonomy', () => {
 
   it('has a label for every tag', () => {
     for (const definition of TAXONOMY) expect(definition.label).not.toBe('');
+  });
+
+  it('isTagSlug accepts a current slug and rejects a retired or unknown one', () => {
+    expect(isTagSlug('rust')).toBe(true);
+    expect(isTagSlug('retired-tag')).toBe(false);
   });
 });
 

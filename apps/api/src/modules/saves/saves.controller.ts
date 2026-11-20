@@ -21,14 +21,17 @@ import {
 } from '@devbrief/shared';
 import type { MergeRequest, PaginationQuery } from '@devbrief/shared';
 import { PrivateNoStore } from '../../common/cache/cacheControl.js';
-import { UserRateLimit, UserRateLimitGuard } from './userRateLimit.guard.js';
+import {
+  MUTATIONS_LIMIT,
+  UserRateLimit,
+  UserRateLimitGuard,
+} from '../../common/rate-limit/userRateLimit.guard.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
 import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { AuthGuard, type CurrentUserData } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/currentUser.decorator.js';
 import { SavesService } from './saves.service.js';
 
-const MUTATIONS = { bucket: 'mutations', perMinute: 60 };
 const MERGE = { bucket: 'merge', perMinute: 10 };
 
 @Controller('me')
@@ -55,7 +58,7 @@ export class SavesController {
 
   @Put('saves/:storyId')
   @PrivateNoStore()
-  @UserRateLimit(MUTATIONS)
+  @UserRateLimit(MUTATIONS_LIMIT)
   @Contract({ response: SaveSchema })
   save(
     @CurrentUser() user: CurrentUserData,
@@ -67,7 +70,7 @@ export class SavesController {
   @Delete('saves/:storyId')
   @PrivateNoStore()
   @HttpCode(204)
-  @UserRateLimit(MUTATIONS)
+  @UserRateLimit(MUTATIONS_LIMIT)
   unsave(
     @CurrentUser() user: CurrentUserData,
     @Param('storyId', new ZodPipe(StoryIdSchema)) storyId: string,

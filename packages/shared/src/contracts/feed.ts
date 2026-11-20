@@ -17,12 +17,20 @@ const csv = <T extends z.ZodTypeAny>(item: T) =>
     .pipe(z.array(item).max(FEED_LIST_MAX))
     .describe('Comma-separated list');
 
+// Looser than SourceSlugSchema, as PRD §6.1 types it: an unknown or odd slug just matches nothing.
+const sourceSlugParam = z.string().max(FEED_SOURCE_SLUG_MAX);
+
 export const FeedQuerySchema = PaginationQuerySchema.extend({
   sort: z.enum(FEED_SORTS).default('top'),
   tags: csv(TagSlugSchema).optional(),
   kinds: csv(SourceKindSchema).optional(),
-  sources: csv(z.string().max(FEED_SOURCE_SLUG_MAX)).optional(),
+  sources: csv(sourceSlugParam).optional(),
   q: z.string().trim().min(FEED_QUERY_MIN).max(FEED_QUERY_MAX).optional(),
+  // Personalisation is derived by the client from its preferences, so responses stay public and cacheable.
+  excludeTags: csv(TagSlugSchema).optional(),
+  excludeSources: csv(sourceSlugParam).optional(),
+  boostTags: csv(TagSlugSchema).optional(),
+  boostSources: csv(sourceSlugParam).optional(),
 });
 export type FeedQuery = z.infer<typeof FeedQuerySchema>;
 

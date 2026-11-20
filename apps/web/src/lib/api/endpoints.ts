@@ -29,16 +29,13 @@ export function getHealth() {
 }
 
 /** `isPerRequest: false` leaves the fetch cacheable, for statically generated pages. */
-export function getFeed(
-  { tags, kinds, sources, ...rest }: FeedParams = {},
-  { isPerRequest = true } = {},
-) {
-  const query = {
-    ...rest,
-    tags: tags?.join(','),
-    kinds: kinds?.join(','),
-    sources: sources?.join(','),
-  };
+export function getFeed(params: FeedParams = {}, { isPerRequest = true } = {}) {
+  // List params travel comma-separated (PRD §6.1).
+  const query = Object.fromEntries(
+    Object.entries(params).map(
+      ([key, value]) => [key, Array.isArray(value) ? value.join(',') : value] as const,
+    ),
+  );
   // Per request by default: the feed's first page renders from fresh API data (PRD §8.4).
   const cache = isPerRequest ? 'no-store' : undefined;
   return apiClient.request({ path: '/feed', query, cache }, FeedPageSchema);

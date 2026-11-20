@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PreferencesSchema } from './preferences.js';
 import { StoryCardSchema, StoryIdSchema } from './story.js';
 
 export const SaveSchema = z.object({
@@ -19,11 +20,12 @@ export type SaveIds = z.infer<typeof SaveIdsSchema>;
 export const MergeRequestSchema = z.object({
   version: z.literal(1),
   saves: z.array(SaveSchema).max(500),
+  preferences: PreferencesSchema.optional(),
 });
 export type MergeRequest = z.infer<typeof MergeRequestSchema>;
 
 export const MergeResponseSchema = z.object({
-  merged: z.object({ saves: z.number().int() }),
+  merged: z.object({ saves: z.number().int(), preferences: z.number().int() }),
   skipped: z.object({ saves: z.number().int() }),
   missingStoryIds: z.array(z.string()),
 });

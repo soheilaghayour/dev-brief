@@ -6,6 +6,8 @@ export const RSS_BASELINE = 0.6;
 export const MULTI_SOURCE_BONUS = 0.15;
 export const TOP_WINDOW_DAYS = 7;
 export const MIN_SAMPLE = 10;
+/** The ×1.5 rank multiplier a followed tag or source gives a story in Top (Appendix B §5). */
+export const FOLLOW_BOOST = 1.5;
 
 const MS_PER_HOUR = 3_600_000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;

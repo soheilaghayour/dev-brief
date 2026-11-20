@@ -1,4 +1,4 @@
-import { TAG_SLUGS, type SourceRef, type StoryCard, type TagSlug } from '@devbrief/shared';
+import { isTagSlug, type SourceRef, type StoryCard } from '@devbrief/shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 
 /** The Prisma include every story read uses, so the mapper below sees the same shape everywhere. */
@@ -11,10 +11,6 @@ export const storyWithItems = {
 
 export type StoryWithItems = Prisma.StoryGetPayload<{ include: typeof storyWithItems }>;
 type ItemWithSource = StoryWithItems['items'][number];
-
-// A slug retired by a taxonomy bump is dropped, so old stories never fail the client's parse.
-const TAG_SLUG_SET: ReadonlySet<string> = new Set(TAG_SLUGS);
-const isTagSlug = (tag: string): tag is TagSlug => TAG_SLUG_SET.has(tag);
 
 export function toSourceRef(item: ItemWithSource): SourceRef {
   return {
@@ -37,6 +33,7 @@ export function toStoryCard(story: StoryWithItems): StoryCard {
     excerpt: story.excerpt,
     author: story.author,
     publishedAt: story.publishedAt.toISOString(),
+    // A slug retired by a taxonomy bump is dropped, so old stories never fail the client's parse.
     tags: story.tags.filter(isTagSlug),
     readingTimeMinutes: story.readingTimeMinutes,
     sources: story.items.map(toSourceRef),

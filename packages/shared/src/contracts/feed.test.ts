@@ -29,4 +29,22 @@ describe('FeedQuerySchema', () => {
     const sources = Array.from({ length: 21 }, (_, index) => `s${index}`).join(',');
     expect(FeedQuerySchema.safeParse({ sources }).success).toBe(false);
   });
+
+  it('parses the four personalisation params as lists and caps each at 20 items', () => {
+    const parsed = FeedQuerySchema.parse({
+      excludeTags: 'career',
+      excludeSources: 'hn,devto',
+      boostTags: 'rust,go',
+      boostSources: 'rss-react-blog',
+    });
+    expect(parsed).toMatchObject({
+      excludeTags: ['career'],
+      excludeSources: ['hn', 'devto'],
+      boostTags: ['rust', 'go'],
+      boostSources: ['rss-react-blog'],
+    });
+    expect(FeedQuerySchema.safeParse({ boostTags: 'rust,not-a-tag' }).success).toBe(false);
+    const sources = Array.from({ length: 21 }, (_, index) => `s${index}`).join(',');
+    expect(FeedQuerySchema.safeParse({ excludeSources: sources }).success).toBe(false);
+  });
 });

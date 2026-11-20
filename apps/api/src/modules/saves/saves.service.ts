@@ -6,14 +6,18 @@ import {
   type MergeRequest,
   type MergeResponse,
   type PaginationQuery,
+  type Preferences,
   type Save,
   type SaveIds,
   type SavedStoryPage,
 } from '@devbrief/shared';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { lockPreferenceWrites } from '../../common/preferences/preferenceWriteLock.js';
 import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { planSaveMerge } from './mergePlan.js';
+import { planPreferenceMerge } from './preferenceMergePlan.js';
 
 const CURSOR_SORT = 'saved';
 
@@ -29,6 +33,25 @@ function parseSavedCursor(cursor: string) {
 
 function toSave(save: { storyId: string; savedAt: Date }): Save {
   return { storyId: save.storyId, savedAt: save.savedAt.toISOString() };
+}
+
+/** Adds the guest's preferences the account lacks inside the merge transaction; answers `merged.preferences`. */
+async function mergePreferences(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  preferences: Preferences,
+) {
+  // Read under the lock, so a concurrent PUT or merge can't change the set the plan is based on.
+  await lockPreferenceWrites(tx, userId);
+  const existing = await tx.feedPreference.findMany({
+    where: { userId },
+    select: { kind: true, value: true, mode: true },
+  });
+  const plan = planPreferenceMerge({ incoming: preferences, existing });
+  await tx.feedPreference.createMany({
+    data: plan.toCreate.map((entry) => ({ userId, ...entry })),
+  });
+  return plan.mergedCount;
 }
 
 /** Room for the worst case: every one of 500 saves moves earlier, one round trip each. */
@@ -96,9 +119,9 @@ export class SavesService {
     await this.prisma.save.deleteMany({ where: { userId, storyId } });
   }
 
-  async merge(userId: string, { saves }: MergeRequest): Promise<MergeResponse> {
+  async merge(userId: string, { saves, preferences }: MergeRequest): Promise<MergeResponse> {
     const storyIds = [...new Set(saves.map((save) => save.storyId))];
-    const plan = await this.prisma.$transaction(
+    const { plan, preferenceCount } = await this.prisma.$transaction(
       async (tx) => {
         const stories = await tx.story.findMany({
           where: { id: { in: storyIds } },
@@ -132,12 +155,15 @@ export class SavesService {
             data: { savedAt },
           });
         }
-        return mergePlan;
+        return {
+          plan: mergePlan,
+          preferenceCount: preferences ? await mergePreferences(tx, userId, preferences) : 0,
+        };
       },
       { timeout: MERGE_TRANSACTION_TIMEOUT_MS },
     );
     return {
-      merged: { saves: plan.mergedCount },
+      merged: { saves: plan.mergedCount, preferences: preferenceCount },
       skipped: { saves: plan.missingStoryIds.length },
       missingStoryIds: plan.missingStoryIds,
     };

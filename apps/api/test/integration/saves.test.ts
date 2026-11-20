@@ -67,7 +67,8 @@ describe('account saves', () => {
   }
 
   beforeAll(async () => {
-    app = await createTestApp([], { AUTH_TEST_MODE: 'true' });
+    // The merge's preferences work with the preferences flag off.
+    app = await createTestApp([], { AUTH_TEST_MODE: 'true', FEATURE_PREFERENCES: 'false' });
     const source = await createSource(prisma, 'saves-blog', 'rss');
     const stories = [];
     for (const [index, title] of ['Alpha', 'Bravo', 'Charlie', 'Delta'].entries()) {
@@ -220,7 +221,7 @@ describe('account saves', () => {
     const first = await user.merge(body);
     expect(first.status).toBe(200);
     expect(MergeResponseSchema.parse(first.body)).toEqual({
-      merged: { saves: 2 },
+      merged: { saves: 2, preferences: 0 },
       skipped: { saves: 0 },
       missingStoryIds: [],
     });
@@ -265,11 +266,80 @@ describe('account saves', () => {
     });
     expect(response.status).toBe(200);
     expect(MergeResponseSchema.parse(response.body)).toEqual({
-      merged: { saves: 1 },
+      merged: { saves: 1, preferences: 0 },
       skipped: { saves: 1 },
       missingStoryIds: [UNKNOWN_STORY_ID],
     });
     expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(1);
+  });
+
+  it('AC-2.5.3 the merge keeps the server mode for the same (kind, value) and adds the other guest entries', async () => {
+    const user = await signIn();
+    await prisma.feedPreference.create({
+      data: { userId: user.userId, kind: 'tag', value: 'react', mode: 'follow' },
+    });
+    const response = await user.merge({
+      version: 1,
+      saves: [],
+      preferences: {
+        follow: { tags: [], sources: [] },
+        mute: { tags: ['react'], sources: ['hn'] },
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(MergeResponseSchema.parse(response.body).merged).toEqual({ saves: 0, preferences: 2 });
+    const rows = await prisma.feedPreference.findMany({
+      where: { userId: user.userId },
+      select: { kind: true, value: true, mode: true },
+      orderBy: { value: 'asc' },
+    });
+    expect(rows).toEqual([
+      { kind: 'source', value: 'hn', mode: 'mute' },
+      { kind: 'tag', value: 'react', mode: 'follow' },
+    ]);
+  });
+
+  it('AC-2.5.3 repeating a merge with preferences creates no rows and answers the same counts', async () => {
+    const user = await signIn();
+    const body = {
+      version: 1,
+      saves: [{ storyId: story(0), savedAt: EARLY }],
+      preferences: {
+        follow: { tags: ['rust'], sources: ['rss-react-blog'] },
+        mute: { tags: ['career'], sources: [] },
+      },
+    };
+    const first = await user.merge(body);
+    expect(MergeResponseSchema.parse(first.body).merged).toEqual({ saves: 1, preferences: 3 });
+    const rowsAfterFirst = await prisma.feedPreference.findMany({
+      where: { userId: user.userId },
+      orderBy: { value: 'asc' },
+    });
+
+    const second = await user.merge(body);
+    expect(MergeResponseSchema.parse(second.body)).toEqual(MergeResponseSchema.parse(first.body));
+    expect(
+      await prisma.feedPreference.findMany({
+        where: { userId: user.userId },
+        orderBy: { value: 'asc' },
+      }),
+    ).toEqual(rowsAfterFirst);
+    expect(rowsAfterFirst).toHaveLength(3);
+  });
+
+  it('the merge rejects preferences with the same value in follow and mute, and writes no save', async () => {
+    const user = await signIn();
+    const response = await user.merge({
+      version: 1,
+      saves: [{ storyId: story(0), savedAt: EARLY }],
+      preferences: {
+        follow: { tags: ['react'], sources: [] },
+        mute: { tags: ['react'], sources: [] },
+      },
+    });
+    expect(response.status).toBe(400);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');
+    expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(0);
   });
 
   it('the merge rejects more than 500 saves with 400 VALIDATION_FAILED', async () => {

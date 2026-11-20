@@ -8,6 +8,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { IngestionModule } from './modules/ingestion/ingestion.module.js';
 import { IngestionScheduler } from './modules/ingestion/ingestion.scheduler.js';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
+import { PreferencesModule } from './modules/preferences/preferences.module.js';
 import { RankingModule } from './modules/ranking/ranking.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
@@ -24,6 +25,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
     FeedModule,
     StoriesModule,
     SavesModule,
+    PreferencesModule,
     SourcesModule,
     StatsModule,
     TagsModule,
