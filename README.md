@@ -18,7 +18,7 @@ docker compose up -d
 pnpm i
 pnpm --filter api db:deploy
 pnpm --filter api db:seed
-pnpm --filter api ingest:once   # optional: otherwise the feed stays empty until the hourly run at :05 UTC
+pnpm --filter api ingest:once   # optional: otherwise the feed stays empty until the next hourly ingestion run
 pnpm dev
 ```
 
