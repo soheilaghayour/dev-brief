@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
-import { LazyToaster } from '@/components/layout/LazyToaster';
-import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { loadAppOrigin } from '@/env';
 import './globals.css';
 
@@ -24,12 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${fontSans.variable} ${fontMono.variable}`}
     >
       <body>
-        <ThemeProvider>
-          <HotkeysProvider>
-            {children}
-            <LazyToaster />
-          </HotkeysProvider>
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
