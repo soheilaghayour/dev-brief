@@ -1208,6 +1208,7 @@ export const FeedPageSchema = z.object({ items: z.array(StoryCardSchema), nextCu
 | 12 | DELETE | `/api/v1/me/saves/:storyId` | user | none | 204 | Idempotent |
 | 13 | POST | `/api/v1/me/merge` | user | `MergeRequestSchema` `{ version: 1, saves: [{ storyId, savedAt }] (≤ 500) }` | 200 `MergeResponseSchema` `{ merged: { saves }, skipped: { saves }, missingStoryIds }` | One transaction, idempotent. Throttle 10/min. |
 | 14 | GET | `/api/v1/openapi.json`, `/api/v1/docs` | public | none | OpenAPI 3.1 JSON / Swagger UI | |
+| 15 | GET | `/api/v1/stats` | public | none | 200 `StatsSchema` `{storiesToday, sourceCount, lastIngestedAt}` | Stories published in the last 24 h, enabled sources, latest successful ingestion. For the landing page. |
 | — | GET/POST | `/api/auth/*` | public | Better Auth | Better Auth | `sign-in/social`, `callback/:provider`, `sign-out`, `get-session`. Throttle 10/min/IP. |
 
 Test-only route: `POST /api/auth/test/sign-in` creates a session for a fixture user so Playwright can sign in. It is registered **only** when `AUTH_TEST_MODE=true`, and env validation **rejects** that flag when `NODE_ENV=production`.

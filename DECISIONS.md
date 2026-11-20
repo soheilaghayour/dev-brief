@@ -106,6 +106,18 @@ links to them instead of restating them.
 - **Production smoke runs only the public flows (`pnpm smoke:prod`, base URL from `SMOKE_BASE_URL`); signed-in flows run in CI only.** Production refuses `AUTH_TEST_MODE`, so smoke tests 3 and 4 cannot run there, and no staging deployment is added.
 - **The provisioning wizard lives in `docs/provision.sh`.** [CLAUDE.md](CLAUDE.md) forbids a top-level `scripts/` folder; it sits beside the runbook it implements and is run once by the owner.
 
+- **The landing H1 is "Developer news, minus the noise."** It is the headline of the [§7.3](docs/prd.md#73-wireframes) wireframe; [§2.2](docs/prd.md#22-copy-direction) leaves the pick open.
+- **`/impressum` and `/privacy` ship placeholder operator details behind a visible "Placeholder — replace before public launch" notice.** A real name, address and email are the operator's to give ([O2](docs/prd.md#34-open-items)); the privacy page already names the real processors (Hetzner, Sentry, GitHub, Google) and the session cookie.
+- **`GET /api/v1/stats` returns `{ storiesToday, sourceCount, lastIngestedAt }`, where "today" is the last 24 h.** The hero pill and the preview footer need a count no Phase 1 endpoint gave; the 24 h window matches the preview's window, and `lastIngestedAt` is the latest successful run of an enabled source.
+- **The preview fetches `sort=top&limit=50` at build and revalidation and keeps the stories from the last 24 h, up to 30.** Top covers 7 days and the API has no 24 h option; fewer than 6 fresh stories means the page falls back to the sample fixture.
+- **The sample fixture fills a build or dev page only; a failed ISR revalidation throws.** Throwing keeps the last good page, which [§2](docs/prd.md#2-landing-page--first-impression-blueprint) promises, where silently rendering the sample would replace live data with fiction. The fixture stores each story's age, so its times always read as fresh.
+- **The preview's `s` key writes to the real guest store, loaded after hydration and bypassing `useSaves()`.** The mode hooks pull TanStack Query into first-load JS, which the static landing page can't carry; the visitor is a guest there by definition, and a signed-in user's save is merged on the next load.
+- **The preview takes its keys on its own focusable window, and Enter opens a card only when the window itself has focus.** Enter on a chip or link keeps its native meaning.
+- **The footer's "Source status" links to the feed's source-health line (`/feed#source-status`), not to JSON.** The sidebar already shows every source's health dot.
+- **The FAQ is native `<details>` and the mobile nav a `<details>` menu, not Radix.** [§2.1](docs/prd.md#21-section-by-section-layout) names an accordion; native elements do the job with no JS on a page that has a 165 KB budget.
+- **A web-only `getFeed` option lets the landing fetch stay cacheable.** The feed page keeps `no-store`; a no-store fetch would make the landing route dynamic.
+- **Lighthouse CI runs as its own `lighthouse` job on a build without an API (the sample page); the `check` job starts the API before the web build.** The Lighthouse gate needs no database, and the e2e landing tests need the page generated from the seeded stories ([AC-L1](docs/prd.md#25-landing-acceptance-criteria)).
+
 ## Open PM questions
 
 - Clustering method, thresholds and UI, to revisit with the user before Phase 2 issues exist: [PRD §3.4 O1](docs/prd.md#34-open-items).
