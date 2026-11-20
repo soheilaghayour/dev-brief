@@ -64,7 +64,7 @@ apps/
     src/lib/hotkeys/            # shortcut registry: feeds both handlers and the help dialog
     src/content/                # landing-fixture.json: landing data when the API is unreachable at first build
     src/config/                 # features.ts: phase flags
-    scripts/                    # checkBundleBudgets.mjs: the first-load JS gate (PRD §8.5)
+    scripts/                    # checkBundleBudgets.mjs: the first-load JS gate (PRD §8.5); addCompileHints.mjs: runs after next build
   api/                          # NestJS (Express) + Prisma + scheduled ingestion
     prisma/                     # schema.prisma, migrations/, seed/sources.json
     src/                        # main.ts, app.module.ts, env.ts (Zod-validated env, fail fast)
