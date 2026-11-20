@@ -132,7 +132,14 @@ links to them instead of restating them.
 - **The Under the hood badges show only what is shipped in Phase 1.** Tailwind stands where the Vercel AI SDK and A2UI will come with their phases.
 
 - **All non-cluster Phase 2 models (`Summary`, `FeedPreference`, `LlmUsage`, `RateLimitCounter`) land in one migration, before any feature uses them.** The migration rule ([§5.2](docs/prd.md#52-prisma-schema)) allows one schema branch open at a time, so the summaries, ledger and preferences issues would otherwise hold the schema lock in turn; the PRD fixes the models' shape, so a model with no user yet is acceptable.
-- **`Cluster`, the cluster fields on `Story` and `pg_trgm` wait for the clustering review ([O1](docs/prd.md#34-open-items)).** The review may change the method, and with it the columns; F2.1 declares its own migration.
+- **Clustering's schema (`Cluster`, the cluster fields on `Story`, `pg_trgm` and the `cluster` ledger feature) lands in one migration of its own, before the clustering step and the cluster read paths use it.** The migration rule ([§5.2](docs/prd.md#52-prisma-schema)) allows one schema branch open at a time, so the step and the read side can then be built in parallel.
+- **Clustering is AI-assisted: a deterministic pre-filter picks up to 5 candidates, and one Claude Haiku 5.5 call decides ([F2.1](docs/prd.md#f21-clustering-ai-assisted), the owner's decision).** The owner found the Phase 1 dedup too weak and asked for an LLM decision, the simpler way to reach the accuracy target. The pre-filter and the `cluster` cap keep the cost bounded.
+- **A cluster is one feed card for its representative, with a "+N related" control that expands the other members inline. Each member opens its story page, which shows the whole cluster with the summary panel on top ([F2.2](docs/prd.md#f22-cluster-cards-and-detail-view)).** This is the orchestrator's default, taken while the owner was away and open to owner override. It reuses `StoryCard` and `SummaryPanel`, and the API sends the same data whatever the card does with it, so changing the UI later touches only the web.
+- **Feed filters, search, mutes and follows apply to a cluster's representative, the story its card shows ([AC-2.2.3](docs/prd.md#f22-cluster-cards-and-detail-view)).** The card shows the representative's tags and sources, so what gets filtered is what the user sees. The feed query also keeps its per-story predicate and its measured index plans; it only adds `isPrimary = true`.
+- **A story is clustered once, in the run that creates it. A failed, refused or capped decision leaves it single for good ([AC-2.1.5](docs/prd.md#f21-clustering-ai-assisted)).** One decision per story bounds the cluster spend by the day's new stories. A missed join costs one duplicate card, which is how Phase 1 already behaves.
+- **The pre-filter keeps a low score floor, `CLUSTER_CANDIDATE_MIN_SCORE`, tuned for recall rather than precision.** Without a floor, nearly every story would have candidates in the ±72 h window. A call for every new story (400 × $0.000125 = $0.05/day) would overrun the $0.02 cluster cap. The model makes the precision call.
+- **Members are ranked with `k` counted over the whole cluster, and the cluster's rank is its representative's `rankScore` ([F2.1](docs/prd.md#f21-clustering-ai-assisted) rule 5).** Multiplying member `rankScore`s, which already carry their own cross-source bonus, by the cluster bonus would count it twice. [Appendix B §4](docs/prd.md#appendix-b--ranking-formula) already counts `k` over the cluster.
+- **The global LLM cap rises from $0.06 to $0.064/day, not to $0.08: 31 × $0.064 = $1.984 stays under the $2.00 monthly target ([§8.1](docs/prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)).** In Phase 2, the per-feature caps add up to $0.047/day, under the global cap. With the copilot they add up to $0.075/day, and the global cap is the binding stop. A $0.08 cap would allow $2.48 a month, so raising it is the owner's call ([O5](docs/prd.md#34-open-items)).
 - **Phase flags come from env, all off by default: `FEATURE_*` for the API, the build-time `NEXT_PUBLIC_FEATURE_*` for the web.** Constants alone couldn't be switched on for the e2e build or for a Phase 2 launch; turning Phase 2 on in production is a Coolify env change the owner makes, and no issue flips a default.
 - **Only `summaries` and `preferences` are wired to env so far.** `clusters` is wired with F2.1, and the Phase 3 flags with their own phase.
 - **The web validates `NEXT_PUBLIC_FEATURE_*` with Zod at build time, in `next.config.ts`, and `config/features.ts` reads them with a literal `=== 'true'`.** A value other than `'true'` or `'false'` then fails `next build`, as the paired `FEATURE_*` fails the API's boot, instead of silently leaving the feature off at launch. Zod stays out of `features.ts` because the nav puts that module in the first-load JS of every app route, and parsing there added ≈12.6 KB gzip to `/feed`, `/saved` and `/story/[id]`, over each [§8.5](docs/prd.md#85-performance-budgets) budget. The web Dockerfile takes both as build arguments, so Coolify can pass them to `next build`.
@@ -201,10 +208,10 @@ links to them instead of restating them.
 
 ## Open PM questions
 
-- Clustering method, thresholds and UI, to revisit with the user before Phase 2 issues exist: [PRD §3.4 O1](docs/prd.md#34-open-items).
 - Buying the domain (`devbrief.dev` is a placeholder): [O2](docs/prd.md#34-open-items).
 - Whether GitHub star snapshots are worth it over the "new repos by stars" proxy: [O3](docs/prd.md#34-open-items).
 - `@a2ui/react` version, React v1.0 support and SSR, re-checked when Phase 3 starts: [O4](docs/prd.md#34-open-items).
+- Whether the monthly LLM budget should rise from $2.00 to $2.50, so that the global cap can be $0.08/day: [O5](docs/prd.md#34-open-items).
 
 ## Rejected and left-out approaches
 
@@ -212,7 +219,9 @@ links to them instead of restating them.
 - **Lucia:** deprecated; Better Auth with its Prisma adapter replaces it.
 - **Vercel, Railway, Render:** one Hetzner VPS with Coolify runs the always-on API (cron, SSE) at a fixed few euros a month ([§4.1](docs/prd.md#41-system-diagram)).
 - **Supabase:** Postgres runs as a container on the same VPS.
-- **Embeddings and vector search:** tags, full-text search and `pg_trgm` cover the need; reconsidered only if clustering misses its accuracy target ([§1.7](docs/prd.md#17-non-goals-all-phases), O1).
+- **Embeddings and vector search:** tags, full-text search, `pg_trgm` and the clustering model's same-story decision cover the need. They are reconsidered only if clustering misses its accuracy target ([§1.7](docs/prd.md#17-non-goals-all-phases), O1).
+- **Deterministic-only clustering (a weighted score over a fixed threshold):** the owner judged score-only matching too weak, so its signals now only pre-filter candidates for the model ([F2.1](docs/prd.md#f21-clustering-ai-assisted), O1).
+- **A clustering call for every new story:** most stories have no plausible duplicate, so the pre-filter's floor skips the call, and the spend stays inside the $0.02 cluster cap.
 - **Email/password sign-in:** GitHub and Google OAuth only ([AC-1.5.1](docs/prd.md#f15-auth-account-saves-and-merge)).
 - **Email digests:** the weekly digest is a Markdown download or clipboard copy ([AC-3.4.4](docs/prd.md#f34-collections-notes-and-digest)).
 - **JIT off globally (`-c jit=off`):** it hides the symptom of a plan that scores the whole Top window; the two-stream query removes the cause.
