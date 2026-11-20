@@ -68,11 +68,11 @@ export class FeedService {
       ...exclusions,
     ];
     const limit = query.limit + 1;
-    const page =
+    const pageQuery =
       query.sort === 'latest'
         ? latestPage(filters, keyset, limit)
         : topPage(filters, boost, keyset, limit);
-    return this.prisma.$queryRaw<PageRow[]>(page);
+    return this.prisma.$queryRaw<PageRow[]>(pageQuery);
   }
 
   private async loadCards(ids: string[]) {
@@ -131,7 +131,8 @@ function latestPage(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: nu
 
 /**
  * Top, ordered by rankScore with the follow boost applied: boosted and unboosted stories are two
- * streams, each read in (rankScore, id) index order, merged by their effective score.
+ * streams, each read in (rankScore, id) index order between the cursor and the page floor, merged by
+ * their effective score.
  */
 function topPage(
   filters: Prisma.Sql[],
@@ -140,39 +141,69 @@ function topPage(
   limit: number,
 ) {
   if (!boost) return topStream(filters, 1, keyset, limit);
-  // IS NOT TRUE, not NOT: a story with NULL tags makes the boost NULL, and it counts as unboosted.
+  const floor = Prisma.sql`(SELECT "rankScore" FROM "pageFloor")`;
+  // IS NOT TRUE is the exact complement of WHERE boost, so the streams split the stories even where the boost is NULL.
+  const unboosted = Prisma.sql`${boost} IS NOT TRUE`;
   return Prisma.sql`
-    (${topStream([...filters, boost], FOLLOW_BOOST, keyset, limit)})
+    WITH "pageFloor" AS (${pageFloor(filters, keyset, limit)})
+    (${topStream([...filters, boost], FOLLOW_BOOST, keyset, limit, floor)})
     UNION ALL
-    (${topStream([...filters, Prisma.sql`${boost} IS NOT TRUE`], 1, keyset, limit)})
+    (${topStream([...filters, unboosted], 1, keyset, limit, floor)})
     ORDER BY "sortScore" DESC, "id" DESC LIMIT ${limit}`;
 }
 
-/** The first `limit` stories after the keyset whose score is rankScore × `factor`, in index order. */
+/** The lowest score a boosted page can reach: the `limit`-th rankScore after the cursor even when boosted, or -infinity. */
+function pageFloor(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: number) {
+  // Each of these stories comes after the cursor and scores at least its rankScore, so `limit` stories reach the floor.
+  const after = keyset ? topKeyset(FOLLOW_BOOST, keyset) : [];
+  return Prisma.sql`
+    SELECT CASE WHEN count(*) < ${limit} THEN '-infinity' ELSE min(p."rankScore") END AS "rankScore"
+    FROM (SELECT s."rankScore" FROM "Story" s ${whereClause([...filters, ...after])}
+      ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}) p`;
+}
+
+/** The first `limit` stories scored rankScore × `factor` after the keyset, down to the floor, in index order. */
 function topStream(
   conditions: Prisma.Sql[],
   factor: number,
   keyset: Keyset | undefined,
   limit: number,
+  floor?: Prisma.Sql,
 ) {
-  const score =
-    factor === 1
-      ? Prisma.sql`s."rankScore"`
-      : Prisma.sql`(s."rankScore" * ${factor}::double precision)`;
+  const score = scoreSql(factor);
   return Prisma.sql`
     SELECT s."id", s."publishedAt", ${score} AS "sortScore" FROM "Story" s
-    ${whereClause([...conditions, ...(keyset ? topKeyset(score, factor, keyset) : [])])}
+    ${whereClause([
+      ...conditions,
+      ...(keyset ? topKeyset(factor, keyset) : []),
+      ...(floor ? [atOrAboveFloor(factor, floor)] : []),
+    ])}
     ORDER BY s."rankScore" DESC, s."id" DESC LIMIT ${limit}`;
 }
 
+function scoreSql(factor: number) {
+  return factor === 1
+    ? Prisma.sql`s."rankScore"`
+    : Prisma.sql`(s."rankScore" * ${factor}::double precision)`;
+}
+
+// Index bounds divide a score by the boost; this slack covers the float rounding, so they never cut a row.
+const ROUNDING_SLACK = 4 * Number.EPSILON;
+
 // The order ends with id desc, so a row-wise comparison continues exactly after the cursor row.
-function topKeyset(score: Prisma.Sql, factor: number, { sortKey, id }: Keyset) {
-  const after = Prisma.sql`(${score}, s."id") < (${sortKey}::double precision, ${id})`;
+function topKeyset(factor: number, { sortKey, id }: Keyset) {
+  const after = Prisma.sql`(${scoreSql(factor)}, s."id") < (${sortKey}::double precision, ${id})`;
   if (factor === 1) return [after];
-  // An index bound for the boosted stream: its slack covers float rounding, and `after` stays exact.
+  // An index bound for the boosted stream, so its scan starts at the cursor; `after` stays exact.
   return [
     after,
     Prisma.sql`s."rankScore" <= ${sortKey}::double precision / ${factor}::double precision
-      * ${1 + 4 * Number.EPSILON}::double precision`,
+      * ${1 + ROUNDING_SLACK}::double precision`,
   ];
+}
+
+function atOrAboveFloor(factor: number, floor: Prisma.Sql) {
+  if (factor === 1) return Prisma.sql`s."rankScore" >= ${floor}`;
+  return Prisma.sql`s."rankScore" >= ${floor} / ${factor}::double precision
+    * ${1 - ROUNDING_SLACK}::double precision`;
 }

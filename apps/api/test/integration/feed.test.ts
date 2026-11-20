@@ -303,6 +303,30 @@ describe('GET /api/v1/feed', () => {
       expect(paged.map((item) => item.title)).toEqual(all);
     });
 
+    it('AC-2.5.2 a followed story whose boosted score ties the page floor keeps its id order', async () => {
+      const source = await createSource(prisma, 'float-floor', 'rss');
+      onTestFinished(() => removeSourceAndStories('float-floor'));
+      const stories = [
+        // 0.2 × 1.5 = 0.30000000000000004, and that divided by 1.5 rounds up past 0.2.
+        { id: 'floor-y', title: 'Floor Y', rankScore: 0.2, tags: ['rust'] },
+        { id: 'floor-x2', title: 'Floor X2', rankScore: 0.1 + 0.2, tags: ['go'] },
+        { id: 'floor-x1', title: 'Floor X1', rankScore: 0.1 + 0.2, tags: ['go'] },
+      ];
+      for (const story of stories) {
+        await createStory(prisma, {
+          ...story,
+          publishedAt: hoursAgo(6),
+          itemSourceIds: [source.id],
+        });
+      }
+      const query = { sources: 'float-floor', boostTags: 'rust' };
+      const titles = stories.map((story) => story.title);
+      expect(await feedTitles(query)).toEqual(titles);
+      // At one per page, the two unfollowed stories set the floor that Floor Y's boosted score ties.
+      const paged = await pagedItems({ ...query, limit: 1 });
+      expect(paged.map((item) => item.title)).toEqual(titles);
+    });
+
     it('AC-2.5.2 a muted tag does not hide a story with no tags', async () => {
       const source = await createSource(prisma, 'untagged', 'rss');
       onTestFinished(() => removeSourceAndStories('untagged'));
