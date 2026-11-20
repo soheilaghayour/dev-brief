@@ -11,7 +11,7 @@ async function focusPreview(page: Page) {
   await preview(page).focus();
 }
 
-test('smoke: the landing page renders and the primary CTA reaches the feed without login', async ({
+test('AC-L4 the landing page renders and the primary CTA reaches the feed without login', async ({
   page,
 }) => {
   await page.goto('/');
@@ -75,15 +75,22 @@ test('a tag chip filters the preview list on the client', async ({ page }) => {
 test('AC-L6 renders dark on first paint for a dark OS and keeps a chosen theme across reloads', async ({
   page,
 }) => {
+  // The class at DOMContentLoaded is the first paint's; after `load` the theme script has long run.
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      Reflect.set(window, 'firstPaintClass', document.documentElement.className);
+    });
+  });
+  const firstPaintClass = () =>
+    page.evaluate(() => Reflect.get(window, 'firstPaintClass') as string);
+
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
-  expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(true);
+  expect(await firstPaintClass()).toContain('dark');
 
   await page.getByRole('radio', { name: 'Light' }).click();
   await page.reload();
-  expect(await page.evaluate(() => document.documentElement.classList.contains('dark'))).toBe(
-    false,
-  );
+  expect(await firstPaintClass()).not.toContain('dark');
 });
 
 test('AC-L7 the nav has no Radar link while its phase flag is off', async ({ page }) => {
