@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs/config';
 import { securityHeaders } from './src/config/securityHeaders';
+import { validateFeatureFlagEnv } from './src/env';
+
+// Here, not in features.ts: this file runs in Node at build time, so a bad flag fails `next build` without Zod in the client bundle.
+validateFeatureFlagEnv();
 
 const nextConfig: NextConfig = {
   output: 'standalone',
