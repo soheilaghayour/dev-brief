@@ -1,4 +1,5 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
+import type { ComponentProps } from 'react';
 import { cn } from '@/lib/cn';
 import { RelativeTime } from './RelativeTime';
 import { SaveButton } from '@/components/saves/SaveButton';
@@ -15,8 +16,8 @@ type StoryCardProps = {
   compact?: boolean;
   /** The card j/k currently points at. */
   isActive?: boolean;
-  /** Tag and source badges open Follow / Mute; off where preferences don't apply, like the landing preview. */
-  hasPreferenceMenus?: boolean;
+  /** The Follow / Mute menu the tag and source badges open; absent where preferences don't apply, like the landing preview. */
+  preferenceMenu?: ComponentProps<typeof TagBadge>['menu'];
 };
 
 export function StoryCard({
@@ -25,7 +26,7 @@ export function StoryCard({
   onToggleSave,
   compact = false,
   isActive = false,
-  hasPreferenceMenus = false,
+  preferenceMenu,
 }: StoryCardProps) {
   const visibleTags = story.tags.slice(0, MAX_VISIBLE_TAGS);
   const hiddenTagCount = story.tags.length - visibleTags.length;
@@ -59,7 +60,7 @@ export function StoryCard({
             <SourceBadge
               key={`${source.slug}:${source.itemUrl}`}
               source={source}
-              hasMenu={hasPreferenceMenus}
+              menu={preferenceMenu}
             />
           ))}
           <RelativeTime iso={story.publishedAt} />
@@ -67,7 +68,7 @@ export function StoryCard({
             <span>{story.readingTimeMinutes} min read</span>
           )}
           {visibleTags.map((tag) => (
-            <TagBadge key={tag} slug={tag} hasMenu={hasPreferenceMenus} />
+            <TagBadge key={tag} slug={tag} menu={preferenceMenu} />
           ))}
           {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
         </div>

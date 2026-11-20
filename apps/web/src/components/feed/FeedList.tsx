@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { LazyPreferenceMenu } from '@/components/preferences/LazyPreferenceMenu';
 import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
@@ -146,7 +147,7 @@ export function FeedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => saves.toggle(story.id)}
           isActive={story.id === activeId}
-          hasPreferenceMenus
+          preferenceMenu={LazyPreferenceMenu}
         />
       ))}
       {isFetchNextPageError && (

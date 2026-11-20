@@ -1,14 +1,16 @@
 import { MessageSquareIcon } from 'lucide-react';
 import type { SourceRef } from '@devbrief/shared';
-import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
+import type { ComponentType } from 'react';
+import type { PreferenceMenuProps } from '@/components/preferences/PreferenceMenu';
 import { Badge } from '@/components/ui/Badge';
 import { isFeatureEnabled } from '@/config/features';
 import { formatCompactCount } from '@/lib/format/formatCompactCount';
+import type { PreferenceKind } from '@/lib/guest/preferences';
 
 type SourceBadgeProps = {
   source: Pick<SourceRef, 'kind' | 'slug' | 'name' | 'points' | 'comments' | 'reactions' | 'stars'>;
-  /** Opens Follow / Mute when clicked; off where preferences don't apply, like the landing preview. */
-  hasMenu?: boolean;
+  /** The Follow / Mute menu the badge opens; passed in, so pages without one (the landing preview) don't load it. */
+  menu?: ComponentType<PreferenceMenuProps<PreferenceKind>>;
 };
 
 const SCORE_GLYPH = { hn: '▲', devto: '♥' } as const;
@@ -73,9 +75,9 @@ function SourceBadgeContent({ source }: Pick<SourceBadgeProps, 'source'>) {
 }
 
 /** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
-export function SourceBadge({ source, hasMenu = false }: SourceBadgeProps) {
+export function SourceBadge({ source, menu: Menu }: SourceBadgeProps) {
   const content = <SourceBadgeContent source={source} />;
-  if (!hasMenu || !isFeatureEnabled('preferences')) {
+  if (!Menu || !isFeatureEnabled('preferences')) {
     return (
       <Badge variant="outline" data-source-kind={source.kind}>
         {content}
@@ -83,7 +85,7 @@ export function SourceBadge({ source, hasMenu = false }: SourceBadgeProps) {
     );
   }
   return (
-    <PreferenceMenu
+    <Menu
       kind="source"
       value={source.slug}
       label={source.name}
@@ -91,6 +93,6 @@ export function SourceBadge({ source, hasMenu = false }: SourceBadgeProps) {
       data={{ 'data-source-kind': source.kind }}
     >
       {content}
-    </PreferenceMenu>
+    </Menu>
   );
 }

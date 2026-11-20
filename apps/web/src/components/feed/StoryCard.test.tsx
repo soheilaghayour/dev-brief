@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
+import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { StoryCard } from './StoryCard';
 
 const features = vi.hoisted(() => ({ preferences: false }));
@@ -55,7 +56,7 @@ const STORY: StoryCardData = {
 
 function render(
   story: StoryCardData,
-  props: { isSaved?: boolean; compact?: boolean; hasPreferenceMenus?: boolean } = {},
+  props: { isSaved?: boolean; compact?: boolean; preferenceMenu?: typeof PreferenceMenu } = {},
 ) {
   return renderToStaticMarkup(
     <StoryCard story={story} isSaved={props.isSaved ?? false} onToggleSave={() => {}} {...props} />,
@@ -129,7 +130,7 @@ describe('StoryCard', () => {
 
   it('AC-2.5.1 makes every tag and source badge a menu trigger where preferences apply', () => {
     features.preferences = true;
-    const html = render(STORY, { hasPreferenceMenus: true });
+    const html = render(STORY, { preferenceMenu: PreferenceMenu });
     // Two tags and three sources; the badges keep their data attributes on the trigger.
     expect(menuTriggers(html)).toHaveLength(5);
     expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-tag="typescript"/);
@@ -137,14 +138,14 @@ describe('StoryCard', () => {
     features.preferences = false;
   });
 
-  it('keeps the badges plain without hasPreferenceMenus, as in the landing preview', () => {
+  it('keeps the badges plain without a preferenceMenu, as in the landing preview', () => {
     features.preferences = true;
     expect(menuTriggers(render(STORY))).toHaveLength(0);
     features.preferences = false;
   });
 
   it('AC-2.5.1 renders the badges without a menu while the preferences flag is off', () => {
-    const html = render(STORY, { hasPreferenceMenus: true });
+    const html = render(STORY, { preferenceMenu: PreferenceMenu });
     expect(menuTriggers(html)).toHaveLength(0);
     expect(html.match(/data-tag=/g)).toHaveLength(2);
   });

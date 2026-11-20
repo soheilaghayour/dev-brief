@@ -10,7 +10,7 @@ const PreferenceMenuDropdown = lazy(() =>
   import('./PreferenceMenuDropdown').then((module) => ({ default: module.PreferenceMenuDropdown })),
 );
 
-type PreferenceMenuProps<K extends PreferenceKind> = {
+export type PreferenceMenuProps<K extends PreferenceKind> = {
   kind: K;
   value: PreferenceValue[K];
   /** The name the menu is headed with: a tag's or a source's display name. */

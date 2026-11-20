@@ -11,6 +11,7 @@ import {
   moveActiveId,
 } from '@/components/feed/feedNavigation';
 import { StoryCard } from '@/components/feed/StoryCard';
+import { LazyPreferenceMenu } from '@/components/preferences/LazyPreferenceMenu';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
@@ -132,7 +133,7 @@ export function SavedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => toggleStory(story.id)}
           isActive={story.id === activeId}
-          hasPreferenceMenus
+          preferenceMenu={LazyPreferenceMenu}
         />
       ))}
       {saved.loadMoreFailed && (
