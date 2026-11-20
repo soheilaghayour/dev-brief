@@ -1,16 +1,34 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { firstLoadScripts } from './bundleSize.mjs';
 
-export const COMPILE_HINT = '//# allFunctionsCalledOnLoad';
+const COMPILE_HINT = '//# allFunctionsCalledOnLoad';
 
-/** Returns the chunk with V8's compile hint as its first line and every code line at its old line number. */
-export function addCompileHint(source) {
+/** Puts V8's compile hint on line 1 of every script some route loads on its first page load; returns how many. */
+export function addCompileHints(nextDir) {
+  const scripts = firstLoadScripts(nextDir);
+  for (const script of scripts) {
+    const path = join(nextDir, script);
+    writeFileSync(path, withCompileHint(script, readFileSync(path, 'utf8')));
+  }
+  return scripts.length;
+}
+
+/** The first-load scripts whose line 1 is not the compile hint. */
+export function scriptsWithoutCompileHint(nextDir) {
+  return firstLoadScripts(nextDir).filter(
+    (script) => !readFileSync(join(nextDir, script), 'utf8').startsWith(`${COMPILE_HINT}\n`),
+  );
+}
+
+// V8 reads the hint only on line 1; Sentry's debug-ID snippet there only has to run before Sentry starts, which is after load (instrumentation-client.ts), so it moves below the code and every code line keeps the number the uploaded source maps expect.
+function withCompileHint(script, source) {
   const [firstLine, ...rest] = source.split('\n');
-  if (firstLine === COMPILE_HINT) return source;
-  // V8 reads the hint only on line 1; Sentry's debug-ID snippet there works anywhere, so it moves below the code and uploaded source maps still match.
   if (!firstLine.includes('_debugIds')) {
     throw new Error(
-      `Expected Sentry's debug-ID snippet on line 1, found: ${firstLine.slice(0, 80)}`,
+      `${script}: expected Sentry's debug-ID snippet on line 1, found: ${firstLine.slice(0, 80)}. ` +
+        'The hint must replace that line, or every code line shifts and the uploaded source maps stop matching. ' +
+        "The snippet comes from Sentry's native Turbopack debug IDs, so `sourcemaps.disable: true` or a webpack build removes or moves it.",
     );
   }
   let codeEnd = rest.length;
@@ -18,17 +36,4 @@ export function addCompileHint(source) {
     codeEnd -= 1;
   }
   return [COMPILE_HINT, ...rest.slice(0, codeEnd), firstLine, ...rest.slice(codeEnd)].join('\n');
-}
-
-/** Adds the compile hint to every client chunk of a build except the noModule polyfills; returns how many. */
-export function addCompileHints(nextDir) {
-  const { polyfillFiles } = JSON.parse(readFileSync(join(nextDir, 'build-manifest.json'), 'utf8'));
-  const chunks = readdirSync(join(nextDir, 'static', 'chunks'), { recursive: true })
-    .map((name) => `static/chunks/${name}`)
-    .filter((file) => file.endsWith('.js') && !polyfillFiles.includes(file));
-  for (const file of chunks) {
-    const path = join(nextDir, file);
-    writeFileSync(path, addCompileHint(readFileSync(path, 'utf8')));
-  }
-  return chunks.length;
 }
