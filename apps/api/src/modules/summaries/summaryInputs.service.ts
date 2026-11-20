@@ -1,17 +1,17 @@
-import { setTimeout as sleep } from 'node:timers/promises';
-import { Injectable } from '@nestjs/common';
-import {
-  DEVTO_API,
-  DEVTO_REQUEST_GAP_MS,
-  DEVTO_REQUEST_OPTIONS,
-} from '../../common/devto/devtoApi.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { DevtoClient } from '../../common/devto/devtoClient.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { HttpClient } from '../../common/http/httpClient.js';
-import { mapWithConcurrency } from '../../common/http/mapWithConcurrency.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { CommentNode } from './flattenComments.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
-import { parseAlgoliaThread, parseDevtoArticleText, parseDevtoThread } from './upstreamPayloads.js';
+import { inputFailureScope } from './summaryRules.js';
+import {
+  type ParsedThread,
+  parseAlgoliaThread,
+  parseDevtoArticleText,
+  parseDevtoThread,
+} from './upstreamPayloads.js';
 
 const ALGOLIA_ITEMS = 'https://hn.algolia.com/api/v1/items';
 // PRD §8.3. The most-discussed threads, the ones auto summaries pick, run to several MB.
@@ -34,22 +34,42 @@ export type SummaryInputs = {
 
 type InputItem = { externalId: string; source: { kind: string } };
 
+/** Runs tasks with at most `limit` in flight across every caller; the others wait in arrival order. */
+function concurrencyLimit(limit: number) {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  return async <Result>(task: () => Promise<Result>) => {
+    if (active < limit) active += 1;
+    else await new Promise<void>((resolve) => waiting.push(resolve));
+    try {
+      return await task();
+    } finally {
+      // A waiting task takes over this slot; with none waiting, the slot is freed.
+      const next = waiting.shift();
+      if (next) next();
+      else active -= 1;
+    }
+  };
+}
+
 /** Loads a story with its own items' comments and text; the one place clustering widens to all cluster members. */
 @Injectable()
 export class SummaryInputsService {
-  // Dev.to requests from every summary share one serial queue, at least the gap apart.
-  private devtoQueue: Promise<unknown> = Promise.resolve();
-  private lastDevtoRequestAt = -Infinity;
+  private readonly logger = new Logger(SummaryInputsService.name);
+  // PRD §8.3 limits Algolia per client, so the limit spans every summary in flight, auto and on-demand.
+  private readonly algoliaSlot = concurrencyLimit(ALGOLIA_CONCURRENCY);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly http: HttpClient,
-    private readonly pause: (ms: number) => Promise<unknown> = (ms) => sleep(ms),
-    private readonly nowMs: () => number = Date.now,
+    private readonly devto: DevtoClient,
   ) {}
 
-  /** Throws `NOT_FOUND` for an unknown story and `SummaryInputsUnavailableError` when any fetch fails. */
-  async collectSummaryInputs(storyId: string): Promise<SummaryInputs> {
+  /** Throws `NOT_FOUND` for an unknown story and `SummaryInputsUnavailableError` when any fetch fails or `signal` aborts. */
+  async collectSummaryInputs(
+    storyId: string,
+    { signal }: { signal?: AbortSignal } = {},
+  ): Promise<SummaryInputs> {
     const story = await this.prisma.story.findUnique({
       where: { id: storyId },
       include: {
@@ -63,52 +83,59 @@ export class SummaryInputsService {
 
     const hnItems = story.items.filter((item) => item.source.kind === 'hn');
     const devtoItems = story.items.filter((item) => item.source.kind === 'devto');
+    // The first failed fetch cancels the story's others, queued Dev.to requests included: the summary is off either way.
+    const storyFetches = new AbortController();
+    const fetchSignal = signal
+      ? AbortSignal.any([signal, storyFetches.signal])
+      : storyFetches.signal;
+    const failFast = <Result>(fetching: Promise<Result>) =>
+      fetching.catch((error: unknown) => {
+        storyFetches.abort(error);
+        throw error;
+      });
     try {
       const [hnThreads, devtoThreads, articleText] = await Promise.all([
-        mapWithConcurrency(hnItems, ALGOLIA_CONCURRENCY, (item) => this.fetchHnThread(item)),
-        Promise.all(devtoItems.map((item) => this.fetchDevtoThread(item))),
-        devtoItems[0] ? this.fetchDevtoArticleText(devtoItems[0]) : null,
+        Promise.all(hnItems.map((item) => failFast(this.fetchHnThread(item, fetchSignal)))),
+        Promise.all(devtoItems.map((item) => failFast(this.fetchDevtoThread(item, fetchSignal)))),
+        devtoItems[0] ? failFast(this.fetchDevtoArticleText(devtoItems[0], fetchSignal)) : null,
       ]);
+      const threads = [...hnThreads, ...devtoThreads];
+      this.logDropped(storyId, threads);
       return {
         storyId,
         title: story.title,
         text: articleText || story.excerpt,
-        threads: [...hnThreads, ...devtoThreads],
+        threads: threads.map(({ comments }) => comments),
       };
     } catch (error) {
-      throw new SummaryInputsUnavailableError(storyId, { cause: error });
+      throw new SummaryInputsUnavailableError(storyId, inputFailureScope(error), { cause: error });
     }
   }
 
-  private async fetchHnThread(item: InputItem) {
-    const payload = await this.http.getJson(
-      `${ALGOLIA_ITEMS}/${item.externalId}`,
-      ALGOLIA_REQUEST_OPTIONS,
-    );
-    return parseAlgoliaThread(payload);
-  }
-
-  private async fetchDevtoThread(item: InputItem) {
-    const id = encodeURIComponent(item.externalId);
-    return parseDevtoThread(await this.devtoRequest(`/comments?a_id=${id}`));
-  }
-
-  private async fetchDevtoArticleText(item: InputItem) {
-    const id = encodeURIComponent(item.externalId);
-    return parseDevtoArticleText(await this.devtoRequest(`/articles/${id}`));
-  }
-
-  private devtoRequest(path: string) {
-    const request = this.devtoQueue.then(async () => {
-      const waitMs = this.lastDevtoRequestAt + DEVTO_REQUEST_GAP_MS - this.nowMs();
-      if (waitMs > 0) await this.pause(waitMs);
-      try {
-        return await this.http.getJson(`${DEVTO_API}${path}`, DEVTO_REQUEST_OPTIONS);
-      } finally {
-        this.lastDevtoRequestAt = this.nowMs();
-      }
+  private fetchHnThread(item: InputItem, signal: AbortSignal) {
+    return this.algoliaSlot(async () => {
+      // A request that waited for its slot is not sent once its story gave up.
+      signal.throwIfAborted();
+      const payload = await this.http.getJson(`${ALGOLIA_ITEMS}/${item.externalId}`, {
+        ...ALGOLIA_REQUEST_OPTIONS,
+        signal,
+      });
+      return parseAlgoliaThread(payload);
     });
-    this.devtoQueue = request.catch(() => undefined);
-    return request;
+  }
+
+  private async fetchDevtoThread(item: InputItem, signal: AbortSignal) {
+    const id = encodeURIComponent(item.externalId);
+    return parseDevtoThread(await this.devto.getJson(`/comments?a_id=${id}`, signal));
+  }
+
+  private async fetchDevtoArticleText(item: InputItem, signal: AbortSignal) {
+    const id = encodeURIComponent(item.externalId);
+    return parseDevtoArticleText(await this.devto.getJson(`/articles/${id}`, signal));
+  }
+
+  private logDropped(storyId: string, threads: readonly ParsedThread[]) {
+    const dropped = threads.reduce((sum, thread) => sum + thread.dropped, 0);
+    if (dropped > 0) this.logger.warn(`Dropped ${dropped} malformed comments of story ${storyId}`);
   }
 }

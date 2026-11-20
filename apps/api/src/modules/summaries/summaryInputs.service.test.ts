@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { summaryFixtureFetch } from '../../../test/summaryFixtures.js';
-import { DEVTO_REQUEST_GAP_MS } from '../../common/devto/devtoApi.js';
+import { DEVTO_REQUEST_GAP_MS, DevtoClient } from '../../common/devto/devtoClient.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { HttpClient } from '../../common/http/httpClient.js';
 import type { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -8,6 +8,7 @@ import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { SummaryInputsService } from './summaryInputs.service.js';
 
 type StoryRow = {
+  id?: string;
   title: string;
   excerpt: string | null;
   items: { externalId: string; source: { kind: string } }[];
@@ -16,12 +17,15 @@ type StoryRow = {
 const item = (kind: string, externalId: string) => ({ externalId, source: { kind } });
 
 function inputsService(
-  story: StoryRow | null,
+  stories: StoryRow | null | StoryRow[],
   fetchStub: typeof fetch,
   { clock = { now: 0 }, events = [] as string[] } = {},
 ) {
-  // Only the one story read is used, so a stand-in replaces the database.
-  const prisma = { story: { findUnique: async () => story } } as unknown as PrismaService;
+  // Only the story read is used, so a stand-in replaces the database.
+  const rows = Array.isArray(stories) ? stories : [stories];
+  const findUnique = async ({ where }: { where: { id: string } }) =>
+    rows.find((row) => row && (row.id ?? where.id) === where.id) ?? null;
+  const prisma = { story: { findUnique } } as unknown as PrismaService;
   const recordingFetch: typeof fetch = async (input, init) => {
     events.push(`request ${new URL(String(input)).pathname}`);
     return fetchStub(input, init);
@@ -32,7 +36,7 @@ function inputsService(
   };
   // random = 0 makes retry backoff instant.
   const http = new HttpClient(recordingFetch, () => 0);
-  return new SummaryInputsService(prisma, http, pause, () => clock.now);
+  return new SummaryInputsService(prisma, http, new DevtoClient(http, pause, () => clock.now));
 }
 
 describe('collectSummaryInputs', () => {
@@ -105,24 +109,75 @@ describe('collectSummaryInputs', () => {
     }
   });
 
-  it('throws SummaryInputsUnavailableError when any fetch fails', async () => {
+  it("throws SummaryInputsUnavailableError when any fetch fails, scoped to the story for a 404 and to the upstream for a 5xx", async () => {
     const story = { title: 'A story', excerpt: null, items: [item('hn', '50544168')] };
 
     const failing = inputsService(
       story,
       summaryFixtureFetch({ failing: ['hn.algolia.com'] }).fetch,
     );
-    await expect(failing.collectSummaryInputs('story-1')).rejects.toBeInstanceOf(
-      SummaryInputsUnavailableError,
+    await expect(failing.collectSummaryInputs('story-1')).rejects.toEqual(
+      expect.objectContaining({ name: 'SummaryInputsUnavailableError', scope: 'upstream' }),
     );
 
     const missing = inputsService(
       { ...story, items: [item('devto', '999')] },
       summaryFixtureFetch().fetch,
     );
-    await expect(missing.collectSummaryInputs('story-1')).rejects.toBeInstanceOf(
+    const error = await missing.collectSummaryInputs('story-1').catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(SummaryInputsUnavailableError);
+    expect(error).toMatchObject({ scope: 'story' });
+  });
+
+  it("cancels the story's queued Dev.to requests once one of its fetches failed", async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ missing: ['/comments'] });
+    const service = inputsService(
+      { title: 'A post', excerpt: null, items: [item('devto', '5071647')] },
+      fixtureFetch,
+    );
+
+    await expect(service.collectSummaryInputs('story-1')).rejects.toBeInstanceOf(
       SummaryInputsUnavailableError,
     );
+
+    expect(requests).toEqual(['https://dev.to/api/comments?a_id=5071647']);
+  });
+
+  it('makes no request once the signal has aborted', async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch();
+    const service = inputsService(
+      { title: 'A story', excerpt: null, items: [item('hn', '50544168'), item('devto', '5071647')] },
+      fixtureFetch,
+    );
+
+    await expect(
+      service.collectSummaryInputs('story-1', { signal: AbortSignal.abort() }),
+    ).rejects.toMatchObject({ scope: 'upstream' });
+    expect(requests).toEqual([]);
+  });
+
+  it('keeps at most 4 Algolia requests in flight across all stories at once', async () => {
+    const { fetch: fixtureFetch } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    let inFlight = 0;
+    let mostInFlight = 0;
+    const countingFetch: typeof fetch = async (input, init) => {
+      inFlight += 1;
+      mostInFlight = Math.max(mostInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return fixtureFetch(input, init);
+    };
+    const story = (id: string) => ({
+      id,
+      title: id,
+      excerpt: null,
+      items: ['1', '2', '3'].map((n) => item('hn', `${id}${n}`)),
+    });
+    const service = inputsService([story('10'), story('20')], countingFetch);
+
+    await Promise.all([service.collectSummaryInputs('10'), service.collectSummaryInputs('20')]);
+
+    expect(mostInFlight).toBe(4);
   });
 
   it('throws NOT_FOUND for an unknown story', async () => {

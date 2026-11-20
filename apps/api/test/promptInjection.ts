@@ -30,7 +30,7 @@ export function promptInjectionRequest() {
   return summaryRequest({
     title: "C's designated initializers give us named arguments",
     text: null,
-    threads: [parseAlgoliaThread(readSummaryFixture('hn-algolia', 'prompt-injection'))],
+    threads: [parseAlgoliaThread(readSummaryFixture('hn-algolia', 'prompt-injection')).comments],
   });
 }
 

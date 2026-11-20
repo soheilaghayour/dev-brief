@@ -29,16 +29,24 @@ interface SummaryFixtureOptions {
   hnFallbackId?: string;
   /** Requests whose URL contains one of these strings answer HTTP 500. */
   failing?: string[];
+  /** Requests whose URL contains one of these strings answer HTTP 404, even with a fallback. */
+  missing?: string[];
 }
 
 /** A `fetch` stand-in that serves the recorded comment and article payloads and lists every URL requested. */
-export function summaryFixtureFetch({ hnFallbackId, failing = [] }: SummaryFixtureOptions = {}) {
+export function summaryFixtureFetch({
+  hnFallbackId,
+  failing = [],
+  missing = [],
+}: SummaryFixtureOptions = {}) {
   const requests: string[] = [];
   const fetchStub: typeof fetch = async (input) => {
     const url = new URL(String(input));
     requests.push(url.href);
     if (failing.some((part) => url.href.includes(part))) return new Response('', { status: 500 });
-    const path = fixturePath(url, hnFallbackId);
+    const path = missing.some((part) => url.href.includes(part))
+      ? undefined
+      : fixturePath(url, hnFallbackId);
     if (!path) return Response.json({ error: 'not found' }, { status: 404 });
     return new Response(readFileSync(path), { headers: { 'content-type': 'application/json' } });
   };

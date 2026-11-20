@@ -39,18 +39,18 @@ export class SummariesService {
     return summary;
   }
 
-  /** Returns the stored summary, or generates and stores one; throws `NOT_FOUND`, `SummaryInputsUnavailableError`, `SpendCapReachedError` or `GenerationFailedError`. */
+  /** Returns the stored summary, or generates and stores one; throws `NOT_FOUND`, `SummaryInputsUnavailableError` (also when `signal` aborts the fetches), `SpendCapReachedError` or `GenerationFailedError`. */
   async generate(
     storyId: string,
     trigger: SummaryTrigger,
-    { userId }: { userId?: string } = {},
+    { userId, signal }: { userId?: string; signal?: AbortSignal } = {},
   ): Promise<GenerateResult> {
     // A cached summary costs no fetch and no LLM call.
     const existing = await this.find(storyId);
     if (existing) return { kind: 'cached', summary: existing };
 
     const { system, prompt, basedOnComments } = summaryRequest(
-      await this.inputs.collectSummaryInputs(storyId),
+      await this.inputs.collectSummaryInputs(storyId, { signal }),
     );
     const result = await this.llm.generateStructured({
       feature: FEATURE_BY_TRIGGER[trigger],

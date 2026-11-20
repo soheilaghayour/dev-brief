@@ -1,9 +1,7 @@
 import { Test } from '@nestjs/testing';
 import type { MockLanguageModelV4 } from 'ai/test';
 import { ENV, EnvModule } from '../../src/common/env/env.module.js';
-import { HttpClient } from '../../src/common/http/httpClient.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
-import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { loadEnv } from '../../src/env.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { IngestionModule } from '../../src/modules/ingestion/ingestion.module.js';
@@ -13,6 +11,7 @@ import { SummariesModule } from '../../src/modules/summaries/summaries.module.js
 import { SummaryInputsService } from '../../src/modules/summaries/summaryInputs.service.js';
 import { mockLanguageModel } from '../mockLanguageModel.js';
 import { summaryFixtureFetch } from '../summaryFixtures.js';
+import { summaryInputsOverride } from './createTestApp.js';
 
 /** Summaries on, with a key the mock model never sends. */
 export const SUMMARIES_ON = { FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
@@ -47,16 +46,7 @@ export async function createSummariesModule({
     .overrideProvider(LANGUAGE_MODEL)
     .useValue(model)
     .overrideProvider(SummaryInputsService)
-    .useFactory({
-      // random = 0 makes retry backoff instant, and the Dev.to gap is not waited out.
-      factory: (prisma: PrismaService) =>
-        new SummaryInputsService(
-          prisma,
-          new HttpClient(upstream.fetch, () => 0),
-          async () => undefined,
-        ),
-      inject: [PrismaService],
-    })
+    .useFactory(summaryInputsOverride(upstream.fetch))
     .compile();
   await moduleRef.init();
   return { moduleRef, model, upstreamRequests: upstream.requests };

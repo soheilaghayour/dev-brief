@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { HttpClient, type HttpRequestOptions } from '../../../common/http/httpClient.js';
-import { mapWithConcurrency } from '../../../common/http/mapWithConcurrency.js';
 import type { Source } from '../../../generated/prisma/client.js';
 import type { RawItem, SourceAdapter } from '../sourceAdapter.js';
 
@@ -49,6 +48,23 @@ function toRawItem(item: HnItem & { title: string; time: number }): RawItem {
     excerpt: null,
     readingTimeMinutes: null,
   };
+}
+
+async function mapWithConcurrency<Input, Output>(
+  inputs: readonly Input[],
+  concurrency: number,
+  work: (input: Input) => Promise<Output>,
+) {
+  const outputs: Output[] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < inputs.length) {
+      const index = next++;
+      outputs[index] = await work(inputs[index] as Input);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, inputs.length) }, worker));
+  return outputs;
 }
 
 /** Reads the HN front page from the Firebase API: `topstories`, then one `item` call per id. */

@@ -2,41 +2,56 @@ import { z } from 'zod';
 import { toPlainText } from '../../common/text/plainText.js';
 import type { CommentNode } from './flattenComments.js';
 
-type AlgoliaComment = { text?: string | null; children: AlgoliaComment[] };
-type DevtoComment = { body_html: string; children: DevtoComment[] };
+type ParsedComment = { text: string | null; children: unknown[] };
 
-// A deleted HN comment keeps its place in the tree with a null text.
-const AlgoliaCommentSchema: z.ZodType<AlgoliaComment> = z.lazy(() =>
-  z.object({ text: z.string().nullish(), children: z.array(AlgoliaCommentSchema) }),
-);
-const AlgoliaItemSchema = z.object({ children: z.array(AlgoliaCommentSchema) });
+// A deleted HN comment keeps its place in the tree with a null text. Children are parsed node by node, so one malformed reply is dropped alone.
+const AlgoliaCommentSchema = z
+  .object({ text: z.string().nullish(), children: z.array(z.unknown()) })
+  .transform(({ text, children }): ParsedComment => ({
+    text: text ? toPlainText(text) : null,
+    children,
+  }));
+const AlgoliaItemSchema = z.object({ children: z.array(z.unknown()) });
 
-const DevtoCommentSchema: z.ZodType<DevtoComment> = z.lazy(() =>
-  z.object({ body_html: z.string(), children: z.array(DevtoCommentSchema) }),
-);
-const DevtoCommentsSchema = z.array(DevtoCommentSchema);
+const DevtoCommentSchema = z
+  .object({ body_html: z.string(), children: z.array(z.unknown()) })
+  .transform(({ body_html, children }): ParsedComment => ({
+    text: toPlainText(body_html),
+    children,
+  }));
+const DevtoCommentsSchema = z.array(z.unknown());
 
 const DevtoArticleSchema = z.object({ body_markdown: z.string() });
 
-function fromAlgolia(comment: AlgoliaComment): CommentNode {
-  return {
-    text: comment.text ? toPlainText(comment.text) : null,
-    children: comment.children.map(fromAlgolia),
-  };
+/** A thread's comment trees as plain text, and how many malformed comments were dropped with their replies. */
+export type ParsedThread = { comments: CommentNode[]; dropped: number };
+
+function parseCommentTrees(
+  nodes: readonly unknown[],
+  schema: z.ZodType<ParsedComment, z.ZodTypeDef, unknown>,
+): ParsedThread {
+  let dropped = 0;
+  const parseLevel = (level: readonly unknown[]): CommentNode[] =>
+    level.flatMap((node) => {
+      const parsed = schema.safeParse(node);
+      if (!parsed.success) {
+        dropped += 1;
+        return [];
+      }
+      return [{ text: parsed.data.text, children: parseLevel(parsed.data.children) }];
+    });
+  const comments = parseLevel(nodes);
+  return { comments, dropped };
 }
 
-function fromDevto(comment: DevtoComment): CommentNode {
-  return { text: toPlainText(comment.body_html), children: comment.children.map(fromDevto) };
-}
-
-/** The comment tree of an HN Algolia `items/{id}` payload, as plain text; throws on a payload of another shape. */
+/** The comment tree of an HN Algolia `items/{id}` payload; throws when the payload as a whole has another shape. */
 export function parseAlgoliaThread(payload: unknown) {
-  return AlgoliaItemSchema.parse(payload).children.map(fromAlgolia);
+  return parseCommentTrees(AlgoliaItemSchema.parse(payload).children, AlgoliaCommentSchema);
 }
 
-/** The comment tree of a Dev.to `comments?a_id=` payload, as plain text; throws on a payload of another shape. */
+/** The comment tree of a Dev.to `comments?a_id=` payload; throws when the payload as a whole has another shape. */
 export function parseDevtoThread(payload: unknown) {
-  return DevtoCommentsSchema.parse(payload).map(fromDevto);
+  return parseCommentTrees(DevtoCommentsSchema.parse(payload), DevtoCommentSchema);
 }
 
 /** The plain text of a Dev.to `articles/{id}` payload's Markdown body; throws on a payload of another shape. */

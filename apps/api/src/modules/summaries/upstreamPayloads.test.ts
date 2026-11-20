@@ -9,8 +9,11 @@ function countComments(nodes: readonly CommentNode[]): number {
 
 describe('upstream comment payloads', () => {
   it('reads the recorded HN Algolia tree as plain text, nested replies included', () => {
-    const thread = parseAlgoliaThread(readSummaryFixture('hn-algolia', '50544168'));
+    const { comments: thread, dropped } = parseAlgoliaThread(
+      readSummaryFixture('hn-algolia', '50544168'),
+    );
 
+    expect(dropped).toBe(0);
     expect(thread).toHaveLength(12);
     expect(countComments(thread)).toBe(46);
     // The payload's HTML entities ("Amiga&#x27;s") are decoded.
@@ -18,15 +21,38 @@ describe('upstream comment payloads', () => {
   });
 
   it('keeps a deleted HN comment as a null text so its replies stay in the tree', () => {
-    const thread = parseAlgoliaThread({
+    const { comments } = parseAlgoliaThread({
       children: [{ text: null, children: [{ text: '<p>still here</p>', children: [] }] }],
     });
 
-    expect(thread).toEqual([{ text: null, children: [{ text: 'still here', children: [] }] }]);
+    expect(comments).toEqual([{ text: null, children: [{ text: 'still here', children: [] }] }]);
+  });
+
+  it('drops a malformed comment with its replies and counts it, keeping the rest of the thread', () => {
+    const algolia = parseAlgoliaThread({
+      children: [
+        { text: 'kept', children: [{ text: 42, children: [] }] },
+        { text: 'no children array' },
+        { text: 'also kept', children: [] },
+      ],
+    });
+    expect(algolia).toEqual({
+      comments: [
+        { text: 'kept', children: [] },
+        { text: 'also kept', children: [] },
+      ],
+      dropped: 2,
+    });
+
+    const devto = parseDevtoThread([
+      { body_html: '<p>kept</p>', children: [] },
+      { body_html: null, children: [{ body_html: 'lost with its parent', children: [] }] },
+    ]);
+    expect(devto).toEqual({ comments: [{ text: 'kept', children: [] }], dropped: 1 });
   });
 
   it('reads the recorded Dev.to comments as plain text', () => {
-    const thread = parseDevtoThread(readSummaryFixture('devto-comments', '5071647'));
+    const { comments: thread } = parseDevtoThread(readSummaryFixture('devto-comments', '5071647'));
 
     expect(countComments(thread)).toBe(13);
     expect(thread[1]?.text).toBe("i didn't know it was opensource, nice 😃");

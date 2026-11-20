@@ -1,7 +1,10 @@
 import type { TestingModule } from '@nestjs/testing';
+import { APICallError } from 'ai';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
 import { utcDay } from '../../src/modules/llm/budget.js';
+import { AutoSummariesStep } from '../../src/modules/summaries/autoSummaries.step.js';
+import { AUTO_ATTEMPTS_PER_RUN } from '../../src/modules/summaries/summaryRules.js';
 import { modelReply } from '../mockLanguageModel.js';
 import { createSource } from './seedStories.js';
 import {
@@ -168,11 +171,11 @@ describe('auto summaries', () => {
     expect(status).toBe('skipped');
   });
 
-  it('moves on to the next story when one story fails, and leaves the failed one for a later run', async () => {
+  it("moves on to the next story when one story's thread is gone or its output fails validation", async () => {
     await createStories(3);
     const { ingestion, model } = await createIngestion({
-      // s0 (rank 3) can't load its thread; s1 (rank 2) gets output that fails validation twice.
-      fixtures: { hnFallbackId: '50544168', failing: ['/items/1000'] },
+      // s0 (rank 3) answers 404; s1 (rank 2) gets output that fails validation twice.
+      fixtures: { hnFallbackId: '50544168', missing: ['/items/1000'] },
       doGenerate: async (options) =>
         promptOf(options).includes('Story s1')
           ? modelReply({ ...MODEL_OUTPUT, tldr: ['<b>bold</b>', 'two', 'three'] })
@@ -184,6 +187,88 @@ describe('auto summaries', () => {
     expect(storiesSummarised(model)).toEqual(['s1', 's1', 's2']);
     const summarised = await prisma.summary.findMany({ include: { story: true } });
     expect(summarised.map((summary) => summary.story.title)).toEqual(['Story s2']);
+  });
+
+  it('stops the step after the first story when HN Algolia fails, so an outage costs one story of requests', async () => {
+    await createStories(30);
+    const { ingestion, model, upstreamRequests } = await createIngestion({
+      fixtures: { failing: ['hn.algolia.com'] },
+    });
+
+    await ingestion.run();
+
+    // One request and its 2 retries, all for the top story.
+    expect(upstreamRequests).toEqual(
+      Array(3).fill('https://hn.algolia.com/api/v1/items/1000'),
+    );
+    expect(model.doGenerateCalls).toHaveLength(0);
+  });
+
+  it('stops the step after one call when the provider answers 4xx, which the spend cap never sees', async () => {
+    await createStories(5);
+    const { ingestion, model } = await createIngestion({
+      doGenerate: async () => {
+        throw new APICallError({
+          message: 'invalid x-api-key',
+          url: 'https://api.anthropic.com/v1/messages',
+          requestBodyValues: {},
+          statusCode: 401,
+        });
+      },
+    });
+
+    await ingestion.run();
+
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(await prisma.summary.count()).toBe(0);
+  });
+
+  it(`tries at most ${AUTO_ATTEMPTS_PER_RUN} stories per run, failed ones included`, async () => {
+    await createStories(AUTO_ATTEMPTS_PER_RUN + 5);
+    const { ingestion, upstreamRequests } = await createIngestion({
+      // Every thread answers 404, a failure of the story alone, so the step keeps going.
+      fixtures: { missing: ['hn.algolia.com'] },
+    });
+
+    await ingestion.run();
+
+    expect(upstreamRequests).toHaveLength(AUTO_ATTEMPTS_PER_RUN);
+  });
+
+  it('skips a story whose auto call failed earlier today until the next UTC day', async () => {
+    await createStories(3);
+    const [s0, s1] = await prisma.story.findMany({ orderBy: { rankScore: 'desc' }, take: 2 });
+    const failedCall = (refId: string, day: Date) =>
+      prisma.llmUsage.create({
+        data: {
+          day,
+          feature: 'summary_auto',
+          model: 'claude-haiku-5-5',
+          status: 'failed',
+          reservedUsd: '0.00075',
+          costUsd: '0',
+          refId,
+        },
+      });
+    await failedCall(s0!.id, utcDay(new Date()));
+    await failedCall(s1!.id, new Date(utcDay(new Date()).getTime() - DAY_MS));
+    const { ingestion, model } = await createIngestion();
+
+    await ingestion.run();
+
+    expect(storiesSummarised(model)).toEqual(['s1', 's2']);
+  });
+
+  it('makes no fetch and no LLM call once the run budget is spent', async () => {
+    await createStories(2);
+    const { moduleRef: current, model, upstreamRequests } = await createIngestion();
+
+    await current
+      .get(AutoSummariesStep)
+      .run({ runId: 'spent', now: new Date(), signal: AbortSignal.abort() });
+
+    expect(upstreamRequests).toHaveLength(0);
+    expect(model.doGenerateCalls).toHaveLength(0);
   });
 
   it('runs only with both FEATURE_SUMMARIES and AUTO_SUMMARIES on, so e2e never calls the live model', async () => {

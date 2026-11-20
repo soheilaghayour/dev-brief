@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEVTO_REQUEST_GAP_MS } from '../../../common/devto/devtoApi.js';
+import { DEVTO_REQUEST_GAP_MS, DevtoClient } from '../../../common/devto/devtoClient.js';
 import { HttpClient } from '../../../common/http/httpClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
 import {
@@ -16,8 +16,9 @@ function adapterWith(
   fetchStub: typeof fetch,
   pause: (ms: number) => Promise<unknown> = async () => undefined,
 ) {
-  // random = 0 makes retry backoff instant
-  return { adapter: new DevtoAdapter(new HttpClient(fetchStub, () => 0), pause), pause };
+  // random = 0 makes retry backoff instant; a frozen clock makes every gap the full one.
+  const devto = new DevtoClient(new HttpClient(fetchStub, () => 0), pause, () => 0);
+  return { adapter: new DevtoAdapter(devto), pause };
 }
 
 afterEach(() => vi.useRealTimers());
