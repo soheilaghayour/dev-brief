@@ -21,6 +21,8 @@ overrides:
   better-call>zod: ^4.5.4
   # Better Auth's Prisma adapter puts the Prisma CLI in the prod graph; its effect 3.20 has GHSA-7589-6fvf-x4pw.
   '@prisma/config>effect': ^3.22.1
+  # @a2ui/react's unused Markdown helper pins dompurify 3.4.11, which has moderate and low advisories.
+  '@a2ui/markdown-it>dompurify': ^3.4.18
 auditConfig:
   ignoreGhsas:
     - GHSA-mrhx-c7xc-m3w5

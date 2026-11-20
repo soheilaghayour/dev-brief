@@ -10,7 +10,8 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./a2ui/fixtures/*": "./src/a2ui/fixtures/*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

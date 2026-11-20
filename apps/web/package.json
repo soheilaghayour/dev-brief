@@ -11,6 +11,8 @@
     "size": "node scripts/checkBundleBudgets.mjs"
   },
   "dependencies": {
+    "@a2ui/react": "0.15.0",
+    "@a2ui/web_core": "0.15.0",
     "@devbrief/shared": "workspace:*",
     "@sentry/nextjs": "^10.78.0",
     "@tanstack/react-query": "^5.108.0",
