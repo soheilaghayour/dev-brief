@@ -2,7 +2,7 @@ import type { MutationOptions, QueryClient } from '@tanstack/react-query';
 import { FEED_LIST_MAX } from '@devbrief/shared';
 import type { Preferences } from '@devbrief/shared';
 import type { PreferenceKind, PreferenceMode } from '@/lib/guest/preferences';
-import { PREFS_KEY } from './prefsQuery';
+import { PREFS_KEY } from './usePreferenceState';
 
 const PREFS_MUTATION_KEY = ['prefs', 'put'] as const;
 

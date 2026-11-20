@@ -1,14 +1,21 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useQuery } from '@tanstack/react-query';
 import { isFeatureEnabled } from '@/config/features';
 import { useMe } from '@/lib/auth/useMe';
 import { useGuestStore } from '@/lib/guest/guestStore';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
 import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
 import { toFeedParams } from '@/lib/guest/preferences';
-import { prefsQueryOptions } from './prefsQuery';
+
+export const PREFS_KEY = ['prefs'] as const;
+
+export const prefsQueryOptions = queryOptions({
+  queryKey: PREFS_KEY,
+  // The endpoints module (and Zod with it) loads on the first request, not with the page.
+  queryFn: async () => (await import('@/lib/api/endpoints')).getPreferences(),
+});
 
 /**
  * The read side of `usePreferences()`: the account's preferences when signed in, this device's otherwise.

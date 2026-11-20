@@ -10,7 +10,7 @@ import {
   preferenceFullNotice,
   preferencesMutationOptions,
 } from './accountPreferences';
-import { prefsQueryOptions } from './prefsQuery';
+import { prefsQueryOptions } from './usePreferenceState';
 
 function announce(outcome: PreferenceOutcome, kind: PreferenceKind, mode: PreferenceMode | null) {
   if (outcome === 'full' && mode) void notify(preferenceFullNotice(kind, mode));
