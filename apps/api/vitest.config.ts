@@ -1,12 +1,17 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
-// Defaults come from the root .env.example (the one home of local values); real env vars win, as in CI.
-const defaultEnv = parseEnv(readFileSync(new URL('../../.env.example', import.meta.url), 'utf8'));
-const testEnv = { ...defaultEnv, ...process.env };
+// Same precedence as the dotenv-cli scripts: real env vars (CI), then the root .env, then .env.example.
+const readEnvFile = (name: string) => {
+  const file = new URL(`../../${name}`, import.meta.url);
+  return existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
+};
+const testEnv = { ...readEnvFile('.env.example'), ...readEnvFile('.env'), ...process.env };
+// test.env below reaches only the workers; globalSetup (migrations) runs here and reads process.env.
+process.env.DATABASE_URL = testEnv.DATABASE_URL_TEST;
 
 // SWC emits the decorator metadata Nest's dependency injection reads; esbuild does not.
 export default defineConfig({

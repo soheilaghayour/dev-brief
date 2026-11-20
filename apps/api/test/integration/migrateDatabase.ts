@@ -3,7 +3,7 @@ import pg from 'pg';
 
 /** Vitest global setup: creates the test database if missing, then applies every migration once per run. */
 export default async function migrateDatabase() {
-  // vitest.config.ts sets DATABASE_URL to DATABASE_URL_TEST for the test run; db:deploy inherits it.
+  // vitest.config.ts sets DATABASE_URL to DATABASE_URL_TEST in this process; db:deploy inherits it.
   const url = new URL(process.env.DATABASE_URL ?? '');
   const database = url.pathname.slice(1);
   url.pathname = '/postgres';
