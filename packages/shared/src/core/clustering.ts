@@ -1,7 +1,7 @@
 // PRD F2.1: the pure half of the clustering step. Postgres supplies `trgm`; the model call lives in the API.
 
 /** A candidate needs `candidateScore` of at least this; it decides only whether a model call is worth making. Tuned on the fixture for recall. */
-export const CLUSTER_CANDIDATE_MIN_SCORE = 0.25;
+export const CLUSTER_CANDIDATE_MIN_SCORE = 0.2;
 /** The model's confidence at which a match joins a cluster; tuned on the fixture for precision. */
 export const CLUSTER_MIN_CONFIDENCE = 0.8;
 export const CLUSTER_MAX_SIZE = 12;
@@ -80,23 +80,39 @@ function isProductLike(word: string) {
   );
 }
 
+// A patch version also counts as its release line: "26.5.0" and "26.5" are the same release in two headlines.
+function addVersion(tokens: Set<string>, version: string) {
+  tokens.add(version);
+  tokens.add(version.split('.').slice(0, 2).join('.'));
+}
+
 /** Capitalised or product-like title words, version strings, the repo slug and a project domain, lowercased. */
 export function entityTokens(title: string, url: string): Set<string> {
   const tokens = new Set<string>();
   const words = title.normalize('NFKC').match(/[\p{L}\p{N}][\p{L}\p{N}.+#_-]*/gu) ?? [];
+  let afterName = false;
   for (const raw of words) {
     const word = raw.replace(/[.\-+_#]+$/, '');
     const version = VERSION.exec(word);
     if (version?.[1]) {
-      tokens.add(version[1]);
+      addVersion(tokens, version[1]);
+      afterName = false;
+      continue;
+    }
+    // "SQLite 4" and "SQLite 4.0" name the same version.
+    if (/^\d{1,3}$/.test(word)) {
+      if (afterName) addVersion(tokens, `${word}.0`);
+      afterName = false;
       continue;
     }
     const lower = word.toLowerCase();
+    afterName = false;
     if (lower.length < 2 || STOPLIST.has(lower)) continue;
-    // A bare number is not a name.
-    if (/^\d+$/.test(word)) continue;
     const capitalised = /^\p{Lu}/u.test(word);
-    if (capitalised || isProductLike(word)) tokens.add(lower);
+    if (capitalised || isProductLike(word)) {
+      tokens.add(lower);
+      afterName = true;
+    }
   }
   const parsed = parseUrl(url);
   if (parsed) {

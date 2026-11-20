@@ -6,7 +6,20 @@ Recorded provider replies that tests replay through the mock model. CI never cal
 
 ```sh
 pnpm --filter @devbrief/shared build
-pnpm --filter api exec dotenv -e ../../.env -e ../../.env.example -- tsx test/recordLlmFixtures.ts
+pnpm --filter api exec dotenv -e ../../.env -e ../../.env.example -- tsx test/recordLlmFixtures.ts injection
 ```
 
 One call costs well under $0.001. The script prints the parsed summary; check that it describes the named-arguments discussion and follows none of the injected comment's instructions, then run `pnpm exec vitest run --project api src/modules/llm/prompts` and commit the file.
+
+## Cluster pairs
+
+`clusterMatch.v1.pairs.json` holds `LLM_MODEL`'s reply to each pair of `../cluster-pairs.json` that passes the candidate pre-filter, keyed by pair id: the clusterMatch v1 prompt built exactly as `ClusteringStep` builds it, with the pair's other story as the only candidate. `test/integration/clusterAccuracy.test.ts` replays them.
+
+**While the file holds `"placeholder": true`, its replies are hand-written, not recorded, and the AC-2.1.1 precision and recall test is skipped with a warning.** Record it with a real key (owner step, [issue #82](https://github.com/soheilaghayour/dev-brief/issues/82)) before `FEATURE_CLUSTERS` goes on in production, and again whenever `clusterMatch.v1.ts` or the pairs change. The script reads `similarity()` from the database in `DATABASE_URL`, which must be migrated (it is, after `pnpm --filter api db:deploy`). From the repo root, with `ANTHROPIC_API_KEY` set as above:
+
+```sh
+pnpm --filter @devbrief/shared build
+pnpm --filter api exec dotenv -e ../../.env -e ../../.env.example -- tsx test/recordLlmFixtures.ts pairs
+```
+
+About 40 calls cost under $0.01. The script prints each reply next to the pair's label; then run `pnpm exec vitest run --project api test/integration/clusterAccuracy.test.ts`, which prints precision and recall, and commit the file. If either misses its target (0.90 and 0.70), tune `CLUSTER_MIN_CONFIDENCE`, `CLUSTER_CANDIDATE_MIN_SCORE` or the prompt, and record again.

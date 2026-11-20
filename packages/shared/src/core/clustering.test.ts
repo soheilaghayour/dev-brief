@@ -20,7 +20,7 @@ describe('constants', () => {
       CLUSTER_MAX_SIZE,
       CLUSTER_MAX_CANDIDATES,
       CLUSTER_SIGNAL_WEIGHTS,
-    ]).toEqual([0.25, 0.8, 12, 5, { trgm: 0.55, ent: 0.35, link: 0.1 }]);
+    ]).toEqual([0.2, 0.8, 12, 5, { trgm: 0.55, ent: 0.35, link: 0.1 }]);
   });
 });
 
@@ -33,6 +33,12 @@ describe('entityTokens', () => {
     expect(tokens).toEqual(
       new Set(['typescript', '5.2', 'node.js', '22.1', 'k8s', 'microsoft/typescript']),
     );
+  });
+
+  it('counts a patch version as its release line, and a bare number after a name as that major version', () => {
+    expect(entityTokens('Node.js v26.5.0 (Current)', 'https://nodejs.org/x')).toContain('26.5');
+    const bare = entityTokens('SQLite 4 is here', 'https://dev.to/x');
+    expect(bare).toEqual(entityTokens('SQLite 4.0 announced', 'https://dev.to/y'));
   });
 
   it('drops the stoplist and plain lowercase words, and ignores hosting domains', () => {
