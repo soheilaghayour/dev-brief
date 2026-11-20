@@ -1,4 +1,4 @@
-// Fails when a gated route's first-load JS exceeds its budget in bundle-budgets.json.
+// Fails when a gated route's first-load JS exceeds its budget in bundle-budgets.json, or a first-load chunk lacks the compile hint.
 // Run after `next build`: pnpm --filter web size
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ import {
   manifestMatchesHtml,
   measureRoute,
 } from './bundleSize.mjs';
+import { scriptsWithoutCompileHint } from './compileHints.mjs';
 
 const webDir = fileURLToPath(new URL('..', import.meta.url));
 const budgets = JSON.parse(readFileSync(`${webDir}bundle-budgets.json`, 'utf8'));
@@ -16,6 +17,14 @@ const nextDir = `${webDir}.next`;
 // /feed and /story/[id] are measured from the build manifests, /saved from its HTML: the two methods must agree on /saved.
 if (!manifestMatchesHtml(nextDir, MANIFEST_CHECK.routeDir, MANIFEST_CHECK.htmlFile)) {
   console.error('The manifest rule no longer matches the HTML; update dynamicRouteScripts.');
+  process.exit(1);
+}
+
+const unhinted = scriptsWithoutCompileHint(nextDir);
+if (unhinted.length > 0) {
+  console.error(
+    `First-load chunks without the compile hint; did the build skip addCompileHints.mjs?\n${unhinted.join('\n')}`,
+  );
   process.exit(1);
 }
 
