@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { StoryCard } from '@devbrief/shared';
-import { getSaves, lookupStories } from '@/lib/api/endpoints';
 import { SAVE_LIST_KEY } from './accountSaves';
 import { notify } from './notify';
 import { lookupInChunks, orderSavedStories, unavailableNotice } from './savedStories';
@@ -36,7 +35,10 @@ export function useSavedStories(): SavedStories {
   const guestLookup = useGuestLookup(mode === 'guest' && isReady, guest);
   const account = useInfiniteQuery({
     queryKey: SAVE_LIST_KEY,
-    queryFn: ({ pageParam }) => getSaves({ cursor: pageParam }),
+    queryFn: async ({ pageParam }) => {
+      const { getSaves } = await import('@/lib/api/endpoints');
+      return getSaves({ cursor: pageParam });
+    },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: mode === 'account',
@@ -68,7 +70,10 @@ function useGuestLookup(enabled: boolean, guest: ReturnType<typeof useGuestSaves
 
   const query = useQuery({
     queryKey: ['saves', 'guestLookup', lookupIds],
-    queryFn: () => lookupInChunks(lookupIds ?? [], lookupStories),
+    queryFn: async () => {
+      const { lookupStories } = await import('@/lib/api/endpoints');
+      return lookupInChunks(lookupIds ?? [], lookupStories);
+    },
     enabled: lookupIds !== null && lookupIds.length > 0,
   });
   const { data } = query;
@@ -76,8 +81,9 @@ function useGuestLookup(enabled: boolean, guest: ReturnType<typeof useGuestSaves
   // A refetch reports the same missing ids again; only saves actually removed are announced.
   useEffect(() => {
     if (!data) return;
-    const removed = removeUnavailable(data.missingIds);
-    if (removed > 0) void notify(unavailableNotice(removed));
+    void removeUnavailable(data.missingIds).then((removed) => {
+      if (removed > 0) void notify(unavailableNotice(removed));
+    });
   }, [data, removeUnavailable]);
 
   function retry() {

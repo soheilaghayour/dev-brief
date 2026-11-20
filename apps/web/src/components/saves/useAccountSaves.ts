@@ -3,15 +3,25 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SaveIds } from '@devbrief/shared';
-import { deleteSave, getSaveIds, putSave } from '@/lib/api/endpoints';
 import { SAVE_IDS_KEY, saveMutationOptions } from './accountSaves';
 import { notify } from './notify';
+
+// The endpoints module (and Zod with it) loads on the first request, not with the page.
+const lazyRequests = {
+  putSave: async (storyId: string) => (await import('@/lib/api/endpoints')).putSave(storyId),
+  deleteSave: async (storyId: string) => (await import('@/lib/api/endpoints')).deleteSave(storyId),
+  notify,
+};
 
 /** Saves kept in the account: ids from the API, changes applied to the cache first and rolled back on error. */
 export function useAccountSaves(enabled: boolean) {
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: SAVE_IDS_KEY, queryFn: getSaveIds, enabled });
-  const mutation = useMutation(saveMutationOptions(queryClient, { putSave, deleteSave, notify }));
+  const { data } = useQuery({
+    queryKey: SAVE_IDS_KEY,
+    queryFn: async () => (await import('@/lib/api/endpoints')).getSaveIds(),
+    enabled,
+  });
+  const mutation = useMutation(saveMutationOptions(queryClient, lazyRequests));
   const ids = useMemo(() => data?.ids ?? [], [data]);
   const savedIds = useMemo(() => new Set(ids), [ids]);
 

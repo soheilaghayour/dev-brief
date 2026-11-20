@@ -1,6 +1,6 @@
+import { cloneElement, isValidElement } from 'react';
 import type { ComponentProps } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Slot } from 'radix-ui';
 import { cn } from '@/lib/cn';
 
 const buttonVariants = cva(
@@ -35,14 +35,21 @@ const buttonVariants = cva(
 type ButtonProps = ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & { asChild?: boolean };
 
-function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
-  const Component = asChild ? Slot.Root : 'button';
+// asChild styles the single child element (a link) instead of wrapping it. Radix's Slot would do the
+// same but costs ~3 KB gzip in every route's first load, and no child here needs its ref or handler merging.
+function Button({ className, variant, size, asChild = false, children, ...props }: ButtonProps) {
+  const classes = cn(buttonVariants({ variant, size }), className);
+  if (asChild && isValidElement<{ className?: string }>(children)) {
+    return cloneElement(children, {
+      ...props,
+      'data-slot': 'button',
+      className: cn(classes, children.props.className),
+    } as Partial<typeof children.props>);
+  }
   return (
-    <Component
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size }), className)}
-      {...props}
-    />
+    <button data-slot="button" className={classes} {...props}>
+      {children}
+    </button>
   );
 }
 

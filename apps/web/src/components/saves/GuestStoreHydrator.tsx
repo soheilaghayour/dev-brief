@@ -5,7 +5,7 @@ import { followOtherTabs, hydrateGuestStore } from '@/lib/guest/hydrateGuestStor
 import { useMergeOnSignIn } from './useMergeOnSignIn';
 
 function loadAndFollow() {
-  hydrateGuestStore();
+  void hydrateGuestStore();
   return followOtherTabs();
 }
 

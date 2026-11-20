@@ -11,7 +11,8 @@ async function loadStore(browser: { localStorage: Storage } | { readonly localSt
   vi.stubGlobal('window', browser);
   const { useGuestStore } = await import('./guestStore');
   const { clearGuestData } = await import('./clear');
-  return { useGuestStore, clearGuestData };
+  const { hydrateGuestStore } = await import('./hydrateGuestStore');
+  return { useGuestStore, clearGuestData, hydrateGuestStore };
 }
 
 function fakeLocalStorage(initial: Record<string, string> = {}) {
@@ -35,8 +36,8 @@ afterEach(() => {
 describe('guest store', () => {
   it('AC-1.4.2 persists under devbrief:guest:v1 in the flat shape and survives a reload', async () => {
     const { items, localStorage } = fakeLocalStorage();
-    const { useGuestStore } = await loadStore({ localStorage });
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
     useGuestStore.getState().toggleSave(A, NOW);
 
     const stored = JSON.parse(items.get(STORAGE_KEY) ?? 'null');
@@ -49,15 +50,15 @@ describe('guest store', () => {
     });
 
     const reloaded = await loadStore({ localStorage });
-    await reloaded.useGuestStore.persist.rehydrate();
+    await reloaded.hydrateGuestStore();
     expect(reloaded.useGuestStore.getState().saves).toEqual(stored.saves);
     expect(reloaded.useGuestStore.getState().deviceId).toBe(stored.deviceId);
   });
 
   it('recovers from corrupted storage with an empty list', async () => {
     const { localStorage } = fakeLocalStorage({ [STORAGE_KEY]: '{"version":1,"saves":"nope"' });
-    const { useGuestStore } = await loadStore({ localStorage });
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
     expect(useGuestStore.getState().saves).toEqual([]);
   });
 
@@ -68,8 +69,8 @@ describe('guest store', () => {
         hintDismissed: true,
       }),
     });
-    const { useGuestStore } = await loadStore({ localStorage });
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
     expect(useGuestStore.getState().saves).toEqual([{ storyId: A, savedAt: NOW.toISOString() }]);
     expect(useGuestStore.getState().hintDismissed).toBe(true);
   });
@@ -80,16 +81,16 @@ describe('guest store', () => {
         throw new DOMException('blocked', 'SecurityError');
       },
     };
-    const { useGuestStore } = await loadStore(blocked);
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, hydrateGuestStore } = await loadStore(blocked);
+    await hydrateGuestStore();
     expect(() => useGuestStore.getState().toggleSave(A, NOW)).not.toThrow();
     expect(useGuestStore.getState().saves.map((save) => save.storyId)).toEqual([A]);
   });
 
   it('clearGuestData resets the store and removes the storage key', async () => {
     const { items, localStorage } = fakeLocalStorage();
-    const { useGuestStore, clearGuestData } = await loadStore({ localStorage });
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, clearGuestData, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
     useGuestStore.getState().toggleSave(A, NOW);
     useGuestStore.getState().dismissHint();
     expect(items.has(STORAGE_KEY)).toBe(true);
@@ -104,8 +105,8 @@ describe('guest store', () => {
   it('keeps data written by a newer app version untouched', async () => {
     const newer = JSON.stringify({ version: 2, deviceId: DEVICE_ID, saves: [], extra: true });
     const { items, localStorage } = fakeLocalStorage({ [STORAGE_KEY]: newer });
-    const { useGuestStore } = await loadStore({ localStorage });
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
     useGuestStore.getState().toggleSave(A, NOW);
 
     expect(items.get(STORAGE_KEY)).toBe(newer);
@@ -114,8 +115,8 @@ describe('guest store', () => {
 
   it('removeSaves returns how many saves it removed', async () => {
     const { localStorage } = fakeLocalStorage();
-    const { useGuestStore } = await loadStore({ localStorage });
-    await useGuestStore.persist.rehydrate();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
     useGuestStore.getState().toggleSave(A, NOW);
 
     expect(useGuestStore.getState().removeSaves([A, 'missing'])).toBe(1);

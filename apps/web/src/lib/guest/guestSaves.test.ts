@@ -55,7 +55,7 @@ describe('guest saves', () => {
   it('keeps the stored saves when a story is saved before the store has loaded', async () => {
     const { items, useGuestStore, toggleGuestSave } = await load(stored([A, B]));
 
-    toggleGuestSave(C, NOW);
+    await toggleGuestSave(C, NOW);
 
     expect(
       useGuestStore
@@ -70,12 +70,33 @@ describe('guest saves', () => {
     });
   });
 
+  it('drops invalid stored entries when a story is saved before the parser has loaded', async () => {
+    const withJunk = JSON.stringify({
+      ...JSON.parse(stored([A])),
+      saves: [...JSON.parse(stored([A])).saves, { storyId: 42, savedAt: 'nope' }],
+    });
+    const { items, toggleGuestSave } = await load(withJunk);
+
+    await toggleGuestSave(C, NOW);
+
+    expect(idsOf(items.get(KEY))).toEqual([A, C]);
+  });
+
+  it('loads the store once however many callers ask', async () => {
+    const { hydrateGuestStore, useGuestStore } = await load(stored([A]));
+    const rehydrate = vi.spyOn(useGuestStore.persist, 'rehydrate');
+
+    await Promise.all([hydrateGuestStore(), hydrateGuestStore()]);
+
+    expect(rehydrate).toHaveBeenCalledTimes(1);
+  });
+
   it('adds to what another tab stored instead of overwriting it', async () => {
     const { items, hydrateGuestStore, toggleGuestSave } = await load(stored([A]));
-    hydrateGuestStore();
+    await hydrateGuestStore();
 
     items.set(KEY, stored([A, B]));
-    toggleGuestSave(C, NOW);
+    await toggleGuestSave(C, NOW);
 
     expect(idsOf(items.get(KEY))).toEqual([A, B, C]);
   });
@@ -83,20 +104,22 @@ describe('guest saves', () => {
   it('removes unavailable saves once and reports how many were there', async () => {
     const { removeGuestSaves } = await load(stored([A, B]));
 
-    expect(removeGuestSaves([B, 'missing'])).toBe(1);
-    expect(removeGuestSaves([B, 'missing'])).toBe(0);
+    expect(await removeGuestSaves([B, 'missing'])).toBe(1);
+    expect(await removeGuestSaves([B, 'missing'])).toBe(0);
   });
 
   it('reloads the store when another tab changes the stored saves', async () => {
     const { items, useGuestStore, hydrateGuestStore, followOtherTabs, otherTabWrote } = await load(
       stored([A]),
     );
-    hydrateGuestStore();
+    await hydrateGuestStore();
     followOtherTabs();
 
     items.set(KEY, stored([A, B]));
     otherTabWrote(KEY);
-    expect(useGuestStore.getState().saves.map((save) => save.storyId)).toEqual([A, B]);
+    await vi.waitFor(() =>
+      expect(useGuestStore.getState().saves.map((save) => save.storyId)).toEqual([A, B]),
+    );
 
     items.set(KEY, stored([C]));
     otherTabWrote('unrelated');

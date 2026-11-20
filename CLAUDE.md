@@ -37,6 +37,7 @@ docker compose up -d                                     # local Postgres (dev a
 pnpm dev                                                 # web + api in watch mode
 pnpm test                                                # Vitest: unit + API integration against real Postgres
 pnpm lint · pnpm typecheck · pnpm build · pnpm format:check
+pnpm --filter web size                                   # after build: first-load JS per route against apps/web/bundle-budgets.json
 pnpm e2e                                                 # Playwright smoke tests in e2e/
 SMOKE_BASE_URL=<url> pnpm smoke:prod                     # public-flow smoke suite against a deployed site
 pnpm --filter api db:migrate --create-only               # new migration: only in an issue that declares one
@@ -63,6 +64,7 @@ apps/
     src/lib/hotkeys/            # shortcut registry: feeds both handlers and the help dialog
     src/content/                # landing-fixture.json: landing data when the API is unreachable at first build
     src/config/                 # features.ts: phase flags
+    scripts/                    # checkBundleBudgets.mjs: the first-load JS gate (PRD §8.5)
   api/                          # NestJS (Express) + Prisma + scheduled ingestion
     prisma/                     # schema.prisma, migrations/, seed/sources.json
     src/                        # main.ts, app.module.ts, env.ts (Zod-validated env, fail fast)
