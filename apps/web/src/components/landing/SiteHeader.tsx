@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { MenuIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/layout/Logo';
-import { ThemeToggle } from './lazyIslands';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { SIGN_IN_PATH, getLandingNav } from './landingLinks';
 
 const NAV_LINK_CLASS =

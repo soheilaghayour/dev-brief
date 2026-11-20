@@ -1,4 +1,4 @@
-import { KeycapRow } from './lazyIslands';
+import { KeycapRow } from './KeycapRow';
 import { SectionHeading } from './SectionHeading';
 
 /** The Raycast-style keycap section; only the row is interactive. */

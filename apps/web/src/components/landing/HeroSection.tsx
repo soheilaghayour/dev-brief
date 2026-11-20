@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { HeroPreview, StatsPill } from './lazyIslands';
+import { HeroPreview } from './HeroPreview';
 import { SIGN_IN_PATH } from './landingLinks';
 import type { LandingData } from './loadLandingData';
+import { StatsPill } from './StatsPill';
 
 type HeroSectionProps = { data: LandingData; host: string };
 
