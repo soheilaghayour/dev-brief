@@ -6,7 +6,9 @@ const comment = (text: string | null, children: CommentNode[] = []): CommentNode
   children,
 });
 
-const NO_LIMIT = { maxTokens: Infinity };
+// One token per character keeps the budget arithmetic readable.
+const tokensOf = (text: string) => text.length;
+const NO_LIMIT = { maxTokens: Infinity, tokensOf };
 
 describe('flattenComments', () => {
   it('orders comments breadth-first across two trees, alternating between them at each depth', () => {
@@ -34,11 +36,10 @@ describe('flattenComments', () => {
   });
 
   it('keeps comments while they fit in the token budget and skips one that does not', () => {
-    // estimateTokens: 8 characters are 4 tokens, 40 characters are 20.
     const tree = [comment('a'.repeat(8)), comment('b'.repeat(40)), comment('c'.repeat(8))];
 
-    expect(flattenComments([tree], { maxTokens: 10 })).toEqual(['a'.repeat(8), 'c'.repeat(8)]);
-    expect(flattenComments([tree], { maxTokens: 7 })).toEqual(['a'.repeat(8)]);
+    expect(flattenComments([tree], { maxTokens: 20, tokensOf })).toEqual(['a'.repeat(8), 'c'.repeat(8)]);
+    expect(flattenComments([tree], { maxTokens: 14, tokensOf })).toEqual(['a'.repeat(8)]);
   });
 
   it('counts each comment with the given cost function at its position in the result', () => {

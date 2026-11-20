@@ -47,14 +47,19 @@ describe('StorySummaryLlmSchema', () => {
     ).toBe(true);
   });
 
-  it('rejects any string with a URL or markup, the pros and cons included', () => {
+  it('rejects any string with a URL (a scheme, www. or a domain with a path) or markup, the pros and cons included', () => {
     for (const line of [
       'Read more at https://example.com today.',
       'See http://example.com for details.',
       'It is <b>fast</b>.',
       'It ends with </p> a tag.',
+      'Docs live at www.example.com for now.',
+      'The fix is at github.com/acme/widget today.',
     ]) {
       expect(StorySummaryLlmSchema.safeParse(withTldr(line)).success).toBe(false);
+    }
+    for (const line of ['It compares Node.js/Deno startup times.', 'Bun.sh ships a faster test runner.']) {
+      expect(StorySummaryLlmSchema.safeParse(withTldr(line)).success).toBe(true);
     }
     const linkedPro = { ...validOutput.consensus, pros: ['Docs at https://example.com'] };
     expect(StorySummaryLlmSchema.safeParse({ ...validOutput, consensus: linkedPro }).success).toBe(
@@ -118,6 +123,17 @@ describe('buildStorySummaryPrompt', () => {
     expect(prompt.match(/<source\b/g)).toHaveLength(3);
     expect(prompt.match(/<\/source>/g)).toHaveLength(3);
     expect(prompt).toContain('<source id="comment-1">\nNice  post\n</source>');
+  });
+
+  it('keeps the text after an unclosed <source, which is not a tag', () => {
+    const prompt = buildStorySummaryPrompt({
+      title: 'A title',
+      text: null,
+      comments: ['Compare a <source and b, then c', 'Fine'],
+    });
+
+    expect(prompt).toContain('<source id="comment-1">\nCompare a <source and b, then c\n</source>');
+    expect(prompt).toContain('<source id="comment-2">\nFine\n</source>');
   });
 
   it('counts a comment with its block delimiters', () => {

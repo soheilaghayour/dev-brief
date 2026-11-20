@@ -1,5 +1,3 @@
-import { estimateTokens } from '../llm/budget.js';
-
 /** One comment of an upstream thread as plain text; `text` is null when the comment was deleted. */
 export type CommentNode = { text: string | null; children: readonly CommentNode[] };
 
@@ -9,7 +7,7 @@ export type CommentTokens = (text: string, position: number) => number;
 /** Comment texts breadth-first across all trees, without deleted or empty comments, trimmed to `maxTokens`. */
 export function flattenComments(
   trees: readonly (readonly CommentNode[])[],
-  { maxTokens, tokensOf = estimateTokens }: { maxTokens: number; tokensOf?: CommentTokens },
+  { maxTokens, tokensOf }: { maxTokens: number; tokensOf: CommentTokens },
 ) {
   const kept: string[] = [];
   let usedTokens = 0;

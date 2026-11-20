@@ -19,11 +19,16 @@ export const INPUT_BUDGET = {
 const TITLE_MAX_TOKENS = 64;
 const TLDR_MAX_WORDS = 25;
 
-// PRD §8.2: the model can't emit URLs or HTML; `<` followed by a letter or `/` starts a tag.
-const URL_PATTERN = /https?:\/\//i;
+// PRD §8.2: no URLs (a scheme, `www.`, or a common-TLD domain with a path, so "Node.js/Deno" stays text) and no tags (`<` then a letter or `/`).
+const URL_PATTERNS = [
+  /https?:\/\//i,
+  /\bwww\./i,
+  /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|dev|app|ai|co|me|sh|ly|gg|xyz|info|so|tech|blog|site|page|us|uk|de|eu)\/\S/i,
+];
 const MARKUP_PATTERN = /<[a-z/]/i;
 
-const isPlainText = (text: string) => !URL_PATTERN.test(text) && !MARKUP_PATTERN.test(text);
+const isPlainText = (text: string) =>
+  !URL_PATTERNS.some((pattern) => pattern.test(text)) && !MARKUP_PATTERN.test(text);
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
 /** One model-written string: within its contract length, with no URL and no markup. */
@@ -68,9 +73,10 @@ export type SummaryPromptInputs = {
   comments: readonly string[];
 };
 
-/** Renders one delimited block; text that would open or close a block is cut out, so data can't end its block early. */
+/** Renders one delimited block; a complete source tag inside the data is cut out, so data can't end its block early. */
 function sourceBlock(id: string, content: string) {
-  const inert = content.replace(/<\/?\s*source\b[^>]*>?/gi, ' ');
+  // `[^<>]*>` matches only a whole tag: an unclosed `<source` stays as text instead of swallowing what follows it.
+  const inert = content.replace(/<\/?\s*source\b[^<>]*>/gi, ' ');
   return `<source id="${id}">\n${inert}\n</source>\n\n`;
 }
 
