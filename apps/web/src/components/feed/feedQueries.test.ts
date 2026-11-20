@@ -63,4 +63,11 @@ describe('personalisedPlaceholder', () => {
     expect(placeholder()).toBe(serverPage);
     expect(personalisedPlaceholder(queryClient, { ...filters, tags: ['rust'] })()).toBeUndefined();
   });
+
+  it('keeps the list the visitor was scrolling while a preference change loads the next one', () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(feedQueryOptions(filters).queryKey, feedData('server'));
+    const scrolled = feedData('a', 'b', 'c');
+    expect(personalisedPlaceholder(queryClient, filters)(scrolled)).toBe(scrolled);
+  });
 });

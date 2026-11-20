@@ -6,10 +6,7 @@ import { toFeedParams, type FeedFilters } from './feedParams';
 
 type FeedData = InfiniteData<FeedPage, string | undefined>;
 
-/**
- * The infinite feed query, shared by the server prefetch and the client list so their keys match.
- * The personal params join the request and the key but never the URL; without any, the key is the server's.
- */
+/** The infinite feed query, shared by the server prefetch and the client list so their keys match; personal params join the request and key, never the URL. */
 export function feedQueryOptions(filters: FeedFilters, personal: PersonalFeedParams = {}) {
   const params = { ...toFeedParams(filters), ...personal };
   return infiniteQueryOptions({
@@ -24,10 +21,10 @@ export function feedQueryOptions(filters: FeedFilters, personal: PersonalFeedPar
   });
 }
 
-/** While personalised stories load, the list shows the server-rendered page for these filters; the caller hides its muted cards. */
+/** While the next stories load, the list keeps what it showed, or the server-rendered page for these filters at first. */
 export function personalisedPlaceholder(queryClient: QueryClient, filters: FeedFilters) {
   const publicKey = feedQueryOptions(filters).queryKey;
-  return () => queryClient.getQueryData<FeedData>(publicKey);
+  return (previous?: FeedData) => previous ?? queryClient.getQueryData<FeedData>(publicKey);
 }
 
 export const tagsQueryOptions = queryOptions({

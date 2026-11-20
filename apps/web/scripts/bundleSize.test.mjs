@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   dynamicRouteScripts,
@@ -145,5 +146,25 @@ describe('manifestMatchesHtml', () => {
     );
 
     expect(manifestMatchesHtml(nextDir, '(app)/x', 'saved.html')).toBe(false);
+  });
+});
+
+// The gate measures /feed and /story/[id] from build manifests, which cannot show the preload link of a server-rendered dynamic import.
+describe('next/dynamic', () => {
+  it('is used only where its chunk is not server-rendered into the first load', () => {
+    const srcDir = fileURLToPath(new URL('../src', import.meta.url));
+    const users = readdirSync(srcDir, { recursive: true })
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .filter((file) => readFileSync(join(srcDir, file), 'utf8').includes("from 'next/dynamic'"))
+      .map((file) => file.replaceAll('\\', '/'))
+      .sort();
+
+    // Each renders its dynamic part with `ssr: false` or only after an interaction; a new user needs the same, and a place here.
+    expect(users).toEqual([
+      'components/account/LazyAccountSlot.tsx',
+      'components/layout/LazyToaster.tsx',
+      'components/layout/SheetLauncher.tsx',
+      'lib/hotkeys/HotkeysProvider.tsx',
+    ]);
   });
 });

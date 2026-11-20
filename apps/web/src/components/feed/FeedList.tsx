@@ -24,6 +24,7 @@ import { InfiniteSentinel } from './InfiniteSentinel';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { StoryCard } from './StoryCard';
 import { useFeedFilters } from './useFeedFilters';
+import { useFocusAfterRemoval } from './useFocusAfterRemoval';
 
 const NEXT_STORY = {
   id: 'feed-next',
@@ -90,13 +91,16 @@ export function FeedList() {
 
   const activeStory = stories.find(({ id }) => id === activeId);
 
+  function activate(storyId: string) {
+    setActiveId(storyId);
+    focusStory(storyId);
+    scrollToStory(storyId, 'nearest');
+  }
   function moveActive(step: 1 | -1) {
     const nextId = moveActiveId(stories, activeId, step);
-    if (!nextId) return;
-    setActiveId(nextId);
-    focusStory(nextId);
-    scrollToStory(nextId, 'nearest');
+    if (nextId) activate(nextId);
   }
+  const trackFocus = useFocusAfterRemoval(stories, activate);
   function goToNext() {
     moveActive(1);
   }
@@ -139,7 +143,12 @@ export function FeedList() {
   }
 
   return (
-    <div role="feed" aria-busy={isFetchingNextPage} aria-label="Stories">
+    <div
+      role="feed"
+      aria-busy={isFetchingNextPage}
+      aria-label="Stories"
+      onFocusCapture={trackFocus}
+    >
       {stories.map((story) => (
         <StoryCard
           key={story.id}

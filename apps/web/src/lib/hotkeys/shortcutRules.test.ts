@@ -35,6 +35,18 @@ describe('shouldRunShortcut', () => {
   });
 });
 
+describe('shouldRunShortcut inside a menu', () => {
+  it('AC-2.5.1 ignores single keys, Enter included, while focus is in an open menu', () => {
+    const item = element(
+      '<div role="menu"><div role="menuitemcheckbox"></div></div>',
+    )?.firstElementChild;
+    for (const keys of ['j', 'k', 'o', 'c', 's', 't', 'enter']) {
+      expect(shouldRunShortcut(keys, item ?? null)).toBe(false);
+    }
+    expect(shouldRunShortcut('esc', item ?? null)).toBe(true);
+  });
+});
+
 describe('sequence leaders', () => {
   const shortcuts = [
     { id: 'saved', keys: 'g>s', description: 'Go to Saved', scope: 'Go to' },

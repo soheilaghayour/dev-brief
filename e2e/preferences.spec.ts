@@ -88,3 +88,21 @@ test('AC-2.5.1 AC-2.5.3 a guest follows a tag by keyboard, signs in, and Setting
   await page.goto('/settings');
   await expect(page.getByRole('button', { name: 'Unfollow Databases' })).toBeVisible();
 });
+
+test('AC-2.5.1 Space opens a badge menu, Esc closes it, and a mute leaves focus on the next card', async ({
+  page,
+}) => {
+  await openFeed(page);
+  const badge = tagBadges(page, 'rust').first();
+  await badge.focus();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('menu')).toContainText('Rust');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+
+  await page.keyboard.press('Space');
+  await page.getByRole('menuitemcheckbox', { name: 'Mute' }).click();
+  await expect(tagBadges(page, 'rust')).toHaveCount(0);
+  // Focus must not fall back to the page.
+  await expect(page.locator('body')).not.toBeFocused();
+});
