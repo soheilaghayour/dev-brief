@@ -159,6 +159,35 @@ describe('GithubAdapter', () => {
     );
   });
 
+  it('reports partial and keeps the items when a page has incomplete results', async () => {
+    const base = githubFixtureFetch();
+    const stub: typeof fetch = async (input, init) => {
+      const page = await (await base(input, init)).json();
+      const first = new URL(String(input)).searchParams.get('page') === '1';
+      return Response.json({ ...page, incomplete_results: first });
+    };
+    const reportPartial = vi.fn();
+    const items = await adapterWith(stub).fetch(source, { signal, reportPartial });
+
+    expect(items).toHaveLength(60);
+    expect(reportPartial).toHaveBeenCalledExactlyOnceWith('GitHub search incomplete on page 1');
+  });
+
+  it('joins every partial reason into one report', async () => {
+    const base = githubFixtureFetch({ rateLimitRemaining: ['3'] });
+    const stub: typeof fetch = async (input, init) => {
+      const response = await base(input, init);
+      const page = await response.json();
+      return Response.json({ ...page, incomplete_results: true }, { headers: response.headers });
+    };
+    const reportPartial = vi.fn();
+    await adapterWith(stub).fetch(source, { signal, reportPartial });
+
+    expect(reportPartial).toHaveBeenCalledExactlyOnceWith(
+      'GitHub search incomplete on page 1; GitHub rate limit low (3 requests left); stopped after page 1',
+    );
+  });
+
   it('reads both pages and reports nothing when the rate-limit header is missing', async () => {
     const reportPartial = vi.fn();
     const stub = spyFetch(githubFixtureFetch({ rateLimitRemaining: [] }));
@@ -171,6 +200,14 @@ describe('GithubAdapter', () => {
     const stub = vi.fn<typeof fetch>(async () => new Response('', { status: 500 }));
     await expect(adapterWith(stub).fetch(source, { signal })).rejects.toThrow('HTTP 500');
     expect(stub).toHaveBeenCalledTimes(3);
+  });
+
+  it('aborts the source on a 429 whose Retry-After is longer than 30 s, without retrying', async () => {
+    const stub = vi.fn<typeof fetch>(
+      async () => new Response('', { status: 429, headers: { 'Retry-After': '31' } }),
+    );
+    await expect(adapterWith(stub).fetch(source, { signal })).rejects.toThrow('HTTP 429');
+    expect(stub).toHaveBeenCalledOnce();
   });
 
   it('fails when the response is not a search result', async () => {

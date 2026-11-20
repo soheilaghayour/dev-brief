@@ -10,13 +10,21 @@ const MAX_PAGES = 2;
 const CREATED_WITHIN_DAYS = 7;
 const MIN_STARS = 50;
 const TITLE_MAX_LENGTH = 140;
-// Below this many search requests left, the next call could hit the 30/min limit.
+// PRD §8.3 sets the stop threshold.
 export const MIN_RATE_LIMIT_REMAINING = 5;
 export const GITHUB_TOKEN_MISSING = 'GITHUB_TOKEN not set';
 const DAY_MS = 86_400_000;
-const REQUEST_OPTIONS = { timeoutMs: 8000, retryBackoffMs: [1000, 3000] };
+const MAX_RETRY_AFTER_MS = 30_000;
+const REQUEST_OPTIONS = {
+  timeoutMs: 8000,
+  retryBackoffMs: [1000, 3000],
+  maxRetryAfterMs: MAX_RETRY_AFTER_MS,
+};
 
-const SearchPageSchema = z.object({ items: z.array(z.unknown()) });
+const SearchPageSchema = z.object({
+  incomplete_results: z.boolean().catch(false),
+  items: z.array(z.unknown()),
+});
 
 const GithubRepoSchema = z.object({
   id: z.number().int(),
@@ -73,7 +81,6 @@ function toRawItem(repo: GithubRepo): RawItem {
     reactionsCount: null,
     stars: repo.stargazers_count,
     sourceTags: [repo.language, ...repo.topics].flatMap((tag) => (tag ? [tag.toLowerCase()] : [])),
-    // The description is already in the title; repeating it under the title would only add noise.
     excerpt: null,
     readingTimeMinutes: null,
   };
@@ -103,6 +110,7 @@ export class GithubAdapter implements SourceAdapter {
   async fetch(_source: Source, { signal, reportPartial }: FetchContext): Promise<RawItem[]> {
     const now = this.now();
     const reposById = new Map<number, GithubRepo>();
+    const partialReasons: string[] = [];
     let invalid = 0;
 
     for (let page = 1; page <= MAX_PAGES; page++) {
@@ -115,17 +123,19 @@ export class GithubAdapter implements SourceAdapter {
         },
         signal,
       });
-      const { items } = SearchPageSchema.parse(JSON.parse(response.text));
+      const { incomplete_results, items } = SearchPageSchema.parse(JSON.parse(response.text));
+      // GitHub ends a slow search early and says so; the items it did return are still valid.
+      if (incomplete_results) partialReasons.push(`GitHub search incomplete on page ${page}`);
       for (const repo of items) {
         const parsed = GithubRepoSchema.safeParse(repo);
         if (!parsed.success) invalid++;
-        // Stars change between the two calls, so a repo can move from page 1 to page 2.
+        // Ties and star changes reorder results between the two calls, so a repo can appear on both pages.
         else if (!reposById.has(parsed.data.id)) reposById.set(parsed.data.id, parsed.data);
       }
 
       const remaining = response.headers.get('x-ratelimit-remaining');
       if (isRateLimitLow(remaining)) {
-        reportPartial?.(
+        partialReasons.push(
           `GitHub rate limit low (${remaining} requests left); stopped after page ${page}`,
         );
         break;
@@ -134,6 +144,7 @@ export class GithubAdapter implements SourceAdapter {
     }
 
     if (invalid > 0) this.logger.warn(`Dropped ${invalid} invalid GitHub repositories`);
+    if (partialReasons.length > 0) reportPartial?.(partialReasons.join('; '));
     return [...reposById.values()].map(toRawItem);
   }
 }
