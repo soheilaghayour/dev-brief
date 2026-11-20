@@ -168,6 +168,8 @@ links to them instead of restating them.
 - **An account change sends the full preference set with `PUT`, built from the stored set, which is fetched first when it hasn't loaded.** `PUT` replaces the set, so a change built on an empty placeholder would erase the account's other preferences.
 - **The badge "context menu" is a dropdown opened by click, Enter or Space, not a right-click menu.** A right-click menu can't be reached by keyboard or on touch screens ([§7.1](docs/prd.md#71-design-references-and-system) sets WCAG AA).
 - **Every tag and source badge opens Follow / Mute, on the feed, Saved and the story page; the landing preview's badges stay plain.** The preview is static and shows the same stories to everyone, so it ignores preferences.
+- **Until the personalised first page arrives, the feed shows the server-rendered page with muted cards hidden by the API's own exclusion rule.** The server can't read a guest's `localStorage`, and "muted items never appear" ([AC-2.5.2](docs/prd.md#f25-followmute)) rules out a flash of muted cards or a skeleton in place of the rendered page.
+- **Feed params from preferences stay out of the URL and join only the request and the `['feed', …]` key.** The URL holds the filters chosen for this view; preferences are standing personal state, and a shared link must not carry them.
 
 ## Open PM questions
 
