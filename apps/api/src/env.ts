@@ -7,6 +7,18 @@ const BooleanFlagSchema = z
   .default('false')
   .transform((value) => value === 'true');
 
+const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
+
+// Unset keeps the default in modules/llm/budget.ts, the one home of the caps and prices.
+const UsdCapSchema = z.preprocess(
+  emptyToUndefined,
+  z.coerce.number().finite().nonnegative().optional(),
+);
+const UsdPriceSchema = z.preprocess(
+  emptyToUndefined,
+  z.coerce.number().finite().positive().optional(),
+);
+
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -31,6 +43,20 @@ const EnvSchema = z
     AUTH_TEST_MODE: BooleanFlagSchema,
     FEATURE_SUMMARIES: BooleanFlagSchema,
     FEATURE_PREFERENCES: BooleanFlagSchema,
+    /** Anthropic key; required once an LLM feature flag is on. */
+    ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+    LLM_MODEL: z.string().min(1).default('claude-haiku-5-5'),
+    LLM_CAP_SUMMARY_AUTO_USD_DAY: UsdCapSchema,
+    LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: UsdCapSchema,
+    LLM_CAP_COPILOT_USD_DAY: UsdCapSchema,
+    LLM_CAP_GLOBAL_USD_DAY: UsdCapSchema,
+    LLM_PRICE_INPUT_PER_MTOK: UsdPriceSchema,
+    LLM_PRICE_OUTPUT_PER_MTOK: UsdPriceSchema,
+  })
+  // Dev and CI run without a key; an enabled LLM feature must not boot without one.
+  .refine((env) => !env.FEATURE_SUMMARIES || env.ANTHROPIC_API_KEY !== undefined, {
+    path: ['ANTHROPIC_API_KEY'],
+    message: 'is required when FEATURE_SUMMARIES=true',
   })
   // Fails closed on the public origin too: an unset NODE_ENV defaults to development.
   .refine(

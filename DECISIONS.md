@@ -132,6 +132,11 @@ links to them instead of restating them.
 - **`FeatureGuard` runs before every other guard.** A route behind an off flag then answers like an unknown route, 404, and never 403 `FORBIDDEN_ORIGIN`, 429 or 401 first ([CLAUDE.md](CLAUDE.md): an off feature's routes return 404 `FEATURE_DISABLED`).
 - **`LlmUsage` and `RateLimitCounter` retention counts whole UTC days: a row goes once its `day` is more than 400 or 7 days before today.** [§5.3](docs/prd.md#53-retention-and-data-lifecycle) gives the periods; both tables are bucketed by UTC day, so the cutoff is a day, not a moment.
 
+- **Tokens are estimated as `ceil(chars / 3)`.** There is no offline tokenizer for the model, and an over-estimate only costs headroom under a tiny cap, never overspend.
+- **`ANTHROPIC_API_KEY` is required only when an LLM feature flag is on.** Dev and CI run without a key, and production can't enable summaries without one; CI's e2e API gets a placeholder, since it never calls the LLM.
+- **Costs round up to the micro-dollar the ledger stores, and cap checks compare whole micro-dollars.** Rounding down could let many calls drift over a cap; comparing floats would refuse the 20th $0.00075 call under the $0.015 auto cap.
+- **An `LLM_MODEL` without a price in `budget.ts` and without both `LLM_PRICE_*` variables stops the API from starting.** A missing price would otherwise make every call look free to the caps.
+
 ## Open PM questions
 
 - Clustering method, thresholds and UI, to revisit with the user before Phase 2 issues exist: [PRD §3.4 O1](docs/prd.md#34-open-items).

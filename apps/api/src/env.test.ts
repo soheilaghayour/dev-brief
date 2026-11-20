@@ -32,7 +32,9 @@ describe('loadEnv', () => {
       FEATURE_SUMMARIES: false,
       FEATURE_PREFERENCES: false,
     });
-    expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toMatchObject({
+    expect(
+      loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' }),
+    ).toMatchObject({
       FEATURE_SUMMARIES: true,
       FEATURE_PREFERENCES: false,
     });
@@ -83,5 +85,64 @@ describe('loadEnv', () => {
       /AUTH_TEST_MODE/,
     );
     expect(loadEnv({ ...validEnv, NODE_ENV: 'production' }).AUTH_TEST_MODE).toBe(false);
+  });
+
+  it('requires ANTHROPIC_API_KEY only when FEATURE_SUMMARIES=true', () => {
+    expect(loadEnv(validEnv).ANTHROPIC_API_KEY).toBeUndefined();
+    expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toThrow(
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true/,
+    );
+    expect(() =>
+      loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: '' }),
+    ).toThrow(/ANTHROPIC_API_KEY/);
+    expect(
+      loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' })
+        .ANTHROPIC_API_KEY,
+    ).toBe('test-key');
+  });
+
+  it('reads LLM_MODEL with the Haiku 5.5 default', () => {
+    expect(loadEnv(validEnv).LLM_MODEL).toBe('claude-haiku-5-5');
+    expect(loadEnv({ ...validEnv, LLM_MODEL: 'other-model' }).LLM_MODEL).toBe('other-model');
+  });
+
+  it('reads the LLM caps and prices as numbers, unset when absent or empty', () => {
+    expect(loadEnv(validEnv).LLM_CAP_GLOBAL_USD_DAY).toBeUndefined();
+    expect(loadEnv(validEnv).LLM_PRICE_INPUT_PER_MTOK).toBeUndefined();
+    expect(
+      loadEnv({ ...validEnv, LLM_CAP_GLOBAL_USD_DAY: '' }).LLM_CAP_GLOBAL_USD_DAY,
+    ).toBeUndefined();
+    expect(
+      loadEnv({
+        ...validEnv,
+        LLM_CAP_SUMMARY_AUTO_USD_DAY: '0.02',
+        LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: '0',
+        LLM_CAP_COPILOT_USD_DAY: '0.03',
+        LLM_CAP_GLOBAL_USD_DAY: '0.07',
+        LLM_PRICE_INPUT_PER_MTOK: '0.2',
+        LLM_PRICE_OUTPUT_PER_MTOK: '1',
+      }),
+    ).toMatchObject({
+      LLM_CAP_SUMMARY_AUTO_USD_DAY: 0.02,
+      LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: 0,
+      LLM_CAP_COPILOT_USD_DAY: 0.03,
+      LLM_CAP_GLOBAL_USD_DAY: 0.07,
+      LLM_PRICE_INPUT_PER_MTOK: 0.2,
+      LLM_PRICE_OUTPUT_PER_MTOK: 1,
+    });
+  });
+
+  it('rejects an invalid LLM cap or price', () => {
+    for (const value of ['abc', '-0.01', 'Infinity']) {
+      expect(() => loadEnv({ ...validEnv, LLM_CAP_GLOBAL_USD_DAY: value })).toThrow(
+        /LLM_CAP_GLOBAL_USD_DAY/,
+      );
+    }
+    expect(() => loadEnv({ ...validEnv, LLM_CAP_SUMMARY_AUTO_USD_DAY: 'lots' })).toThrow(
+      /LLM_CAP_SUMMARY_AUTO_USD_DAY/,
+    );
+    expect(() => loadEnv({ ...validEnv, LLM_PRICE_OUTPUT_PER_MTOK: '0' })).toThrow(
+      /LLM_PRICE_OUTPUT_PER_MTOK/,
+    );
   });
 });
