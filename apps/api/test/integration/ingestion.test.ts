@@ -330,22 +330,26 @@ describe('ingestion', () => {
     expect(await prisma.sourceItem.count()).toBe(1);
   });
 
-  it('runs registered post-run steps in order after the sources settled, and survives a failing step', async () => {
+  it('runs the post-run steps in their PRD order after the sources settled, and survives a failing step', async () => {
     await createSources('hn');
     const { service, postRunSteps } = await createService([hnFixtureAdapter()]);
     const calls: string[] = [];
+    // Registered out of order: the run still recomputes ranks before it summarises.
     postRunSteps.register({
-      name: 'first',
+      name: 'auto-summaries',
+      run: async () => void calls.push('auto-summaries'),
+    });
+    postRunSteps.register({
+      name: 'rank-recompute',
       run: async () => {
-        calls.push(`first sees ${await prisma.sourceItem.count()} items`);
+        calls.push(`rank-recompute sees ${await prisma.sourceItem.count()} items`);
         throw new Error('step failed');
       },
     });
-    postRunSteps.register({ name: 'second', run: async () => void calls.push('second') });
 
     const { status } = await service.run();
 
-    expect(calls).toEqual(['first sees 95 items', 'second']);
+    expect(calls).toEqual(['rank-recompute sees 95 items', 'auto-summaries']);
     expect(status).toBe('success');
   });
 

@@ -21,7 +21,7 @@ export function HeroSection({ data, host }: HeroSectionProps) {
           id="hero-title"
           className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-balance md:text-6xl"
         >
-          Developer news, minus the noise.
+          Your morning scan in 5 min
         </h1>
         <p className="text-muted-foreground mx-auto mt-5 max-w-2xl text-base text-balance md:text-lg">
           DevBrief pulls Hacker News, Dev.to and the best engineering blogs every hour, merges

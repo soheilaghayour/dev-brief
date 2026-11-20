@@ -145,6 +145,8 @@ export class HttpClient {
   }
 
   private async attempt(url: string, options: HttpRequestOptions): Promise<HttpResponse> {
+    // A request that waited in a caller's queue or limiter is not sent once its caller gave up.
+    options.signal?.throwIfAborted();
     const timeout = AbortSignal.timeout(options.timeoutMs);
     const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
     const response = await this.fetchImpl(url, {

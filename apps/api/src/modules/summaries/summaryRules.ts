@@ -1,0 +1,66 @@
+import type { StorySummary } from '@devbrief/shared';
+import { z } from 'zod';
+import { HttpError } from '../../common/http/httpClient.js';
+import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
+import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
+import { type InputFailureScope, SummaryInputsUnavailableError } from './summaries.errors.js';
+
+/** PRD F2.3: a summary based on fewer comments has no consensus, whatever the model returned. */
+export const MIN_CONSENSUS_COMMENTS = 5;
+
+/** PRD F2.3: auto summaries stop once this many exist for the UTC day. */
+export const AUTO_SUMMARIES_PER_DAY = 20;
+
+/** PRD F2.3: only stories with at least this many comments, summed over their items, are summarised automatically. */
+export const AUTO_MIN_COMMENTS = 10;
+
+/** PRD §8.3: one run tries at most this many stories, failed ones included, which keeps it within the per-run Algolia budget. */
+export const AUTO_ATTEMPTS_PER_RUN = 25;
+
+/** The consensus to store: the model's, with the server's comment count, or null when too few comments went in. */
+export function storedConsensus(
+  consensus: StorySummaryLlm['consensus'],
+  basedOnComments: number,
+): StorySummary['consensus'] {
+  if (consensus === null || basedOnComments < MIN_CONSENSUS_COMMENTS) return null;
+  return { ...consensus, basedOnComments };
+}
+
+/** The ids one run tries, in the given order: discussed enough, not failed earlier today, at most `AUTO_ATTEMPTS_PER_RUN`. */
+export function autoCandidateIds(
+  stories: readonly { id: string; items: readonly { commentsCount: number | null }[] }[],
+  failedToday: ReadonlySet<string>,
+) {
+  return stories
+    .filter(
+      (story) =>
+        !failedToday.has(story.id) &&
+        story.items.reduce((sum, item) => sum + (item.commentsCount ?? 0), 0) >= AUTO_MIN_COMMENTS,
+    )
+    .slice(0, AUTO_ATTEMPTS_PER_RUN)
+    .map((story) => story.id);
+}
+
+/** Whether a failed input fetch concerns only its story (a 404, a malformed payload) or its whole upstream (5xx, 429, timeout, lost connection, the run's budget). */
+export function inputFailureScope(error: unknown): InputFailureScope {
+  if (error instanceof z.ZodError) return 'story';
+  if (error instanceof HttpError) {
+    const { status } = error.options;
+    // No status: the body was not JSON or exceeded the size cap.
+    return status === undefined || status === 404 ? 'story' : 'upstream';
+  }
+  return 'upstream';
+}
+
+/** After a failed auto summary: `skip` to the next story, `stop` the step for this run, or `unexpected` for an error no rule covers. */
+export function autoFailureAction(error: unknown): 'skip' | 'stop' | 'unexpected' {
+  if (error instanceof SpendCapReachedError) return 'stop';
+  // A provider error (revoked key, outage) would fail every following story too; bad output is this story's.
+  if (error instanceof GenerationFailedError) {
+    return error.reason === 'provider_error' ? 'stop' : 'skip';
+  }
+  if (error instanceof SummaryInputsUnavailableError) {
+    return error.scope === 'upstream' ? 'stop' : 'skip';
+  }
+  return 'unexpected';
+}

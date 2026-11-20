@@ -1,6 +1,5 @@
 import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { topWindowStart } from '@devbrief/shared';
-import { LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { IngestionPostRunSteps, type IngestionPostRunStep } from '../ingestion/postRunStep.js';
@@ -30,7 +29,6 @@ export class RankingService implements IngestionPostRunStep, OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cache: LruCache,
     private readonly postRunSteps: IngestionPostRunSteps,
   ) {}
 
@@ -39,12 +37,7 @@ export class RankingService implements IngestionPostRunStep, OnModuleInit {
   }
 
   async run({ now }: { now: Date }) {
-    try {
-      await this.recompute(now);
-    } finally {
-      // Batches commit one by one, so a partial failure still changed scores readers may cache.
-      this.cache.clear();
-    }
+    await this.recompute(now);
   }
 
   /** Scores the Stories published in the Top window; older Stories keep their last score. */

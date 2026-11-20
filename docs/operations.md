@@ -41,6 +41,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 | `INGEST_ON_BOOT`                                                                       | yes |     | `true`                                                                                                    |
 | `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                                        |
 | `ANTHROPIC_API_KEY`                                                                    | yes |     | required once `FEATURE_SUMMARIES` is `true` (see [Anthropic key](#anthropic-key-and-spend-limit-phase-2)) |
+| `AUTO_SUMMARIES`                                                                       | yes |     | `true` together with `FEATURE_SUMMARIES`; off, no summary is made after ingestion runs                    |
 | `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag                         |
 | `GITHUB_TOKEN`                                                                         | yes |     | the fine-grained token from [GitHub source token](#github-source-token); unset skips GitHub               |
 | `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                               |
@@ -111,9 +112,11 @@ To restore for real after data loss: create a new Postgres resource from the sam
 
 The API refuses to start with `FEATURE_SUMMARIES=true` and no `ANTHROPIC_API_KEY`. Before turning summaries on:
 
-1. In the Anthropic Console, create an API key in a workspace used only by DevBrief, and set it as `ANTHROPIC_API_KEY` on the API application in Coolify. Never commit it.
-2. In the Console's limits for that workspace, set a monthly spend limit of $2. The in-app daily caps stop spend at $1.86 a month ([§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)); the provider limit is the backstop if they fail.
-3. After the deploy, `GET /api/v1/health` shows `llm.spentTodayUsd` against `llm.capUsd`.
+1. Record the real AC-2.3.7 model reply ([issue #57](https://github.com/soheilaghayour/dev-brief/issues/57), steps in [`apps/api/test/fixtures/llm/README.md`](../apps/api/test/fixtures/llm/README.md)). Until then the fixture holds a hand-written placeholder and its tests are skipped, so the prompt-injection defence is unproven against the real model.
+2. In the Anthropic Console, create an API key in a workspace used only by DevBrief, and set it as `ANTHROPIC_API_KEY` on the API application in Coolify. Never commit it.
+3. In the Console's limits for that workspace, set a monthly spend limit of $2. The in-app daily caps stop spend at $1.86 a month ([§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)); the provider limit is the backstop if they fail.
+4. Set `AUTO_SUMMARIES=true` with `FEATURE_SUMMARIES=true`: it is a separate switch so that CI, which runs the API with summaries on and a placeholder key, never calls the model.
+5. After the deploy, `GET /api/v1/health` shows `llm.spentTodayUsd` against `llm.capUsd`.
 
 The caps and the per-token prices can be overridden with the `LLM_CAP_*` and `LLM_PRICE_*` variables listed in [`.env.example`](../.env.example); leave them unset in production unless the PRD changes them. Changing `LLM_MODEL` to a model without a price in `apps/api/src/modules/llm/budget.ts` also needs both price variables, or the API refuses to start.
 

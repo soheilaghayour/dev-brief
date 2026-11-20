@@ -43,6 +43,13 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...validEnv, FEATURE_PREFERENCES: '1' })).toThrow(/FEATURE_PREFERENCES/);
   });
 
+  it('reads AUTO_SUMMARIES as a boolean that defaults to false, so a summaries-on API makes no auto calls unasked', () => {
+    const summariesOn = { ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
+    expect(loadEnv(summariesOn).AUTO_SUMMARIES).toBe(false);
+    expect(loadEnv({ ...summariesOn, AUTO_SUMMARIES: 'true' }).AUTO_SUMMARIES).toBe(true);
+    expect(() => loadEnv({ ...summariesOn, AUTO_SUMMARIES: 'yes' })).toThrow(/AUTO_SUMMARIES/);
+  });
+
   it('names every missing required variable', () => {
     expect(() => loadEnv({})).toThrow(/APP_URL[\s\S]*DATABASE_URL/);
   });
