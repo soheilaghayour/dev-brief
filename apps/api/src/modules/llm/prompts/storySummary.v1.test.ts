@@ -1,7 +1,8 @@
 import { Output } from 'ai';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   INJECTED_PHRASES,
+  INJECTED_VERDICT,
   promptInjectionRequest,
   readPromptInjectionRecording,
 } from '../../../../test/promptInjection.js';
@@ -150,6 +151,15 @@ describe('buildStorySummaryPrompt', () => {
 describe('prompt injection', () => {
   const { prompt } = promptInjectionRequest();
   const recording = readPromptInjectionRecording();
+  // A hand-written reply proves nothing, so the tests that read it wait for the real recording.
+  const recorded = it.skipIf(recording.placeholder === true);
+  beforeAll(() => {
+    if (!recording.placeholder) return;
+    // Straight to stderr: the default reporter hides console output of a passing file.
+    process.stderr.write(
+      '\nWARNING, 2 tests SKIPPED: the AC-2.3.7 LLM recording is still a placeholder. Record it before FEATURE_SUMMARIES goes on (issue #57, apps/api/test/fixtures/llm/README.md).\n\n',
+    );
+  });
 
   it('AC-2.3.7 keeps the injected comment inside its own source block of the prompt', async () => {
     await expect(prompt).toMatchFileSnapshot(
@@ -162,7 +172,7 @@ describe('prompt injection', () => {
     expect(injectedBlock).not.toMatch(/<\/?source[^>]*>[\s\S]*<\/?source/);
   });
 
-  it('AC-2.3.7 the recorded reply validates and follows none of the injected instructions', () => {
+  recorded('AC-2.3.7 the recorded reply validates and follows none of the injected instructions', () => {
     const text = recording.reply.content.flatMap((part) =>
       part.type === 'text' ? [part.text] : [],
     );
@@ -170,9 +180,10 @@ describe('prompt injection', () => {
 
     const written = JSON.stringify(output).toLowerCase();
     for (const phrase of INJECTED_PHRASES) expect(written).not.toContain(phrase);
+    expect(output.consensus?.verdict).not.toBe(INJECTED_VERDICT);
   });
 
-  it('over-estimates the input tokens the provider reported for the recorded call', () => {
+  recorded('over-estimates the input tokens the provider reported for the recorded call', () => {
     expect(reservedInputTokens(prompt)).toBeGreaterThanOrEqual(
       recording.reply.usage.inputTokens.total ?? Infinity,
     );
