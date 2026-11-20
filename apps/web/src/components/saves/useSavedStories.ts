@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { StoryCard } from '@devbrief/shared';
 import { SAVE_LIST_KEY } from './accountSaves';
-import { notify } from './notify';
+import { notify } from '@/lib/toast/notify';
 import { lookupInChunks, orderSavedStories, unavailableNotice } from './savedStories';
 import { useGuestSaves } from './useGuestSaves';
 import { useSaves } from './useSaves';

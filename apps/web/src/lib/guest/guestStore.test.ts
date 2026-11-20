@@ -45,6 +45,7 @@ describe('guest store', () => {
       version: 1,
       deviceId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       saves: [{ storyId: A, savedAt: NOW.toISOString() }],
+      prefs: { follow: { tags: [], sources: [] }, mute: { tags: [], sources: [] } },
       hintDismissed: false,
       pendingMerge: false,
     });
@@ -53,6 +54,36 @@ describe('guest store', () => {
     await reloaded.hydrateGuestStore();
     expect(reloaded.useGuestStore.getState().saves).toEqual(stored.saves);
     expect(reloaded.useGuestStore.getState().deviceId).toBe(stored.deviceId);
+  });
+
+  it('AC-2.5.1 keeps follows and mutes in the v1 store across a reload, and removing the sent set empties them', async () => {
+    const { items, localStorage } = fakeLocalStorage();
+    await loadStore({ localStorage });
+    const guestPreferences = await import('./guestPreferences');
+    expect(await guestPreferences.setGuestPreference('tag', 'react', 'mute')).toBe('changed');
+    await guestPreferences.setGuestPreference('source', 'hn', 'follow');
+    const prefs = {
+      follow: { tags: [], sources: ['hn'] },
+      mute: { tags: ['react' as const], sources: [] },
+    };
+    expect(JSON.parse(items.get(STORAGE_KEY) ?? 'null')).toMatchObject({ version: 1, prefs });
+
+    const reloaded = await loadStore({ localStorage });
+    await reloaded.hydrateGuestStore();
+    expect(reloaded.useGuestStore.getState().prefs).toEqual(prefs);
+    await (await import('./guestPreferences')).removeGuestPreferences(prefs);
+    expect(reloaded.useGuestStore.getState().prefs).toEqual({
+      follow: { tags: [], sources: [] },
+      mute: { tags: [], sources: [] },
+    });
+  });
+
+  it('AC-1.5.8 clearGuestData drops the preferences with the rest', async () => {
+    const { localStorage } = fakeLocalStorage();
+    const { useGuestStore, clearGuestData } = await loadStore({ localStorage });
+    await (await import('./guestPreferences')).setGuestPreference('tag', 'rust', 'follow');
+    clearGuestData();
+    expect(useGuestStore.getState().prefs.follow.tags).toEqual([]);
   });
 
   it('recovers from corrupted storage with an empty list', async () => {

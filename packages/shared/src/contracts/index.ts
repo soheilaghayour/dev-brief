@@ -9,4 +9,5 @@ export * from './saves.js';
 export * from './sources.js';
 export * from './stats.js';
 export * from './story.js';
+export * from './summary.js';
 export * from './tags.js';

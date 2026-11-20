@@ -57,9 +57,32 @@ export function budgetFromEnv(env: BudgetEnv): Budget {
   };
 }
 
-/** Over-estimates the token count of `text`; callers also hard-truncate their inputs with it. */
+// Haiku 5.5's tokenizer is denser than this, so the estimate over-counts (DECISIONS.md).
+const UTF8_BYTES_PER_TOKEN = 2;
+
+// UTF-8 bytes, not UTF-16 units: a CJK character is one unit but three bytes, and often a token of its own.
+function utf8Bytes(codePoint: number) {
+  if (codePoint < 0x80) return 1;
+  if (codePoint < 0x800) return 2;
+  return codePoint < 0x10000 ? 3 : 4;
+}
+
+/** Over-estimates the token count of `text`; callers hard-truncate their inputs with `truncateToTokens`. */
 export function estimateTokens(text: string) {
-  return Math.ceil(text.length / 2);
+  return Math.ceil(Buffer.byteLength(text, 'utf8') / UTF8_BYTES_PER_TOKEN);
+}
+
+/** Cuts `text`, between whole characters, so that `estimateTokens` of the result is at most `maxTokens`. */
+export function truncateToTokens(text: string, maxTokens: number) {
+  const maxBytes = maxTokens * UTF8_BYTES_PER_TOKEN;
+  let bytes = 0;
+  let end = 0;
+  for (const character of text) {
+    bytes += utf8Bytes(character.codePointAt(0) ?? 0);
+    if (bytes > maxBytes) return text.slice(0, end);
+    end += character.length;
+  }
+  return text;
 }
 
 /** The most a call can cost: the estimated input plus every output token it may produce, thinking included. */

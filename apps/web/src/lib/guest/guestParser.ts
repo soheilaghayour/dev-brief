@@ -1,7 +1,12 @@
-import { SaveSchema } from '@devbrief/shared';
+import { PreferencesSchema, SaveSchema } from '@devbrief/shared';
 import type { Save } from '@devbrief/shared';
 import { z } from 'zod';
-import { GUEST_STATE_VERSION, MAX_GUEST_SAVES, type GuestData } from './guestState';
+import {
+  EMPTY_PREFERENCES,
+  GUEST_STATE_VERSION,
+  MAX_GUEST_SAVES,
+  type GuestData,
+} from './guestState';
 
 const DeviceIdSchema = z.string().uuid();
 
@@ -18,6 +23,12 @@ function salvageSaves(value: unknown) {
   return saves.slice(0, MAX_GUEST_SAVES);
 }
 
+// All or nothing: a set that breaks one rule (a cap, a value both followed and muted) can't be trusted in part.
+function salvagePrefs(value: unknown) {
+  const parsed = PreferencesSchema.safeParse(value);
+  return parsed.success ? parsed.data : EMPTY_PREFERENCES;
+}
+
 /**
  * Turns whatever storage held into usable guest fields, dropping what is invalid.
  * Returns null for a value that is not an object or comes from a newer version.
@@ -30,6 +41,7 @@ export function migrateGuestData(stored: unknown, version: number): Partial<Gues
   return {
     ...(deviceId.success && { deviceId: deviceId.data }),
     saves: salvageSaves(fields.saves),
+    prefs: salvagePrefs(fields.prefs),
     hintDismissed: fields.hintDismissed === true,
     pendingMerge: fields.pendingMerge === true,
   };

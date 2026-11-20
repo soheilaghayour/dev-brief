@@ -2,13 +2,17 @@
 
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { FeedPreferencesSection } from '@/components/preferences/FeedPreferencesSection';
 import { Button } from '@/components/ui/Button';
+import { isFeatureEnabled } from '@/config/features';
 import { useMe } from '@/lib/auth/useMe';
 import { clearGuestData } from '@/lib/guest/clear';
 import { AccountSection } from './AccountSection';
 
 export function SettingsPage() {
   const { data: user, isPending } = useMe();
+
+  const hasFeedPreferences = isFeatureEnabled('preferences');
 
   function clearLocalData() {
     clearGuestData();
@@ -26,6 +30,7 @@ export function SettingsPage() {
           <ThemeToggle />
         </div>
       </section>
+      {hasFeedPreferences && <FeedPreferencesSection />}
       {isPending ? null : user ? (
         <AccountSection user={user} />
       ) : (
@@ -34,7 +39,9 @@ export function SettingsPage() {
             Local data
           </h2>
           <p className="text-muted-foreground text-sm">
-            As a guest, your saves stay on this device.
+            {hasFeedPreferences
+              ? 'As a guest, your saves and feed preferences stay on this device.'
+              : 'As a guest, your saves stay on this device.'}
           </p>
           <div>
             <Button variant="outline" onClick={clearLocalData}>

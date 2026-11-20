@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
+import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
@@ -16,11 +18,13 @@ import {
   isEnterOnInteractiveElement,
   moveActiveId,
 } from './feedNavigation';
-import { feedQueryOptions } from './feedQueries';
+import { feedQueryOptions, personalisedPlaceholder } from './feedQueries';
+import { hideMuted } from './hideMuted';
 import { InfiniteSentinel } from './InfiniteSentinel';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { StoryCard } from './StoryCard';
 import { useFeedFilters } from './useFeedFilters';
+import { useFocusAfterRemoval } from './useFocusAfterRemoval';
 
 const NEXT_STORY = {
   id: 'feed-next',
@@ -67,9 +71,16 @@ const TOGGLE_SORT = {
 export function FeedList() {
   const { filters, focus, toggleSort, clearAll } = useFeedFilters();
   const saves = useSaves();
-  const query = useInfiniteQuery(feedQueryOptions(filters));
+  const preferences = usePreferenceState();
+  const queryClient = useQueryClient();
+  const query = useInfiniteQuery({
+    ...feedQueryOptions(filters, preferences.feedParams),
+    placeholderData: personalisedPlaceholder(queryClient, filters),
+  });
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
-  const stories = useMemo(() => flattenPages(data?.pages ?? []), [data]);
+  const { prefs } = preferences;
+  // The server-rendered page and a list kept while preferences change still hold muted stories.
+  const stories = useMemo(() => hideMuted(flattenPages(data?.pages ?? []), prefs), [data, prefs]);
   // Derived from hydrated data, so the server HTML and the first client render agree.
   const [activeId, setActiveId] = useState(() => focusableId(focus, data?.pages[0]));
   const [initialFocusId] = useState(activeId);
@@ -80,13 +91,16 @@ export function FeedList() {
 
   const activeStory = stories.find(({ id }) => id === activeId);
 
+  function activate(storyId: string) {
+    setActiveId(storyId);
+    focusStory(storyId);
+    scrollToStory(storyId, 'nearest');
+  }
   function moveActive(step: 1 | -1) {
     const nextId = moveActiveId(stories, activeId, step);
-    if (!nextId) return;
-    setActiveId(nextId);
-    focusStory(nextId);
-    scrollToStory(nextId, 'nearest');
+    if (nextId) activate(nextId);
   }
+  const trackFocus = useFocusAfterRemoval(stories, activate);
   function goToNext() {
     moveActive(1);
   }
@@ -129,7 +143,12 @@ export function FeedList() {
   }
 
   return (
-    <div role="feed" aria-busy={isFetchingNextPage} aria-label="Stories">
+    <div
+      role="feed"
+      aria-busy={isFetchingNextPage}
+      aria-label="Stories"
+      onFocusCapture={trackFocus}
+    >
       {stories.map((story) => (
         <StoryCard
           key={story.id}
@@ -137,6 +156,7 @@ export function FeedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => saves.toggle(story.id)}
           isActive={story.id === activeId}
+          preferenceMenu={PreferenceMenu}
         />
       ))}
       {isFetchNextPageError && (
@@ -148,7 +168,9 @@ export function FeedList() {
       )}
       <InfiniteSentinel
         onVisible={loadNextPage}
-        disabled={!hasNextPage || isFetchingNextPage || isFetchNextPageError}
+        disabled={
+          !hasNextPage || isFetchingNextPage || isFetchNextPageError || query.isPlaceholderData
+        }
         loadedCount={stories.length}
       />
     </div>

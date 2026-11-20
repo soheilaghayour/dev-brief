@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SOURCE_KINDS } from '../core/ranking.js';
 import { TAG_SLUGS } from '../core/taxonomy.js';
+import { StorySummarySchema } from './summary.js';
 
 export const SourceKindSchema = z.enum(SOURCE_KINDS);
 export const TagSlugSchema = z.enum(TAG_SLUGS);
@@ -32,6 +33,7 @@ export const StoryCardSchema = z.object({
   readingTimeMinutes: z.number().int().nullable(),
   sources: z.array(SourceRefSchema).min(1),
   rankScore: z.number(),
+  hasSummary: z.boolean().optional(),
 });
 export type StoryCard = z.infer<typeof StoryCardSchema>;
 
@@ -44,6 +46,7 @@ export const StoryDetailSchema = StoryCardSchema.extend({
       publishedAt: z.string().datetime(),
     }),
   ),
+  summary: StorySummarySchema.nullable().optional(),
 });
 export type StoryDetail = z.infer<typeof StoryDetailSchema>;
 

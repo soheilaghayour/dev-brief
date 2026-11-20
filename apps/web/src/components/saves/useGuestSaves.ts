@@ -7,7 +7,7 @@ import { guestStorage, useGuestStore } from '@/lib/guest/guestStore';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
 import { saveNotice } from '@/lib/guest/saveNotice';
 import { markNoticeShown, shownNotices } from '@/lib/guest/sessionNotices';
-import { notify } from './notify';
+import { notify } from '@/lib/toast/notify';
 
 function announceSave(outcome: ToggleOutcome) {
   const notice = saveNotice({

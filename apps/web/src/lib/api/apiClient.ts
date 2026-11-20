@@ -12,6 +12,8 @@ type RequestOptions = {
   body?: unknown;
   /** Next's fetch cache mode; `'no-store'` makes the calling route render per request. */
   cache?: RequestCache;
+  /** The visitor's Cookie header, forwarded by server-side calls made for a signed-in visitor. */
+  cookie?: string;
 };
 
 type ApiClientConfig = {
@@ -26,11 +28,12 @@ function defaultBaseUrl() {
 }
 
 // Server-side calls carry no visitor IP, so they identify themselves to skip the per-IP rate limit.
-function requestHeaders(hasBody: boolean, internalToken?: string) {
+function requestHeaders(hasBody: boolean, internalToken?: string, cookie?: string) {
   const headers: Record<string, string> = {};
   if (hasBody) headers['Content-Type'] = 'application/json';
   if (typeof window === 'undefined') {
     headers['x-internal-token'] = internalToken ?? loadEnv().INTERNAL_API_TOKEN;
+    if (cookie) headers.cookie = cookie;
   }
   return headers;
 }
@@ -70,12 +73,12 @@ export function createApiClient({
   internalToken,
   fetch: fetchImpl = fetch,
 }: ApiClientConfig = {}) {
-  async function send({ method = 'GET', path, query, body, cache }: RequestOptions) {
+  async function send({ method = 'GET', path, query, body, cache, cookie }: RequestOptions) {
     const response = await fetchImpl(buildUrl(baseUrl ?? defaultBaseUrl(), path, query), {
       method,
       credentials: 'include',
       cache,
-      headers: requestHeaders(body !== undefined, internalToken),
+      headers: requestHeaders(body !== undefined, internalToken, cookie),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!response.ok) throw await toApiError(response);

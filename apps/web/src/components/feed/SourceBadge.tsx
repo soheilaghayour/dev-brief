@@ -1,10 +1,16 @@
 import { MessageSquareIcon } from 'lucide-react';
 import type { SourceRef } from '@devbrief/shared';
+import type { ComponentType } from 'react';
+import type { PreferenceMenuProps } from '@/components/preferences/PreferenceMenu';
 import { Badge } from '@/components/ui/Badge';
+import { isFeatureEnabled } from '@/config/features';
 import { formatCompactCount } from '@/lib/format/formatCompactCount';
+import type { PreferenceKind } from '@/lib/guest/preferences';
 
 type SourceBadgeProps = {
-  source: Pick<SourceRef, 'kind' | 'name' | 'points' | 'comments' | 'reactions' | 'stars'>;
+  source: Pick<SourceRef, 'kind' | 'slug' | 'name' | 'points' | 'comments' | 'reactions' | 'stars'>;
+  /** The Follow / Mute menu the badge opens; passed in, so pages without one (the landing preview) don't load it. */
+  menu?: ComponentType<PreferenceMenuProps<PreferenceKind>>;
 };
 
 const SCORE_GLYPH = { hn: '▲', devto: '♥' } as const;
@@ -42,12 +48,11 @@ function Stars({ count }: { count: number }) {
   );
 }
 
-/** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
-export function SourceBadge({ source }: SourceBadgeProps) {
+function SourceBadgeContent({ source }: Pick<SourceBadgeProps, 'source'>) {
   if (source.kind === 'hn' || source.kind === 'devto') {
     const score = source.kind === 'hn' ? source.points : source.reactions;
     return (
-      <Badge variant="outline" data-source-kind={source.kind}>
+      <>
         <span className="text-foreground font-medium">
           {source.kind === 'hn' ? 'HN' : source.name}
         </span>
@@ -58,13 +63,36 @@ export function SourceBadge({ source }: SourceBadgeProps) {
           </span>
         )}
         <Comments count={source.comments} />
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="text-foreground font-medium">{source.name}</span>
+      {source.stars !== null && <Stars count={source.stars} />}
+    </>
+  );
+}
+
+/** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
+export function SourceBadge({ source, menu: Menu }: SourceBadgeProps) {
+  const content = <SourceBadgeContent source={source} />;
+  if (!Menu || !isFeatureEnabled('preferences')) {
+    return (
+      <Badge variant="outline" data-source-kind={source.kind}>
+        {content}
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" data-source-kind={source.kind}>
-      <span className="text-foreground font-medium">{source.name}</span>
-      {source.stars !== null && <Stars count={source.stars} />}
-    </Badge>
+    <Menu
+      kind="source"
+      value={source.slug}
+      label={source.name}
+      variant="outline"
+      data={{ 'data-source-kind': source.kind }}
+    >
+      {content}
+    </Menu>
   );
 }

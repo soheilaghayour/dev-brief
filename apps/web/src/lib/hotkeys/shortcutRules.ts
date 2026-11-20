@@ -18,6 +18,11 @@ export function isEditableTarget(target: EventTarget | null) {
   );
 }
 
+/** True inside an open menu, whose keys (Enter, Space, letters) belong to it. */
+function isInsideMenu(target: EventTarget | null) {
+  return target instanceof Element && target.closest('[role="menu"]') !== null;
+}
+
 function isSingleKey(keys: string) {
   const parts = keys.toLowerCase().split(/[+>]/);
   return !parts.some((part) => MODIFIERS.includes(part) || ESCAPE_KEYS.includes(part));
@@ -33,12 +38,12 @@ export function isSequenceLeader(key: string, shortcuts: readonly Shortcut[]) {
 }
 
 /**
- * Single-key shortcuts stay quiet while the user types or while a sequence is half typed
+ * Single-key shortcuts stay quiet while the user types, works an open menu, or while a sequence is half typed
  * (`g` then `s` must not also fire a plain `s`); Esc, modifier combos and sequences always run.
  */
 export function shouldRunShortcut(keys: string, target: EventTarget | null, leaderPending = false) {
   if (!isSingleKey(keys)) return true;
-  if (isEditableTarget(target)) return false;
+  if (isEditableTarget(target) || isInsideMenu(target)) return false;
   return isSequence(keys) || !leaderPending;
 }
 

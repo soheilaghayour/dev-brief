@@ -30,9 +30,13 @@ export function focusableId(focus: string | null, firstPage: FeedPage | undefine
   return firstPage.items.some((story) => story.id === focus) ? focus : null;
 }
 
-/** Enter on a focused link or button already activates it, so the shortcut must not open a second tab. */
+/** Enter on a focused link, button or menu item already activates it, so the shortcut must not open a second tab. */
 export function isEnterOnInteractiveElement(key: string, target: EventTarget | null) {
-  return key === 'Enter' && target instanceof Element && target.closest('a, button') !== null;
+  return (
+    key === 'Enter' &&
+    target instanceof Element &&
+    target.closest('a, button, [role^="menuitem"]') !== null
+  );
 }
 
 /** Only http(s) URLs may be opened from a shortcut; React blocks `javascript:` in hrefs but not in `window.open`. */

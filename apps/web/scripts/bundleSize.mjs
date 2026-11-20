@@ -7,13 +7,20 @@ import { gzipSync } from 'node:zlib';
 
 const require = createRequire(import.meta.url);
 
-/** The script paths (relative to `.next`) in a page's HTML, without the noModule polyfills. */
+/** The script paths (relative to `.next`) a page's HTML loads or preloads, without the noModule polyfills. */
 export function scriptPathsInHtml(html) {
   const paths = [];
   for (const [, attributes] of html.matchAll(/<script\b([^>]*)>/g)) {
     if (/\bnomodule\b/i.test(attributes)) continue;
     const src = attributes.match(/\bsrc="[^"]*?\/_next\/([^"?]+)/);
     if (src) paths.push(src[1]);
+  }
+  // A dynamic import rendered on the server is preloaded and hydration waits for it, so it is first-load JS.
+  for (const [, attributes] of html.matchAll(/<link\b([^>]*)>/g)) {
+    const isScriptPreload =
+      /\bas="script"/i.test(attributes) || /\brel="modulepreload"/i.test(attributes);
+    const href = attributes.match(/\bhref="[^"]*?\/_next\/([^"?]+)/);
+    if (isScriptPreload && href) paths.push(href[1]);
   }
   return [...new Set(paths)];
 }

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { createLimiter } from '../../../common/http/createLimiter.js';
 import { HttpClient } from '../../../common/http/httpClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
 import type { FetchContext, RawItem, SourceAdapter } from '../sourceAdapter.js';
@@ -12,23 +13,6 @@ const REQUEST_OPTIONS = {
   maxResponseBytes: MAX_FEED_BYTES,
 };
 const ACCEPT = 'application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8';
-
-/** Runs at most `limit` jobs at once; a finished job hands its slot straight to the next waiting one. */
-function createLimiter(limit: number) {
-  let active = 0;
-  const waiting: (() => void)[] = [];
-  return async <Result>(job: () => Promise<Result>) => {
-    if (active >= limit) await new Promise<void>((resolve) => waiting.push(resolve));
-    else active++;
-    try {
-      return await job();
-    } finally {
-      const next = waiting.shift();
-      if (next) next();
-      else active--;
-    }
-  };
-}
 
 /** Reads one RSS or Atom feed per Source with a conditional GET; a 304 is a success with no items. */
 @Injectable()

@@ -4,6 +4,7 @@ import { SourceBadge } from './SourceBadge';
 
 const GITHUB = {
   kind: 'github',
+  slug: 'github',
   name: 'GitHub',
   points: null,
   comments: null,

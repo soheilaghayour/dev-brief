@@ -1,23 +1,11 @@
-import { setTimeout as sleep } from 'node:timers/promises';
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
-import { HttpClient } from '../../../common/http/httpClient.js';
+import { DevtoClient } from '../../../common/devto/devtoClient.js';
 import type { Source } from '../../../generated/prisma/client.js';
 import type { FetchContext, RawItem, SourceAdapter } from '../sourceAdapter.js';
-import { EXCERPT_MAX_LENGTH, toPlainText } from './plainText.js';
+import { EXCERPT_MAX_LENGTH, toPlainText } from '../../../common/text/plainText.js';
 
-const DEVTO_API = 'https://dev.to/api';
 const LIST_PATHS = ['/articles?top=1&per_page=50', '/articles/latest?per_page=50'];
-// Unauthenticated clients are throttled: requests are serial and at least this far apart.
-export const DEVTO_REQUEST_GAP_MS = 2500;
-const MAX_RETRY_AFTER_MS = 30_000;
-const REQUEST_OPTIONS = {
-  timeoutMs: 8000,
-  retryBackoffMs: [1000, 3000],
-  maxRetryAfterMs: MAX_RETRY_AFTER_MS,
-  minRetryDelayMs: DEVTO_REQUEST_GAP_MS,
-  headers: { Accept: 'application/vnd.forem.api-v1+json' },
-};
 
 const DevtoArticleSchema = z.object({
   id: z.number().int(),
@@ -65,22 +53,14 @@ export class DevtoAdapter implements SourceAdapter {
   readonly kind = 'devto';
   private readonly logger = new Logger(DevtoAdapter.name);
 
-  constructor(
-    private readonly http: HttpClient,
-    private readonly pause: (ms: number, signal: AbortSignal) => Promise<unknown> = (ms, signal) =>
-      sleep(ms, undefined, { signal }),
-  ) {}
+  constructor(private readonly devto: DevtoClient) {}
 
   async fetch(_source: Source, { signal }: FetchContext): Promise<RawItem[]> {
     const articlesById = new Map<number, DevtoArticle>();
     let invalid = 0;
 
-    for (const [index, path] of LIST_PATHS.entries()) {
-      if (index > 0) await this.pause(DEVTO_REQUEST_GAP_MS, signal);
-      const payload = await this.http.getJson(`${DEVTO_API}${path}`, {
-        ...REQUEST_OPTIONS,
-        signal,
-      });
+    for (const path of LIST_PATHS) {
+      const payload = await this.devto.getJson(path, signal);
       for (const article of z.array(z.unknown()).parse(payload)) {
         const parsed = DevtoArticleSchema.safeParse(article);
         if (!parsed.success) invalid++;

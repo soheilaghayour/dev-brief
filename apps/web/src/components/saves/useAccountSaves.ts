@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SaveIds } from '@devbrief/shared';
 import { SAVE_IDS_KEY, saveMutationOptions } from './accountSaves';
-import { notify } from './notify';
+import { notify } from '@/lib/toast/notify';
 
 // The endpoints module (and Zod with it) loads on the first request, not with the page.
 const lazyRequests = {

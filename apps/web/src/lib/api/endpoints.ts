@@ -3,6 +3,7 @@ import {
   HealthSchema,
   MeSchema,
   MergeResponseSchema,
+  PreferencesSchema,
   SaveIdsSchema,
   SaveSchema,
   SavedStoryPageSchema,
@@ -16,6 +17,7 @@ import type {
   FeedQuery,
   MergeRequest,
   PaginationQuery,
+  Preferences,
   StoryLookupRequest,
 } from '@devbrief/shared';
 import { createApiClient } from './apiClient';
@@ -67,8 +69,8 @@ export function getSources() {
   return apiClient.request({ path: '/sources' }, SourceListSchema);
 }
 
-export function getMe() {
-  return apiClient.request({ path: '/me' }, MeSchema);
+export function getMe({ cookie }: { cookie?: string } = {}) {
+  return apiClient.request({ path: '/me', cookie }, MeSchema);
 }
 
 export function deleteMe() {
@@ -99,4 +101,12 @@ export function deleteSave(storyId: string) {
 
 export function mergeSaves(body: MergeRequest) {
   return apiClient.request({ method: 'POST', path: '/me/merge', body }, MergeResponseSchema);
+}
+
+export function getPreferences({ cookie }: { cookie?: string } = {}) {
+  return apiClient.request({ path: '/me/preferences', cookie }, PreferencesSchema);
+}
+
+export function putPreferences(body: Preferences) {
+  return apiClient.request({ method: 'PUT', path: '/me/preferences', body }, PreferencesSchema);
 }

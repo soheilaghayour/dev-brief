@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   encodeCursor,
   FOLLOW_BOOST,
@@ -7,8 +7,14 @@ import {
   type FeedQuery,
 } from '@devbrief/shared';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
+import { ENV, type Env } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
+import {
+  type StoryFeatures,
+  storyFeatures,
+  storyWithItems,
+  toStoryCard,
+} from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
 
@@ -17,10 +23,15 @@ type PageRow = { id: string; publishedAt: Date; sortScore: number };
 
 @Injectable()
 export class FeedService {
+  private readonly features: StoryFeatures;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: LruCache,
-  ) {}
+    @Inject(ENV) env: Env,
+  ) {
+    this.features = storyFeatures(env);
+  }
 
   async getPage(requested: FeedQuery): Promise<FeedPage> {
     const query = effectiveFeedQuery(requested);
@@ -92,7 +103,7 @@ export class FeedService {
     const storyById = new Map(stories.map((story) => [story.id, story]));
     return ids.flatMap((id) => {
       const story = storyById.get(id);
-      return story ? [toStoryCard(story)] : [];
+      return story ? [toStoryCard(story, this.features)] : [];
     });
   }
 }
