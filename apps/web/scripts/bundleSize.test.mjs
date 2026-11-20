@@ -101,6 +101,14 @@ describe('dynamicRouteScripts', () => {
       'static/chunks/page.js',
     ]);
   });
+
+  it('lists the same scripts on a second call, although require runs the manifest only once', () => {
+    const nextDir = writeBuild({ entryJSFiles: ENTRY_JS_FILES });
+
+    expect(dynamicRouteScripts(nextDir, '(app)/x')).toEqual(
+      dynamicRouteScripts(nextDir, '(app)/x'),
+    );
+  });
 });
 
 describe('manifestMatchesHtml', () => {

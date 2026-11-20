@@ -1,8 +1,8 @@
 // First-load JS as docs/prd.md section 8.5 defines it: the gzip (level 6) size of every script in
 // the route's HTML except the noModule polyfills, summed, KB = 1024 bytes.
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const require = createRequire(import.meta.url);
@@ -38,9 +38,9 @@ export function findOverBudget(sizes, budgets) {
 // boundaries every app HTML preloads.
 export function dynamicRouteScripts(nextDir, routeDir) {
   const buildManifest = JSON.parse(readFileSync(join(nextDir, 'build-manifest.json'), 'utf8'));
-  globalThis.__RSC_MANIFEST = {};
   require(join(nextDir, 'server/app', routeDir, 'page_client-reference-manifest.js'));
-  const { entryJSFiles } = Object.values(globalThis.__RSC_MANIFEST)[0];
+  // require runs a manifest only once per process, so its entry is looked up by key, never by resetting the global.
+  const { entryJSFiles } = globalThis.__RSC_MANIFEST[`/${routeDir}/page`];
   const isBoundaryOrPage = (key) => /\/(page|error|global-error)$/.test(key);
   return [
     ...new Set([
@@ -87,4 +87,16 @@ export function measureRoute(nextDir, route) {
   if (scripts.length === 0)
     throw new Error(`${route}: no scripts found; the measurement is broken`);
   return gzipKb(nextDir, scripts);
+}
+
+/** Every script some route loads on its first page load: from each prerendered HTML and each page's build manifests. */
+export function firstLoadScripts(nextDir) {
+  const appDir = join(nextDir, 'server/app');
+  const scripts = readdirSync(appDir, { recursive: true }).flatMap((file) => {
+    if (file.endsWith('.html')) return scriptPathsInHtml(readFileSync(join(appDir, file), 'utf8'));
+    if (file.endsWith('page_client-reference-manifest.js'))
+      return dynamicRouteScripts(nextDir, dirname(file));
+    return [];
+  });
+  return [...new Set(scripts)];
 }
