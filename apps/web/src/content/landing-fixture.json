@@ -1,0 +1,282 @@
+{
+  "storiesToday": 312,
+  "sourceCount": 12,
+  "items": [
+    {
+      "id": "sample-1",
+      "title": "Native TypeScript compiler preview ships",
+      "url": "https://devblogs.microsoft.com/typescript/native-preview",
+      "domain": "devblogs.microsoft.com",
+      "ageMinutes": 180,
+      "tags": ["typescript", "performance"],
+      "readingTimeMinutes": 6,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1001",
+          "points": 612,
+          "comments": 288,
+          "reactions": null
+        },
+        {
+          "kind": "rss",
+          "slug": "typescript-blog",
+          "name": "TypeScript Blog",
+          "itemUrl": "https://devblogs.microsoft.com/typescript/native-preview",
+          "points": null,
+          "comments": null,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-2",
+      "title": "Postgres async I/O in practice",
+      "url": "https://planetscale.com/blog/postgres-async-io",
+      "domain": "planetscale.com",
+      "ageMinutes": 300,
+      "tags": ["databases", "performance"],
+      "readingTimeMinutes": 8,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1002",
+          "points": 301,
+          "comments": 97,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-3",
+      "title": "React Compiler in production: lessons learned",
+      "url": "https://vercel.com/blog/react-compiler-in-production",
+      "domain": "vercel.com",
+      "ageMinutes": 420,
+      "tags": ["react", "performance"],
+      "readingTimeMinutes": 7,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1003",
+          "points": 188,
+          "comments": 64,
+          "reactions": null
+        },
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/react-compiler",
+          "points": null,
+          "comments": 12,
+          "reactions": 95
+        }
+      ]
+    },
+    {
+      "id": "sample-4",
+      "title": "How we cut LLM inference costs by 60%",
+      "url": "https://example.com/blog/llm-inference-costs",
+      "domain": "example.com",
+      "ageMinutes": 95,
+      "tags": ["ai-llms"],
+      "readingTimeMinutes": 9,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1004",
+          "points": 254,
+          "comments": 121,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-5",
+      "title": "Designing idempotent APIs that survive retries",
+      "url": "https://netflixtechblog.com/idempotent-apis",
+      "domain": "netflixtechblog.com",
+      "ageMinutes": 540,
+      "tags": ["system-design"],
+      "readingTimeMinutes": 11,
+      "sources": [
+        {
+          "kind": "rss",
+          "slug": "netflix-tech",
+          "name": "Netflix Tech",
+          "itemUrl": "https://netflixtechblog.com/idempotent-apis",
+          "points": null,
+          "comments": null,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-6",
+      "title": "A tour of CSS anchor positioning",
+      "url": "https://www.joshwcomeau.com/css/anchor-positioning",
+      "domain": "joshwcomeau.com",
+      "ageMinutes": 660,
+      "tags": ["css", "web-platform"],
+      "readingTimeMinutes": 10,
+      "sources": [
+        {
+          "kind": "rss",
+          "slug": "josh-comeau",
+          "name": "Josh Comeau",
+          "itemUrl": "https://www.joshwcomeau.com/css/anchor-positioning",
+          "points": null,
+          "comments": null,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-7",
+      "title": "Building a distributed rate limiter with Redis and Lua",
+      "url": "https://blog.cloudflare.com/distributed-rate-limiter",
+      "domain": "blog.cloudflare.com",
+      "ageMinutes": 780,
+      "tags": ["system-design", "security"],
+      "readingTimeMinutes": 12,
+      "sources": [
+        {
+          "kind": "rss",
+          "slug": "cloudflare",
+          "name": "Cloudflare",
+          "itemUrl": "https://blog.cloudflare.com/distributed-rate-limiter",
+          "points": null,
+          "comments": null,
+          "reactions": null
+        },
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1007",
+          "points": 143,
+          "comments": 40,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-8",
+      "title": "Why we moved our monolith back from microservices",
+      "url": "https://example.com/blog/back-to-monolith",
+      "domain": "example.com",
+      "ageMinutes": 240,
+      "tags": ["system-design", "devops"],
+      "readingTimeMinutes": 6,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1008",
+          "points": 402,
+          "comments": 310,
+          "reactions": null
+        },
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/back-to-monolith",
+          "points": null,
+          "comments": 45,
+          "reactions": 210
+        }
+      ]
+    },
+    {
+      "id": "sample-9",
+      "title": "SQLite as a production database: what changed",
+      "url": "https://simonwillison.net/2026/sqlite-production",
+      "domain": "simonwillison.net",
+      "ageMinutes": 900,
+      "tags": ["databases"],
+      "readingTimeMinutes": 5,
+      "sources": [
+        {
+          "kind": "rss",
+          "slug": "simon-willison",
+          "name": "Simon Willison",
+          "itemUrl": "https://simonwillison.net/2026/sqlite-production",
+          "points": null,
+          "comments": null,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-10",
+      "title": "Prompt injection: defences that actually work",
+      "url": "https://example.com/blog/prompt-injection-defence",
+      "domain": "example.com",
+      "ageMinutes": 1020,
+      "tags": ["ai-llms", "security"],
+      "readingTimeMinutes": 14,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1010",
+          "points": 176,
+          "comments": 88,
+          "reactions": null
+        }
+      ]
+    },
+    {
+      "id": "sample-11",
+      "title": "TypeScript migration notes from a 400k-line codebase",
+      "url": "https://example.com/blog/typescript-migration",
+      "domain": "example.com",
+      "ageMinutes": 1200,
+      "tags": ["typescript"],
+      "readingTimeMinutes": 13,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/ts-migration",
+          "points": null,
+          "comments": 18,
+          "reactions": 132
+        }
+      ]
+    },
+    {
+      "id": "sample-12",
+      "title": "React Server Components, explained without the buzzwords",
+      "url": "https://example.com/blog/rsc-explained",
+      "domain": "example.com",
+      "ageMinutes": 1320,
+      "tags": ["react", "javascript"],
+      "readingTimeMinutes": 9,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/rsc-explained",
+          "points": null,
+          "comments": 9,
+          "reactions": 88
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+import { ImageResponse } from 'next/og';
+
+export const alt = 'DevBrief — Developer news, minus the noise';
+export const size = { width: 1200, height: 630 };
+export const contentType = 'image/png';
+
+// Plain hex: an OG image renders outside the page's CSS, so the theme variables don't apply.
+export default function OpenGraphImage() {
+  return new ImageResponse(
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: 80,
+        background: 'linear-gradient(135deg, #0b0d14 0%, #151a2e 100%)',
+        color: '#f4f5f8',
+      }}
+    >
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 36, color: '#8b93ff' }}
+      >
+        <div style={{ width: 28, height: 28, background: '#8b93ff', transform: 'rotate(45deg)' }} />
+        <span style={{ color: '#f4f5f8', fontWeight: 600 }}>DevBrief</span>
+      </div>
+      <div
+        style={{
+          fontSize: 88,
+          fontWeight: 700,
+          lineHeight: 1.05,
+          marginTop: 40,
+          letterSpacing: -2,
+        }}
+      >
+        Developer news, minus the noise.
+      </div>
+      <div style={{ fontSize: 34, marginTop: 36, color: '#a4a9bd' }}>
+        Hacker News, Dev.to and engineering blogs. One fair ranking.
+      </div>
+    </div>,
+    size,
+  );
+}

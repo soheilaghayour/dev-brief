@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { loadEnv } from './env';
+import { loadAppOrigin, loadEnv } from './env';
 
 const validEnv = {
   APP_URL: 'http://localhost:3000',
   API_INTERNAL_URL: 'http://localhost:3001',
   INTERNAL_API_TOKEN: 'local-internal-token',
 };
+
+describe('loadAppOrigin', () => {
+  it('reads the origin from APP_URL', () => {
+    expect(loadAppOrigin({ APP_URL: 'https://devbrief.example/path' }).origin).toBe(
+      'https://devbrief.example',
+    );
+  });
+
+  it('falls back to the local default when APP_URL is missing', () => {
+    expect(loadAppOrigin({}).origin).toBe('http://localhost:3000');
+  });
+});
 
 describe('loadEnv', () => {
   it('applies defaults to optional variables', () => {
