@@ -63,6 +63,7 @@ describe('stored text', () => {
       version: 1,
       deviceId: DEVICE_ID,
       saves: [],
+      prefs: { follow: { tags: [], sources: [] }, mute: { tags: [], sources: [] } },
       hintDismissed: false,
       pendingMerge: false,
     });

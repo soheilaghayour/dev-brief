@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { migrateGuestData } from './guestParser';
-import { createGuestData, MAX_GUEST_SAVES } from './guestState';
+import { createGuestData, EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
 
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
 const A = 'cstoryaaaaaaaaaaaaaaaaaa';
@@ -24,9 +24,40 @@ describe('migrateGuestData', () => {
     };
     expect(migrateGuestData(older, 0)).toEqual({
       saves: [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }],
+      prefs: EMPTY_PREFERENCES,
       hintDismissed: false,
       pendingMerge: false,
     });
+  });
+
+  it('AC-2.5.1 keeps valid stored preferences', () => {
+    const prefs = {
+      follow: { tags: ['rust'], sources: ['hn'] },
+      mute: { tags: ['career'], sources: [] },
+    };
+    expect(migrateGuestData({ prefs }, 1)?.prefs).toEqual(prefs);
+  });
+
+  it.each([
+    ['missing (v1 data from before preferences)', undefined],
+    ['not an object', 'react'],
+    [
+      'an unknown tag',
+      { follow: { tags: ['cobol'], sources: [] }, mute: { tags: [], sources: [] } },
+    ],
+    [
+      'a value both followed and muted',
+      { follow: { tags: ['rust'], sources: [] }, mute: { tags: ['rust'], sources: [] } },
+    ],
+    [
+      'a list over the cap',
+      {
+        follow: { tags: [], sources: Array.from({ length: 21 }, (_, index) => `blog-${index}`) },
+        mute: { tags: [], sources: [] },
+      },
+    ],
+  ])('AC-2.5.1 reads preferences that are %s as empty', (_case, prefs) => {
+    expect(migrateGuestData({ saves: [], prefs }, 1)?.prefs).toEqual(EMPTY_PREFERENCES);
   });
 
   it.each([null, 'text', 42, [], undefined])('rejects the garbage value %j', (garbage) => {
