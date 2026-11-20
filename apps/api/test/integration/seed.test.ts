@@ -5,12 +5,16 @@ import { useTestDatabase } from './testDatabase.js';
 describe('source seed', () => {
   const prisma = useTestDatabase();
 
-  it('seeds all 12 Phase 1 sources, RSS ones with a feedUrl', async () => {
+  it('seeds all 13 sources, RSS ones with a feedUrl', async () => {
     await seedSources(prisma);
 
     const sources = await prisma.source.findMany({ orderBy: { slug: 'asc' } });
-    expect(sources).toHaveLength(12);
-    expect(sources.filter(({ kind }) => kind === 'hn' || kind === 'devto')).toHaveLength(2);
+    expect(sources).toHaveLength(13);
+    expect(sources.filter(({ kind }) => kind !== 'rss').map(({ slug }) => slug)).toEqual([
+      'devto',
+      'github',
+      'hn',
+    ]);
     const rssSources = sources.filter(({ kind }) => kind === 'rss');
     expect(rssSources).toHaveLength(10);
     for (const { slug, feedUrl } of rssSources) {

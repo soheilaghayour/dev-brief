@@ -42,6 +42,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 | `FEATURE_SUMMARIES`, `FEATURE_PREFERENCES`                                             | yes |     | `false` until the feature launches                                                                        |
 | `ANTHROPIC_API_KEY`                                                                    | yes |     | required once `FEATURE_SUMMARIES` is `true` (see [Anthropic key](#anthropic-key-and-spend-limit-phase-2)) |
 | `NEXT_PUBLIC_FEATURE_SUMMARIES`, `NEXT_PUBLIC_FEATURE_PREFERENCES`                     |     | yes | unset until the feature launches; build variables, set together with the API flag                         |
+| `GITHUB_TOKEN`                                                                         | yes |     | the fine-grained token from [GitHub source token](#github-source-token); unset skips GitHub               |
 | `SENTRY_DSN`                                                                           | yes |     | the `devbrief-api` project's DSN; unset turns reporting off                                               |
 | `NEXT_PUBLIC_SENTRY_DSN`                                                               |     | yes | the `devbrief-web` project's DSN, build variable                                                          |
 | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`                                    |     | yes | build variables for the source-map upload; without the token the upload is skipped                        |
@@ -115,6 +116,17 @@ The API refuses to start with `FEATURE_SUMMARIES=true` and no `ANTHROPIC_API_KEY
 3. After the deploy, `GET /api/v1/health` shows `llm.spentTodayUsd` against `llm.capUsd`.
 
 The caps and the per-token prices can be overridden with the `LLM_CAP_*` and `LLM_PRICE_*` variables listed in [`.env.example`](../.env.example); leave them unset in production unless the PRD changes them. Changing `LLM_MODEL` to a model without a price in `apps/api/src/modules/llm/budget.ts` also needs both price variables, or the API refuses to start.
+
+## GitHub source token
+
+The GitHub source calls the Search API with a token (30 searches per minute instead of 10). It is a separate credential from the OAuth app below and needs no permissions, because it only searches public repositories ([§8.6](prd.md#86-security-basics)).
+
+1. Open GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
+2. Name it `devbrief-search`, pick an expiration (put the renewal date in the calendar), and set Repository access to **Public repositories**. Add no permissions.
+3. Generate it and copy it into the API application's environment in Coolify as `GITHUB_TOKEN`, then redeploy.
+4. After the next hourly run, `GET /api/v1/sources` lists `github` as `healthy`. Until the token is set, every run records the source as `skipped` with "GITHUB_TOKEN not set", and its health dot turns stale.
+
+When the token expires, searches fail, and after 3 failed runs the source's circuit opens: generate a new token and replace the value.
 
 ## OAuth apps
 

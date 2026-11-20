@@ -1,7 +1,7 @@
 # DevBrief
 
-A daily brief for developers: stories from Hacker News, Dev.to and curated RSS feeds,
-deduplicated, tagged and ranked, with optional AI summaries. The requirements are in
+A daily brief for developers: stories from Hacker News, Dev.to, curated RSS feeds and new
+GitHub repositories gaining stars, deduplicated, tagged and ranked, with optional AI summaries. The requirements are in
 [`docs/prd.md`](docs/prd.md).
 
 ## Stack
