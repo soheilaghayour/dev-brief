@@ -162,6 +162,18 @@ links to them instead of restating them.
 - **Mute wins over follow on the same story.** "Muted items never appear" ([AC-2.5.2](docs/prd.md#f25-followmute)), so exclusion runs in the `WHERE` and the boost only reorders what is left.
 - **The follow boost applies once (×1.5), however many followed tags or sources match.** [Appendix B §5](docs/prd.md#appendix-b--ranking-formula) states a single multiplier; it is `FOLLOW_BOOST` in `core/ranking.ts`.
 
+- **Dev.to text comes from one extra `GET /api/articles/{id}` call per summarised story.** [F2.3](docs/prd.md#f23-ai-summaries) asks for `body_markdown`, which the list endpoint doesn't return; [§8.3](docs/prd.md#83-external-sources-timeouts-retries-circuit-breaking) counts both calls, up to 40 for 20 auto summaries, far within Dev.to's limits.
+- **A failed comment or article fetch aborts the summary instead of summarising partial input.** A summary is cached forever, so one built from half the discussion would never be corrected.
+- **A string with a URL or markup fails the LLM schema, which triggers the one retry.** [§8.2](docs/prd.md#82-prompting-and-llm-safety) says the model can't emit URLs or HTML, so the schema enforces it.
+- **`hasSummary` and `summary` are omitted, not `false`/`null`, while `FEATURE_SUMMARIES` is off.** That keeps flag-off responses identical to Phase 1.
+- **Prompts live in `apps/api/src/modules/llm/prompts/` as §8.2 says, although only the summaries module uses this one.** Phase 3 adds the copilot prompt beside it.
+- **The §8.1 input budget counts what the ledger estimates: system prompt, JSON schema and title together ≤ 600 tokens, and the text and comment budgets include their `<source>` delimiters.** `LlmService` reserves `ceil(chars / 2)` over all of it, so only then is a summary's worst case the $0.00075 the 20-a-day auto cap is sized for. The title is cut at 64 tokens and the system prompt kept terse to fit; the provider strips length and count limits from the schema it sends, so the prompt states them.
+- **Comments alternate between a story's threads at each depth, and a comment that doesn't fit the budget is skipped, not the end of the list.** One long HN thread would otherwise push every Dev.to comment out, and one long top comment would crowd out all the shorter ones after it.
+- **A Dev.to Markdown body loses its front matter, Liquid embeds, images and link targets before it is converted like HTML.** They carry no words to summarise, and URLs in the input invite URLs in the output, which fails the schema.
+- **HN Algolia responses may be up to 10 MB, not the 2 MB `HttpClient` default.** The most-discussed threads, the ones auto summaries pick, run to several MB.
+- **All summaries share one serial Dev.to queue, with the 2.5 s gap from the end of one request to the start of the next; a story's HN threads load at most 4 at a time.** [§8.3](docs/prd.md#83-external-sources-timeouts-retries-circuit-breaking) sets both limits per client, and on-demand summaries can run while an auto run does.
+- **The prompt-injection reply is recorded by `apps/api/test/recordLlmFixtures.ts`, which sends the production `LlmService` call with a stand-in ledger.** It is test tooling, not a CLI the app ships, and needs no database; the recorded reply then answers exactly the request production makes.
+
 ## Open PM questions
 
 - Clustering method, thresholds and UI, to revisit with the user before Phase 2 issues exist: [PRD §3.4 O1](docs/prd.md#34-open-items).

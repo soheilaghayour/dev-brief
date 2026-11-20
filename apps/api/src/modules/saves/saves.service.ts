@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   decodeCursor,
   encodeCursor,
@@ -11,10 +11,15 @@ import {
   type SaveIds,
   type SavedStoryPage,
 } from '@devbrief/shared';
+import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { lockPreferenceWrites } from '../../common/preferences/preferenceWriteLock.js';
-import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
+import {
+  type StoryFeatures,
+  storyWithItems,
+  toStoryCard,
+} from '../../common/story-card/storyCard.mapper.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { planSaveMerge } from './mergePlan.js';
 import { planPreferenceMerge } from './preferenceMergePlan.js';
@@ -59,7 +64,14 @@ const MERGE_TRANSACTION_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class SavesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly features: StoryFeatures;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(ENV) env: Env,
+  ) {
+    this.features = { summaries: env.FEATURE_SUMMARIES };
+  }
 
   async list(userId: string, { cursor, limit }: PaginationQuery): Promise<SavedStoryPage> {
     const keyset = cursor ? parseSavedCursor(cursor) : undefined;
@@ -81,7 +93,7 @@ export class SavesService {
     const lastRow = pageRows.at(-1);
     return {
       items: pageRows.map((row) => ({
-        story: toStoryCard(row.story),
+        story: toStoryCard(row.story, this.features),
         savedAt: row.savedAt.toISOString(),
       })),
       nextCursor:

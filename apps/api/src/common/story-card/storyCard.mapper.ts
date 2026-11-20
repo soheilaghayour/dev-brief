@@ -1,5 +1,11 @@
-import { isTagSlug, type SourceRef, type StoryCard } from '@devbrief/shared';
-import type { Prisma } from '../../generated/prisma/client.js';
+import {
+  isTagSlug,
+  StorySummarySchema,
+  type SourceRef,
+  type StoryCard,
+  type StorySummary,
+} from '@devbrief/shared';
+import type { Prisma, Summary } from '../../generated/prisma/client.js';
 
 /** The Prisma include every story read uses, so the mapper below sees the same shape everywhere. */
 export const storyWithItems = {
@@ -7,6 +13,7 @@ export const storyWithItems = {
     include: { source: true },
     orderBy: [{ engagement: 'desc' }, { id: 'asc' }],
   },
+  summary: true,
 } satisfies Prisma.StoryInclude;
 
 export type StoryWithItems = Prisma.StoryGetPayload<{ include: typeof storyWithItems }>;
@@ -25,7 +32,21 @@ export function toSourceRef(item: ItemWithSource): SourceRef {
   };
 }
 
-export function toStoryCard(story: StoryWithItems): StoryCard {
+/** The phase flags the mappers read; a field behind an off flag is left out, so flag-off responses match Phase 1. */
+export type StoryFeatures = { summaries: boolean };
+
+export function toStorySummary(summary: Summary): StorySummary {
+  return {
+    storyId: summary.storyId,
+    tldr: summary.tldr,
+    // A Json column is untyped, so the stored consensus is parsed back into its contract shape.
+    consensus: StorySummarySchema.shape.consensus.parse(summary.consensus),
+    model: summary.model,
+    createdAt: summary.createdAt.toISOString(),
+  };
+}
+
+export function toStoryCard(story: StoryWithItems, features: StoryFeatures): StoryCard {
   return {
     id: story.id,
     title: story.title,
@@ -39,5 +60,6 @@ export function toStoryCard(story: StoryWithItems): StoryCard {
     readingTimeMinutes: story.readingTimeMinutes,
     sources: story.items.map(toSourceRef),
     rankScore: story.rankScore,
+    ...(features.summaries && { hasSummary: story.summary !== null }),
   };
 }

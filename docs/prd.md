@@ -1714,7 +1714,7 @@ A shared `HttpClient` (in `apps/api/src/common/http`) wraps `fetch`. It provides
 |---|---|---|---|---|---|
 | HN Firebase | 5 s | 2 (0.5 s, 1.5 s) | 10 parallel | ≤ 101 requests, ≤ 60 s | Skip individual item failures. The source fails only if `topstories` fails or more than 30% of items fail. |
 | HN Algolia (P2 comments) | 8 s | 2 | 4 parallel | ≤ 25 requests | 10k/h/IP limit, far above usage |
-| Dev.to | 8 s | 2 | Serial, ≥ 2.5 s apart | 2 requests (P2: + ≤ 20 comment calls) | `Accept: application/vnd.forem.api-v1+json`. On 429, honour `Retry-After` up to 30 s, else abort the source. |
+| Dev.to | 8 s | 2 | Serial, ≥ 2.5 s apart | 2 requests (P2: + ≤ 40 summary calls, one comment and one article call per auto summary) | `Accept: application/vnd.forem.api-v1+json`. On 429, honour `Retry-After` up to 30 s, else abort the source. |
 | RSS (each feed) | 10 s | 1 (1 s) | 4 parallel | 1 request per feed, max body 2 MB | Conditional GET (ETag / Last-Modified). A 304 counts as success. Each feed is a separate Source with its own breaker. |
 | GitHub Search (P2) | 8 s | 2 | Serial | ≤ 2 requests (limit is 30/min) | Token auth. Stop if `x-ratelimit-remaining < 5`. |
 | Anthropic (P2/P3) | 30 s total, 10 s to first token (copilot) | 1 on 5xx or 429 | Serial per request | Budget caps (§8.1) | Fail closed with `GENERATION_FAILED` |

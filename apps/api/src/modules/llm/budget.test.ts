@@ -5,6 +5,7 @@ import {
   committedUsd,
   costFromUsage,
   estimateTokens,
+  truncateToTokens,
   utcDay,
   worstCaseCostUsd,
 } from './budget.js';
@@ -65,6 +66,19 @@ describe('estimateTokens', () => {
     expect(estimateTokens('ab')).toBe(1);
     expect(estimateTokens('abc')).toBe(2);
     expect(estimateTokens('x'.repeat(8_000))).toBe(4_000);
+  });
+});
+
+describe('truncateToTokens', () => {
+  it('keeps text within the budget unchanged and cuts longer text to the budget', () => {
+    expect(truncateToTokens('abcd', 2)).toBe('abcd');
+    expect(truncateToTokens('abcdef', 2)).toBe('abcd');
+    expect(estimateTokens(truncateToTokens('x'.repeat(5_001), 1_000))).toBe(1_000);
+  });
+
+  it('drops a surrogate pair the cut would split instead of leaving half of it', () => {
+    expect(truncateToTokens('abc😀def', 2)).toBe('abc');
+    expect(truncateToTokens('ab😀def', 2)).toBe('ab😀');
   });
 });
 

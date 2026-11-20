@@ -14,6 +14,7 @@ import { StatsModule } from './modules/stats/stats.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
 import { SavesModule } from './modules/saves/saves.module.js';
 import { StoriesModule } from './modules/stories/stories.module.js';
+import { SummariesModule } from './modules/summaries/summaries.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
 
 @Module({
@@ -24,6 +25,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
     HealthModule,
     FeedModule,
     StoriesModule,
+    SummariesModule,
     SavesModule,
     PreferencesModule,
     SourcesModule,

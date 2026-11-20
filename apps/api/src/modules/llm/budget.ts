@@ -57,9 +57,22 @@ export function budgetFromEnv(env: BudgetEnv): Budget {
   };
 }
 
-/** Over-estimates the token count of `text`; callers also hard-truncate their inputs with it. */
+// Haiku 5.5's tokenizer is denser than this, so the estimate over-counts (DECISIONS.md).
+const CHARS_PER_TOKEN = 2;
+
+/** Over-estimates the token count of `text`; callers hard-truncate their inputs with `truncateToTokens`. */
 export function estimateTokens(text: string) {
-  return Math.ceil(text.length / 2);
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+/** Cuts `text` so that `estimateTokens` of the result is at most `maxTokens`. */
+export function truncateToTokens(text: string, maxTokens: number) {
+  const maxChars = maxTokens * CHARS_PER_TOKEN;
+  if (text.length <= maxChars) return text;
+  // Cutting between the two halves of a surrogate pair would leave a broken character.
+  const lastKept = text.charCodeAt(maxChars - 1);
+  const splitsPair = lastKept >= 0xd800 && lastKept <= 0xdbff;
+  return text.slice(0, splitsPair ? maxChars - 1 : maxChars);
 }
 
 /** The most a call can cost: the estimated input plus every output token it may produce, thinking included. */
