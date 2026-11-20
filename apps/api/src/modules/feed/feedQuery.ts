@@ -19,10 +19,13 @@ export function parseKeyset(cursor: string, sort: FeedQuery['sort']): Keyset {
 // Sorted and deduplicated: the feed query treats every list as a set.
 const asSet = (values: readonly string[] = []) => [...new Set(values)].sort();
 
+/** The query the feed runs: Latest orders by date, never by rankScore, so its boost params are dropped. */
+export function effectiveFeedQuery(query: FeedQuery): FeedQuery {
+  return query.sort === 'top' ? query : { ...query, boostTags: undefined, boostSources: undefined };
+}
+
 /** The cache key: equal queries map to one key whatever the order or repeats of their list values. */
 export function feedCacheKey(query: FeedQuery) {
-  // Latest ignores boosts, so a Latest query with and without them shares one entry.
-  const boosted = query.sort === 'top';
   return JSON.stringify([
     'feed',
     query.sort,
@@ -32,8 +35,8 @@ export function feedCacheKey(query: FeedQuery) {
     query.q ?? null,
     asSet(query.excludeTags),
     asSet(query.excludeSources),
-    boosted ? asSet(query.boostTags) : [],
-    boosted ? asSet(query.boostSources) : [],
+    asSet(query.boostTags),
+    asSet(query.boostSources),
     query.cursor ?? null,
     query.limit,
   ]);

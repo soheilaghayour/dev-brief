@@ -1,6 +1,6 @@
 import { encodeCursor, InvalidCursorError, type FeedQuery } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { feedCacheKey, parseKeyset } from './feedQuery.js';
+import { effectiveFeedQuery, feedCacheKey, parseKeyset } from './feedQuery.js';
 
 const baseQuery: FeedQuery = { sort: 'top', limit: 20 };
 
@@ -77,12 +77,19 @@ describe('feedCacheKey', () => {
     ]);
     expect(keys.size).toBe(7);
   });
+});
 
-  it('ignores the boost params on Latest, which does not boost, but not on Top', () => {
-    const boosts = { boostTags: ['rust' as const], boostSources: ['hn'] };
-    expect(feedCacheKey({ ...baseQuery, sort: 'latest', ...boosts })).toBe(
-      feedCacheKey({ ...baseQuery, sort: 'latest' }),
+describe('effectiveFeedQuery', () => {
+  const boosts = { boostTags: ['rust' as const], boostSources: ['hn'] };
+
+  it('drops the boost params on Latest, so it shares a cache entry with the unboosted query', () => {
+    const latest: FeedQuery = { ...baseQuery, sort: 'latest' };
+    expect(feedCacheKey(effectiveFeedQuery({ ...latest, ...boosts }))).toBe(
+      feedCacheKey(effectiveFeedQuery(latest)),
     );
-    expect(feedCacheKey({ ...baseQuery, ...boosts })).not.toBe(feedCacheKey(baseQuery));
+  });
+
+  it('keeps them on Top', () => {
+    expect(effectiveFeedQuery({ ...baseQuery, ...boosts })).toEqual({ ...baseQuery, ...boosts });
   });
 });

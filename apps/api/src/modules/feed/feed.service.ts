@@ -10,7 +10,7 @@ import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { storyWithItems, toStoryCard } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
-import { feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
+import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
 
 /** `sortScore` is Top's sort key: rankScore with the follow boost applied. */
 type PageRow = { id: string; publishedAt: Date; sortScore: number };
@@ -22,7 +22,8 @@ export class FeedService {
     private readonly cache: LruCache,
   ) {}
 
-  async getPage(query: FeedQuery): Promise<FeedPage> {
+  async getPage(requested: FeedQuery): Promise<FeedPage> {
+    const query = effectiveFeedQuery(requested);
     // Parsed before the cache lookup so a bad cursor is always a 400.
     const keyset = query.cursor ? parseKeyset(query.cursor, query.sort) : undefined;
     const cacheKey = feedCacheKey(query);
@@ -114,12 +115,11 @@ function personalisation(query: FeedQuery) {
       ? [sourceExists(Prisma.sql`src."slug" = ANY(${boostSources}::text[])`)]
       : []),
   ];
-  // Latest ignores rankScore, so it ignores boosts; one multiplier however many follows match.
-  const sortScore =
-    query.sort === 'top' && boosts.length
-      ? Prisma.sql`(s."rankScore" * CASE WHEN ${Prisma.join(boosts, ' OR ')}
+  // One multiplier however many follows match.
+  const sortScore = boosts.length
+    ? Prisma.sql`(s."rankScore" * CASE WHEN ${Prisma.join(boosts, ' OR ')}
           THEN ${FOLLOW_BOOST}::double precision ELSE 1 END)`
-      : Prisma.sql`s."rankScore"`;
+    : Prisma.sql`s."rankScore"`;
   return { exclusions, sortScore };
 }
 
