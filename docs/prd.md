@@ -41,7 +41,7 @@
 ### 1.3 Differentiation
 | | Daily.dev | TLDR (newsletter) | HN front page | **DevBrief** |
 |---|---|---|---|---|
-| Cross-source dedup | Weak (one card per source post) | Manual, curated | n/a | Exact URL and title dedup (P1); multi-signal clustering (P2) |
+| Cross-source dedup | Weak (one card per source post) | Manual, curated | n/a | Exact URL and title dedup (P1); AI-assisted clustering behind a deterministic pre-filter (P2) |
 | Fair cross-source ranking | Engagement plus personalisation, opaque | Editorial | HN votes only | Per-source percentile × age decay, a documented formula (Appendix B) |
 | Comment synthesis | No | No | No | 3-bullet TL;DR and "Community Consensus" pros/cons (P2) |
 | Ask a question, get a structured answer | No | No | No | ⌘K "Ask the News", which streams a native-component briefing (P3, A2UI v1.0) |
@@ -55,13 +55,13 @@
 | Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, keyboard navigation, dark/light themes, generative UI rendered with native React components |
 | Product ownership | Phased scope, a guest-first funnel, a cost model, measurable acceptance criteria, a public changelog |
 | Pragmatic full stack | NestJS REST with a Zod contract shared with the web app, a relational Prisma schema, Postgres full-text search and `pg_trgm`, scheduled ingestion with circuit breaking, OAuth sessions |
-| AI engineering with guardrails | Structured outputs, an under-$2/month spend cap, caching, prompt-injection boundaries, no embeddings (deliberate) |
+| AI engineering with guardrails | Structured outputs, an under-$2/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
 | Operability | One VPS run by Coolify, CI on every PR, Sentry, backups, a health endpoint, no Kubernetes or queues |
 
 ### 1.5 Product principles
 1. **No login wall, ever.** Every read and personal-state feature works for guests. Accounts exist only for sync.
 2. **Fast before clever.** Static landing, a server-rendered first feed page, no images on cards, code-split heavy features.
-3. **Deterministic first, LLM second.** Tagging, ranking, dedup and clustering are pure, tested functions. The LLM only writes prose and briefing composition, inside a schema and a budget.
+3. **Deterministic first, LLM second.** Tagging, ranking and dedup are pure, tested functions. Clustering finds its candidates the same way. The LLM writes prose and briefing composition, and it makes one bounded same-story decision for each new story that has clustering candidates, always inside a schema and a budget. A failed call leaves the story unclustered.
 4. **One process per concern, not per feature.** A single API process (REST, SSE and cron). No queues, no workers, no microservices.
 5. **Show only what has shipped.** The landing page and navigation hide features behind phase flags, so there are no "coming soon" teasers.
 
@@ -74,7 +74,7 @@
 | Ingestion source-run success rate (per source) | ≥ 95% over 7 days | P1 |
 | Feed API p95 server time | ≤ 150 ms | P1 |
 | Exact-duplicate cards visible in Top (last 24 h) | 0 | P1 |
-| Cluster precision / recall on the labelled fixture | ≥ 0.90 / ≥ 0.70 | P2 |
+| Cluster precision / recall on the labelled fixture (recorded model replies) | ≥ 0.90 / ≥ 0.70 | P2 |
 | LLM spend | < $2.00 per calendar month, enforced by a hard cap | P2–P3 |
 | Copilot time to first rendered component | ≤ 3 s at p50 | P3 |
 
@@ -305,7 +305,7 @@ Acceptance criteria:
 **In scope**
 | ID | Feature |
 |---|---|
-| F2.1 | Cross-source story clustering (no embeddings) |
+| F2.1 | Cross-source story clustering: a deterministic pre-filter, then one Claude Haiku 5.5 decision per new story with candidates (no embeddings) |
 | F2.2 | Cluster cards and a cluster/story detail view |
 | F2.3 | AI summaries: auto 3-bullet TL;DR and "Community Consensus" for the top 20 stories per day, plus on-demand "Summarize" |
 | F2.4 | GitHub source (Search API: new repos sorted by stars) |
@@ -315,28 +315,64 @@ Acceptance criteria:
 
 **Out of scope (Phase 2):** embeddings, scraping linked article pages (we use the source-provided text and comments only), star-velocity snapshots for GitHub, per-user AI features beyond on-demand summaries, comment browsing UI, collections and the copilot.
 
-**Open item — clustering (to revisit with the user before Phase 2 issues are created).** The approach below is the agreed starting point. The user wants to revisit the method, thresholds and UI before implementation. Phase 2 issues for F2.1 and F2.2 are **not** created until that review happens.
+**Clustering decision (O1, resolved 2026-11-20).** The owner chose AI-assisted clustering: a cheap deterministic pre-filter finds candidates, and one Claude Haiku 5.5 call per new story with candidates decides. The cluster UI below (F2.2) is the orchestrator's default, open to owner override.
 
-#### F2.1 Clustering (initial approach)
-- Candidates for a new Story S are Stories with `publishedAt` within ±72 h of S and `isPrimary = true`.
+#### F2.1 Clustering (AI-assisted)
+The clustering step runs inside the ingestion run, after the sources settle and before the rank recompute (§4.3.1). It decides only the Stories created in this run, one at a time in `publishedAt` order (then `id`), so a story can match one created earlier in the same run. Each new Story S gets at most one decision, in the run that creates it.
+
+**1. Candidate pre-filter (pure, no LLM call)**
+- The window is every other Story with `publishedAt` within ±72 h of S. A Story in a cluster stands for its cluster: each cluster is offered at most once, through its best-scoring member, and a cluster that already holds `CLUSTER_MAX_SIZE = 12` stories is not offered.
 - Signals:
-  - `trgm = similarity(S.normalizedTitle, C.normalizedTitle)` (`pg_trgm`)
+  - `trgm = similarity(S.normalizedTitle, C.normalizedTitle)` (`pg_trgm`, indexed)
   - `ent = jaccard(entityTokens(S), entityTokens(C))`. `entityTokens()` is a pure function in `packages/shared/src/core`. It keeps capitalised or product-like tokens, version strings (`v5.2`, `1.0`), repo slugs and domains, and drops a stoplist.
   - `link = 1` if either story's URL points at the same GitHub repo or the same domain and path prefix as the other, else 0.
-- `clusterScore = 0.55·trgm + 0.35·ent + 0.10·link`. S joins the best candidate's cluster when `clusterScore ≥ T`. T starts at `0.50` and is tuned against the fixture.
-- Guards: two existing multi-member clusters are never merged automatically, and cluster size is capped at 12.
-- The **representative** (primary) is the member with the highest `rankScore`. The cluster rank is `max(member rankScore) × (1 + 0.15 × (distinctSourceKinds − 1))`.
-- Fixture: `apps/api/test/fixtures/cluster-pairs.json` holds ~50 hand-labelled pairs (≥ 20 positive, ≥ 20 negative, including hard negatives such as two different "React 19.x" posts). The test computes precision and recall at T.
+- `candidateScore = 0.55·trgm + 0.35·ent + 0.10·link`. A candidate needs `candidateScore ≥ CLUSTER_CANDIDATE_MIN_SCORE`. That floor starts at `0.25` and is tuned on the fixture for recall: at least 95% of the positive pairs must pass it. It decides only whether a call is worth making. The model makes the same-story decision.
+- The top 5 candidates by `candidateScore` (ties: newer `publishedAt`, then `id`) go to the model. With no candidate, there is **no LLM call** and S stays a single story.
+
+**2. Decision (one LLM call per new story with candidates)**
+- One `claude-haiku-5-5` call through `LlmService` with ledger feature `cluster` (its own daily cap, §8.1) and structured output `ClusterMatchLlmSchema = { match: "none" | "c1" … "c5", confidence: number 0–1 }`. `confidence` is the model's confidence that the matched candidate covers the same real-world story as S.
+- Prompt `clusterMatch.v1` (`apps/api/src/modules/llm/prompts/`, §8.2):
+  - S and each candidate go in their own `<source id="…">` block: the title (≤ 64 tokens), the domain, the UTC publish date and the excerpt (≤ 32 tokens).
+  - The labels `c1`…`c5` are assigned by the server and mapped back. The model never sees or emits a story id.
+  - The system prompt asks whether a candidate reports the same event, release or announcement as S, not merely the same topic, product or project.
+- Budget per call: input ≤ 1,000 tokens (system prompt and schema ≤ 280, plus 6 story blocks of ≤ 120 each), and `maxOutputTokens = 50`.
+- S joins the matched candidate's cluster when `match ≠ "none"` and `confidence ≥ CLUSTER_MIN_CONFIDENCE`, a named constant that starts at `0.80` and is tuned on the fixture. If the matched candidate is a single story, a new Cluster is created with both stories.
+
+**3. Fail-safe**
+- If the call fails or is refused, if its output still fails validation after `LlmService`'s one retry, or if the ledger refuses the reservation (cap reached), S stays a single story and is never tried again.
+- A refused reservation or a provider error (5xx, 429, timeout, lost connection) also ends the step for this run, and the remaining new stories stay single. Invalid or refused output moves on to the next story.
+- The step checks the run's budget signal (§8.3) before each call.
+
+**4. Guards**
+- S is always a single story when it is decided. A decision therefore only adds one story to a cluster or pairs two single stories, so two existing multi-member clusters are never merged.
+- A cluster never holds more than `CLUSTER_MAX_SIZE` stories.
+
+**5. Representative and rank**
+- Every member is ranked by Appendix B with `k` counted over the whole cluster (§4). All members therefore carry the same cross-source bonus.
+- The **representative** (`isPrimary = true`, `Cluster.representativeStoryId`) is the member with the highest `rankScore`, with ties broken by `id desc`. `Cluster.rankScore` is the representative's `rankScore`, which is `max(member score) × (1 + 0.15 × (distinctSourceKinds − 1))`. It does not multiply the bonus a second time.
+- Every rank recompute refreshes both.
+
+**6. Flag:** `FEATURE_CLUSTERS` in the API and `NEXT_PUBLIC_FEATURE_CLUSTERS` in the web build ship off. While the flag is off, the clustering step doesn't run, and feed and story responses match Phase 1: every story is listed, and no cluster fields are sent.
+
+**7. Fixture**
+- `apps/api/test/fixtures/cluster-pairs.json` holds ~50 hand-labelled pairs: ≥ 20 positive and ≥ 20 negative, including hard negatives such as two different "React 19.x" posts, or two posts about the same project that report different events.
+- The model's reply for each pair is recorded once with a real key, in `apps/api/test/fixtures/llm/clusterMatch.v1.pairs.json`. CI replays the recording and never calls the live model.
+- The test runs each pair end to end: the pre-filter with the pair's other story as the only window story, then the recorded reply. A positive pair that the pre-filter cuts counts as a miss.
 
 Acceptance criteria:
-- **AC-2.1.1** The cluster fixture test passes with precision ≥ 0.90 and recall ≥ 0.70, and the chosen T is a named constant.
-- **AC-2.1.2** Clustering runs inside the ingestion run after dedup and adds ≤ 5 s to a run of 400 new items (measured in an integration test with seeded data).
-- **AC-2.1.3** Every clustered Story stores `clusterScore` so decisions can be debugged.
-- **AC-2.1.4** The feed returns only primary stories (`isPrimary = true`), and each card carries `cluster: { id, memberCount, sources[] }` when `memberCount > 1`.
+- **AC-2.1.1** With the recorded replies, the fixture test reaches precision ≥ 0.90 and recall ≥ 0.70, and `CLUSTER_CANDIDATE_MIN_SCORE` and `CLUSTER_MIN_CONFIDENCE` are named constants. While the recording is a placeholder (`"placeholder": true`), the test skips with a warning, doesn't count as passing, and clustering doesn't launch.
+- **AC-2.1.2** Clustering runs inside the ingestion run, after dedup and before the rank recompute. It makes at most one LLM call per new story and none for a story without candidates. Its non-LLM work (candidate selection and writes) adds ≤ 5 s to a run of 400 new items, measured in an integration test with seeded data and a mock model.
+- **AC-2.1.3** Every story the model decided on stores `clusterScore`, so decisions can be debugged. It is the confidence for the matched candidate, or 0 when the model answered `none`, and it is stored whether or not the story joined. A story with no candidates or a failed call keeps `null`. The decision's `LlmUsage` row carries the story id as `refId`.
+- **AC-2.1.4** With `FEATURE_CLUSTERS` on, the feed returns only primary stories (`isPrimary = true`), and each card carries `cluster: { id, memberCount, sources[] }` when `memberCount > 1`. With the flag off, the feed returns every story and no `cluster` field.
+- **AC-2.1.5** Given the call fails, is refused, or the `cluster` or global cap is reached, then S stays a single story, no Cluster row changes, and S is not tried again. A refused reservation or a provider error makes no further call in that run.
+- **AC-2.1.6** A decision never merges two multi-member clusters, and a cluster never exceeds 12 stories: a full cluster is not offered as a candidate.
+- **AC-2.1.7** After each rank recompute, each cluster's representative is its member with the highest `rankScore`, every member's `rankScore` uses `k` over the cluster, and `Cluster.rankScore` equals the representative's `rankScore`.
 
 #### F2.2 Cluster cards and detail view
-- **AC-2.2.1** A cluster card shows a combined source line, such as "Trending on HN (▲ 320) & Dev.to (♥ 95) · 2 blogs", and a "+3 related" disclosure that expands member titles inline without navigating.
-- **AC-2.2.2** `/story/[id]` for a clustered story shows all members grouped by source, with the summary panel (F2.3) on top.
+Default UI (the orchestrator's choice while the owner was away; reversible): a cluster shows in the feed as **one card for its representative**, with an expanding **"+N related"** control that lists the other members. Each member in that list opens the story page, which shows the whole cluster with the F2.3 summary panel on top.
+- **AC-2.2.1** A cluster card shows the representative with a combined source line, such as "Trending on HN (▲ 320) & Dev.to (♥ 95) · 2 blogs", and a "+N related" control (N = `memberCount − 1`) that expands the other members inline without navigating. Each member is shown with its title and source badge and links to its `/story/[id]`.
+- **AC-2.2.2** `/story/[id]` for any member of a cluster shows all members grouped by source, with the cluster's summary panel (F2.3) on top.
+- **AC-2.2.3** Feed filters, search, mutes and follows apply to the representative, which is the story the card shows. The other members never appear in the feed on their own.
 
 #### F2.3 AI summaries
 - Model: `claude-haiku-5-5` via Vercel AI SDK structured output (schema `StorySummaryLlmSchema`).
@@ -345,6 +381,7 @@ Acceptance criteria:
 - Auto: after each ingestion run, unsummarised primary stories are summarised in `rankScore` order until 20 auto-summaries exist for the current UTC day. Only stories with ≥ 10 comments in total are eligible for auto.
 - On-demand: a "Summarize" button on any story calls `POST /api/v1/stories/:id/summary`.
 - **Cached forever:** a Story never gets a second Summary row (unique `storyId`). The summary is deleted only when the Story is purged.
+- **Clusters** (with F2.1 on): the comment count for auto eligibility is summed over all members. A clustered story's summary is looked up across all its members, newest first. Only when no member has one is a new summary generated, from all members' inputs, and stored on the representative. The same lookup serves `GET /stories/:id/summary`, `POST` (cached → 200) and the summary panel on any member's page.
 
 Acceptance criteria:
 - **AC-2.3.1** Given a story already has a summary, when "Summarize" is clicked, then it returns 200 with the cached summary and makes no LLM call (asserted by a mocked provider call count).
@@ -421,10 +458,11 @@ Acceptance criteria:
 ### 3.4 Open items
 | # | Item | Owner | When |
 |---|---|---|---|
-| O1 | **Phase 2 clustering method, thresholds and UI are to be revisited with the user** before Phase 2 issues are created. Embeddings are reconsidered only if fixture or production accuracy stays below target. | PM + user | Start of Phase 2 |
+| O1 | **Resolved 2026-11-20.** The owner chose AI-assisted clustering: a deterministic pre-filter, then one Claude Haiku 5.5 decision per new story with candidates, with a fail-safe to "unclustered" (F2.1). The cluster UI is the orchestrator's default, open to owner override (F2.2). Embeddings are reconsidered only if fixture or production accuracy stays below target. | PM + user | Done 2026-11-20 |
 | O2 | Buy the domain (`devbrief.dev` is a placeholder) and update `APP_URL`, the OAuth callbacks and the OG metadata. | User | Before the public launch of Phase 1 |
 | O3 | The GitHub "trending" proxy (new repos by stars) is not true star velocity. Decide whether daily star snapshots are worth it. | PM | Phase 2 review |
 | O4 | `@a2ui/react` is pre-1.0. Re-check the latest version, the React v1.0 support status and SSR behaviour when Phase 3 starts, then pin the exact version. | Eng | Start of Phase 3 |
+| O5 | **Monthly LLM budget.** With the cluster cap, the per-feature caps add up to $0.075/day once the copilot ships, while the global cap stays at $0.064/day to keep the < $2.00/month promise (§8.1). On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot then serves its example-briefing fallback. A budget of $2.50/month would allow a $0.08/day global cap. | User | Before Phase 3 |
 
 ---
 
@@ -573,8 +611,9 @@ sequenceDiagram
       IS->>PG: attach to Story by canonicalUrl, else normalizedTitle ±72h, else create
       IS->>PG: IngestionRun(sourceId, status, counts) · Source health fields
     end
-    IS->>PG: recompute percentiles + rankScore (7-day window)
-    Note over IS,PG: P2: clustering → auto-summaries (budgeted)
+    Note over IS,PG: P2: cluster this run's new stories (pre-filter, ≤ 1 Haiku call each, budgeted)
+    IS->>PG: recompute percentiles + rankScore (7-day window; P2: representatives, cluster rank)
+    Note over IS,PG: P2: auto-summaries (budgeted)
     IS->>IS: clear feed cache
     IS->>PG: pg_advisory_unlock
   end
@@ -808,7 +847,7 @@ model Story {
   clusterId            String?
   cluster              Cluster?     @relation(fields: [clusterId], references: [id], onDelete: SetNull)
   isPrimary            Boolean      @default(true)
-  clusterScore         Float?
+  clusterScore         Float?                       // model confidence of its clustering decision (F2.1)
   summary              Summary?
 
   @@index([publishedAt(sort: Desc), id(sort: Desc)])
@@ -959,6 +998,7 @@ model FeedPreference {
 enum LlmFeature {
   summary_auto
   summary_on_demand
+  cluster
   copilot
 }
 
@@ -973,7 +1013,7 @@ model LlmUsage {
   inputTokens  Int?
   outputTokens Int?
   userId       String?
-  refId        String?                               // storyId / copilotQueryId
+  refId        String?                               // storyId (summaries, cluster decisions) / copilotQueryId
   createdAt    DateTime   @default(now())
   @@index([day, feature])
 }
@@ -1069,7 +1109,7 @@ Migration rule: in Phase 1 **work item P1-02 creates the initial migrations**. A
 ### 5.3 Retention and data lifecycle
 | Data | Retention | Mechanism |
 |---|---|---|
-| `Story` + `SourceItem` (+ `Summary`, cluster membership) | 90 days after `publishedAt`, **unless the story is saved by any user** | Daily job deletes in batches of 1,000. A `Cluster` with 0 remaining members is deleted. |
+| `Story` + `SourceItem` (+ `Summary`, cluster membership) | 90 days after `publishedAt`, **unless the story is saved by any user** | Daily job deletes in batches of 1,000. A `Cluster` left with one member is dissolved, and that story becomes a single primary story again. A cluster that loses its representative gets a new one (F2.1 rule 5). |
 | `TagDailyStat` | Forever (~18 tags × 365 days ≈ 6.6k rows/yr) | Daily upsert recomputes the last 3 days (late items and engagement drift) |
 | `IngestionRun` | 30 days | Daily job |
 | `Session` / `Verification` | Until expiry (session 30 days, rolling) | Better Auth plus a daily cleanup of expired rows |
@@ -1217,7 +1257,7 @@ Test-only route: `POST /api/auth/test/sign-in` creates a session for a fixture u
 | # | Method | Path | Auth | Query / Body | 2xx response | Notes |
 |---|---|---|---|---|---|---|
 | 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster` and `hasSummary` | |
-| 16 | GET | `/api/v1/clusters/:id` | public | none | 200 `ClusterDetailSchema` `{ id, representative: StoryCard, members: StoryCard[], sourceKinds, summary: StorySummary \| null }` | |
+| 16 | GET | `/api/v1/clusters/:id` | public | none | 200 `ClusterDetailSchema` `{ id, representative: StoryCard, members: StoryCard[], sourceKinds, summary: StorySummary \| null }` | `members` excludes the representative. `summary` is the cluster's (F2.3 Clusters). 404 `NOT_FOUND`, or `FEATURE_DISABLED` with the flag off |
 | 17 | GET | `/api/v1/stories/:id/summary` | public | none | 200 `StorySummarySchema` | 404 `NOT_FOUND` if none yet |
 | 18 | POST | `/api/v1/stories/:id/summary` | optional | `{ deviceId: uuid }` (guests) | 200 (cached) or 201 (generated) `StorySummarySchema` | 429 `QUOTA_EXCEEDED`, 503 `SPEND_CAP_REACHED`, 502 `GENERATION_FAILED` |
 | 19 | GET | `/api/v1/me/preferences` | user | none | 200 `PreferencesSchema` `{ follow: { tags, sources }, mute: { tags, sources } }` | |
@@ -1527,6 +1567,7 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ Status: all ok│                                       ? Keyboard shortcuts  │
 └───────────────┴──────────────────────────────────────────────────────────────┘
  ▌ = active card (j/k)    ☆/★ = save toggle (s)    ● = source health dot
+ P2: a cluster card shows its combined source line and a "+N related ▾" control under it (F2.2)
 ```
 
 **Feed (mobile ≤ 767 px)**
@@ -1629,7 +1670,7 @@ RootLayout  (ThemeProvider · QueryProvider · Toaster · HotkeysProvider · Sen
 └─ (app)/layout → AppShell
    ├─ AppHeader → Logo, SearchInput(/), SortToggle(t), ThemeToggle, UserMenu | SignInButton
    ├─ Sidebar → NavLinks, TagFilterList, SourceFilterList, SourceStatus
-   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton
+   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
    ├─ StoryPage → StoryHeader, SourceItemList, SummaryPanel(P2) → TldrList, ConsensusCallout · ClusterMembers(P2) · NoteEditor(P3)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
@@ -1643,7 +1684,7 @@ Shared visual components (`StoryCard`, `TagBadge`, `SourceBadge`, `ConsensusCall
 ### 7.5 State management strategy
 | State | Owner | Details |
 |---|---|---|
-| **Server state** | TanStack Query | Keys: `['feed', normalizedQuery]` (infinite), `['story', id]`, `['tags']`, `['sources']`, `['me']`, `['saves','ids']`, `['saves','list']`, `['summary', id]` (P2), `['prefs']` (P2), `['radar', window, metric, tags]` (P3), `['collections']` (P3). `staleTime` is 60 s for feed, tags and sources and `Infinity` for summaries. Retry 2× for GETs and 0 for mutations. SSR uses `HydrationBoundary` with dehydrated state. |
+| **Server state** | TanStack Query | Keys: `['feed', normalizedQuery]` (infinite), `['story', id]`, `['tags']`, `['sources']`, `['me']`, `['saves','ids']`, `['saves','list']`, `['summary', id]` (P2), `['cluster', id]` (P2), `['prefs']` (P2), `['radar', window, metric, tags]` (P3), `['collections']` (P3). `staleTime` is 60 s for feed, tags and sources and `Infinity` for summaries. Retry 2× for GETs and 0 for mutations. SSR uses `HydrationBoundary` with dehydrated state. |
 | **Guest state** | Zustand + `persist` (`localStorage` key `devbrief:guest:v1`) | `{ version, deviceId, saves[], prefs (P2), collections[] + notes (P3), hintDismissed, pendingMerge }`. Versioned `migrate()`. In-memory fallback if storage is unavailable. |
 | **URL state** | `nuqs` (type-safe search params) | `sort`, `tags`, `kinds`, `sources`, `q` (debounced 250 ms), and `focus`. Uses `router.replace`, never push, for filter changes. URL state is the only source of truth for filters. |
 | **Ephemeral UI** | React state / small Zustand slice | Active card index, open dialogs and the command bar, toasts. |
@@ -1681,23 +1722,27 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 |---|---|---|---|---|---|---|
 | Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | 20/day | $0.0150 | $0.465 |
 | On-demand summaries (P2) | 4,000 | 700 | $0.00075 | 15 new/day globally (cache hits free) | $0.01125 | $0.349 |
+| Clustering decisions (P2) | 1,000 (system + schema 280 + 6 stories × 120) | 50 | 1,000×$0.10/1M + 50×$0.50/1M = **$0.000125** | ≤ 1 per new story with candidates; the cap allows 160/day | $0.0200 | $0.620 |
 | Copilot (P3) | 6,000 (system + plan schema 1,500 + 15 stories × 300) | 1,500 | 6,000×$0.10/1M + 1,500×$0.50/1M = **$0.00135** | 20 fresh questions/day globally (cache/fallback free) | $0.0270 | $0.837 |
 | Example briefings (P3) | 6,000 | 1,500 | $0.00135 | 3, manual, rare | n/a | ≈ $0.004 |
-| **Total** | | | | | **$0.05325** | **≈ $1.65** |
+| **Total** | | | | | **$0.07325** | **≈ $2.27**, above $2.00, so the global cap below is the binding stop |
 
 **Hard caps (config, `apps/api/src/modules/llm/budget.ts`, overridable by env)**
 | Cap | Value |
 |---|---|
 | `LLM_CAP_SUMMARY_AUTO_USD_DAY` | 0.015 |
 | `LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY` | 0.012 |
+| `LLM_CAP_CLUSTER_USD_DAY` | 0.020: 160 worst-case decisions ($0.02 / $0.000125), or 40% of a 400-new-story day |
 | `LLM_CAP_COPILOT_USD_DAY` | 0.028 |
-| `LLM_CAP_GLOBAL_USD_DAY` | **0.060**, the binding stop: 31 × $0.06 = **$1.86 < $2.00** |
+| `LLM_CAP_GLOBAL_USD_DAY` | **0.064**, the binding stop: 31 × $0.064 = **$1.984 < $2.00** |
 | `LLM_PRICE_INPUT_PER_MTOK` / `LLM_PRICE_OUTPUT_PER_MTOK` | 0.10 / 0.50 |
 
 - **Enforcement:** before each call, a transaction sums `reservedUsd` for the day and feature. If `spent + worstCase > cap`, it refuses; otherwise it inserts a `reserved` row. After the call, the row is settled with the actual `costUsd`. Failed calls settle at their actual usage. This holds even under concurrency because it is serialised by a per-day advisory lock.
-- **Expected real spend** is well below the cap, at about $0.40–0.80 per month: actual outputs are around 350–900 tokens, copilot traffic is low, and caching takes effect.
+- **Cap arithmetic:** in Phase 2, the per-feature caps add up to $0.015 + $0.012 + $0.020 = $0.047/day, under the $0.064 global cap, so the global cap never starves a Phase 2 feature. With the copilot (Phase 3), they add up to $0.075/day. On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot falls back to its example briefing. A $0.08 global cap would allow 31 × $0.08 = $2.48 per month, which breaks the §1.6 target (open item O5).
+- **Volume behind the cluster cap:** 200–400 new stories a day (§5.3). The pre-filter's floor sends only stories with a plausible duplicate to the model, about 25–40% of them. When the cap runs out late in a day, the remaining stories stay single, which is the Phase 1 behaviour.
+- **Expected real spend** is well below the cap, at about $0.60–1.00 per month: actual outputs are around 350–900 tokens for summaries and about 15 tokens for a clustering decision. About 100 clustering decisions a day at roughly 600 input tokens each cost about $0.007/day (≈ $0.21/month). Copilot traffic is low, and caching takes effect.
 - **Backstop:** a monthly spend limit is also set in the provider console (operations runbook).
-- **Cost levers:** summaries are cached forever. Identical copilot questions are cached for 24 h. Landing examples are pre-generated. The no-coverage path makes no LLM call. Optional LLM tagging (F2.7) piggybacks on the summary call at zero extra calls. There are no embeddings. Provider prompt caching for the static system prompt is an extra saving and is not counted above.
+- **Cost levers:** summaries are cached forever. Identical copilot questions are cached for 24 h. Landing examples are pre-generated. The no-coverage path makes no LLM call. Optional LLM tagging (F2.7) piggybacks on the summary call at zero extra calls. Clustering makes no call for a story without candidates and never re-decides a story. There are no embeddings. Provider prompt caching for the static system prompt is an extra saving and is not counted above.
 - **Copilot quotas:** guests get 3 per day per (IP hash, device id), with an IP backstop of 10 per day. Signed-in users get 20 per day. All are counted in `RateLimitCounter`, keyed by UTC day. When the global cap is hit, the copilot serves the example-briefing fallback.
 
 ### 8.2 Prompting and LLM safety
