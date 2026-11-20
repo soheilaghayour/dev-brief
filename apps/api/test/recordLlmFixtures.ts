@@ -1,11 +1,10 @@
 // Records the live model's replies once; tests replay them. Usage: test/fixtures/llm/README.md.
 import { writeFileSync } from 'node:fs';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { type LanguageModel, wrapLanguageModel } from 'ai';
 import { loadEnv } from '../src/env.js';
-import { PrismaClient } from '../src/generated/prisma/client.js';
 import { budgetFromEnv } from '../src/modules/llm/budget.js';
+import { GenerationFailedError } from '../src/modules/llm/llm.errors.js';
 import { LlmService } from '../src/modules/llm/llm.service.js';
 import * as clusterMatch from '../src/modules/llm/prompts/clusterMatch.v1.js';
 import * as storySummary from '../src/modules/llm/prompts/storySummary.v1.js';
@@ -15,7 +14,8 @@ import {
   type PairsRecording,
   pairRequest,
   readClusterPairs,
-  titleSimilarity,
+  readHeldOutPairs,
+  requestHash,
 } from './clusterPairs.js';
 import {
   type LlmRecording,
@@ -87,33 +87,35 @@ async function recordPromptInjection() {
   console.log(`Recorded ${PROMPT_INJECTION_RECORDING.pathname}:`, JSON.stringify(object, null, 2));
 }
 
-// Only `similarity()` runs on this database, so any migrated one will do (pg_trgm comes with the cluster migration).
 async function recordClusterPairs() {
-  const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: env.DATABASE_URL }),
-  });
   const replies: PairsRecording['replies'] = {};
-  try {
-    for (const pair of readClusterPairs()) {
-      const request = pairRequest(pair, await titleSimilarity(prisma, pair.a.title, pair.b.title));
-      // The pre-filter cuts this pair, so production would make no call for it.
-      if (!request) continue;
+  const requestHashes: PairsRecording['requestHashes'] = {};
+  for (const pair of [...readClusterPairs(), ...readHeldOutPairs()]) {
+    const request = pairRequest(pair);
+    // The pre-filter cuts this pair, so production would make no call for it.
+    if (!request) continue;
+    try {
       const { object } = await llm.generateStructured({
         feature: 'cluster',
         ...request,
         maxOutputTokens: clusterMatch.MAX_OUTPUT_TOKENS,
       });
-      replies[pair.id] = takeReply();
       console.log(`${pair.label.padEnd(9)} ${pair.id}: ${JSON.stringify(object)}`);
+    } catch (error) {
+      // Output the model got wrong is a result to replay, so the replay leaves the story single as production does.
+      if (!(error instanceof GenerationFailedError) || error.reason === 'provider_error')
+        throw error;
+      console.log(`${pair.label.padEnd(9)} ${pair.id}: ${error.reason}`);
     }
-  } finally {
-    await prisma.$disconnect();
+    replies[pair.id] = takeReply();
+    requestHashes[pair.id] = requestHash(request);
   }
   const recording: PairsRecording = {
     recordedAt: new Date().toISOString(),
     model: env.LLM_MODEL,
     promptVersion: clusterMatch.PROMPT_VERSION,
     replies,
+    requestHashes,
   };
   writeFileSync(CLUSTER_PAIRS_RECORDING, `${JSON.stringify(recording, null, 2)}\n`);
   console.log(

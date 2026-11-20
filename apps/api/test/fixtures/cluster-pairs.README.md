@@ -1,10 +1,21 @@
-`cluster-pairs.json` holds the hand-labelled pairs that measure the clustering step (PRD F2.1 rule 7, AC-2.1.1). In each pair `a` is the story already in the window and `b` the new story; `label` is `same` when both report the same real-world event, release or announcement, otherwise `different`; `why` says in one line what decides it.
+`cluster-pairs.json` holds the hand-labelled pairs that measure the clustering step (PRD F2.1 rule 7, AC-2.1.1), and `cluster-pairs.heldout.json` the held-out pairs. In each pair `a` is the story already in the window and `b` the new story; `label` is `same` when both report the same real-world event, release or announcement, otherwise `different`; `why` says in one line what decides it.
 
-How the pairs were chosen:
+**Label rule (a PM default, DECISIONS.md):** several reports of the same event are `same`. Follow-up coverage of a distinct event is `different`: a pricing day and the trading debut, a disclosure and a vendor's mitigation post, a release and its patch release. Commentary whose subject is the release itself is `same`; commentary that uses the release as a hook for a wider argument is `different`.
 
-- **Positives (same event):** the same release, disclosure, outage or announcement, written by two different sources (a project blog and HN, HN and Dev.to, a repo and a post), with different wording, as ingestion would see them.
-- **Hard negatives (different):** the stories a title-based pre-filter cannot tell apart, which are the reason the model decides. Two releases of one project (React 19.1 and 19.2, Rust 1.92 and 1.93, Node.js 26.5.0 and its security release), two events of one project (a release and a pricing change, a release candidate and the final release), a disclosure and a vendor's mitigation post, and two different projects with near-identical descriptions.
-- **Easy negatives:** unrelated or only topically related stories, which the pre-filter should cut. They keep the fixture honest about cost: a pair cut by the pre-filter needs no recorded reply.
-- Some titles come from the recorded HN, Dev.to and RSS fixtures (the Anthropic IPO pair, `Java4Shell`, GitLab 19.6.0, the Cloudflare posts, `GPT-6.2 Astra and GPT-6.2 Sol`, `Muse Ember`, `datasette 1.0a43`, `A Primer on Fourier Series`). The rest are written in their style, since the recorded fixtures hold few cross-source duplicates; all dates fall within 72 hours per pair.
+**The stories look like what ingestion stores.** Each is checked by a test against the adapters and `canonicalizeUrl`:
 
-The positive pairs are sized to the pre-filter: at least 95% must pass `CLUSTER_CANDIDATE_MIN_SCORE`, and one does not (`npm-supply-chain-colorlite` shares no capitalised word or version). Changing a pair means re-recording `llm/clusterMatch.v1.pairs.json` (see `llm/README.md`).
+- HN stories have no excerpt. A link post carries the article's URL, never the `news.ycombinator.com/item?id=` page, which only Ask/Show/Launch posts without a URL use.
+- GitHub stories are a repository: the title is `owner/repo: description`, there is no excerpt, and the URL is the repository.
+- No pair is two items that URL dedup or title dedup would merge into one Story. Two reports on one URL, or two identical headlines within 72 h, are therefore not in the fixture. The one `link = 1` positive that survives dedup is `loom-launch`: a new repository and the Show HN that links its README.
+- Dates agree with the dates in the URLs, and both stories of a pair fall within 72 h.
+
+**Main set.**
+
+- Positives (`same`): the same release, disclosure or announcement written by two different sources with different wording, including commentary on the release itself.
+- Negatives (`different`): near-misses such as two releases of one project, a release and the event after it, or two different projects with near-identical descriptions; and easy negatives that are only topically related.
+- **Only pairs that reach the model test it.** The pre-filter cuts most easy negatives before any call, so they measure the pre-filter, not the model; the hard negatives that reach the model are the ones the accuracy numbers rest on, and `cluster-pairs.json` includes one prompt-injection pair there (the new story's excerpt orders the model to match).
+- At least 95% of the positives must pass `CLUSTER_CANDIDATE_MIN_SCORE` (AC-2.1.1); one does not, on purpose (`npm-supply-chain-colorlite` shares no capitalised word or version).
+
+**Held-out set.** The pairs are taken from the recorded HN, Dev.to and RSS snapshots in `test/fixtures`, and were labelled before the pre-filter was run on them. No constant is tuned on them. Their pre-filter pass rate is printed by the accuracy test and is not a gate: it shows how the floor does on real cross-source wording, which is worse than on the main set.
+
+Changing a pair or a prompt makes the recording stale (see `llm/README.md`): the accuracy test names the stale pairs.

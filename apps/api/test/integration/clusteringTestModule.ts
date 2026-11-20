@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { normalizeTitle } from '@devbrief/shared';
+import { canonicalizeUrl, normalizeTitle } from '@devbrief/shared';
 import { ENV, EnvModule } from '../../src/common/env/env.module.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import { loadEnv } from '../../src/env.js';
@@ -59,7 +59,7 @@ export type SeededStory = {
   url?: string;
   sourceId: string;
   publishedAt?: Date;
-  excerpt?: string;
+  excerpt?: string | null;
   rankScore?: number;
   /** True for a story the test run created; false for one an earlier run left. */
   fresh?: boolean;
@@ -74,9 +74,9 @@ export function seedStory(prisma: PrismaClient, story: SeededStory) {
   return prisma.story.create({
     data: {
       id: story.id,
-      canonicalUrl: url,
+      canonicalUrl: canonicalizeUrl(url),
       url,
-      domain: new URL(url).hostname,
+      domain: new URL(canonicalizeUrl(url)).hostname,
       title: story.title,
       normalizedTitle: normalizeTitle(story.title),
       excerpt: story.excerpt,
@@ -90,7 +90,7 @@ export function seedStory(prisma: PrismaClient, story: SeededStory) {
           sourceId: story.sourceId,
           externalId: `${slug}-${story.sourceId}`,
           url,
-          canonicalUrl: url,
+          canonicalUrl: canonicalizeUrl(url),
           title: story.title,
           publishedAt,
         },

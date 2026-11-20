@@ -16,18 +16,16 @@ import {
   SYSTEM_PROMPT,
 } from '../llm/prompts/clusterMatch.v1.js';
 import { ClusterMembershipService } from './clusterMembership.service.js';
-import { ClusterPoolService, type ClusterWindowRow } from './clusterPool.service.js';
-import { clusterFailureAction } from './clusteringRules.js';
-
-type NewStory = {
-  id: string;
-  title: string;
-  url: string;
-  domain: string;
-  excerpt: string | null;
-  normalizedTitle: string;
-  publishedAt: Date;
-};
+import {
+  type ClusterPool,
+  ClusterPoolService,
+  type ClusterWindowRow,
+} from './clusterPool.service.js';
+import {
+  CLUSTER_MAX_CALLS_PER_RUN,
+  CLUSTER_MAX_CONSECUTIVE_ERRORS,
+  clusterFailureAction,
+} from './clusteringRules.js';
 
 /** After the sources settle, decides for each story this run created whether it reports the same event as a nearby story. */
 @Injectable()
@@ -49,44 +47,46 @@ export class ClusteringStep implements IngestionPostRunStep, OnModuleInit {
   }
 
   async run({ startedAt, signal }: PostRunContext) {
-    // CI's e2e API runs with clusters on and a placeholder key, so the live calls need a switch of their own.
+    // The e2e API in CI runs with clusters on and a placeholder key, so the live calls need a switch of their own.
     if (!this.env.FEATURE_CLUSTERS || !this.env.AUTO_CLUSTERING) return;
 
-    // Stories first seen before this run were decided (or not) in the run that created them.
-    const created = await this.prisma.story.findMany({
-      where: { firstSeenAt: { gte: startedAt } },
-      select: {
-        id: true,
-        title: true,
-        url: true,
-        domain: true,
-        excerpt: true,
-        normalizedTitle: true,
-        publishedAt: true,
-      },
-      orderBy: [{ publishedAt: 'asc' }, { id: 'asc' }],
-    });
-    for (const [index, story] of created.entries()) {
+    const { created, pool } = await this.pool.load(startedAt);
+    let calls = 0;
+    let consecutiveErrors = 0;
+    for (const story of created) {
       if (signal.aborted) {
         this.logger.warn('Clustering stopped: the run budget is spent');
         return;
       }
-      const undecided = created.slice(index + 1).map(({ id }) => id);
+      if (calls >= CLUSTER_MAX_CALLS_PER_RUN) {
+        this.logger.warn('Clustering stopped: the run made its maximum of model calls');
+        return;
+      }
       try {
-        await this.decide(story, undecided);
+        if (await this.decide(story, pool, signal)) calls += 1;
+        consecutiveErrors = 0;
       } catch (error) {
         const action = clusterFailureAction(error);
-        if (action === 'unexpected') throw error;
         this.logger.warn(`Clustering of story ${story.id} failed (${action}): ${String(error)}`);
         if (action === 'stop') return;
+        consecutiveErrors = action === 'unexpected' ? consecutiveErrors + 1 : 0;
+        if (consecutiveErrors >= CLUSTER_MAX_CONSECUTIVE_ERRORS) {
+          this.logger.error('Clustering stopped: three stories in a row failed unexpectedly');
+          return;
+        }
+        // A model call that failed was still made, so it counts against the run's maximum.
+        if (action === 'skip') calls += 1;
+      } finally {
+        pool.markDecided(story.id);
       }
     }
   }
 
-  private async decide(story: NewStory, undecided: readonly string[]) {
-    const candidates = rankClusterCandidates(story, await this.pool.windowOf(story, undecided));
+  /** Decides one story; returns whether it made a model call. */
+  private async decide(story: ClusterWindowRow, pool: ClusterPool, signal: AbortSignal) {
+    const candidates = rankClusterCandidates(story, pool.windowOf(story));
     // No candidate, no call: the story stays single with a null score.
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) return false;
 
     const labelled = candidates.map((candidate, index) => ({
       label: candidateLabel(index),
@@ -99,19 +99,22 @@ export class ClusteringStep implements IngestionPostRunStep, OnModuleInit {
       prompt: buildClusterMatchPrompt(story, candidates),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       refId: story.id,
+      signal,
     });
     const decision = clusterDecision(reply, labelled);
     this.logDecision(story, labelled, reply);
-    await this.membership.record(
+    const result = await this.membership.record(
       story.id,
       decision.kind === 'join'
         ? { kind: 'join', clusterScore: decision.clusterScore, target: decision.target }
         : { kind: 'single', clusterScore: decision.clusterScore },
     );
+    if (decision.kind === 'join') pool.applyJoin(story.id, decision.target.id, result);
+    return true;
   }
 
   private logDecision(
-    story: NewStory,
+    story: ClusterWindowRow,
     labelled: readonly { label: string; target: ClusterCandidate<ClusterWindowRow> }[],
     reply: { match: string; confidence: number },
   ) {

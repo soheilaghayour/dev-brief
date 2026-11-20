@@ -1,6 +1,11 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { normalizeTitle, rankClusterCandidates } from '@devbrief/shared';
-import type { PrismaClient } from '../src/generated/prisma/client.js';
+import {
+  canonicalizeUrl,
+  clusterProfile,
+  normalizeTitle,
+  rankClusterCandidates,
+} from '@devbrief/shared';
 import {
   buildClusterMatchPrompt,
   clusterMatchSchema,
@@ -11,7 +16,7 @@ import type { LlmRecording } from './promptInjection.js';
 export type PairStory = {
   title: string;
   url: string;
-  excerpt: string;
+  excerpt: string | null;
   publishedAt: string;
   sourceKind: 'hn' | 'devto' | 'rss' | 'github';
 };
@@ -25,56 +30,60 @@ export type ClusterPair = {
   b: PairStory;
 };
 
-/** The recorded replies, one per pair that passes the pre-filter, keyed by pair id. */
+/** The recorded replies, one per pair that passes the pre-filter, keyed by pair id, each with the hash of the request it answers. */
 export type PairsRecording = Omit<LlmRecording, 'reply'> & {
   replies: Record<string, LlmRecording['reply']>;
+  requestHashes: Record<string, string>;
 };
 
 export const CLUSTER_PAIRS_FIXTURE = new URL('./fixtures/cluster-pairs.json', import.meta.url);
+export const CLUSTER_PAIRS_HELD_OUT_FIXTURE = new URL(
+  './fixtures/cluster-pairs.heldout.json',
+  import.meta.url,
+);
 export const CLUSTER_PAIRS_RECORDING = new URL(
   './fixtures/llm/clusterMatch.v1.pairs.json',
   import.meta.url,
 );
 
-export const readClusterPairs = () =>
-  JSON.parse(readFileSync(CLUSTER_PAIRS_FIXTURE, 'utf8')) as ClusterPair[];
+const readPairs = (file: URL) => JSON.parse(readFileSync(file, 'utf8')) as ClusterPair[];
+
+export const readClusterPairs = () => readPairs(CLUSTER_PAIRS_FIXTURE);
+
+/** Pairs labelled before the pre-filter ran on them, from the recorded snapshots; constants are never tuned on them. */
+export const readHeldOutPairs = () => readPairs(CLUSTER_PAIRS_HELD_OUT_FIXTURE);
 
 export const readPairsRecording = () =>
   JSON.parse(readFileSync(CLUSTER_PAIRS_RECORDING, 'utf8')) as PairsRecording;
 
-/** `similarity()` of the two normalised titles, from the same Postgres function the step uses. */
-export async function titleSimilarity(prisma: PrismaClient, titleA: string, titleB: string) {
-  const [row] = await prisma.$queryRaw<{ trgm: number }[]>`
-    SELECT similarity(${normalizeTitle(titleA)}, ${normalizeTitle(titleB)})::float8 AS trgm`;
-  return row?.trgm ?? 0;
+/** The story as the step would hold it: the URL as fetched, and the domain of its canonical URL, as ingestion stores them. */
+function asStoredStory(story: PairStory, id: string) {
+  return {
+    id,
+    title: story.title,
+    url: story.url,
+    domain: new URL(canonicalizeUrl(story.url)).hostname,
+    publishedAt: new Date(story.publishedAt),
+    excerpt: story.excerpt,
+    profile: clusterProfile({ ...story, normalizedTitle: normalizeTitle(story.title) }),
+  };
 }
 
 /** The model request of a pair, or null when the pre-filter cuts it and no call would be made. */
-export function pairRequest(pair: ClusterPair, trgm: number) {
-  const [candidate] = rankClusterCandidates(
-    { id: 'b', title: pair.b.title, url: pair.b.url, publishedAt: new Date(pair.b.publishedAt) },
-    [
-      {
-        id: 'a',
-        title: pair.a.title,
-        url: pair.a.url,
-        publishedAt: new Date(pair.a.publishedAt),
-        clusterId: null,
-        clusterMemberCount: null,
-        trgm,
-      },
-    ],
-  );
+export function pairRequest(pair: ClusterPair) {
+  const story = asStoredStory(pair.b, 'b');
+  const other = asStoredStory(pair.a, 'a');
+  const [candidate] = rankClusterCandidates(story, [
+    { ...other, clusterId: null, clusterMemberCount: null },
+  ]);
   if (!candidate) return null;
-  const promptStory = (story: PairStory) => ({
-    title: story.title,
-    domain: new URL(story.url).hostname,
-    publishedAt: new Date(story.publishedAt),
-    excerpt: story.excerpt,
-  });
   return {
     system: SYSTEM_PROMPT,
-    prompt: buildClusterMatchPrompt(promptStory(pair.b), [promptStory(pair.a)]),
+    prompt: buildClusterMatchPrompt(story, [other]),
     schema: clusterMatchSchema(['c1']),
   };
 }
+
+/** Identifies the exact system prompt and user prompt a reply answers, so a changed prompt or pair makes the recording stale. */
+export const requestHash = ({ system, prompt }: { system: string; prompt: string }) =>
+  createHash('sha256').update(`${system}\n---\n${prompt}`).digest('hex').slice(0, 16);

@@ -72,7 +72,7 @@ describe('buildClusterMatchPrompt', () => {
     await expect(prompt).toMatchFileSnapshot('./__snapshots__/clusterMatch.v1.injection.txt');
   });
 
-  it('AC-2.1.2 estimates at most 1,000 input tokens at its largest, the schema included', async () => {
+  it('F2.1 rule 2 estimates at most 1,000 input tokens at its largest, the schema included', async () => {
     const huge = story({
       title: 'Word '.repeat(200),
       domain: 'a-very-long-subdomain.of-some-example-site.example.com',

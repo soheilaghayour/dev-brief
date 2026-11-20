@@ -69,6 +69,8 @@ export class IngestionService {
 
     const budget = startRunBudget();
     try {
+      // Taken from the database so it compares like for like with `Story.firstSeenAt`, whose default is the database clock.
+      const databaseStartedAt = await this.databaseNow();
       const sources = await this.prisma.source.findMany({
         where: { enabled: true },
         orderBy: { slug: 'asc' },
@@ -82,7 +84,7 @@ export class IngestionService {
         return { ...NO_COUNTS, outcome: 'failed' };
       });
 
-      await this.runPostRunSteps(runId, startedAt, budget.signal);
+      await this.runPostRunSteps(runId, databaseStartedAt, budget.signal);
 
       const status = overallStatus(results.map(({ outcome }) => outcome));
       await this.prisma.ingestionRun.create({
@@ -217,6 +219,12 @@ export class IngestionService {
         error,
       },
     });
+  }
+
+  private async databaseNow() {
+    // Prisma can't read the database clock.
+    const [{ now }] = await this.prisma.$queryRaw<[{ now: Date }]>`SELECT now() AS "now"`;
+    return now;
   }
 
   private async runPostRunSteps(runId: string, startedAt: Date, signal: AbortSignal) {

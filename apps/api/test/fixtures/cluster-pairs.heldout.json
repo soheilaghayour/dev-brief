@@ -1,0 +1,249 @@
+[
+  {
+    "id": "nginx-rce-vs-cve-post",
+    "label": "same",
+    "why": "Two reports of the same NGINX HTTP/2 vulnerability disclosure.",
+    "a": {
+      "title": "Unauthenticated remote code execution in Nginx",
+      "url": "https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T15:19:55Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "CVE-2026-123007: the NGINX HTTP/2 bug, who is affected and the fix",
+      "url": "https://dev.to/axrisi/cve-2026-123007-the-nginx-http2-bug-who-is-affected-and-the-fix-14g6",
+      "excerpt": "CVE-2026-123007 is an NGINX HTTP/2 flow-control bug fixed in 1.30.7 and 1.31.9. Turning HTTP/2 off blocks it and one more; here is how to check.",
+      "publishedAt": "2026-11-19T14:45:00Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "nginx-rce-vs-what-it-means",
+    "label": "same",
+    "why": "The disclosure and a sysadmin's account of what the same CVEs mean for their server.",
+    "a": {
+      "title": "Unauthenticated remote code execution in Nginx",
+      "url": "https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T15:19:55Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "What this week's nginx HTTP/2 CVEs mean for the server I actually run",
+      "url": "https://dev.to/alexgeorgiev17/what-this-weeks-nginx-http2-cves-mean-for-the-server-i-actually-run-3nbf",
+      "excerpt": "I checked Ubuntu 24.04's own nginx package against this week's HTTP/2 RCE advisories: still listed vulnerable with no fix, and the documented mitigation doesn't even parse on it. Disabling HTTP/2 as a stopgap cost 45-70% more time in my own benchmark, up to 4x on a single connection.",
+      "publishedAt": "2026-11-19T11:00:00Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "ruby-advisory-vs-patch-post",
+    "label": "same",
+    "why": "The Ruby security advisory and a post about the same fixed releases.",
+    "a": {
+      "title": "Multiple vulnerabilities in Regexp and String case conversion",
+      "url": "https://www.ruby-lang.org/en/news/2026/11/18/multiple-vulnerabilities-in-regexp-and-string/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T23:52:50Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Patch Your Ruby! Again! Seven Regexp and String Fixes in 4.0.10, 3.4.13, and 3.3.14",
+      "url": "https://christine-seeman.com/ruby-4-0-10-3-4-13-3-3-14-security-releases/",
+      "excerpt": "Ruby 4.0.10, 3.4.13, and 3.3.14 fix seven security issues in regular expressions and string case conversion, three of them critical. Here's who is affected, why apps that never build regexps from user input should still upgrade, and how we went from advisory to production in about six hours.",
+      "publishedAt": "2026-11-19T16:33:25Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "gemini-neon-vs-take",
+    "label": "same",
+    "why": "The launch and a take whose subject is that model.",
+    "a": {
+      "title": "Gemini 4 Neon",
+      "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T21:34:07Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Gemini 4 Neon looks like an Opus 5.5 competitor",
+      "url": "https://micjm.com/blog/gemini-4-neon-looks-like-a-top-model/",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T00:29:45Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "java4shell-vs-cloudflare-waf-recorded",
+    "label": "different",
+    "why": "The label rule: a disclosure and a vendor's mitigation post are distinct events.",
+    "a": {
+      "title": "Java4Shell: RCE in OpenJDK when processing Base64",
+      "url": "https://calif.io/java4shell/",
+      "excerpt": null,
+      "publishedAt": "2026-11-17T21:11:28Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "How Cloudflare WAF helps protect against Java4Shell (CVE-2026-114938)",
+      "url": "https://blog.cloudflare.com/java4shell-waf-protection/",
+      "excerpt": "Java4Shell is a critical memory-corruption flaw in OpenJDK's Base64 decoder that can lead to remote code execution. Cloudflare has released six WAF managed rules for paid plans that logs matching requests by default. Patch your Java runtimes now.",
+      "publishedAt": "2026-11-18T14:52:10Z",
+      "sourceKind": "rss"
+    }
+  },
+  {
+    "id": "java4shell-vs-september-report",
+    "label": "different",
+    "why": "A disclosure and the history of an earlier bug report: a distinct event.",
+    "a": {
+      "title": "Java4Shell: RCE in OpenJDK when processing Base64",
+      "url": "https://calif.io/java4shell/",
+      "excerpt": null,
+      "publishedAt": "2026-11-17T21:11:28Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Someone reported java4shell bug in September 2026",
+      "url": "https://github.com/openjdk/jdk/pull/32781",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T11:47:03Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "gemini-neon-vs-model-guide",
+    "label": "different",
+    "why": "A launch and a guide that compares six models: broader than the launch.",
+    "a": {
+      "title": "Gemini 4 Neon",
+      "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T21:34:07Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Which Gemini Model Should You Use? Neon, Argon, Hydrogen, Carbon, Flash or Gemma. It Depends.",
+      "url": "https://dev.to/gde/which-gemini-model-should-you-use-neon-argon-hydrogen-carbon-flash-or-gemma-it-depends-ano",
+      "excerpt": "Gemini 4 Neon joins seven other models on GSM8K, BFCL and 30 AIME 2025 problems through the Gemini API, with cost per right answer, thinking and speed for each. Every Gemini 4 model solved all 30 hard problems at its lowest setting, so price and speed decide among them; Flash-Lite needs high thinking; Neon is the cheaper choice against Carbon at high thinking.",
+      "publishedAt": "2026-11-19T19:41:18Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "ipo-debut-vs-protest",
+    "label": "different",
+    "why": "The trading debut and the protest outside it: distinct events.",
+    "a": {
+      "title": "Anthropic hits $2T in Nasdaq debut",
+      "url": "https://www.reuters.com/business/finance/anthropics-historic-debut-put-ais-promise-peril-wall-st-test-2026-11-19/",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T17:02:40Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "No Bailout for the AI Bubble, Anthropic IPO Protesters Say",
+      "url": "https://www.techpolicy.press/no-bailout-for-the-ai-bubble-anthropic-ipo-protesters-say/",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T18:42:13Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "ruby-regexp-vs-ruby2shell",
+    "label": "different",
+    "why": "Two different Ruby-ecosystem vulnerabilities on different days.",
+    "a": {
+      "title": "Multiple vulnerabilities in Regexp and String case conversion",
+      "url": "https://www.ruby-lang.org/en/news/2026/11/18/multiple-vulnerabilities-in-regexp-and-string/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T23:52:50Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Ruby2ßhell: Pre-authentication RCE on stock Rails",
+      "url": "https://verialabs.com/ruby2shell/",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T05:09:11Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "datasette-two-releases",
+    "label": "different",
+    "why": "Two releases of one project, two minutes apart.",
+    "a": {
+      "title": "datasette 0.65.6",
+      "url": "https://simonwillison.net/2026/Nov/15/datasette-2/",
+      "excerpt": "Release: datasette 0.65.6 I backported a minor security fix from 1.0a43: Fixed a security issue where a database registered using add_database(db, name=..., route=...) with a route that differs from its name could be downloaded from /<route>.db by actors who were denied access to it. [...] Tags: security , datasette",
+      "publishedAt": "2026-11-15T23:18:17Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "datasette 1.0a43",
+      "url": "https://simonwillison.net/2026/Nov/15/datasette/",
+      "excerpt": "Release: datasette 1.0a43 I've been leaning hard into Claude Fable 5.2 to help knock things off the 1.0 milestone , which is now 53% complete. The biggest 1.0 item in this release is streaming support for output renderers - the built-in TSV and CSV export mechanisms now use this as well, and plugins can register themselves as capable of streaming every row in a table in one go via the new Response.stream() method. There are a couple of security fixes, one of which I deemed deserving of a GitHub ",
+      "publishedAt": "2026-11-15T23:20:27Z",
+      "sourceKind": "rss"
+    }
+  },
+  {
+    "id": "llm-vs-llm-gemini",
+    "label": "different",
+    "why": "Releases of two different packages.",
+    "a": {
+      "title": "llm 0.37.3",
+      "url": "https://simonwillison.net/2026/Nov/16/llm/",
+      "excerpt": "Release: llm 0.37.3 A bug fix release for LLM , mainly to cover a problem with the most recent Homebrew package of the software. Homebrew now ships the latest SQLite, 3.54.1 , which includes a fix that broke LLM's logging code . Short version: in SQLite 3.54.0 the following SQL: select json_object('a', (select json_array(1))) Returns this: {\"a\":[1]} But in 3.54.1 the same query returns this: {\"a\":\"[1]\"} According to D. Richard Hipp : That was a bug fix. Per the documentation, (SELECT json_array(",
+      "publishedAt": "2026-11-16T23:57:26Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "llm-gemini 0.38",
+      "url": "https://simonwillison.net/2026/Nov/18/llm-gemini/",
+      "excerpt": "Release: llm-gemini 0.38 Today Google introduced Gemini 4 Neon . I wrote recently about how confusing the pricing for the Gemini 4 series was - Neon has somehow made this even worse. Previously the Gemini 4 lineup was Hydrogen, Argon, and Carbon - where Argon and Carbon were the same price , and Hydrogen was 3/4 of that price now but will be 1/4 of that price when the other two double an 1st December once their initial discount pricing expires. The Neon announcement pretends that Argon doesn't e",
+      "publishedAt": "2026-11-18T23:59:20Z",
+      "sourceKind": "rss"
+    }
+  },
+  {
+    "id": "gemini-carbon-vs-neon",
+    "label": "different",
+    "why": "An essay about one model and the launch of another.",
+    "a": {
+      "title": "Why is Gemini 4 Carbon taking so long?",
+      "url": "https://kernel.dev/blog/why-is-gemini-4-carbon-taking-so-long/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T04:14:04Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Gemini 4 Neon",
+      "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T21:34:07Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "nginx-rce-vs-ruby2shell",
+    "label": "different",
+    "why": "Two unrelated remote-code-execution disclosures.",
+    "a": {
+      "title": "Unauthenticated remote code execution in Nginx",
+      "url": "https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T15:19:55Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Ruby2ßhell: Pre-authentication RCE on stock Rails",
+      "url": "https://verialabs.com/ruby2shell/",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T05:09:11Z",
+      "sourceKind": "hn"
+    }
+  }
+]

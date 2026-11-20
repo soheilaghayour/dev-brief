@@ -8,7 +8,7 @@ const POST_RUN_ORDER = [
   'feed-cache-clear',
 ] as const;
 
-/** What a post-run step gets: `startedAt` is when the run began, and `signal` aborts once the whole run's budget is spent. */
+/** What a post-run step gets: `startedAt` is when the run began on the database clock, and `signal` aborts once the whole run's budget is spent. */
 export type PostRunContext = { runId: string; startedAt: Date; now: Date; signal: AbortSignal };
 
 /** Work that follows a run once every source has settled, such as the rank recompute. */

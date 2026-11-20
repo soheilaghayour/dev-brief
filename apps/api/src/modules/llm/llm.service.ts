@@ -39,6 +39,8 @@ export type StructuredRequest<OBJECT> = {
   maxOutputTokens: number;
   userId?: string;
   refId?: string;
+  /** Aborts the call in flight when the caller's budget is spent. */
+  signal?: AbortSignal;
 };
 
 export type StructuredResult<OBJECT> = {
@@ -124,6 +126,7 @@ export class LlmService {
         // Retries happen here in the service, so each attempt reserves and settles its own row.
         maxRetries: 0,
         timeout: { totalMs: CALL_TIMEOUT_MS },
+        abortSignal: request.signal,
         providerOptions: { anthropic: MINIMAL_THINKING },
       });
       const usage = billedTokens(result.totalUsage, worstCase);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { IngestionPostRunSteps } from './postRunStep.js';
 
 describe('IngestionPostRunSteps', () => {
-  it('lists clustering, then the rank recompute, then auto summaries, then the cache clear, whatever order they registered in', () => {
+  it('AC-2.1.2 lists clustering, then the rank recompute, then auto summaries, then the cache clear, whatever order they registered in', () => {
     const steps = new IngestionPostRunSteps();
     steps.register({ name: 'feed-cache-clear', run: async () => undefined });
     steps.register({ name: 'auto-summaries', run: async () => undefined });
