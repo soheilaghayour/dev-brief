@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// The data comes from `pnpm --filter api db:seed:e2e`: 45 stories in the Top window plus one archive story.
-const TOP_STORY_COUNT = 45;
+// The data comes from `pnpm --filter api db:seed:e2e`: 45 stories and the fixture cluster's one card in the Top window, plus one archive story.
+const TOP_STORY_COUNT = 46;
 
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const activeCard = (page: Page) => page.locator('article[data-active="true"]');
