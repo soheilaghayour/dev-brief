@@ -3,11 +3,12 @@ import {
   CopilotAskRequestSchema,
   CopilotQuotaQuerySchema,
   CopilotQuotaSchema,
+  ExampleBriefingListSchema,
   type CopilotAskRequest,
   type CopilotQuotaQuery,
 } from '@devbrief/shared';
 import type { Request, Response } from 'express';
-import { PrivateNoStore } from '../../common/cache/cacheControl.js';
+import { PrivateNoStore, PublicCache } from '../../common/cache/cacheControl.js';
 import { RequiresFeature } from '../../common/features/requiresFeature.decorator.js';
 import { IpRateLimit, IpRateLimitGuard } from '../../common/rate-limit/ipRateLimit.guard.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
@@ -79,6 +80,13 @@ export class CopilotController {
       clearInterval(heartbeat);
       response.end();
     }
+  }
+
+  @Get('examples')
+  @PublicCache()
+  @Contract({ response: ExampleBriefingListSchema })
+  examples() {
+    return this.copilot.examples();
   }
 
   @Get('quota')

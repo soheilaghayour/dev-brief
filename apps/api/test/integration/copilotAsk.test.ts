@@ -598,6 +598,28 @@ describe('POST /copilot/ask', () => {
       },
     );
 
+    it('AC-3.1.5 skips a closest example that no longer parses and replays the next one, not an INTERNAL error', async () => {
+      await seedStories(4, 'rust');
+      await seedExamples();
+      await prisma.exampleBriefing.update({
+        where: { slug: 'rust-vs-go' },
+        data: { messages: [{ notAnA2uiMessage: true }] },
+      });
+      await boot({ envOverrides: { LLM_CAP_COPILOT_USD_DAY: '0.0001' } });
+
+      const { status, text } = await ask(deviceBody('Is Rust still worth learning?'), {
+        ip: freshIp(),
+      }).complete();
+
+      expect(status).toBe(200);
+      expect(metaOf(text)).toMatchObject({ fallback: 'SPEND_CAP' });
+      expect(namesOf(text).at(-1)).toBe('done');
+      const replayed = await prisma.exampleBriefing.findUniqueOrThrow({
+        where: { slug: 'ts-tooling-debates' },
+      });
+      expect(messagesOf(text)).toEqual(replayed.messages);
+    });
+
     it('AC-3.1.5 sends an error event SPEND_CAP_REACHED, and gives the slot back, when there is no example', async () => {
       await seedStories(4);
       await boot({ envOverrides: { LLM_CAP_COPILOT_USD_DAY: '0.0001' } });

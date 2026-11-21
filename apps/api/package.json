@@ -14,7 +14,8 @@
     "db:deploy": "dotenv -e ../../.env -e ../../.env.example -- prisma migrate deploy",
     "db:seed": "pnpm --filter @devbrief/shared build && dotenv -e ../../.env -e ../../.env.example -- prisma db seed",
     "db:seed:e2e": "pnpm --filter @devbrief/shared build && dotenv -e ../../.env -e ../../.env.example -- tsx prisma/seedE2e.ts",
-    "ingest:once": "pnpm --filter @devbrief/shared build && nest build && dotenv -e ../../.env -e ../../.env.example -- node dist/cli/ingestOnce.js"
+    "ingest:once": "pnpm --filter @devbrief/shared build && nest build && dotenv -e ../../.env -e ../../.env.example -- node dist/cli/ingestOnce.js",
+    "briefings:generate": "pnpm --filter @devbrief/shared build && nest build && dotenv -e ../../.env -e ../../.env.example -- node dist/cli/generateExampleBriefings.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.106",
@@ -35,6 +36,7 @@
     "helmet": "^8.3.0",
     "nestjs-pino": "^5.3.2",
     "pg": "^8.23.1",
+    "pg-connection-string": "^2.14.1",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "prisma": "7.10.1",

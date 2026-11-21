@@ -46,6 +46,7 @@ pnpm --filter api db:generate                            # regenerate the Prisma
 pnpm --filter api db:seed                                # seed sources (idempotent)
 pnpm --filter api db:seed:e2e                            # replaces all stories with fixed ones for Playwright (e2e DBs only, see ALLOW_DESTRUCTIVE_SEED)
 pnpm --filter api ingest:once                            # one full ingestion run
+pnpm --filter api briefings:generate --confirm-database <name>  # P3: regenerate the 3 example briefings (live LLM, owner only)
 pnpm --filter @devbrief/shared catalog:generate          # regenerate packages/shared/src/a2ui/catalog.v1.json from the catalog's Zod schemas
 ```
 
