@@ -9,7 +9,7 @@ import {
   SUMMARISED_NO_CONSENSUS_STORY_ID,
   SUMMARISED_STORY_ID,
 } from '../../prisma/seedE2e.js';
-import { computeTagVelocity } from '../../src/modules/radar/tagVelocity.js';
+import { computeTagVelocity } from '../../src/common/tag-velocity/tagVelocity.js';
 import { useTestDatabase } from './testDatabase.js';
 
 describe('end-to-end seed', () => {
