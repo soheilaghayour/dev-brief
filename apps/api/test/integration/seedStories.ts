@@ -82,3 +82,24 @@ export async function createCluster(
   await prisma.story.update({ where: { id: options.representativeId }, data: { isPrimary: true } });
   return cluster;
 }
+
+/** Inserts `count` bare stories (no source items) in one statement; for tests that need many saved stories fast. */
+export async function createBareStories(prisma: PrismaClient, count: number, prefix: string) {
+  const publishedAt = new Date(Date.UTC(2026, 0, 1));
+  const rows = Array.from({ length: count }, (_, index) => {
+    const url = `https://example.com/${prefix}-${index}`;
+    return {
+      id: `c${prefix}${String(index).padStart(6, '0')}`.padEnd(24, 'x'),
+      canonicalUrl: url,
+      url,
+      domain: 'example.com',
+      title: `${prefix} ${index}`,
+      normalizedTitle: `${prefix} ${index}`,
+      publishedAt,
+      tags: [],
+      taggerVersion: 1,
+    };
+  });
+  await prisma.story.createMany({ data: rows });
+  return rows.map((row) => row.id);
+}

@@ -222,7 +222,7 @@ describe('account saves', () => {
     expect(first.status).toBe(200);
     expect(MergeResponseSchema.parse(first.body)).toEqual({
       merged: { saves: 2, preferences: 0, collections: 0, notes: 0 },
-      skipped: { saves: 0, notes: 0 },
+      skipped: { saves: 0, notes: 0, collections: 0, items: 0 },
       missingStoryIds: [],
     });
     const afterFirst = await prisma.save.findMany({
@@ -267,7 +267,7 @@ describe('account saves', () => {
     expect(response.status).toBe(200);
     expect(MergeResponseSchema.parse(response.body)).toEqual({
       merged: { saves: 1, preferences: 0, collections: 0, notes: 0 },
-      skipped: { saves: 1, notes: 0 },
+      skipped: { saves: 1, notes: 0, collections: 0, items: 0 },
       missingStoryIds: [UNKNOWN_STORY_ID],
     });
     expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(1);

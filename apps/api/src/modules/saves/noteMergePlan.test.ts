@@ -43,6 +43,27 @@ describe('planNoteMerge', () => {
     expect(result.skippedCount).toBe(0);
   });
 
+  it('AC-3.4.5 appends a short guest note that is only a substring of the server note', () => {
+    const result = plan([{ storyId: 'a', note: 'TODO' }], [['a', 'TODO: read the async chapter']]);
+    expect(result.toSet).toEqual([
+      { storyId: 'a', note: 'TODO: read the async chapter\n\n---\n\nTODO', noteUpdatedAt: AT },
+    ]);
+  });
+
+  it('AC-3.4.5 a repeated merge changes nothing', () => {
+    const first = plan([{ storyId: 'a', note: 'TODO' }], [['a', 'TODO: read']]);
+    const merged = first.toSet[0]?.note ?? '';
+    const second = plan([{ storyId: 'a', note: 'TODO' }], [['a', merged]]);
+    expect(second.toSet).toEqual([]);
+  });
+
+  it('AC-3.4.5 device A retrying after device B appended adds no duplicate', () => {
+    const afterA = plan([{ storyId: 'a', note: 'from A' }], [['a', null]]).toSet[0]?.note ?? '';
+    const afterB = plan([{ storyId: 'a', note: 'from B' }], [['a', afterA]]).toSet[0]?.note ?? '';
+    expect(afterB).toBe('from A\n\n---\n\nfrom B');
+    expect(plan([{ storyId: 'a', note: 'from A' }], [['a', afterB]]).toSet).toEqual([]);
+  });
+
   it('AC-3.4.5 skips and counts a combined note over the limit, keeping the server note', () => {
     const server = 'x'.repeat(NOTE_MAX_LENGTH - 5);
     const result = plan([{ storyId: 'a', note: 'y'.repeat(10) }], [['a', server]]);

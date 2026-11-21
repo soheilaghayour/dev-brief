@@ -1,36 +1,34 @@
 import type { Prisma } from '../../generated/prisma/client.js';
+import { clampPosition, positionShift } from './positionShift.js';
 
-/** Rewrites the item positions of one collection to 0..n-1 in the given story order; unchanged rows are left alone. */
-export async function writeItemOrder(
+// `updateMany` throughout: it shifts positions in one statement and leaves `updatedAt` alone on rows that merely moved.
+
+/** Closes the gap a removed item left at `removedPosition`. */
+export async function closeItemGap(
   tx: Prisma.TransactionClient,
   collectionId: string,
-  storyIds: string[],
+  removedPosition: number,
 ) {
-  const rows = await tx.collectionItem.findMany({
-    where: { collectionId },
-    select: { storyId: true, position: true },
+  await tx.collectionItem.updateMany({
+    where: { collectionId, position: { gt: removedPosition } },
+    data: { position: { decrement: 1 } },
   });
-  const current = new Map(rows.map((row) => [row.storyId, row.position]));
-  for (const [position, storyId] of storyIds.entries()) {
-    if (current.get(storyId) === position) continue;
-    await tx.collectionItem.update({
-      where: { collectionId_storyId: { collectionId, storyId } },
-      data: { position },
-      select: { storyId: true },
-    });
-  }
 }
 
-/** Closes the gaps a removed item leaves, keeping the current order. */
-export async function renumberItems(tx: Prisma.TransactionClient, collectionId: string) {
-  const rows = await tx.collectionItem.findMany({
-    where: { collectionId },
-    select: { storyId: true },
-    orderBy: [{ position: 'asc' }, { storyId: 'asc' }],
+/** Moves one item of a dense order of `count` items from `from` to `requested` (clamped): one range shift plus one update. */
+export async function moveItem(
+  tx: Prisma.TransactionClient,
+  { collectionId, storyId }: { collectionId: string; storyId: string },
+  from: number,
+  requested: number,
+  count: number,
+) {
+  const to = clampPosition(requested, count);
+  const shift = positionShift(from, to);
+  if (!shift) return;
+  await tx.collectionItem.updateMany({
+    where: { collectionId, position: shift.range },
+    data: { position: shift.by === 1 ? { increment: 1 } : { decrement: 1 } },
   });
-  await writeItemOrder(
-    tx,
-    collectionId,
-    rows.map((row) => row.storyId),
-  );
+  await tx.collectionItem.updateMany({ where: { collectionId, storyId }, data: { position: to } });
 }

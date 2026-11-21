@@ -337,7 +337,10 @@
       "web_commit_signoff_required": true,
       "has_pull_requests": true,
       "pull_request_creation_policy": "collaborators_only",
-      "topics": ["design", "react"],
+      "topics": [
+        "design",
+        "react"
+      ],
       "visibility": "public",
       "forks": 48,
       "open_issues": 0,

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   COLLECTION_ITEMS_MAX,
   COLLECTIONS_MAX,
+  CollectionNameSchema,
   CollectionSlugSchema,
   NOTE_MAX_LENGTH,
 } from './collections.js';
@@ -40,19 +41,23 @@ export type SaveNotePatch = z.infer<typeof SaveNotePatchSchema>;
 
 export const MergeRequestSchema = z.object({
   version: z.literal(1),
-  saves: z.array(SaveSchema).max(500),
+  saves: z.array(z.object({ storyId: StoryIdSchema, savedAt: z.string().datetime() })).max(500),
   preferences: PreferencesSchema.optional(),
   collections: z
     .array(
       z.object({
         slug: CollectionSlugSchema,
-        name: z.string().trim().min(1).max(60),
+        name: CollectionNameSchema,
         items: z
           .array(z.object({ storyId: StoryIdSchema, position: z.number().int().min(0) }))
           .max(COLLECTION_ITEMS_MAX),
       }),
     )
     .max(COLLECTIONS_MAX)
+    // The merge matches by slug, so a repeat in one request would be two answers to one key.
+    .refine((boards) => new Set(boards.map((board) => board.slug)).size === boards.length, {
+      message: 'Collection slugs must be unique.',
+    })
     .optional(),
   notes: z
     .array(
@@ -67,14 +72,23 @@ export const MergeRequestSchema = z.object({
 });
 export type MergeRequest = z.infer<typeof MergeRequestSchema>;
 
+// `.default(0)` on the fields added later, so a new web parses the response of an older API during a rolling deploy.
 export const MergeResponseSchema = z.object({
   merged: z.object({
     saves: z.number().int(),
     preferences: z.number().int(),
-    collections: z.number().int(),
-    notes: z.number().int(),
+    collections: z.number().int().default(0),
+    notes: z.number().int().default(0),
   }),
-  skipped: z.object({ saves: z.number().int(), notes: z.number().int() }),
+  skipped: z.object({
+    /** Unknown story ids across saves, collection items and notes together, not only saves. */
+    saves: z.number().int(),
+    notes: z.number().int().default(0),
+    /** New collections left out past the collection limit. */
+    collections: z.number().int().default(0),
+    /** Stories left out past a collection's item limit. */
+    items: z.number().int().default(0),
+  }),
   missingStoryIds: z.array(z.string()),
 });
 export type MergeResponse = z.infer<typeof MergeResponseSchema>;

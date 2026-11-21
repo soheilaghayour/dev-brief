@@ -13,7 +13,7 @@ import {
   type SavedStoryPage,
 } from '@devbrief/shared';
 import { lockCollectionWrites } from '../../common/collections/collectionWriteLock.js';
-import { renumberItems } from '../../common/collections/itemOrder.js';
+import { closeItemGap } from '../../common/collections/itemOrder.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -85,7 +85,6 @@ async function mergeCollections(
   { tx, userId, knownStoryIds }: MergeContext,
   incoming: NonNullable<MergeRequest['collections']>,
 ) {
-  await lockCollectionWrites(tx, userId);
   const accountCollections = await tx.collection.findMany({
     where: { userId },
     select: { id: true, slug: true, position: true, items: { select: { storyId: true } } },
@@ -102,6 +101,7 @@ async function mergeCollections(
         },
       ]),
     ),
+    accountCollectionCount: accountCollections.length,
     nextCollectionPosition: accountCollections.reduce(
       (next, collection) => Math.max(next, collection.position + 1),
       0,
@@ -164,7 +164,7 @@ async function mergeNotes(
   return plan;
 }
 
-/** Room for the worst case: every one of 500 saves moves earlier, one round trip each. */
+/** Room for the worst case: 500 saves moving earlier plus 500 note upserts, one round trip each (about 1 s locally). */
 const MERGE_TRANSACTION_TIMEOUT_MS = 15_000;
 
 @Injectable()
@@ -265,10 +265,11 @@ export class SavesService {
       await lockCollectionWrites(tx, userId);
       const items = await tx.collectionItem.findMany({
         where: { userId, storyId },
-        select: { collectionId: true },
+        select: { collectionId: true, position: true },
       });
       await tx.save.deleteMany({ where: { userId, storyId } });
-      for (const { collectionId } of items) await renumberItems(tx, collectionId);
+      for (const { collectionId, position } of items)
+        await closeItemGap(tx, collectionId, position);
     });
   }
 
@@ -288,6 +289,8 @@ export class SavesService {
     const saveStoryIds = [...new Set(saves.map((save) => save.storyId))];
     const result = await this.prisma.$transaction(
       async (tx) => {
+        // First statement, as in every other collection write: a merge that locked later would take save rows before the lock another writer holds while it waits for them.
+        if (collections || notes) await lockCollectionWrites(tx, userId);
         const stories = await tx.story.findMany({
           where: { id: { in: storyIds } },
           select: { id: true },
@@ -348,7 +351,12 @@ export class SavesService {
         collections: result.collectionPlan?.mergedCount ?? 0,
         notes: result.notePlan?.mergedCount ?? 0,
       },
-      skipped: { saves: missingStoryIds.length, notes: result.notePlan?.skippedCount ?? 0 },
+      skipped: {
+        saves: missingStoryIds.length,
+        notes: result.notePlan?.skippedCount ?? 0,
+        collections: result.collectionPlan?.skippedCollections ?? 0,
+        items: result.collectionPlan?.skippedItems ?? 0,
+      },
       missingStoryIds,
     };
   }

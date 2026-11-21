@@ -11,6 +11,8 @@ import {
   type CollectionUpdate,
 } from '@devbrief/shared';
 import { lockCollectionWrites } from '../../common/collections/collectionWriteLock.js';
+import { closeItemGap, moveItem } from '../../common/collections/itemOrder.js';
+import { clampPosition, positionShift } from '../../common/collections/positionShift.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -21,8 +23,6 @@ import {
   storyWithItems,
 } from '../../common/story-card/storyCard.mapper.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { moveToPosition } from './collectionOrder.js';
-import { renumberItems, writeItemOrder } from '../../common/collections/itemOrder.js';
 
 const WITH_ITEM_COUNT = { _count: { select: { items: true } } } satisfies Prisma.CollectionInclude;
 
@@ -46,35 +46,23 @@ function notFound() {
   return new ApiException('NOT_FOUND', 'Collection not found.');
 }
 
-/** Rewrites the positions of a user's collections to 0..n-1 in the given id order; unchanged rows are left alone. */
-async function writeCollectionOrder(tx: Prisma.TransactionClient, userId: string, ids: string[]) {
-  const rows = await tx.collection.findMany({
-    where: { userId },
-    select: { id: true, position: true },
+/** Moves one of a user's collections to `requested` (clamped) with one range shift and one update; `updateMany` leaves `updatedAt` alone on the shifted rows. */
+async function moveCollection(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  id: string,
+  from: number,
+  requested: number,
+) {
+  const count = await tx.collection.count({ where: { userId } });
+  const to = clampPosition(requested, count);
+  const shift = positionShift(from, to);
+  if (!shift) return;
+  await tx.collection.updateMany({
+    where: { userId, position: shift.range },
+    data: { position: shift.by === 1 ? { increment: 1 } : { decrement: 1 } },
   });
-  const current = new Map(rows.map((row) => [row.id, row.position]));
-  for (const [position, id] of ids.entries()) {
-    if (current.get(id) === position) continue;
-    await tx.collection.update({ where: { id }, data: { position }, select: { id: true } });
-  }
-}
-
-async function orderedCollectionIds(tx: Prisma.TransactionClient, userId: string) {
-  const rows = await tx.collection.findMany({
-    where: { userId },
-    select: { id: true },
-    orderBy: [{ position: 'asc' }, { id: 'asc' }],
-  });
-  return rows.map((row) => row.id);
-}
-
-async function orderedItemStoryIds(tx: Prisma.TransactionClient, collectionId: string) {
-  const rows = await tx.collectionItem.findMany({
-    where: { collectionId },
-    select: { storyId: true },
-    orderBy: [{ position: 'asc' }, { storyId: 'asc' }],
-  });
-  return rows.map((row) => row.storyId);
+  await tx.collection.updateMany({ where: { id, userId }, data: { position: to } });
 }
 
 @Injectable()
@@ -135,7 +123,10 @@ export class CollectionsService {
   ): Promise<Collection> {
     return this.prisma.$transaction(async (tx) => {
       await lockCollectionWrites(tx, userId);
-      const owned = await tx.collection.findFirst({ where: { id, userId }, select: { id: true } });
+      const owned = await tx.collection.findFirst({
+        where: { id, userId },
+        select: { position: true },
+      });
       if (!owned) throw notFound();
       await tx.collection.update({
         where: { id },
@@ -143,11 +134,7 @@ export class CollectionsService {
         select: { id: true },
       });
       if (position !== undefined) {
-        await writeCollectionOrder(
-          tx,
-          userId,
-          moveToPosition(await orderedCollectionIds(tx, userId), id, position),
-        );
+        await moveCollection(tx, userId, id, owned.position, position);
       }
       return toCollection(
         await tx.collection.findUniqueOrThrow({ where: { id }, include: WITH_ITEM_COUNT }),
@@ -158,9 +145,16 @@ export class CollectionsService {
   async remove(userId: string, id: string) {
     await this.prisma.$transaction(async (tx) => {
       await lockCollectionWrites(tx, userId);
-      const { count } = await tx.collection.deleteMany({ where: { id, userId } });
-      if (count === 0) throw notFound();
-      await writeCollectionOrder(tx, userId, await orderedCollectionIds(tx, userId));
+      const removed = await tx.collection.findFirst({
+        where: { id, userId },
+        select: { position: true },
+      });
+      if (!removed) throw notFound();
+      await tx.collection.delete({ where: { id }, select: { id: true } });
+      await tx.collection.updateMany({
+        where: { userId, position: { gt: removed.position } },
+        data: { position: { decrement: 1 } },
+      });
     });
   }
 
@@ -208,9 +202,14 @@ export class CollectionsService {
       if (!collection) throw notFound();
       const story = await tx.story.findUnique({ where: { id: storyId }, select: { id: true } });
       if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
-      const itemStoryIds = await orderedItemStoryIds(tx, id);
-      if (!itemStoryIds.includes(storyId)) {
-        if (itemStoryIds.length >= COLLECTION_ITEMS_MAX) {
+      const items = await tx.collectionItem.findMany({
+        where: { collectionId: id },
+        select: { storyId: true, position: true },
+      });
+      const current = items.find((item) => item.storyId === storyId);
+      const itemPosition = current?.position ?? items.length;
+      if (!current) {
+        if (items.length >= COLLECTION_ITEMS_MAX) {
           throw new ApiException(
             'VALIDATION_FAILED',
             `A collection can hold at most ${COLLECTION_ITEMS_MAX} stories.`,
@@ -227,13 +226,18 @@ export class CollectionsService {
             collectionId: id,
             userId: collection.userId,
             storyId,
-            position: itemStoryIds.length,
+            position: itemPosition,
           },
         });
-        itemStoryIds.push(storyId);
       }
       if (position !== undefined) {
-        await writeItemOrder(tx, id, moveToPosition(itemStoryIds, storyId, position));
+        await moveItem(
+          tx,
+          { collectionId: id, storyId },
+          itemPosition,
+          position,
+          items.length + (current ? 0 : 1),
+        );
       }
       return toCollection(
         await tx.collection.findUniqueOrThrow({ where: { id }, include: WITH_ITEM_COUNT }),
@@ -249,8 +253,16 @@ export class CollectionsService {
         select: { id: true },
       });
       if (!collection) throw notFound();
-      await tx.collectionItem.deleteMany({ where: { collectionId: id, storyId } });
-      await renumberItems(tx, id);
+      const item = await tx.collectionItem.findUnique({
+        where: { collectionId_storyId: { collectionId: id, storyId } },
+        select: { position: true },
+      });
+      if (!item) return;
+      await tx.collectionItem.delete({
+        where: { collectionId_storyId: { collectionId: id, storyId } },
+        select: { storyId: true },
+      });
+      await closeItemGap(tx, id, item.position);
     });
   }
 }

@@ -1,3 +1,5 @@
+import { COLLECTION_ITEMS_MAX, COLLECTIONS_MAX } from '@devbrief/shared';
+
 type IncomingCollection = {
   slug: string;
   name: string;
@@ -8,6 +10,8 @@ type CollectionMergeInput = {
   incoming: readonly IncomingCollection[];
   /** The account's collections among the incoming slugs. */
   existing: ReadonlyMap<string, { storyIds: ReadonlySet<string>; itemCount: number }>;
+  /** How many collections the account has in all, not only among the incoming slugs. */
+  accountCollectionCount: number;
   /** The position after the account's last collection. */
   nextCollectionPosition: number;
   knownStoryIds: ReadonlySet<string>;
@@ -26,35 +30,37 @@ export type PlannedCollection = {
 export type CollectionMergePlan = {
   collections: PlannedCollection[];
   missingStoryIds: string[];
-  /** Distinct incoming slugs, whether or not they changed anything. */
+  /** Distinct incoming slugs, whether or not they changed anything; skipped collections are not counted. */
   mergedCount: number;
+  /** New collections left out because the account is at the collection limit. */
+  skippedCollections: number;
+  /** Known stories left out because their collection is at the item limit. */
+  skippedItems: number;
 };
-
-/** One entry per slug: the first name wins and the items of repeats join it. */
-function groupBySlug(incoming: readonly IncomingCollection[]) {
-  const grouped = new Map<
-    string,
-    { name: string; items: { storyId: string; position: number }[] }
-  >();
-  for (const collection of incoming) {
-    const kept = grouped.get(collection.slug);
-    if (kept) kept.items.push(...collection.items);
-    else grouped.set(collection.slug, { name: collection.name, items: [...collection.items] });
-  }
-  return grouped;
-}
 
 /** Decides what a guest → account merge writes for collections: matched by slug, new ones at the end, missing items appended in the guest's order. */
 export function planCollectionMerge({
   incoming,
   existing,
+  accountCollectionCount,
   nextCollectionPosition,
   knownStoryIds,
 }: CollectionMergeInput): CollectionMergePlan {
-  const plan: CollectionMergePlan = { collections: [], missingStoryIds: [], mergedCount: 0 };
+  const plan: CollectionMergePlan = {
+    collections: [],
+    missingStoryIds: [],
+    mergedCount: 0,
+    skippedCollections: 0,
+    skippedItems: 0,
+  };
   let nextPosition = nextCollectionPosition;
-  for (const [slug, { name, items }] of groupBySlug(incoming)) {
+  let collectionCount = accountCollectionCount;
+  for (const { slug, name, items } of incoming) {
     const account = existing.get(slug);
+    if (!account && collectionCount >= COLLECTIONS_MAX) {
+      plan.skippedCollections += 1;
+      continue;
+    }
     const present = new Set(account?.storyIds);
     let nextItemPosition = account?.itemCount ?? 0;
     const itemsToAdd: PlannedCollection['itemsToAdd'] = [];
@@ -68,6 +74,10 @@ export function planCollectionMerge({
       }
       if (present.has(storyId)) continue;
       present.add(storyId);
+      if (nextItemPosition >= COLLECTION_ITEMS_MAX) {
+        plan.skippedItems += 1;
+        continue;
+      }
       itemsToAdd.push({ storyId, position: nextItemPosition });
       nextItemPosition += 1;
     }
@@ -77,6 +87,7 @@ export function planCollectionMerge({
     } else {
       plan.collections.push({ slug, name, isNew: true, position: nextPosition, itemsToAdd });
       nextPosition += 1;
+      collectionCount += 1;
     }
   }
   return plan;

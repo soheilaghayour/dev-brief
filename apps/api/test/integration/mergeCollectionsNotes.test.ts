@@ -1,8 +1,13 @@
 import type { INestApplication } from '@nestjs/common';
-import { MergeResponseSchema, NOTE_MAX_LENGTH } from '@devbrief/shared';
+import {
+  COLLECTION_ITEMS_MAX,
+  COLLECTIONS_MAX,
+  MergeResponseSchema,
+  NOTE_MAX_LENGTH,
+} from '@devbrief/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from './createTestApp.js';
-import { createSource, createStory } from './seedStories.js';
+import { createBareStories, createSource, createStory } from './seedStories.js';
 import { signInUser } from './signedInUser.js';
 import { useTestDatabase } from './testDatabase.js';
 
@@ -241,6 +246,92 @@ describe('merging guest collections and notes', () => {
     const user = await signIn();
     const result = await merge(user, { saves: [{ storyId: story(0), savedAt: SAVED_AT }] });
     expect(result.merged).toEqual({ saves: 1, preferences: 0, collections: 0, notes: 0 });
-    expect(result.skipped).toEqual({ saves: 0, notes: 0 });
+    expect(result.skipped).toEqual({ saves: 0, notes: 0, collections: 0, items: 0 });
+  });
+
+  it('rejects a request that repeats a collection slug with 400', async () => {
+    const user = await signIn();
+    const response = await user.post(
+      MERGE,
+      body({ collections: [guestCollection('rust', 'A', [0]), guestCollection('rust', 'B', [1])] }),
+    );
+    expect(response.status).toBe(400);
+    expect(await prisma.collection.count({ where: { userId: user.userId } })).toBe(0);
+  });
+
+  it('AC-3.4.5 creates collections only up to the limit of 50 in all and counts the rest in skipped.collections', async () => {
+    const user = await signIn();
+    await prisma.collection.createMany({
+      data: Array.from({ length: 10 }, (_, position) => ({
+        userId: user.userId,
+        name: `Old ${position}`,
+        slug: `old-${position}`,
+        position,
+      })),
+    });
+    const boards = Array.from({ length: COLLECTIONS_MAX }, (_, index) =>
+      guestCollection(`new-${index}`, `New ${index}`, []),
+    );
+    const result = await merge(user, { collections: boards });
+    expect(result.merged.collections).toBe(COLLECTIONS_MAX - 10);
+    expect(result.skipped.collections).toBe(10);
+    const rows = await prisma.collection.findMany({
+      where: { userId: user.userId },
+      orderBy: { position: 'asc' },
+    });
+    expect(rows).toHaveLength(COLLECTIONS_MAX);
+    expect(rows.map((row) => row.position)).toEqual(rows.map((_, index) => index));
+    expect(await merge(user, { collections: boards })).toMatchObject({
+      skipped: { collections: 10 },
+    });
+    expect(await prisma.collection.count({ where: { userId: user.userId } })).toBe(COLLECTIONS_MAX);
+  });
+
+  it('AC-3.4.5 caps a collection at 500 items counting the existing ones and counts the overflow in skipped.items', async () => {
+    const user = await signIn();
+    const many = await createBareStories(prisma, COLLECTION_ITEMS_MAX + 3, 'cap');
+    const existing = many.slice(0, COLLECTION_ITEMS_MAX - 2);
+    const board = await prisma.collection.create({
+      data: { userId: user.userId, name: 'Full', slug: 'full', position: 0 },
+    });
+    await prisma.save.createMany({
+      data: existing.map((storyId) => ({ userId: user.userId, storyId })),
+    });
+    await prisma.collectionItem.createMany({
+      data: existing.map((storyId, position) => ({
+        collectionId: board.id,
+        userId: user.userId,
+        storyId,
+        position,
+      })),
+    });
+    const incoming = {
+      slug: 'full',
+      name: 'Full',
+      items: many
+        .slice(COLLECTION_ITEMS_MAX - 2)
+        .map((storyId, position) => ({ storyId, position })),
+    };
+    const result = await merge(user, { collections: [incoming] });
+    expect(result.skipped.items).toBe(3);
+    expect(await prisma.collectionItem.count({ where: { collectionId: board.id } })).toBe(
+      COLLECTION_ITEMS_MAX,
+    );
+    expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(COLLECTION_ITEMS_MAX);
+  });
+
+  it('merging slug "rust" leaves another user\'s "rust" collection untouched', async () => {
+    const other = await signIn();
+    const user = await signIn();
+    const theirs = await prisma.collection.create({
+      data: { userId: other.userId, name: 'Theirs', slug: 'rust', position: 0 },
+    });
+    await merge(user, { collections: [guestCollection('rust', 'Mine', [0, 1])] });
+    expect(await prisma.collectionItem.count({ where: { collectionId: theirs.id } })).toBe(0);
+    const mine = await prisma.collection.findFirstOrThrow({
+      where: { userId: user.userId, slug: 'rust' },
+    });
+    expect(mine.id).not.toBe(theirs.id);
+    expect(await prisma.collection.count({ where: { userId: other.userId } })).toBe(1);
   });
 });

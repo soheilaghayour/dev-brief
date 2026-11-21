@@ -32,6 +32,14 @@ function newestPerStory(incoming: readonly IncomingNote[]) {
   return [...newest.values()];
 }
 
+/** Whether the server note is the guest note or holds it as a whole `---` segment; a plain substring would drop short notes like "TODO". */
+function alreadyHasNote(server: string, local: string) {
+  if (server === local) return true;
+  // A guest note that holds the separator was merged earlier and can only match as a whole run.
+  if (local.includes(NOTE_SEPARATOR)) return server.includes(local);
+  return server.split(NOTE_SEPARATOR).some((segment) => segment.trim() === local.trim());
+}
+
 /** Decides what a guest → account merge writes for notes: set a missing note, append a conflicting one once, or skip an over-long result. */
 export function planNoteMerge({
   incoming,
@@ -51,7 +59,7 @@ export function planNoteMerge({
     } else if (server === null) {
       plan.toSet.push({ storyId: local.storyId, note: local.note, noteUpdatedAt: local.updatedAt });
       plan.mergedCount += 1;
-    } else if (server.includes(local.note)) {
+    } else if (alreadyHasNote(server, local.note)) {
       // Covers an identical note and a repeated merge: appending again would grow the note forever.
       plan.mergedCount += 1;
     } else {

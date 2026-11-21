@@ -122,6 +122,17 @@ describe('collections', () => {
     expect(await prisma.collection.count({ where: { id: collection.id } })).toBe(1);
   });
 
+  it('answers 400 VALIDATION_FAILED for a malformed collection id on GET and a malformed story id on DELETE item', async () => {
+    const user = await signIn();
+    const collection = await createCollection(user, 'Malformed');
+    const badCollection = await user.get(`${BASE}/not%20an%20id`);
+    expect(badCollection.status).toBe(400);
+    expect(ApiErrorSchema.parse(badCollection.body).error.code).toBe('VALIDATION_FAILED');
+    const badStory = await user.del(`${BASE}/${collection.id}/items/not%20an%20id`);
+    expect(badStory.status).toBe(400);
+    expect(ApiErrorSchema.parse(badStory.body).error.code).toBe('VALIDATION_FAILED');
+  });
+
   it('POST answers 201 with a Collection at the end, a slug from the name, private and never stored', async () => {
     const user = await signIn();
     const first = await user.post(BASE, { name: 'Read later', description: 'Soon' });

@@ -14,7 +14,7 @@ const { latestGuestData } = await import('@/lib/guest/guestSaves');
 
 const CONFIRMED: MergeResponse = {
   merged: { saves: 0, preferences: 2, collections: 0, notes: 0 },
-  skipped: { saves: 0, notes: 0 },
+  skipped: { saves: 0, notes: 0, collections: 0, items: 0 },
   missingStoryIds: [],
 };
 

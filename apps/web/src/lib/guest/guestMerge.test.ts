@@ -70,7 +70,7 @@ describe('guestMergeResult', () => {
   it('AC-1.5.5 removes every sent save, including unknown stories, and reports the synced count', () => {
     const result = guestMergeResult(request, {
       merged: { saves: 1, preferences: 0, collections: 0, notes: 0 },
-      skipped: { saves: 1, notes: 0 },
+      skipped: { saves: 1, notes: 0, collections: 0, items: 0 },
       missingStoryIds: ['gone'],
     });
     expect(result.confirmedStoryIds).toEqual(['a', 'gone']);
@@ -80,7 +80,7 @@ describe('guestMergeResult', () => {
   it('AC-1.5.5 words the toast "N saved stories synced"', () => {
     const result = guestMergeResult(request, {
       merged: { saves: 2, preferences: 0, collections: 0, notes: 0 },
-      skipped: { saves: 0, notes: 0 },
+      skipped: { saves: 0, notes: 0, collections: 0, items: 0 },
       missingStoryIds: [],
     });
     expect(result.notice).toBe('2 saved stories synced');
@@ -89,7 +89,7 @@ describe('guestMergeResult', () => {
   it('shows no toast when nothing was synced', () => {
     const result = guestMergeResult(request, {
       merged: { saves: 0, preferences: 0, collections: 0, notes: 0 },
-      skipped: { saves: 2, notes: 0 },
+      skipped: { saves: 2, notes: 0, collections: 0, items: 0 },
       missingStoryIds: ['a', 'gone'],
     });
     expect(result.notice).toBeNull();
@@ -101,7 +101,7 @@ describe('guestMergeResult', () => {
       { ...request, preferences: sent },
       {
         merged: { saves: 1, preferences: 1, collections: 0, notes: 0 },
-        skipped: { saves: 1, notes: 0 },
+        skipped: { saves: 1, notes: 0, collections: 0, items: 0 },
         missingStoryIds: ['gone'],
       },
     );
@@ -110,7 +110,7 @@ describe('guestMergeResult', () => {
     expect(
       guestMergeResult(request, {
         merged: { saves: 1, preferences: 0, collections: 0, notes: 0 },
-        skipped: { saves: 1, notes: 0 },
+        skipped: { saves: 1, notes: 0, collections: 0, items: 0 },
         missingStoryIds: ['gone'],
       }).confirmedPreferences,
     ).toBeUndefined();
