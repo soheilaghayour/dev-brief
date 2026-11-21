@@ -23,6 +23,7 @@ import { feedQueryOptions, personalisedPlaceholder } from './feedQueries';
 import { hideMuted } from './hideMuted';
 import { InfiniteSentinel } from './InfiniteSentinel';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
+import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
 import { SummarizeShortcut } from './SummarizeShortcut';
 import { useFeedFilters } from './useFeedFilters';
@@ -160,6 +161,7 @@ export function FeedList() {
           onToggleSave={() => saves.toggle(story.id)}
           isActive={story.id === activeId}
           preferenceMenu={PreferenceMenu}
+          relatedToggle={RelatedToggle}
         />
       ))}
       {isFetchNextPageError && (
