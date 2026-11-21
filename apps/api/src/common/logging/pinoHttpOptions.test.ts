@@ -3,7 +3,7 @@ import { Writable } from 'node:stream';
 import { pinoHttp } from 'pino-http';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { pinoHttpOptions } from './pinoHttpOptions.js';
+import { CLIENT_IP_HEADERS, pinoHttpOptions } from './pinoHttpOptions.js';
 import { assignRequestId } from './requestId.js';
 
 async function logLineFor(headers: Record<string, string>) {
@@ -33,5 +33,15 @@ describe('request logging', () => {
     expect(log).toContain('"url":"/"');
     expect(log).not.toMatch(/SECRET123|TOKEN456|INTERNAL789|203\.0\.113\.7/);
     expect(log).toContain('"remoteAddress":"[Redacted]"');
+  });
+
+  it('redacts every client-IP proxy header, the socket address and the port', async () => {
+    const ip = '198.51.100.23';
+    const log = await logLineFor(Object.fromEntries(CLIENT_IP_HEADERS.map((name) => [name, ip])));
+    expect(log).toContain('"url":"/"');
+    expect(log).not.toContain(ip);
+    expect(log).toContain('"remoteAddress":"[Redacted]"');
+    expect(log).toContain('"remotePort":"[Redacted]"');
+    for (const name of CLIENT_IP_HEADERS) expect(log).toContain(`"${name}":"[Redacted]"`);
   });
 });
