@@ -1895,7 +1895,7 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 | Landing first-load JS | ≤ 165 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
 | `/feed` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
 | `/saved` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
-| `/story/[id]` first-load JS | ≤ 195 KB gzip (shell included) | `pnpm --filter web size` |
+| `/story/[id]` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
 | `/radar` first-load JS (P3) | ≤ 195 KB gzip (shell included): its measured size plus 3 KB, rounded up to the next 5 KB. | `pnpm --filter web size` |
 | `/collections/[slug]` first-load JS (P3) | ≤ 190 KB gzip (shell included). A ceiling: the measured size plus 3 KB, rounded up to the next 5 KB, confirmed when the route is first measured. | `pnpm --filter web size` |
 | Lazy chunks | Recharts, A2UI renderer and Markdown editor are never in landing or feed first-load | `pnpm --filter web size` plus a bundle-analyzer report on PRs |

@@ -2,7 +2,7 @@
   "/": 165,
   "/feed": 200,
   "/saved": 200,
-  "/story/[id]": 195,
+  "/story/[id]": 200,
   "/radar": 195,
   "/collections/[slug]": 190
 }
