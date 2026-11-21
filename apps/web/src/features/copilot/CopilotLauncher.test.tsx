@@ -142,6 +142,52 @@ describe('CopilotLauncher', () => {
     await vi.waitFor(() => expect(document.activeElement).toBe(askButton()));
   });
 
+  it('returns focus to the header button when the field that opened the bar is gone', async () => {
+    // Outside React's tree, so the test can remove it from the page.
+    const field = document.body.appendChild(document.createElement('input'));
+    field.focus();
+    await press('k', { ctrlKey: true }, field);
+    await whenBarIsOpen();
+
+    field.remove();
+    await press('Escape', {}, document.activeElement ?? document);
+    await vi.waitFor(() => expect(bar()).toBeNull());
+
+    await vi.waitFor(() => expect(document.activeElement).toBe(askButton()));
+  });
+
+  it('opens a fresh bar each time, with the question cleared', async () => {
+    await act(async () => askButton().click());
+    await whenBarIsOpen();
+    const question = () =>
+      document.querySelector<HTMLInputElement>('input[aria-label="Your question"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        question(),
+        'Is Bun ready?',
+      );
+      question().dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await press('Escape', {}, document.activeElement ?? document);
+    await vi.waitFor(() => expect(bar()).toBeNull());
+
+    await act(async () => askButton().click());
+    await whenBarIsOpen();
+
+    expect(question().value).toBe('');
+  });
+
+  it('keeps page shortcuts quiet behind the open bar: ? does not open the help dialog', async () => {
+    await act(async () => askButton().click());
+    await whenBarIsOpen();
+
+    await press('?', {}, document.activeElement ?? document);
+    await press('g', {}, document.activeElement ?? document);
+    await press('s', {}, document.activeElement ?? document);
+
+    expect(document.body.textContent).not.toContain('Keyboard shortcuts');
+  });
+
   it('traps focus inside the open bar', async () => {
     await act(async () => askButton().click());
     await whenBarIsOpen();

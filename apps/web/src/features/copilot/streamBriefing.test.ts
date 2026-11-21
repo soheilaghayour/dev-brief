@@ -125,12 +125,28 @@ describe('streamBriefing', () => {
     ).rejects.toThrow();
   });
 
-  it('rejects an a2ui event that is not a server message', async () => {
+  it('drops an a2ui event that is not a server message and keeps the ones around it', async () => {
     const notAMessage = { version: '1.0', render: { surfaceId: 'x' } };
-    const fetchMock = vi.fn(async () => textResponse(sse('a2ui', notAMessage)));
-    await expect(
-      collect(streamBriefing(REQUEST, { signal: new AbortController().signal, fetch: fetchMock })),
-    ).rejects.toThrow();
+    const fetchMock = vi.fn(async () =>
+      textResponse(sse('a2ui', SURFACE) + sse('a2ui', notAMessage) + sse('done', {})),
+    );
+
+    const events = await collect(
+      streamBriefing(REQUEST, { signal: new AbortController().signal, fetch: fetchMock }),
+    );
+
+    expect(events.map((event) => event.type)).toEqual(['a2ui', 'done']);
+  });
+
+  it('skips an event whose data is not JSON, whatever its name', async () => {
+    const malformed = 'event: a2ui\ndata: {oops\n\nevent: nope\ndata: {oops\n\n';
+    const fetchMock = vi.fn(async () => textResponse(malformed + sse('done', {})));
+
+    const events = await collect(
+      streamBriefing(REQUEST, { signal: new AbortController().signal, fetch: fetchMock }),
+    );
+
+    expect(events.map((event) => event.type)).toEqual(['done']);
   });
 
   it('passes the abort signal to fetch and cancels the body when the consumer stops early', async () => {

@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog';
 import { useCollections, type CollectionView } from './useCollections';
-import { useReturnFocus } from './useReturnFocus';
+import { useReturnFocus } from '@/lib/useReturnFocus';
 
 type DeleteCollectionDialogProps = {
   collection: CollectionView;

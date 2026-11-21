@@ -14,6 +14,7 @@ import type { ReactNode } from 'react';
 import { GlobalShortcuts } from './GlobalShortcuts';
 import {
   isEditableTarget,
+  isModalOpen,
   isSequenceLeader,
   SEQUENCE_TIMEOUT_MS,
   type Shortcut,
@@ -78,7 +79,10 @@ export function HotkeysProvider({ children }: { children: ReactNode }) {
       leaderPending.current = pending;
       // A repeated leader cancels, as in the hook (`g g s` runs no sequence); a `g` typed into a field never arms one.
       leaderAt.current =
-        !pending && !isEditableTarget(event.target) && isSequenceLeader(event.key, shortcuts)
+        !pending &&
+        !isModalOpen() &&
+        !isEditableTarget(event.target) &&
+        isSequenceLeader(event.key, shortcuts)
           ? event.timeStamp
           : null;
     }

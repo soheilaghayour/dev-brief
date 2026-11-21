@@ -198,17 +198,33 @@ export function buildTagDailyStats(now: Date) {
     );
 }
 
+// The fixture briefing cites these ids; the seed points each at a story it creates, so a card's link opens a real page.
+const BRIEFING_FIXTURE_STORY_IDS = [
+  'cbriefts0001',
+  'cbriefts0002',
+  'cbriefts0003',
+  'cbriefts0004',
+  'cbriefts0005',
+];
+const briefingStoryIds = BRIEFING_FIXTURE_STORY_IDS.map((_, index) => e2eStoryId(index + 1));
+/** The story the stored briefing's card links to. */
+export const BRIEFING_STORY_ID = briefingStoryIds[0]!;
+
 /** A stored, complete answer to the first suggested question, so the command bar's cached replay runs in e2e without a model call. */
 async function seedCopilotQuery(prisma: PrismaClient, now: Date) {
   const { question } = EXAMPLE_QUESTIONS[0];
-  const messages = A2uiServerMessageSchema.array().parse(tsToolingBriefing);
+  const fixture = BRIEFING_FIXTURE_STORY_IDS.reduce(
+    (json, fixtureId, index) => json.replaceAll(fixtureId, briefingStoryIds[index]!),
+    JSON.stringify(tsToolingBriefing),
+  );
+  const messages = A2uiServerMessageSchema.array().parse(JSON.parse(fixture));
   await prisma.copilotQuery.create({
     data: {
       question,
       questionHash: questionHash(question),
       status: 'complete',
       messages: messages as unknown as Prisma.InputJsonValue,
-      storyIds: [],
+      storyIds: briefingStoryIds,
       // Inside the 24 h cache whenever the specs run right after seeding.
       createdAt: now,
     },

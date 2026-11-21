@@ -11,6 +11,14 @@ import { AppHeader } from './AppHeader';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/feed' }));
 
+const loads = vi.hoisted(() => ({ count: 0 }));
+
+// Counts how often the launcher's chunk is evaluated: with the flag off it never is.
+vi.mock('@/features/copilot/CopilotLauncher', async (importOriginal) => {
+  loads.count += 1;
+  return importOriginal();
+});
+
 function OpenHelp() {
   const { setOpen } = useShortcutsHelp();
   useEffect(() => setOpen(true), [setOpen]);
@@ -44,13 +52,21 @@ describe('AppHeader', () => {
     );
     await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBeDefined());
 
+    const ctrlK = new KeyboardEvent('keydown', {
+      key: 'k',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
     await act(async () => {
-      document.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }),
-      );
+      document.dispatchEvent(ctrlK);
     });
     await vi.waitFor(() => expect(document.body.textContent).toContain('Keyboard shortcuts'));
 
+    // Nothing bound ⌘K (it would have called preventDefault), and the launcher's chunk was never fetched.
+    expect(ctrlK.defaultPrevented).toBe(false);
+    expect(loads.count).toBe(0);
+    expect(container.querySelector('[aria-keyshortcuts]')).toBeNull();
     expect(document.body.textContent).not.toContain('Ask the News');
   });
 
@@ -66,9 +82,7 @@ describe('AppHeader', () => {
     );
 
     await vi.waitFor(() =>
-      expect(
-        container.querySelector('button[aria-keyshortcuts="Control+K Meta+K"]'),
-      ).not.toBeNull(),
+      expect(container.querySelector('button[aria-keyshortcuts="Control+K"]')).not.toBeNull(),
     );
     await vi.waitFor(() =>
       expect(document.body.textContent).toContain('Open the Ask the News command bar'),

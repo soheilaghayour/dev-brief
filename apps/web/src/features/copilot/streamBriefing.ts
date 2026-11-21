@@ -20,25 +20,29 @@ export type StreamEvent =
   | { type: 'error'; data: CopilotErrorEvent }
   | { type: 'done'; data: CopilotDoneEvent };
 
+const EVENT_NAMES = ['meta', 'a2ui', 'error', 'done'];
+
+// An event this client does not know, or data that is not JSON, is skipped, so the server can add an event without breaking it.
 function parseEvent(name: string | undefined, data: string): StreamEvent | undefined {
+  if (!name || !EVENT_NAMES.includes(name)) return undefined;
   let payload: unknown;
   try {
     payload = JSON.parse(data);
   } catch {
-    throw new ApiResponseError(`The ${name} event is not valid JSON.`, 200);
+    return undefined;
   }
   switch (name) {
     case 'meta':
       return { type: 'meta', data: CopilotMetaEventSchema.parse(payload) };
-    case 'a2ui':
-      return { type: 'a2ui', message: A2uiServerMessageSchema.parse(payload) };
+    case 'a2ui': {
+      // One bad message is dropped, like the renderer does; the rest of the briefing still shows.
+      const message = A2uiServerMessageSchema.safeParse(payload);
+      return message.success ? { type: 'a2ui', message: message.data } : undefined;
+    }
     case 'error':
       return { type: 'error', data: CopilotErrorEventSchema.parse(payload) };
-    case 'done':
-      return { type: 'done', data: CopilotDoneEventSchema.parse(payload) };
-    // An event this client does not know is skipped, so the server can add one without breaking it.
     default:
-      return undefined;
+      return { type: 'done', data: CopilotDoneEventSchema.parse(payload) };
   }
 }
 

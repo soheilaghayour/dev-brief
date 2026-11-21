@@ -23,6 +23,8 @@ export type BarState = { quota: CopilotQuota | null; view: BriefingView };
 export type BarAction =
   | StreamEvent
   | { type: 'quotaLoaded'; quota: CopilotQuota }
+  /** A read after an answer ended, newer than any `meta`. */
+  | { type: 'quotaRefreshed'; quota: CopilotQuota }
   | { type: 'asked'; question: string }
   | { type: 'requestFailed'; error: unknown }
   /** The stream closed without a `done` event. */
@@ -64,6 +66,8 @@ export function briefingBarReducer(state: BarState, action: BarAction): BarState
     case 'quotaLoaded':
       // A `meta` that arrived first is newer than the read.
       return state.quota ? state : { ...state, quota: action.quota };
+    case 'quotaRefreshed':
+      return { ...state, quota: action.quota };
     case 'asked':
       return {
         ...state,

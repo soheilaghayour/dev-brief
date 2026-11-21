@@ -40,7 +40,8 @@ export function AppHeader({
         <div className="md:w-48">
           <Logo />
         </div>
-        <div className="min-w-0 flex-1">{searchSlot}</div>
+        {/* Clipped, so a field squeezed narrower than its padding never paints over the buttons beside it. */}
+        <div className="min-w-0 flex-1 overflow-hidden p-0.5 -m-0.5">{searchSlot}</div>
         {sortSlot}
         {isFeatureEnabled('copilot', features) && <LazyCopilotLauncher />}
         <ThemeToggle />

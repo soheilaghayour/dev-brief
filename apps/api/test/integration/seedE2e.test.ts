@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { EXAMPLE_QUESTIONS, TAG_SLUGS } from '@devbrief/shared';
-import tsToolingBriefing from '@devbrief/shared/a2ui/fixtures/tsToolingBriefing.json';
 import {
   assertDestructiveSeedAllowed,
+  BRIEFING_STORY_ID,
   CLUSTER_ID,
   CLUSTER_MEMBER_IDS,
   CLUSTER_REPRESENTATIVE_ID,
@@ -77,7 +77,11 @@ describe('end-to-end seed', () => {
       questionHash: questionHash(EXAMPLE_QUESTIONS[0].question),
       createdAt: now,
     });
-    expect(rows[0]?.messages).toEqual(tsToolingBriefing);
+    expect(JSON.stringify(rows[0]?.messages)).toContain(BRIEFING_STORY_ID);
+    expect(JSON.stringify(rows[0]?.messages)).not.toContain('cbriefts');
+    // Every cited story exists, so no card links to a 404.
+    const cited = await prisma.story.findMany({ where: { id: { in: rows[0]?.storyIds } } });
+    expect(cited).toHaveLength(rows[0]?.storyIds.length ?? -1);
   });
 
   it('removes stories that are not fixtures', async () => {

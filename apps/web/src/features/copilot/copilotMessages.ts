@@ -18,7 +18,18 @@ export function quotaExceededMessage(resetsAt: string | undefined) {
 const REQUEST_FAILURES = {
   RATE_LIMITED: 'Too many questions in a short time. Wait a minute and try again.',
   FEATURE_DISABLED: 'Ask the News is not available right now.',
+  VALIDATION_FAILED: "That question can't be answered. Try rewording it.",
+  SPEND_CAP_REACHED: 'Live answers are paused for today. Come back tomorrow.',
 } as const satisfies Partial<Record<FailureCode, string>>;
+
+// Asking the same question again cannot change these answers.
+const FINAL_FAILURES: readonly FailureCode[] = [
+  'FEATURE_DISABLED',
+  'VALIDATION_FAILED',
+  'SPEND_CAP_REACHED',
+];
+
+export const isRetryable = (code: FailureCode) => !FINAL_FAILURES.includes(code);
 
 /** The inline message for a question that failed before any component arrived. */
 export function requestFailedMessage(code: FailureCode) {

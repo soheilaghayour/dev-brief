@@ -91,7 +91,12 @@ afterEach(() => {
 async function openBar(open = true) {
   await act(async () =>
     root.render(
-      <CopilotCommandBar open={open} onOpenChange={onOpenChange} onCloseAutoFocus={() => {}} />,
+      <CopilotCommandBar
+        open={open}
+        onOpenChange={onOpenChange}
+        opener={null}
+        fallbackFocus={() => null}
+      />,
     ),
   );
 }
@@ -223,6 +228,7 @@ describe('CopilotCommandBar', () => {
   });
 
   it('AC-3.1.4 the badge updates from each meta.quota', async () => {
+    mocks.getCopilotQuota.mockResolvedValue({ ...QUOTA, remaining: 1 });
     scriptStream([metaEvent({ remaining: 1 }), ...a2uiEvents(MESSAGES.length), doneEvent]);
     await openBar();
 
@@ -234,6 +240,9 @@ describe('CopilotCommandBar', () => {
   });
 
   it('AC-3.1.4 a 429 shows the reset time in local time, 0 left and the sign-in hint for a guest', async () => {
+    mocks.getCopilotQuota
+      .mockResolvedValueOnce(QUOTA)
+      .mockResolvedValueOnce({ ...QUOTA, remaining: 0 });
     mocks.streamBriefing.mockImplementationOnce(async function* () {
       yield* [] as StreamEvent[];
       throw new ApiError(
@@ -383,6 +392,74 @@ describe('CopilotCommandBar', () => {
     await flush();
 
     expect(document.body.textContent).toContain("Couldn't get an answer");
+  });
+
+  it('AC-3.1.4 reads the quota again once an answer ends, so the badge shows a refund', async () => {
+    mocks.getCopilotQuota
+      .mockResolvedValueOnce(QUOTA)
+      .mockResolvedValueOnce({ ...QUOTA, remaining: 3 });
+    scriptStream([metaEvent({ remaining: 1 })]);
+    await openBar();
+
+    await typeQuestion('Is Bun ready for production?');
+    await pressEnter();
+    await flush();
+
+    expect(mocks.getCopilotQuota).toHaveBeenCalledTimes(2);
+    expect(document.body.textContent).toContain('3/3 left');
+  });
+
+  it.each([
+    ['VALIDATION_FAILED', 400, 'Try rewording it'],
+    ['SPEND_CAP_REACHED', 503, 'Live answers are paused for today. Come back tomorrow.'],
+  ] as const)('%s gets its own message and no Try again', async (code, status, copy) => {
+    mocks.streamBriefing.mockImplementationOnce(async function* () {
+      yield* [] as StreamEvent[];
+      throw new ApiError(code, 'No', 'r1', status, undefined);
+    });
+    await openBar();
+
+    await typeQuestion('Is Bun ready for production?');
+    await pressEnter();
+    await flush();
+
+    expect(document.body.textContent).toContain(copy);
+    expect(buttonNamed('Try again')).toBeUndefined();
+  });
+
+  it('keeps its live region in the page while nothing is announced in it', async () => {
+    await openBar();
+
+    const region = document.querySelector('[aria-live="polite"]');
+    expect(region).not.toBeNull();
+    expect(region?.className).not.toContain('empty:hidden');
+  });
+
+  it('a story link closes the bar when followed, but not when ctrl-clicked into a new tab', async () => {
+    scriptStream([metaEvent(), ...a2uiEvents(MESSAGES.length), doneEvent]);
+    await openBar();
+    await typeQuestion('Is Bun ready for production?');
+    await pressEnter();
+    await flush();
+    await vi.waitFor(() =>
+      expect(document.querySelector('article a[href^="/story/"]')).not.toBeNull(),
+    );
+    // jsdom cannot navigate; stopping the default keeps it from logging that.
+    const stopNavigation = (event: Event) => event.preventDefault();
+    document.addEventListener('click', stopNavigation);
+    const link = document.querySelector<HTMLAnchorElement>('article a[href^="/story/"]')!;
+
+    await act(async () => {
+      link.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }),
+      );
+    });
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    await click(link);
+    document.removeEventListener('click', stopNavigation);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('announces progress in a live region while the answer streams and when it is ready', async () => {

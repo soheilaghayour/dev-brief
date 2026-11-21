@@ -1,11 +1,8 @@
 import type { KeyboardEvent } from 'react';
 import { CornerDownLeftIcon } from 'lucide-react';
-import { QUESTION_MAX_CHARS } from '@devbrief/shared';
+import { QUESTION_MAX_CHARS, QUESTION_MIN_CHARS } from '@devbrief/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-
-/** The shortest question the API accepts (its schema trims first). */
-const QUESTION_MIN_CHARS = 3;
 
 type QuestionInputProps = {
   value: string;
