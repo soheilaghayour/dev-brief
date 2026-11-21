@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { guestHintSyncText } from './guestHintCopy';
 import { signInHref } from './signInHref';
 import { useGuestHint } from './useGuestHint';
 
@@ -28,7 +29,7 @@ export function GuestHintBar() {
         >
           Sign in
         </Link>{' '}
-        to sync anywhere.
+        {guestHintSyncText()}
       </p>
       <Button variant="ghost" size="icon" aria-label="Dismiss" onClick={hint.dismiss}>
         <XIcon aria-hidden="true" />

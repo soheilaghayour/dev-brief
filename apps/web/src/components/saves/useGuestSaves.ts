@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { removeGuestSaves, toggleGuestSave } from '@/lib/guest/guestSaves';
+import { purgeGuestSaves, toggleGuestSave } from '@/lib/guest/guestSaves';
 import { sortSavesNewestFirst, type ToggleOutcome } from '@/lib/guest/guestState';
 import { guestStorage, useGuestStore } from '@/lib/guest/guestStore';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
@@ -37,5 +37,5 @@ export function useGuestSaves() {
     return savedIds.has(storyId);
   }
 
-  return { ids, list, isReady, isSaved, toggle, removeUnavailable: removeGuestSaves };
+  return { ids, list, isReady, isSaved, toggle, removeUnavailable: purgeGuestSaves };
 }

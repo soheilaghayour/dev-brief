@@ -8,6 +8,7 @@ import {
   removeSaves,
   serializeGuest,
   toggleSave,
+  withoutStoriesInCollections,
   type GuestData,
 } from './guestState';
 import { browserLocalStorage, createGuestStorage } from './guestStorage';
@@ -19,6 +20,7 @@ export const guestStorage = createGuestStorage(browserLocalStorage);
 type GuestActions = {
   toggleSave: (storyId: string, now: Date) => ReturnType<typeof toggleSave>['outcome'];
   removeSaves: (storyIds: readonly string[]) => number;
+  purgeSaves: (storyIds: readonly string[]) => number;
   dismissHint: () => void;
   setPendingMerge: (pending: boolean) => void;
   reset: () => void;
@@ -45,7 +47,7 @@ const flatStorage: PersistStorage<GuestData> = {
 };
 
 // `crypto.randomUUID` is missing outside secure contexts (plain http), where `getRandomValues` still works.
-function newDeviceId() {
+export function newUuid() {
   const hex = Array.from(crypto.getRandomValues(new Uint32Array(4)), (word) =>
     word.toString(16).padStart(8, '0'),
   ).join('');
@@ -54,7 +56,7 @@ function newDeviceId() {
 }
 
 function freshGuestData() {
-  return createGuestData(newDeviceId());
+  return createGuestData(newUuid());
 }
 
 export const useGuestStore = create<GuestStore>()(
@@ -63,13 +65,25 @@ export const useGuestStore = create<GuestStore>()(
       ...freshGuestData(),
       toggleSave: (storyId, now) => {
         const { outcome, saves } = toggleSave(get().saves, storyId, now);
-        if (outcome !== 'full') set({ saves });
+        if (outcome === 'removed') {
+          set({ saves, collections: withoutStoriesInCollections(get().collections, [storyId]) });
+        } else if (outcome === 'added') {
+          set({ saves });
+        }
         return outcome;
       },
+      // Not stripped from collections: a confirmed merge removes saves whose collections still have to sync.
       removeSaves: (storyIds) => {
         const saves = removeSaves(get().saves, storyIds);
         const removed = get().saves.length - saves.length;
         set({ saves });
+        return removed;
+      },
+      // For stories that no longer exist: nothing can show them, so they leave every collection too.
+      purgeSaves: (storyIds) => {
+        const saves = removeSaves(get().saves, storyIds);
+        const removed = get().saves.length - saves.length;
+        set({ saves, collections: withoutStoriesInCollections(get().collections, storyIds) });
         return removed;
       },
       dismissHint: () => set({ hintDismissed: true }),
@@ -82,10 +96,11 @@ export const useGuestStore = create<GuestStore>()(
       storage: flatStorage,
       // Hydrating after mount keeps the server HTML and the first client render equal.
       skipHydration: true,
-      partialize: ({ deviceId, saves, prefs, hintDismissed, pendingMerge }) => ({
+      partialize: ({ deviceId, saves, prefs, collections, hintDismissed, pendingMerge }) => ({
         deviceId,
         saves,
         prefs,
+        collections,
         hintDismissed,
         pendingMerge,
       }),

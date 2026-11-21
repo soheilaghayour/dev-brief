@@ -1,9 +1,11 @@
+import { COLLECTION_ITEMS_MAX, COLLECTIONS_MAX } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { migrateGuestData } from './guestParser';
+import { hasUnreadableCollections, migrateGuestData } from './guestParser';
 import { createGuestData, EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
 
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
 const A = 'cstoryaaaaaaaaaaaaaaaaaa';
+const B = 'cstorybbbbbbbbbbbbbbbbbb';
 
 describe('migrateGuestData', () => {
   it('keeps a valid current value as it is', () => {
@@ -26,6 +28,7 @@ describe('migrateGuestData', () => {
       saves: [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }],
       prefs: EMPTY_PREFERENCES,
       hintDismissed: false,
+      collections: [],
       pendingMerge: false,
     });
   });
@@ -74,5 +77,97 @@ describe('migrateGuestData', () => {
       savedAt: '2026-04-01T00:00:00.000Z',
     }));
     expect(migrateGuestData({ saves }, 1)?.saves).toHaveLength(MAX_GUEST_SAVES);
+  });
+});
+
+describe('migrateGuestData collections', () => {
+  const item = (storyId: string, position: number) => ({
+    storyId,
+    position,
+    addedAt: '2026-05-01T10:00:00.000Z',
+  });
+  const stored = (slug: string, position: number, items = [item(A, 0)]) => ({
+    id: `id-${slug}`,
+    slug,
+    name: slug,
+    description: null,
+    position,
+    items,
+  });
+
+  it('AC-3.4.1 reads stored v1 data without the field as no collections', () => {
+    expect(migrateGuestData({ deviceId: DEVICE_ID, saves: [] }, 1)?.collections).toEqual([]);
+  });
+
+  it('AC-3.4.1 keeps a valid set in position order with dense positions', () => {
+    const collections = [stored('later', 5), stored('first', 2, [item(A, 7), item(B, 3)])];
+    expect(migrateGuestData({ collections }, 1)?.collections).toEqual([
+      { ...collections[1], position: 0, items: [item(B, 0), item(A, 1)] },
+      { ...collections[0], position: 1 },
+    ]);
+  });
+
+  it('AC-3.4.1 reads a stored set that is not a list as none, and flags it so storage is left alone', () => {
+    expect(migrateGuestData({ collections: 'text' }, 1)?.collections).toEqual([]);
+    expect(hasUnreadableCollections({ collections: 'text' })).toBe(true);
+    expect(hasUnreadableCollections({ collections: [] })).toBe(false);
+    expect(hasUnreadableCollections({ saves: [] })).toBe(false);
+  });
+
+  it('AC-3.4.1 drops an invalid collection and keeps the valid ones', () => {
+    const collections = [
+      stored('good', 0),
+      { ...stored('nameless', 1), name: '' },
+      stored('Not A Slug', 2),
+      'junk',
+      stored('also-good', 3),
+    ];
+    expect(migrateGuestData({ collections }, 1)?.collections).toEqual([
+      stored('good', 0),
+      stored('also-good', 1),
+    ]);
+  });
+
+  it('AC-3.4.1 drops an invalid item and keeps the collection and its other items', () => {
+    const collections = [
+      stored('a', 0, [item(A, 0), { ...item(B, 1), addedAt: 'yesterday' }, item('bad id', 2)]),
+    ];
+    expect(migrateGuestData({ collections }, 1)?.collections?.[0]?.items).toEqual([item(A, 0)]);
+  });
+
+  it('AC-3.4.1 keeps the first of a repeated slug or id', () => {
+    const collections = [
+      stored('same', 0),
+      { ...stored('same', 1), id: 'other', name: 'Second' },
+      { ...stored('different', 2), id: 'id-same' },
+    ];
+    expect(migrateGuestData({ collections }, 1)?.collections?.map((c) => c.id)).toEqual([
+      'id-same',
+    ]);
+  });
+
+  it('AC-3.4.1 keeps the first of a story repeated within one collection', () => {
+    const collections = [stored('a', 0, [item(A, 0), item(B, 1), item(A, 2)])];
+    expect(migrateGuestData({ collections }, 1)?.collections?.[0]?.items).toEqual([
+      item(A, 0),
+      item(B, 1),
+    ]);
+  });
+
+  it('AC-3.4.1 keeps the first 50 collections of a longer set', () => {
+    const collections = Array.from({ length: COLLECTIONS_MAX + 1 }, (_, index) =>
+      stored(`board-${index}`, index),
+    );
+    const read = migrateGuestData({ collections }, 1)?.collections;
+    expect(read).toHaveLength(COLLECTIONS_MAX);
+    expect(read?.at(-1)?.slug).toBe(`board-${COLLECTIONS_MAX - 1}`);
+  });
+
+  it('AC-3.4.1 keeps the first 500 items of a longer collection', () => {
+    const items = Array.from({ length: COLLECTION_ITEMS_MAX + 1 }, (_, index) =>
+      item(`c${String(index).padStart(24, '0')}`, index),
+    );
+    const read = migrateGuestData({ collections: [stored('big', 0, items)] }, 1)?.collections;
+    expect(read?.[0]?.items).toHaveLength(COLLECTION_ITEMS_MAX);
   });
 });

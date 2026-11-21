@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  AddToCollectionShortcut,
+  useAddToCollection,
+} from '@/components/collections/AddToCollection';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
@@ -75,6 +79,7 @@ const TOGGLE_SORT = {
 export function FeedList() {
   const { filters, focus, toggleSort, clearAll } = useFeedFilters();
   const saves = useSaves();
+  const addToCollection = useAddToCollection();
   const preferences = usePreferenceState();
   const queryClient = useQueryClient();
   const query = useInfiniteQuery({
@@ -154,6 +159,7 @@ export function FeedList() {
       onFocusCapture={trackFocus}
     >
       {isFeatureEnabled('summaries') && activeId && <SummarizeShortcut storyId={activeId} />}
+      <AddToCollectionShortcut storyId={activeId} />
       {stories.map((story) => (
         <StoryCard
           key={story.id}
@@ -164,6 +170,9 @@ export function FeedList() {
           preferenceMenu={PreferenceMenu}
           relatedToggle={RelatedToggle}
           sourceLine={ClusterSourceLine}
+          onAddToCollection={
+            addToCollection.canAdd ? () => addToCollection.open(story.id) : undefined
+          }
         />
       ))}
       {isFetchNextPageError && (

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BookmarkIcon } from 'lucide-react';
+import { BookmarkIcon, FolderIcon } from 'lucide-react';
 import { isFeatureEnabled, type FeatureFlag, type Features } from '@/config/features';
 import { SectionHeading } from './SectionHeading';
 
@@ -87,6 +87,27 @@ function RadarVisual() {
   );
 }
 
+function CollectionsVisual() {
+  const boards = [
+    { name: 'Frontend Architecture', count: 12 },
+    { name: 'Interview prep', count: 7 },
+  ];
+  return (
+    <div aria-hidden="true" className="grid gap-2 text-xs">
+      {boards.map(({ name, count }) => (
+        <div key={name} className="flex items-center gap-2 rounded-md border px-3 py-2">
+          <FolderIcon className="text-muted-foreground size-3.5" />
+          <span className="flex-1">{name}</span>
+          <span className="text-muted-foreground font-mono">{count}</span>
+        </div>
+      ))}
+      <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2">
+        Try on the dashboard repo; check memo removal…
+      </p>
+    </div>
+  );
+}
+
 const TILES: readonly BentoTile[] = [
   {
     title: 'Keyboard-first feed',
@@ -111,6 +132,13 @@ const TILES: readonly BentoTile[] = [
     visual: <RadarVisual />,
     className: 'md:col-span-3',
     flag: 'radar',
+  },
+  {
+    title: 'Collections & notes',
+    text: 'Group saved stories into boards and keep a note on each. Guests keep them on the device, and signing in syncs them.',
+    visual: <CollectionsVisual />,
+    className: 'md:col-span-3',
+    flag: 'collections',
   },
 ];
 

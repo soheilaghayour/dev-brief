@@ -199,6 +199,8 @@ describe('next/dynamic', () => {
     // Each renders its dynamic part with `ssr: false` or only after an interaction; a new user needs the same, and a place here.
     expect(users).toEqual([
       'components/account/LazyAccountSlot.tsx',
+      'components/collections/LazyCollectionBoard.tsx',
+      'components/collections/LazyCollectionsSidebar.tsx',
       'components/layout/LazyToaster.tsx',
       'components/layout/SheetLauncher.tsx',
       'features/copilot/LazyBriefingView.tsx',

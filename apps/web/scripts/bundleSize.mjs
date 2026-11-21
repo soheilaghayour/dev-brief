@@ -75,6 +75,7 @@ const ROUTE_SOURCES = {
   '/saved': { html: 'saved.html' },
   '/story/[id]': { dir: '(app)/story/[id]' },
   '/radar': { dir: '(app)/radar' },
+  '/collections/[slug]': { dir: '(app)/collections/[slug]' },
 };
 
 /** Modules that must stay out of the listed routes' first load, each recognised by a string its minified code keeps. */
@@ -86,7 +87,14 @@ export const FORBIDDEN_MODULES = [
 ];
 
 /** Routes the forbidden modules are checked on: every gated route, the lazy ones included. */
-export const FORBIDDEN_MODULE_ROUTES = ['/', '/feed', '/saved', '/story/[id]', '/radar'];
+export const FORBIDDEN_MODULE_ROUTES = [
+  '/',
+  '/feed',
+  '/saved',
+  '/story/[id]',
+  '/radar',
+  '/collections/[slug]',
+];
 
 /** `/saved` is prerendered in the (app) group, so its HTML shows what the manifest rule must reproduce for `/feed` and `/story/[id]`. */
 export const MANIFEST_CHECK = { routeDir: '(app)/saved', htmlFile: 'saved.html' };
