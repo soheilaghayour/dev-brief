@@ -6,6 +6,7 @@ import {
   fixtureStories,
   formatCounts,
   selectRecentStories,
+  toPreviewStory,
   type FixtureStory,
 } from './landingStories';
 
@@ -50,12 +51,64 @@ describe('selectRecentStories', () => {
   });
 });
 
+// The fixture holds only what the preview's cards render.
+const FixtureCardSchema = StoryCardSchema.omit({
+  excerpt: true,
+  author: true,
+  rankScore: true,
+  canSummarize: true,
+}).strict();
+
 describe('fixtureStories', () => {
   it('AC-L2 turns the committed fixture into valid cards dated within the last 24 h', () => {
     const cards = fixtureStories(fixture.items as FixtureStory[], NOW);
-    for (const card of cards) StoryCardSchema.parse(card);
+    for (const card of cards) FixtureCardSchema.parse(card);
     expect(selectRecentStories(cards, NOW)).toHaveLength(cards.length);
-    expect(cards.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('AC-L13 fills a full window: 30 stories from the enabled sources, Rust stories and one cluster card with a summary line', () => {
+    const cards = fixtureStories(fixture.items as FixtureStory[], NOW);
+    expect(cards).toHaveLength(PREVIEW_POOL_MAX);
+    expect(cards.filter((card) => card.tags.includes('rust')).length).toBeGreaterThan(0);
+    const kinds = new Set(cards.flatMap((card) => card.sources.map((source) => source.kind)));
+    expect([...kinds].sort()).toEqual(['devto', 'github', 'hn']);
+    const clustered = cards.filter((card) => card.cluster);
+    expect(clustered).toHaveLength(1);
+    expect(clustered[0]!.summaryLine).toBeTruthy();
+  });
+});
+
+describe('toPreviewStory', () => {
+  const live: StoryCard = {
+    ...story('live', 1),
+    excerpt: 'A long excerpt the preview never shows.',
+    author: 'someone',
+    canSummarize: true,
+    hasSummary: true,
+    summaryLine: 'The first TL;DR point.',
+    cluster: { id: 'c1', memberCount: 2, sources: story('live', 1).sources },
+  };
+  const ALL_ON = { clusters: true, summaries: true, copilot: true, collections: true };
+  const ALL_OFF = { clusters: false, summaries: false, copilot: false, collections: false };
+
+  it('drops the fields the preview cards do not render, before they reach the client island', () => {
+    const preview = toPreviewStory(live, ALL_ON);
+    for (const field of ['excerpt', 'author', 'rankScore', 'canSummarize'])
+      expect(preview).not.toHaveProperty(field);
+  });
+
+  it('AC-L14 carries the cluster and the summary line through while their flags are on', () => {
+    const preview = toPreviewStory(live, ALL_ON);
+    expect(preview.cluster).toEqual(live.cluster);
+    expect(preview.summaryLine).toBe('The first TL;DR point.');
+    expect(preview.hasSummary).toBe(true);
+  });
+
+  it('AC-L7 drops the cluster and the summary fields while their flags are off', () => {
+    const preview = toPreviewStory(live, ALL_OFF);
+    expect(preview).not.toHaveProperty('cluster');
+    expect(preview).not.toHaveProperty('summaryLine');
+    expect(preview).not.toHaveProperty('hasSummary');
   });
 });
 
