@@ -72,8 +72,7 @@ describe('GET /api/v1/feed', () => {
         itemSourceIds: seed.sources,
       });
     }
-    // The personalisation params are plain feed filters: they work with the preferences flag off.
-    app = await createTestApp([], { FEATURE_PREFERENCES: 'false' });
+    app = await createTestApp();
   });
 
   afterAll(() => app.close());

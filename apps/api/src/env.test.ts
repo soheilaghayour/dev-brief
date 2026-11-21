@@ -43,24 +43,33 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...validEnv, INGEST_SCHEDULE: 'yes' })).toThrow(/INGEST_SCHEDULE/);
   });
 
-  it('reads the FEATURE_* phase flags as booleans that default to false', () => {
+  it('AC-1.7.8 reads the FEATURE_* flags as booleans that default to false', () => {
     expect(loadEnv(validEnv)).toMatchObject({
       FEATURE_SUMMARIES: false,
-      FEATURE_PREFERENCES: false,
       FEATURE_CLUSTERS: false,
       FEATURE_COPILOT: false,
-      FEATURE_RADAR: false,
       FEATURE_COLLECTIONS: false,
     });
     expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS })).toMatchObject(
       {
         FEATURE_SUMMARIES: true,
-        FEATURE_PREFERENCES: false,
+        FEATURE_CLUSTERS: false,
       },
     );
-    expect(loadEnv({ ...validEnv, FEATURE_PREFERENCES: 'true' }).FEATURE_PREFERENCES).toBe(true);
     expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'on' })).toThrow(/FEATURE_SUMMARIES/);
-    expect(() => loadEnv({ ...validEnv, FEATURE_PREFERENCES: '1' })).toThrow(/FEATURE_PREFERENCES/);
+  });
+
+  it('AC-1.7.8 knows exactly four feature flags: FEATURE_RADAR and FEATURE_PREFERENCES are not variables', () => {
+    const flags = Object.keys(loadEnv(validEnv)).filter((key) => key.startsWith('FEATURE_'));
+    expect(flags.sort()).toEqual([
+      'FEATURE_CLUSTERS',
+      'FEATURE_COLLECTIONS',
+      'FEATURE_COPILOT',
+      'FEATURE_SUMMARIES',
+    ]);
+    const stale = { ...validEnv, FEATURE_RADAR: 'true', FEATURE_PREFERENCES: 'true' };
+    expect(loadEnv(stale)).not.toHaveProperty('FEATURE_RADAR');
+    expect(loadEnv(stale)).not.toHaveProperty('FEATURE_PREFERENCES');
   });
 
   it('reads AUTO_SUMMARIES as a boolean that defaults to false, so a summaries-on API makes no auto calls unasked', () => {
@@ -164,11 +173,9 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...copilotOn, ...SUMMARIES_SECRETS }).FEATURE_COPILOT).toBe(true);
   });
 
-  it('reads FEATURE_RADAR and FEATURE_COLLECTIONS without any LLM secret and rejects other values', () => {
-    expect(loadEnv({ ...validEnv, FEATURE_RADAR: 'true' }).FEATURE_RADAR).toBe(true);
+  it('reads FEATURE_COLLECTIONS without any LLM secret and rejects other values', () => {
     expect(loadEnv({ ...validEnv, FEATURE_COLLECTIONS: 'true' }).FEATURE_COLLECTIONS).toBe(true);
-    expect(() => loadEnv({ ...validEnv, FEATURE_COPILOT: 'on' })).toThrow(/FEATURE_COPILOT/);
-    expect(() => loadEnv({ ...validEnv, FEATURE_RADAR: '1' })).toThrow(/FEATURE_RADAR/);
+    expect(() => loadEnv({ ...validEnv, FEATURE_COPILOT: 'yes' })).toThrow(/FEATURE_COPILOT/);
     expect(() => loadEnv({ ...validEnv, FEATURE_COLLECTIONS: 'TRUE' })).toThrow(
       /FEATURE_COLLECTIONS/,
     );

@@ -33,13 +33,13 @@ export function toSourceRef(item: ItemWithSource): SourceRef {
   };
 }
 
-/** The phase flags the mappers read; a field behind an off flag is left out, so flag-off responses match Phase 1. */
+/** The feature flags the mappers read; a field behind an off flag is left out, so flag-off responses match Phase 1. */
 export type StoryFeatures = { summaries: boolean; clusters: boolean };
 
 /** What a card shows of its story's cluster. */
 export type CardCluster = NonNullable<StoryCard['cluster']>;
 
-/** The phase flags the story mappers read, from the validated env. */
+/** The feature flags the story mappers read, from the validated env. */
 export function storyFeatures(
   env: Pick<Env, 'FEATURE_SUMMARIES' | 'FEATURE_CLUSTERS'>,
 ): StoryFeatures {

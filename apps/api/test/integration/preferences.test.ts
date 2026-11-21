@@ -14,7 +14,6 @@ const EMPTY = { follow: { tags: [], sources: [] }, mute: { tags: [], sources: []
 
 describe('preferences', () => {
   let app: INestApplication;
-  let flagOff: INestApplication;
   const prisma = useTestDatabase();
 
   const http = () => request(app.getHttpServer());
@@ -45,12 +44,11 @@ describe('preferences', () => {
   }
 
   beforeAll(async () => {
-    app = await createTestApp([], { AUTH_TEST_MODE: 'true', FEATURE_PREFERENCES: 'true' });
-    flagOff = await createTestApp([], { AUTH_TEST_MODE: 'true', FEATURE_PREFERENCES: 'false' });
+    // No FEATURE_* variable: preferences are always on.
+    app = await createTestApp([], { AUTH_TEST_MODE: 'true' });
   });
   afterAll(async () => {
     await app.close();
-    await flagOff.close();
   });
 
   it('GET answers 401 UNAUTHENTICATED signed out, and so does PUT', async () => {
@@ -147,16 +145,10 @@ describe('preferences', () => {
     expect(ApiErrorSchema.parse(response.body).error.code).toBe('FORBIDDEN_ORIGIN');
   });
 
-  it('both routes answer 404 FEATURE_DISABLED with the flag off', async () => {
-    const get = await request(flagOff.getHttpServer()).get(PATH);
-    const put = await request(flagOff.getHttpServer())
-      .put(PATH)
-      .set('Origin', env.APP_URL)
-      .send(EMPTY);
-    for (const response of [get, put]) {
-      expect(response.status).toBe(404);
-      expect(ApiErrorSchema.parse(response.body).error.code).toBe('FEATURE_DISABLED');
-    }
+  it('AC-1.7.8 GET and PUT answer without any FEATURE_* variable set', async () => {
+    const user = await signIn();
+    expect((await user.get()).status).toBe(200);
+    expect((await user.put(EMPTY)).status).toBe(200);
   });
 
   it('PUT shares the 60/min mutations bucket with the saves routes', async () => {

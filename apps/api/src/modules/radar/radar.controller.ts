@@ -2,13 +2,11 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { RadarQuerySchema, RadarSchema } from '@devbrief/shared';
 import type { RadarQuery } from '@devbrief/shared';
 import { PublicCache } from '../../common/cache/cacheControl.js';
-import { RequiresFeature } from '../../common/features/requiresFeature.decorator.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
 import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { RadarService } from './radar.service.js';
 
 @Controller('radar')
-@RequiresFeature('radar')
 export class RadarController {
   constructor(private readonly radar: RadarService) {}
 
