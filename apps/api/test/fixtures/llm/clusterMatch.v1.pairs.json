@@ -877,6 +877,305 @@
         }
       },
       "warnings": []
+    },
+    "regresshion-advisory-vs-fix-guide": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "crowdstrike-bsod-vs-devto": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "llama-3-launch-vs-less-censored": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "llama-3-launch-vs-meta-ai-assistant": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "polyfill-disclosure-vs-snyk": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "copilot-free-vs-vscode-blog": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "node-22-blog-vs-openjsf": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "claude-3-5-sonnet-vs-verge": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react2shell-blog-vs-nextjs-advisory": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react2shell-blog-vs-snyk": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-foundation-blog-vs-register": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-19-blog-vs-changelog": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-19-2-blog-vs-github-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
     }
   },
   "requestHashes": {
@@ -917,6 +1216,19 @@
     "gemini-neon-vs-take": "0e96345e323daa2c",
     "datasette-two-releases": "3a5efc50329959a5",
     "llm-vs-llm-gemini": "4b1dfcaf15b3cfab",
-    "gemini-carbon-vs-neon": "0d88ab0626a99695"
+    "gemini-carbon-vs-neon": "0d88ab0626a99695",
+    "regresshion-advisory-vs-fix-guide": "1238a2d096ef35ec",
+    "crowdstrike-bsod-vs-devto": "aadfa250d78cc30a",
+    "llama-3-launch-vs-less-censored": "29dc2ab102d46161",
+    "llama-3-launch-vs-meta-ai-assistant": "a8687b69110623a7",
+    "polyfill-disclosure-vs-snyk": "604751b6f812f53a",
+    "copilot-free-vs-vscode-blog": "cf31c0d3f531a087",
+    "node-22-blog-vs-openjsf": "a91671d90a7a8c72",
+    "claude-3-5-sonnet-vs-verge": "23536b7aa8132a4a",
+    "react2shell-blog-vs-nextjs-advisory": "0419c70740870798",
+    "react2shell-blog-vs-snyk": "652c1bee26f31fc4",
+    "react-foundation-blog-vs-register": "520f6602a6280ce4",
+    "react-19-blog-vs-changelog": "9430ca14ad62a641",
+    "react-19-2-blog-vs-github-release": "b64edc0a489ae78e"
   }
 }

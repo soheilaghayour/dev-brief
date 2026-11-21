@@ -34,10 +34,11 @@ function passRate(set: readonly ClusterPair[]) {
 }
 
 describe('cluster pair fixtures', () => {
-  it('are hand-labelled: at least 20 positive and 20 negative pairs, plus at least 12 held-out pairs, with unique ids', () => {
+  it('are hand-labelled: at least 20 positive and 20 negative pairs, plus at least 30 held-out pairs with 12 positives, with unique ids', () => {
     expect(positives.length).toBeGreaterThanOrEqual(20);
     expect(pairs.length - positives.length).toBeGreaterThanOrEqual(20);
-    expect(heldOutPairs.length).toBeGreaterThanOrEqual(12);
+    expect(heldOutPairs.length).toBeGreaterThanOrEqual(30);
+    expect(heldOutPairs.filter(({ label }) => label === 'same').length).toBeGreaterThanOrEqual(12);
     const ids = [...pairs, ...heldOutPairs].map(({ id }) => id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining(['react-19-1-vs-19-2']));

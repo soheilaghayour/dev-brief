@@ -245,5 +245,613 @@
       "publishedAt": "2026-11-19T05:09:11Z",
       "sourceKind": "hn"
     }
+  },
+  {
+    "id": "xz-disclosure-vs-everything-i-know",
+    "label": "same",
+    "why": "The xz backdoor disclosure and a write-up whose subject is that backdoor.",
+    "a": {
+      "title": "Backdoor in upstream xz/liblzma leading to SSH server compromise",
+      "url": "https://www.openwall.com/lists/oss-security/2024/03/29/4",
+      "excerpt": null,
+      "publishedAt": "2024-03-29T16:16:50Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Everything I Know About the XZ Backdoor",
+      "url": "https://boehs.org/node/everything-i-know-about-the-xz-backdoor",
+      "excerpt": null,
+      "publishedAt": "2024-03-29T20:30:37Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "xz-disclosure-vs-debian-revert",
+    "label": "different",
+    "why": "The label rule: a disclosure and a distribution's mitigation are distinct events.",
+    "a": {
+      "title": "Backdoor in upstream xz/liblzma leading to SSH server compromise",
+      "url": "https://www.openwall.com/lists/oss-security/2024/03/29/4",
+      "excerpt": null,
+      "publishedAt": "2024-03-29T16:16:50Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Debian on xz-utils: revert to version that does not contain changes by bad actor",
+      "url": "https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1068024",
+      "excerpt": null,
+      "publishedAt": "2024-03-30T08:48:34Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "regresshion-advisory-vs-openssh-9-8",
+    "label": "same",
+    "why": "The Qualys advisory and the OpenSSH 9.8 release notes that fix the same bug, published together.",
+    "a": {
+      "title": "RegreSSHion: RCE in OpenSSH's server, on glibc-based Linux systems",
+      "url": "https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt",
+      "excerpt": null,
+      "publishedAt": "2024-07-01T08:40:54Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "OpenSSH Race condition resulting in potential remote code execution",
+      "url": "https://www.openssh.com/txt/release-9.8",
+      "excerpt": null,
+      "publishedAt": "2024-07-01T09:28:40Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "regresshion-advisory-vs-fix-guide",
+    "label": "same",
+    "why": "The regreSSHion advisory and a post on fixing that vulnerability.",
+    "a": {
+      "title": "RegreSSHion: RCE in OpenSSH's server, on glibc-based Linux systems",
+      "url": "https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt",
+      "excerpt": null,
+      "publishedAt": "2024-07-01T08:40:54Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "How to easily fix OpenSSH RegreSSHion vulnerability",
+      "url": "https://dev.to/indyman/how-to-easily-fix-openssh-regresshion-vulnerability-216b",
+      "excerpt": "The regreSSHion vulnerability CVE-2024-6387 is a critical remote unauthenticated code execution (RCE)...",
+      "publishedAt": "2024-07-03T18:48:21Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "crowdstrike-bsod-vs-devto",
+    "label": "same",
+    "why": "Two reports of the CrowdStrike update crashing Windows machines.",
+    "a": {
+      "title": "CrowdStrike Update: Windows Bluescreen and Boot Loops",
+      "url": "https://old.reddit.com/r/crowdstrike/comments/1e6vmkf/bsod_error_in_latest_crowdstrike_update/",
+      "excerpt": null,
+      "publishedAt": "2024-07-19T05:26:13Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Crowdstrike brings down Windows PC's",
+      "url": "https://dev.to/mediocredevops/crowdstrike-brings-down-windows-pcs-5fnm",
+      "excerpt": "From the trenches of Twitter, I found out that windows has once again faced a global outage causing...",
+      "publishedAt": "2024-07-19T08:57:46Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "crowdstrike-bsod-vs-afr",
+    "label": "same",
+    "why": "The first report of the CrowdStrike crash and a newspaper's report on the same outage.",
+    "a": {
+      "title": "CrowdStrike Update: Windows Bluescreen and Boot Loops",
+      "url": "https://old.reddit.com/r/crowdstrike/comments/1e6vmkf/bsod_error_in_latest_crowdstrike_update/",
+      "excerpt": null,
+      "publishedAt": "2024-07-19T05:26:13Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Crowdstrike Outage Causing Widespread Issues",
+      "url": "https://www.afr.com/technology/businesses-crippled-by-widespread-it-outage-20240719-p5jv2t",
+      "excerpt": null,
+      "publishedAt": "2024-07-19T07:00:44Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "crowdstrike-bsod-vs-broke-debian",
+    "label": "different",
+    "why": "The outage and the history of an earlier, distinct Linux breakage.",
+    "a": {
+      "title": "CrowdStrike Update: Windows Bluescreen and Boot Loops",
+      "url": "https://old.reddit.com/r/crowdstrike/comments/1e6vmkf/bsod_error_in_latest_crowdstrike_update/",
+      "excerpt": null,
+      "publishedAt": "2024-07-19T05:26:13Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "CrowdStrike broke Debian and Rocky Linux months ago",
+      "url": "https://www.neowin.net/news/crowdstrike-broke-debian-and-rocky-linux-months-ago-but-no-one-noticed/",
+      "excerpt": null,
+      "publishedAt": "2024-07-20T17:21:15Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "o1-launch-vs-notes",
+    "label": "same",
+    "why": "The OpenAI o1 launch and notes whose subject is that launch.",
+    "a": {
+      "title": "Learning to Reason with LLMs",
+      "url": "https://openai.com/index/learning-to-reason-with-llms/",
+      "excerpt": null,
+      "publishedAt": "2024-09-12T17:08:46Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Notes on OpenAI's new o1 chain-of-thought models",
+      "url": "https://simonwillison.net/2024/Sep/12/openai-o1/",
+      "excerpt": null,
+      "publishedAt": "2024-09-13T00:48:01Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "llama-3-launch-vs-less-censored",
+    "label": "same",
+    "why": "The Llama 3 launch and a take whose subject is that model.",
+    "a": {
+      "title": "Meta Llama 3",
+      "url": "https://llama.meta.com/llama3/",
+      "excerpt": null,
+      "publishedAt": "2024-04-18T15:57:22Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Llama 3 feels significantly less censored than its predecessor",
+      "url": "https://ollama.com/blog/llama-3-is-not-very-censored",
+      "excerpt": null,
+      "publishedAt": "2024-04-19T23:59:09Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "llama-3-launch-vs-meta-ai-assistant",
+    "label": "different",
+    "why": "A model release and a separate product launch built on it the same day.",
+    "a": {
+      "title": "Meta Llama 3",
+      "url": "https://llama.meta.com/llama3/",
+      "excerpt": null,
+      "publishedAt": "2024-04-18T15:57:22Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "New Assistant: Meta AI, Built with Llama 3",
+      "url": "https://about.fb.com/news/2024/04/meta-ai-assistant-built-with-llama-3/",
+      "excerpt": null,
+      "publishedAt": "2024-04-18T16:08:14Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "polyfill-disclosure-vs-register",
+    "label": "same",
+    "why": "Two reports of the polyfill.io supply-chain attack.",
+    "a": {
+      "title": "Polyfill supply chain attack hits 100K+ sites",
+      "url": "https://sansec.io/research/polyfill-supply-chain-attack",
+      "excerpt": null,
+      "publishedAt": "2024-06-25T18:27:30Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "If you're using Polyfill.io code on your site – remove it immediately",
+      "url": "https://www.theregister.com/2024/06/25/polyfillio_china_crisis/",
+      "excerpt": null,
+      "publishedAt": "2024-06-26T14:48:52Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "polyfill-disclosure-vs-snyk",
+    "label": "same",
+    "why": "The polyfill.io disclosure and a security vendor's report on the same attack.",
+    "a": {
+      "title": "Polyfill supply chain attack hits 100K+ sites",
+      "url": "https://sansec.io/research/polyfill-supply-chain-attack",
+      "excerpt": null,
+      "publishedAt": "2024-06-25T18:27:30Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Polyfill supply chain attack embeds malware in JavaScript CDN assets",
+      "url": "https://snyk.io/blog/polyfill-supply-chain-attack-js-cdn-assets/",
+      "excerpt": "On June 25, 2024, the Sansec security research and malware team announced that a popular JavaScript polyfill project had been taken over by a foreign actor identified as a Chinese-originated company.",
+      "publishedAt": "2024-06-27T02:00:16Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "polyfill-disclosure-vs-cloudflare-mirror",
+    "label": "different",
+    "why": "The label rule: a disclosure and a vendor's mitigation post are distinct events.",
+    "a": {
+      "title": "Polyfill supply chain attack hits 100K+ sites",
+      "url": "https://sansec.io/research/polyfill-supply-chain-attack",
+      "excerpt": null,
+      "publishedAt": "2024-06-25T18:27:30Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Cloudflare automatically fixes Polyfill.io for free sites",
+      "url": "https://blog.cloudflare.com/automatically-replacing-polyfill-io-links-with-cloudflares-mirror-for-a-safer-internet",
+      "excerpt": null,
+      "publishedAt": "2024-06-26T20:35:17Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "polyfill-disclosure-vs-namecheap-takedown",
+    "label": "different",
+    "why": "The attack and the registrar's takedown of the domain a day later: a distinct event.",
+    "a": {
+      "title": "Polyfill supply chain attack hits 100K+ sites",
+      "url": "https://sansec.io/research/polyfill-supply-chain-attack",
+      "excerpt": null,
+      "publishedAt": "2024-06-25T18:27:30Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Namecheap Takes Down Polyfill.io Service Following Supply Chain Attack",
+      "url": "https://socket.dev/blog/namecheap-takes-down-polyfill-io-service-following-supply-chain-attack",
+      "excerpt": null,
+      "publishedAt": "2024-06-26T23:47:08Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "cloudflare-outage-status-vs-postmortem",
+    "label": "same",
+    "why": "The status page of the November 18 outage and Cloudflare's report on the same outage.",
+    "a": {
+      "title": "Cloudflare Global Network experiencing issues",
+      "url": "https://www.cloudflarestatus.com/incidents/8gmgl950y3h7",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T11:35:10Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Cloudflare outage on November 18, 2025 post mortem",
+      "url": "https://blog.cloudflare.com/18-november-2025-outage/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T23:31:22Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "cloudflare-outage-status-vs-dont-use-cloudflare",
+    "label": "different",
+    "why": "The outage and an essay that uses it as a hook for a wider argument.",
+    "a": {
+      "title": "Cloudflare Global Network experiencing issues",
+      "url": "https://www.cloudflarestatus.com/incidents/8gmgl950y3h7",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T11:35:10Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Do not put your site behind Cloudflare if you don't need to",
+      "url": "https://huijzer.xyz/posts/123/do-not-put-your-site-behind-cloudflare-if-you-dont",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T12:54:49Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "copilot-free-vs-vscode-blog",
+    "label": "same",
+    "why": "Two announcements of the free GitHub Copilot tier.",
+    "a": {
+      "title": "GitHub Copilot is now available for free",
+      "url": "https://github.com/features/copilot",
+      "excerpt": null,
+      "publishedAt": "2024-12-18T18:29:55Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "A Free GitHub Copilot for VS Code",
+      "url": "https://code.visualstudio.com/blogs/2024/12/18/free-github-copilot",
+      "excerpt": null,
+      "publishedAt": "2024-12-18T19:14:51Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "node-22-blog-vs-openjsf",
+    "label": "same",
+    "why": "Two announcements of the Node.js 22 release.",
+    "a": {
+      "title": "Node.js 22 – Announcement",
+      "url": "https://nodejs.org/en/blog/announcements/v22-release-announce",
+      "excerpt": null,
+      "publishedAt": "2024-04-24T19:21:08Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Node.js 22 released, adding native WebSocket client and more",
+      "url": "https://openjsf.org/blog/nodejs-22-available",
+      "excerpt": null,
+      "publishedAt": "2024-04-24T19:45:57Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "claude-3-5-sonnet-vs-verge",
+    "label": "same",
+    "why": "The Claude 3.5 Sonnet launch and a news report on it.",
+    "a": {
+      "title": "Claude 3.5 Sonnet",
+      "url": "https://www.anthropic.com/news/claude-3-5-sonnet",
+      "excerpt": null,
+      "publishedAt": "2024-06-20T14:03:46Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Anthropic has a fast new AI model – Claude 3.5 Sonnet",
+      "url": "https://www.theverge.com/2024/6/20/24181961/anthropic-claude-35-sonnet-model-ai-launch",
+      "excerpt": null,
+      "publishedAt": "2024-06-20T14:16:32Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react2shell-blog-vs-nextjs-advisory",
+    "label": "same",
+    "why": "The React advisory and the Next.js advisory for the same vulnerability.",
+    "a": {
+      "title": "Critical Security Vulnerability in React Server Components",
+      "url": "https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components",
+      "excerpt": "There is an unauthenticated remote code execution vulnerability in React Server Components. A fix has been published in versions 19.0.1, 19.1.2, and 19.2.1. We recommend upgrading immediately.",
+      "publishedAt": "2025-12-03T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "RCE Vulnerability in React and Next.js",
+      "url": "https://github.com/vercel/next.js/security/advisories/GHSA-9qr9-h5gf-34mp",
+      "excerpt": null,
+      "publishedAt": "2025-12-03T16:00:23Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react2shell-blog-vs-snyk",
+    "label": "same",
+    "why": "The React advisory and a security vendor's advisory on the same vulnerability.",
+    "a": {
+      "title": "Critical Security Vulnerability in React Server Components",
+      "url": "https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components",
+      "excerpt": "There is an unauthenticated remote code execution vulnerability in React Server Components. A fix has been published in versions 19.0.1, 19.1.2, and 19.2.1. We recommend upgrading immediately.",
+      "publishedAt": "2025-12-03T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "Security Advisory: Critical RCE Vulnerabilities in React Server Components & Next.js (CVE-2025-55182 / CVE-2025-66478)",
+      "url": "https://snyk.io/blog/security-advisory-critical-rce-vulnerabilities-react-server-components/",
+      "excerpt": "Critical RCE vulnerabilities (CVE-2025-55182/CVE-2025-66478) were found in React Server Components and Next.js via unsafe deserialization. Immediate upgrade to patched versions is mandatory to prevent unauthenticated remote code execution. Learn how to detect and mitigate the critical flaw.",
+      "publishedAt": "2025-12-04T02:00:31Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "react-dos-blog-vs-vercel-bulletin",
+    "label": "same",
+    "why": "The React advisory and Vercel's bulletin on the same two new CVEs.",
+    "a": {
+      "title": "Denial of Service and Source Code Exposure in React Server Components",
+      "url": "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components",
+      "excerpt": "Security researchers have found and disclosed two additional vulnerabilities in React Server Components while attempting to exploit the patches in last week’s critical vulnerability. High vulnerability Denial of Service (CVE-2025-55184), and medium vulnerability Source Code Exposure (CVE-2025-55183)",
+      "publishedAt": "2025-12-11T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "Two New React 19 Vulnerabilities",
+      "url": "https://vercel.com/kb/bulletin/security-bulletin-cve-2025-55184-and-cve-2025-55183",
+      "excerpt": null,
+      "publishedAt": "2025-12-12T10:13:14Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react-dos-blog-vs-incomplete-fix",
+    "label": "different",
+    "why": "An advisory and the later finding that its fix was incomplete: a distinct event.",
+    "a": {
+      "title": "Denial of Service and Source Code Exposure in React Server Components",
+      "url": "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components",
+      "excerpt": "Security researchers have found and disclosed two additional vulnerabilities in React Server Components while attempting to exploit the patches in last week’s critical vulnerability. High vulnerability Denial of Service (CVE-2025-55184), and medium vulnerability Source Code Exposure (CVE-2025-55183)",
+      "publishedAt": "2025-12-11T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "We found that the fix to address the DoS vulnerability in React was incomplete",
+      "url": "https://bsky.app/profile/react.dev/post/3m7qs2rtey22l",
+      "excerpt": null,
+      "publishedAt": "2025-12-12T18:56:48Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react2shell-poc-vs-react-dos-blog",
+    "label": "different",
+    "why": "A proof of concept for one CVE and the advisory for two new ones.",
+    "a": {
+      "title": "POC for CVE-2025-55182 that works on Next.js 16.0.6",
+      "url": "https://gist.github.com/maple3142/48bc9393f45e068cf8c90ab865c0f5f3",
+      "excerpt": null,
+      "publishedAt": "2025-12-10T02:37:03Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Denial of Service and Source Code Exposure in React Server Components",
+      "url": "https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components",
+      "excerpt": "Security researchers have found and disclosed two additional vulnerabilities in React Server Components while attempting to exploit the patches in last week’s critical vulnerability. High vulnerability Denial of Service (CVE-2025-55184), and medium vulnerability Source Code Exposure (CVE-2025-55183)",
+      "publishedAt": "2025-12-11T00:00:00Z",
+      "sourceKind": "rss"
+    }
+  },
+  {
+    "id": "react-foundation-blog-vs-register",
+    "label": "same",
+    "why": "The React Foundation announcement and a news report on it.",
+    "a": {
+      "title": "Introducing the React Foundation",
+      "url": "https://react.dev/blog/2025/10/07/introducing-the-react-foundation",
+      "excerpt": "Today, we're announcing our plans to create the React Foundation a new technical governance structure",
+      "publishedAt": "2025-10-07T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "Meta will move React to Linux Foundation to address vendor dominance fears",
+      "url": "https://www.theregister.com/2025/10/09/meta_react_foundation/",
+      "excerpt": null,
+      "publishedAt": "2025-10-09T22:35:21Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react-compiler-1-vs-react-foundation",
+    "label": "different",
+    "why": "Two announcements on one blog the same day: a compiler release and a new foundation.",
+    "a": {
+      "title": "React Compiler v1.0",
+      "url": "https://react.dev/blog/2025/10/07/react-compiler-1",
+      "excerpt": "We are releasing the compiler's first stable release today.",
+      "publishedAt": "2025-10-07T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "Introducing the React Foundation",
+      "url": "https://react.dev/blog/2025/10/07/introducing-the-react-foundation",
+      "excerpt": "Today, we're announcing our plans to create the React Foundation a new technical governance structure",
+      "publishedAt": "2025-10-07T00:00:00Z",
+      "sourceKind": "rss"
+    }
+  },
+  {
+    "id": "react-19-blog-vs-changelog",
+    "label": "same",
+    "why": "The React 19 release post and its changelog.",
+    "a": {
+      "title": "React v19",
+      "url": "https://react.dev/blog/2024/12/05/react-19",
+      "excerpt": "React 19 is now available on npm! In this post, we'll give an overview of the new features in React 19, and how you can adopt them.",
+      "publishedAt": "2024-12-05T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "React 19",
+      "url": "https://github.com/facebook/react/blob/main/CHANGELOG.md",
+      "excerpt": null,
+      "publishedAt": "2024-12-05T18:50:16Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react-19-2-blog-vs-github-release",
+    "label": "same",
+    "why": "The React 19.2 release post and its GitHub release.",
+    "a": {
+      "title": "React 19.2",
+      "url": "https://react.dev/blog/2025/10/01/react-19-2",
+      "excerpt": "React 19.2 adds new features like Activity, React Performance Tracks, useEffectEvent, and more.",
+      "publishedAt": "2025-10-01T00:00:00Z",
+      "sourceKind": "rss"
+    },
+    "b": {
+      "title": "React 19.2.0",
+      "url": "https://github.com/facebook/react/releases/tag/v19.2.0",
+      "excerpt": null,
+      "publishedAt": "2025-10-01T22:13:59Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "gitlab-still-vulnerable-vs-ruby2shell",
+    "label": "different",
+    "why": "A disclosure and a later report that one vendor's release is still exposed: a distinct event.",
+    "a": {
+      "title": "Ruby2ßhell: Pre-authentication RCE on stock Rails",
+      "url": "https://verialabs.com/ruby2shell/",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T05:09:11Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "GitLab 19.6.0 is out and still vulnerable to Ruby2Shell and NGINX2Root",
+      "url": "https://news.ycombinator.com/item?id=50561571",
+      "excerpt": null,
+      "publishedAt": "2026-11-19T15:42:26Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "kvm-cve-vs-network-boot-cve",
+    "label": "different",
+    "why": "Two unrelated vulnerabilities.",
+    "a": {
+      "title": "KVM: x86: Unconditionally reset MMU context when emulating INIT (CVE-2026-99312)",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-99312",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T16:06:21Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "CVE-2026-97631: managing the residual risk of network boot",
+      "url": "https://dev.to/bianliang/cve-2026-97631-managing-the-residual-risk-of-network-boot-3dj3",
+      "excerpt": "Technical analysis of CVE-2026-97631 in the TianoCore EDK II PXE driver.",
+      "publishedAt": "2026-11-19T20:41:13Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "gemma-e4b-vs-serving-engines",
+    "label": "different",
+    "why": "Two benchmarks of different Gemma 4 variants.",
+    "a": {
+      "title": "Thinking On or Off? Gemma 4 E4B on an 8 GB RTX 3050",
+      "url": "https://dev.to/gde/thinking-on-or-off-gemma-4-e4b-on-an-8-gb-rtx-3050-5d5",
+      "excerpt": "Gemma 4 E4B on a local RTX 3050 with thinking off and on, two QAT 4-bit builds, with and without a drafter, on all 1,319 GSM8K problems and the 30 problems of AIME 2025. E4B scored 0.927 to 0.944 on GSM8K; thinking took 2.24 to 2.47 times as long for at most 16 more problems; the drafter cut the time by 1.38 to 2.39 times and changed no score.",
+      "publishedAt": "2026-11-19T15:19:33Z",
+      "sourceKind": "devto"
+    },
+    "b": {
+      "title": "Five Serving Engines on a Lambda GPU: Gemma 4 E2B Under vLLM, SGLang, llama.cpp, PyTorch and JAX",
+      "url": "https://dev.to/aws-builders/five-serving-engines-on-a-lambda-gpu-gemma-4-e2b-under-vllm-sglang-llamacpp-pytorch-and-jax-1i40",
+      "excerpt": "The same Gemma 4 E2B serving sweep, run twice on one NVIDIA L4: once on a plain EC2 G6 and once as AWS Lambda GPU functions. Which engine wins, what Lambda adds to every request, and what it gives back.",
+      "publishedAt": "2026-11-19T20:22:42Z",
+      "sourceKind": "devto"
+    }
+  },
+  {
+    "id": "gemini-neon-vs-mac-agent",
+    "label": "different",
+    "why": "A model launch and a different Google product launch.",
+    "a": {
+      "title": "Gemini 4 Neon",
+      "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/",
+      "excerpt": null,
+      "publishedAt": "2026-11-18T21:34:07Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Gemini Can Now Use Your Mac: What Google's New Desktop Agent Actually Does",
+      "url": "https://dev.to/mahankenway/gemini-can-now-use-your-mac-what-googles-new-desktop-agent-actually-does-1ma7",
+      "excerpt": "Published by Mahan Kenway | November 19, 2026 Disclosure: This article was researched, written, and...",
+      "publishedAt": "2026-11-19T20:33:45Z",
+      "sourceKind": "devto"
+    }
   }
 ]
