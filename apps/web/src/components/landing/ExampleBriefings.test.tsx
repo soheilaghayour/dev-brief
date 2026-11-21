@@ -5,7 +5,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXAMPLE_QUESTIONS } from '@devbrief/shared';
 import { ExampleBriefings } from './ExampleBriefings';
-import { nextTabIndex, sampleExampleBriefings, storedBriefingSource } from './exampleBriefingData';
+import { sampleExampleBriefings } from './exampleBriefingData';
+import { nextTabIndex, storedBriefingSource } from './storedBriefing';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -52,12 +53,20 @@ function mount(isSample = false) {
   return container;
 }
 
-function scrollIntoView() {
+// The live tabs are a lazy chunk: only they give their tabs an id, so that marks their arrival.
+async function scrollIntoView(container: HTMLElement) {
   act(() =>
     observed!.callback(
       [{ isIntersecting: true } as IntersectionObserverEntry],
       {} as IntersectionObserver,
     ),
+  );
+  await vi.waitFor(
+    async () => {
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+      expect(container.querySelector('[role="tab"][id]')).not.toBeNull();
+    },
+    { timeout: 5000 },
   );
 }
 
@@ -82,17 +91,18 @@ describe('ExampleBriefings', () => {
     ).toContain('Sample data');
   });
 
-  it('AC-3.2.2 loads the renderer only once the panel nears the viewport', () => {
+  it('AC-3.2.2 loads the live tabs and the renderer only once the section nears the viewport', async () => {
     const container = mount();
     expect(container.querySelector('[data-testid="renderer"]')).toBeNull();
-    scrollIntoView();
+    await scrollIntoView(container);
     expect(
       container.querySelector('[data-testid="renderer"]')?.getAttribute('data-has-source'),
     ).toBe('true');
   });
 
-  it('AC-3.2.2 switches the briefing with a click and exposes tab roles', () => {
+  it('AC-3.2.2 switches the briefing with a click and exposes tab roles', async () => {
     const container = mount();
+    await scrollIntoView(container);
     const tabs = container.querySelectorAll<HTMLElement>('[role="tab"]');
     expect(tabs).toHaveLength(3);
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
@@ -104,8 +114,9 @@ describe('ExampleBriefings', () => {
     expect(panel?.getAttribute('aria-labelledby')).toBe(tabs[1]?.id);
   });
 
-  it('AC-3.2.2 moves between tabs with the arrow keys and focuses the new tab', () => {
+  it('AC-3.2.2 moves between tabs with the arrow keys and focuses the new tab', async () => {
     const container = mount();
+    await scrollIntoView(container);
     const tabs = container.querySelectorAll<HTMLElement>('[role="tab"]');
     act(() => {
       tabs[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));

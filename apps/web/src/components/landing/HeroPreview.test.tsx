@@ -47,6 +47,18 @@ function mount(briefingIsSample = false) {
   return container;
 }
 
+// The briefing module is a lazy chunk, so the click is followed by a short wait for it.
+async function showBriefing(container: HTMLElement) {
+  act(() => button(container, 'Briefing').click());
+  await vi.waitFor(
+    async () => {
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+      expect(container.querySelector('[data-testid="renderer"]')).not.toBeNull();
+    },
+    { timeout: 5000 },
+  );
+}
+
 const button = (container: HTMLElement, name: string) =>
   [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === name)!;
 
@@ -67,9 +79,9 @@ describe('HeroPreview', () => {
     expect(container.querySelector('article[data-story-id]')).not.toBeNull();
   });
 
-  it('AC-3.2.2 the Briefing control renders example #1 and Feed returns to the stories', () => {
+  it('AC-3.2.2 the Briefing control renders example #1 and Feed returns to the stories', async () => {
     const container = mount();
-    act(() => button(container, 'Briefing').click());
+    await showBriefing(container);
     expect(container.querySelector('[data-testid="renderer"]')).not.toBeNull();
     expect(container.querySelector('article[data-story-id]')).toBeNull();
     expect(container.querySelector(`[aria-label="${BRIEFING!.question}"]`)).not.toBeNull();
@@ -78,10 +90,10 @@ describe('HeroPreview', () => {
     expect(container.querySelector('article[data-story-id]')).not.toBeNull();
   });
 
-  it('AC-L2 labels a sample briefing in the window', () => {
+  it('AC-L2 labels a sample briefing in the window', async () => {
     const container = mount(true);
     expect(container.textContent).not.toContain('Sample data');
-    act(() => button(container, 'Briefing').click());
+    await showBriefing(container);
     expect(container.textContent).toContain('Sample data');
   });
 });

@@ -5,16 +5,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import type { CSSProperties, FocusEvent, KeyboardEvent } from 'react';
 import { ArrowRightIcon } from 'lucide-react';
 import { TAG_LABELS, type StoryCard as StoryCardData } from '@devbrief/shared';
 import { StoryCard } from '@/components/feed/StoryCard';
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
-import { LazyBriefingView } from '@/features/copilot/LazyBriefingView';
 import { cn } from '@/lib/cn';
-import { storedBriefingSource, type ExampleBriefing } from './exampleBriefingData';
+import type { ExampleBriefing } from './exampleBriefingData';
 import {
   PREVIEW_TAGS,
   feedFocusHref,
@@ -36,6 +35,9 @@ type HeroPreviewProps = {
   briefingIsSample?: boolean;
 };
 
+// Loads with the Briefing control, so the renderer's wrapper stays out of the landing's first load.
+const HeroBriefing = lazy(() => import('./HeroBriefing'));
+
 const MODIFIER_KEYS = ['ctrlKey', 'metaKey', 'altKey'] as const;
 
 /** The product window of the hero: filter chips, the feed's top stories and the feed's j/k/s/Enter keys. */
@@ -54,11 +56,7 @@ export function HeroPreview({
   const [isFocused, setIsFocused] = useState(false);
   const [hasChosenTag, setHasChosenTag] = useState(false);
   const [view, setView] = useState<'feed' | 'briefing'>('feed');
-  const briefingSource = useMemo(
-    () => (briefing ? storedBriefingSource(briefing.messages) : undefined),
-    [briefing],
-  );
-  const isBriefing = view === 'briefing' && briefingSource !== undefined;
+  const isBriefing = view === 'briefing' && briefing !== undefined;
 
   const shown = visibleStories(stories, tag);
   const activeStory = shown[activeIndex];
@@ -127,7 +125,7 @@ export function HeroPreview({
           </span>
         )}
       </div>
-      {briefingSource && (
+      {briefing && (
         <div
           role="group"
           aria-label="Preview view"
@@ -144,13 +142,15 @@ export function HeroPreview({
       {isBriefing ? (
         <div
           role="region"
-          aria-label={briefing?.question}
+          aria-label={briefing.question}
           tabIndex={0}
           style={{ '--briefing-sticky-top': '0px' } as CSSProperties}
           className="isolate mt-2 h-[28.5rem] overflow-y-auto px-4 pb-4 text-left"
         >
           <div className="pt-3">
-            <LazyBriefingView source={briefingSource} />
+            <Suspense fallback={null}>
+              <HeroBriefing briefing={briefing} />
+            </Suspense>
           </div>
         </div>
       ) : (

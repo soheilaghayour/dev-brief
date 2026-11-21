@@ -1,4 +1,5 @@
-import { ExampleBriefingTabs } from './ExampleBriefingTabs';
+import { ExampleBriefingsLoader } from './ExampleBriefingsLoader';
+import { ExampleBriefingTabsStatic } from './ExampleBriefingTabsStatic';
 import type { ExampleBriefing } from './exampleBriefingData';
 import { SectionHeading } from './SectionHeading';
 
@@ -21,7 +22,9 @@ export function ExampleBriefings({ examples, isSample }: ExampleBriefingsProps) 
           <span className="rounded-sm border px-1.5 leading-5">Sample data</span>
         </p>
       )}
-      <ExampleBriefingTabs examples={examples} />
+      <ExampleBriefingsLoader examples={examples}>
+        <ExampleBriefingTabsStatic examples={examples} />
+      </ExampleBriefingsLoader>
     </section>
   );
 }
