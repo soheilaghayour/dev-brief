@@ -1,4 +1,11 @@
-import { PreferencesSchema, SaveSchema } from '@devbrief/shared';
+import {
+  COLLECTION_ITEMS_MAX,
+  COLLECTIONS_MAX,
+  CollectionNameSchema,
+  CollectionSlugSchema,
+  PreferencesSchema,
+  SaveSchema,
+} from '@devbrief/shared';
 import type { Save } from '@devbrief/shared';
 import { z } from 'zod';
 import {
@@ -29,6 +36,48 @@ function salvagePrefs(value: unknown) {
   return parsed.success ? parsed.data : EMPTY_PREFERENCES;
 }
 
+const GuestCollectionSchema = z.object({
+  id: z.string().min(1),
+  slug: CollectionSlugSchema,
+  name: CollectionNameSchema,
+  description: z.string().max(500).nullable(),
+  position: z.number().int().min(0),
+  items: z
+    .array(
+      z.object({
+        storyId: z.string().min(1),
+        position: z.number().int().min(0),
+        addedAt: z.string().datetime(),
+      }),
+    )
+    .max(COLLECTION_ITEMS_MAX),
+});
+
+const GuestCollectionsSchema = z
+  .array(GuestCollectionSchema)
+  .max(COLLECTIONS_MAX)
+  .refine(
+    (collections) =>
+      new Set(collections.map(({ slug }) => slug)).size === collections.length &&
+      new Set(collections.map(({ id }) => id)).size === collections.length,
+    'duplicate slug or id',
+  );
+
+// All or nothing, like preferences: a set that breaks a limit or repeats a slug would merge differently from what the user sees.
+function salvageCollections(value: unknown) {
+  const parsed = GuestCollectionsSchema.safeParse(value);
+  if (!parsed.success) return [];
+  return [...parsed.data]
+    .sort((a, b) => a.position - b.position)
+    .map((collection, position) => ({
+      ...collection,
+      position,
+      items: [...collection.items]
+        .sort((a, b) => a.position - b.position)
+        .map((item, itemPosition) => ({ ...item, position: itemPosition })),
+    }));
+}
+
 /**
  * Turns whatever storage held into usable guest fields, dropping what is invalid.
  * Returns null for a value that is not an object or comes from a newer version.
@@ -42,6 +91,7 @@ export function migrateGuestData(stored: unknown, version: number): Partial<Gues
     ...(deviceId.success && { deviceId: deviceId.data }),
     saves: salvageSaves(fields.saves),
     prefs: salvagePrefs(fields.prefs),
+    collections: salvageCollections(fields.collections),
     hintDismissed: fields.hintDismissed === true,
     pendingMerge: fields.pendingMerge === true,
   };

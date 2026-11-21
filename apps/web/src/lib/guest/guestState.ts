@@ -1,4 +1,5 @@
 import type { Preferences, Save } from '@devbrief/shared';
+import type { GuestCollection } from './collectionsState';
 
 export const GUEST_STATE_VERSION = 1;
 /** Matches what one merge request accepts (PRD §6.2), so every local save can reach the account. */
@@ -14,6 +15,7 @@ export type GuestData = {
   deviceId: string;
   saves: Save[];
   prefs: Preferences;
+  collections: GuestCollection[];
   hintDismissed: boolean;
   /** Set while a guest → account merge has started and not yet been confirmed by the server. */
   pendingMerge: boolean;
@@ -26,6 +28,7 @@ export function createGuestData(deviceId: string): GuestData {
     deviceId,
     saves: [],
     prefs: EMPTY_PREFERENCES,
+    collections: [],
     hintDismissed: false,
     pendingMerge: false,
   };
@@ -47,6 +50,20 @@ export function toggleSave(
 export function removeSaves(saves: readonly Save[], storyIds: readonly string[]) {
   const removed = new Set(storyIds);
   return saves.filter((save) => !removed.has(save.storyId));
+}
+
+/** Takes the stories out of every collection and closes the gaps in each item list. */
+export function withoutStoriesInCollections(
+  collections: readonly GuestCollection[],
+  storyIds: readonly string[],
+): GuestCollection[] {
+  const removed = new Set(storyIds);
+  return collections.map((collection) => ({
+    ...collection,
+    items: collection.items
+      .filter((item) => !removed.has(item.storyId))
+      .map((item, position) => ({ ...item, position })),
+  }));
 }
 
 /** Newest-saved first; the stored order is insertion order. */

@@ -1,3 +1,4 @@
+import { COLLECTION_ITEMS_MAX, COLLECTIONS_MAX } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
 import { migrateGuestData } from './guestParser';
 import { createGuestData, EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
@@ -26,6 +27,7 @@ describe('migrateGuestData', () => {
       saves: [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }],
       prefs: EMPTY_PREFERENCES,
       hintDismissed: false,
+      collections: [],
       pendingMerge: false,
     });
   });
@@ -74,5 +76,59 @@ describe('migrateGuestData', () => {
       savedAt: '2026-04-01T00:00:00.000Z',
     }));
     expect(migrateGuestData({ saves }, 1)?.saves).toHaveLength(MAX_GUEST_SAVES);
+  });
+});
+
+describe('migrateGuestData collections', () => {
+  const item = (storyId: string, position: number) => ({
+    storyId,
+    position,
+    addedAt: '2026-05-01T10:00:00.000Z',
+  });
+  const stored = (slug: string, position: number, items = [item(A, 0)]) => ({
+    id: `id-${slug}`,
+    slug,
+    name: slug,
+    description: null,
+    position,
+    items,
+  });
+
+  it('AC-3.4.1 reads stored v1 data without the field as no collections', () => {
+    expect(migrateGuestData({ deviceId: DEVICE_ID, saves: [] }, 1)?.collections).toEqual([]);
+  });
+
+  it('AC-3.4.1 keeps a valid set in position order with dense positions', () => {
+    const collections = [stored('later', 5), stored('first', 2, [item(A, 7), item('b', 3)])];
+    expect(migrateGuestData({ collections }, 1)?.collections).toEqual([
+      { ...collections[1], position: 0, items: [item('b', 0), item(A, 1)] },
+      { ...collections[0], position: 1 },
+    ]);
+  });
+
+  it.each([
+    ['not a list', 'text'],
+    ['an entry without a name', [{ ...stored('a', 0), name: '' }]],
+    ['a slug that breaks the rule', [stored('Not A Slug', 0)]],
+    ['a repeated slug', [stored('same', 0), { ...stored('same', 1), id: 'other' }]],
+    ['an item without a date', [stored('a', 0, [{ ...item(A, 0), addedAt: 'yesterday' }])]],
+  ])('AC-3.4.1 reads a set with %s as empty', (_case, collections) => {
+    expect(migrateGuestData({ collections }, 1)?.collections).toEqual([]);
+  });
+
+  it('AC-3.4.1 reads a set over the 50-collection limit as empty, never a trimmed one', () => {
+    const collections = Array.from({ length: COLLECTIONS_MAX + 1 }, (_, index) =>
+      stored(`board-${index}`, index),
+    );
+    expect(migrateGuestData({ collections }, 1)?.collections).toEqual([]);
+  });
+
+  it('AC-3.4.1 reads a collection over the 500-item limit as an invalid set', () => {
+    const items = Array.from({ length: COLLECTION_ITEMS_MAX + 1 }, (_, index) =>
+      item(`s${index}`, index),
+    );
+    expect(migrateGuestData({ collections: [stored('big', 0, items)] }, 1)?.collections).toEqual(
+      [],
+    );
   });
 });
