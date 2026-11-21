@@ -1,11 +1,5 @@
 import type { StorySummary } from '@devbrief/shared';
-import { Badge } from '@/components/ui/Badge';
-
-const VERDICT_LABELS = {
-  mostly_positive: 'Mostly positive',
-  mixed: 'Mixed',
-  mostly_negative: 'Mostly negative',
-} as const satisfies Record<NonNullable<StorySummary['consensus']>['verdict'], string>;
+import { ConsensusCallout } from './ConsensusCallout';
 
 function TldrList({ tldr }: { tldr: StorySummary['tldr'] }) {
   return (
@@ -17,32 +11,12 @@ function TldrList({ tldr }: { tldr: StorySummary['tldr'] }) {
   );
 }
 
-function PointList({ title, points }: { title: string; points: string[] }) {
-  if (points.length === 0) return null;
-  return (
-    <div>
-      <h3 className="text-muted-foreground text-xs font-medium">{title}</h3>
-      <ul className="list-disc pl-5 text-sm">
-        {points.map((point) => (
-          <li key={point}>{point}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ConsensusCallout({ consensus }: { consensus: StorySummary['consensus'] }) {
+function SummaryConsensus({ consensus }: { consensus: StorySummary['consensus'] }) {
   if (!consensus) {
     return <p className="text-muted-foreground text-sm">Not enough discussion yet</p>;
   }
   return (
-    <div className="bg-muted/50 flex flex-col gap-2 rounded-md border p-3">
-      <p className="text-sm font-medium">
-        Community consensus <Badge variant="outline">{VERDICT_LABELS[consensus.verdict]}</Badge>
-      </p>
-      <PointList title="Pros" points={consensus.pros} />
-      <PointList title="Cons" points={consensus.cons} />
-    </div>
+    <ConsensusCallout verdict={consensus.verdict} pros={consensus.pros} cons={consensus.cons} />
   );
 }
 
@@ -66,7 +40,7 @@ export function SummaryView({ summary }: { summary: StorySummary }) {
         </p>
       </div>
       <TldrList tldr={summary.tldr} />
-      <ConsensusCallout consensus={summary.consensus} />
+      <SummaryConsensus consensus={summary.consensus} />
     </section>
   );
 }

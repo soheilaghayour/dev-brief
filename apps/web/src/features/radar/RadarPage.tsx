@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { MoversTable, type MoverRow } from './MoversTable';
 import { RadarControls } from './RadarControls';
 import { radarQueryOptions } from './radarQueries';
-import { TechVelocityChart } from './TechVelocityChart';
+import { TechVelocityChart } from '@/components/radar/TechVelocityChart';
 import { useRadarFilters } from './useRadarFilters';
 
 function RadarSkeleton() {

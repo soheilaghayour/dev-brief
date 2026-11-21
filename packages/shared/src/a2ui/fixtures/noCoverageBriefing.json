@@ -1,0 +1,33 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "briefing-cnocover0001",
+      "catalogId": "https://devbrief.dev/a2ui/catalogs/devbrief/v1.json"
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cnocover0001",
+      "components": [
+        {
+          "id": "s0_tags",
+          "component": "TagBadgeList",
+          "title": "Try these topics",
+          "tags": [
+            { "slug": "rust", "label": "Rust" },
+            { "slug": "typescript", "label": "TypeScript" }
+          ]
+        },
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "Not enough coverage",
+          "subtitle": "Fewer than 3 stories from the last 7 days match “COBOL on the blockchain”.",
+          "children": ["s0_tags"]
+        }
+      ]
+    }
+  }
+]

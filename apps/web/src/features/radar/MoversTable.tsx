@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { RADAR_TAGS_MAX } from '@devbrief/shared';
 import type { Radar, TagSlug } from '@devbrief/shared';
 import { TagBadge } from '@/components/feed/TagBadge';
+import { formatDeltaPct } from '@/components/radar/formatDeltaPct';
 import { Checkbox } from '@/components/ui/Checkbox';
 
 type Mover = Radar['movers'][number];
@@ -23,9 +24,7 @@ type MoversTableProps = {
 function formatDelta({ previous, deltaPct }: MoverRow) {
   if (previous === null) return { icon: '', text: '–' };
   if (deltaPct === null) return { icon: '▲', text: 'new' };
-  if (deltaPct > 0) return { icon: '▲', text: `+${deltaPct}%` };
-  if (deltaPct < 0) return { icon: '▼', text: `−${Math.abs(deltaPct)}%` };
-  return { icon: '', text: '0%' };
+  return formatDeltaPct(deltaPct);
 }
 
 /** The "Top movers" table: tag, current and previous window totals, Δ%, and a checkbox that puts the tag in the chart. */

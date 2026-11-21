@@ -99,6 +99,17 @@ describe('findForbiddenModules', () => {
     ]);
   });
 
+  it('reports the A2UI renderer and lit found in a first-load script', () => {
+    const nextDir = writeSavedBuild(
+      'x="a2ui-react-markdown";y="ValidationConfig.allowedMessages";z=litHtmlVersions;',
+    );
+    expect(findForbiddenModules(nextDir, ['/saved']).map(({ module }) => module)).toEqual([
+      '@a2ui/react',
+      '@a2ui/web_core',
+      'lit',
+    ]);
+  });
+
   it('AC-3.3.3 passes first-load scripts without Recharts', () => {
     expect(findForbiddenModules(writeSavedBuild('x=1;'), ['/saved'])).toEqual([]);
   });
@@ -190,6 +201,7 @@ describe('next/dynamic', () => {
       'components/account/LazyAccountSlot.tsx',
       'components/layout/LazyToaster.tsx',
       'components/layout/SheetLauncher.tsx',
+      'features/copilot/LazyBriefingView.tsx',
       'lib/hotkeys/HotkeysProvider.tsx',
     ]);
   });

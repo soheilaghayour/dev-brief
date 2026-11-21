@@ -59,7 +59,8 @@ apps/
     src/components/ui/          # design system: shadcn/ui primitives (generated)
     src/components/{feed,story,landing,layout,saves}/  # app components, one folder per area
     src/features/copilot/       # A2UI catalog implementation + command bar (P3)
-    src/features/radar/         # Recharts views (P3)
+    src/features/radar/         # the radar page: controls, movers table (P3)
+    src/components/radar/       # the velocity chart (Recharts), shared by the radar and the copilot catalog
     src/lib/api/                # typed fetch client; parses every response with the shared schemas
     src/lib/guest/              # Zustand guest store (persist → localStorage)
     src/lib/hotkeys/            # shortcut registry: feeds both handlers and the help dialog

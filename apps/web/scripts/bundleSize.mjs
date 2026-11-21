@@ -78,7 +78,12 @@ const ROUTE_SOURCES = {
 };
 
 /** Modules that must stay out of the listed routes' first load, each recognised by a string its minified code keeps. */
-export const FORBIDDEN_MODULES = [{ name: 'Recharts', marker: /recharts-[a-z]/ }];
+export const FORBIDDEN_MODULES = [
+  { name: 'Recharts', marker: /recharts-[a-z]/ },
+  { name: '@a2ui/react', marker: /a2ui-react-/ },
+  { name: '@a2ui/web_core', marker: /ValidationConfig\.allowedMessages/ },
+  { name: 'lit', marker: /litHtmlVersions/ },
+];
 
 /** Routes the forbidden modules are checked on: every gated route, the lazy ones included. */
 export const FORBIDDEN_MODULE_ROUTES = ['/', '/feed', '/saved', '/story/[id]', '/radar'];
