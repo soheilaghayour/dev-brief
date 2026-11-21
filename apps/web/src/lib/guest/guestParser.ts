@@ -5,6 +5,7 @@ import {
   CollectionSlugSchema,
   PreferencesSchema,
   SaveSchema,
+  StoryIdSchema,
 } from '@devbrief/shared';
 import type { Save } from '@devbrief/shared';
 import { z } from 'zod';
@@ -45,7 +46,7 @@ const GuestCollectionSchema = z.object({
   items: z
     .array(
       z.object({
-        storyId: z.string().min(1),
+        storyId: StoryIdSchema,
         position: z.number().int().min(0),
         addedAt: z.string().datetime(),
       }),

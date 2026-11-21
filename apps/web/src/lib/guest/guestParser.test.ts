@@ -5,6 +5,7 @@ import { createGuestData, EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestStat
 
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
 const A = 'cstoryaaaaaaaaaaaaaaaaaa';
+const B = 'cstorybbbbbbbbbbbbbbbbbb';
 
 describe('migrateGuestData', () => {
   it('keeps a valid current value as it is', () => {
@@ -99,9 +100,9 @@ describe('migrateGuestData collections', () => {
   });
 
   it('AC-3.4.1 keeps a valid set in position order with dense positions', () => {
-    const collections = [stored('later', 5), stored('first', 2, [item(A, 7), item('b', 3)])];
+    const collections = [stored('later', 5), stored('first', 2, [item(A, 7), item(B, 3)])];
     expect(migrateGuestData({ collections }, 1)?.collections).toEqual([
-      { ...collections[1], position: 0, items: [item('b', 0), item(A, 1)] },
+      { ...collections[1], position: 0, items: [item(B, 0), item(A, 1)] },
       { ...collections[0], position: 1 },
     ]);
   });
@@ -125,7 +126,7 @@ describe('migrateGuestData collections', () => {
 
   it('AC-3.4.1 reads a collection over the 500-item limit as an invalid set', () => {
     const items = Array.from({ length: COLLECTION_ITEMS_MAX + 1 }, (_, index) =>
-      item(`s${index}`, index),
+      item(`c${String(index).padStart(24, '0')}`, index),
     );
     expect(migrateGuestData({ collections: [stored('big', 0, items)] }, 1)?.collections).toEqual(
       [],

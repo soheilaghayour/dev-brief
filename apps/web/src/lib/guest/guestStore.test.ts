@@ -186,9 +186,9 @@ describe('guest store', () => {
     expect(reloaded.useGuestStore.getState().collections).toEqual(stored.collections);
 
     reloaded.useGuestStore.getState().toggleSave(A, NOW);
-    expect(
-      reloaded.useGuestStore.getState().collections.map((c) => c.items.length),
-    ).toEqual([0, 0]);
+    expect(reloaded.useGuestStore.getState().collections.map((c) => c.items.length)).toEqual([
+      0, 0,
+    ]);
   });
 
   it('removeSaves leaves collections alone, so a confirmed merge cannot lose boards that have not synced', async () => {
