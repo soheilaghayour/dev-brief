@@ -60,9 +60,15 @@ Production has two applications, `api` and `web`, and each flag must have the sa
 
 ## Deploy and rollback
 
-A push to `main` makes Coolify build both images from the Dockerfiles and replace the containers. The API image's start command is `prisma migrate deploy && node dist/cli/seed.js && node dist/main.js`: a failed migration or seed exits non-zero, the new container never turns healthy, and Coolify leaves the old container serving (the deployment shows as failed in Coolify).
+A push to `main` makes Coolify build both images from the Dockerfiles and replace the containers. The API image's start command (the `CMD` in [`apps/api/Dockerfile`](../apps/api/Dockerfile)) runs the migration, then the seed, then the server: a failed migration or seed exits non-zero, the new container never turns healthy, and Coolify leaves the old container serving (the deployment shows as failed in Coolify).
 
-The seed runs at every API start. It is idempotent and writes each source's `enabled` flag, so switching a source on or off is a change to `apps/api/prisma/seed/sources.json` plus a deploy. The RSS blog sources are off ([PRD §8.8](prd.md#88-content-rights)); their stories stay and age out under retention.
+The seed runs at every API start. It is idempotent and writes each source's `enabled` flag, so switching a source on or off is a change to `apps/api/prisma/seed/sources.json` plus a deploy. The RSS blog sources are off ([PRD §8.8](prd.md#88-content-rights)); their stories stay and age out under retention unless saved.
+
+### Takedown
+
+- To switch a source off, set `enabled: false` in `apps/api/prisma/seed/sources.json` and deploy. A change made only in the database is reverted at the next start.
+- To remove a single story, delete it by hand. It can reappear while it is still in the upstream window (HN top stories, Dev.to's 7 days). Durable per-story blocking is not supported, by the owner's choice of simplicity.
+- Log the request in `docs/changelog.md`.
 
 A failed migration blocks every later deploy (Prisma P3009) until it is resolved, so a fixing commit alone does not recover. Resolve it from the running (old) API container's Terminal in Coolify:
 

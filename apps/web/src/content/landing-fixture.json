@@ -1,6 +1,6 @@
 {
   "storiesToday": 312,
-  "sourceCount": 12,
+  "sourceCount": 3,
   "items": [
     {
       "id": "sample-1",
@@ -18,16 +18,6 @@
           "itemUrl": "https://news.ycombinator.com/item?id=1001",
           "points": 612,
           "comments": 288,
-          "reactions": null,
-          "stars": null
-        },
-        {
-          "kind": "rss",
-          "slug": "typescript-blog",
-          "name": "TypeScript Blog",
-          "itemUrl": "https://devblogs.microsoft.com/typescript/native-preview",
-          "points": null,
-          "comments": null,
           "reactions": null,
           "stars": null
         }
@@ -107,48 +97,6 @@
       ]
     },
     {
-      "id": "sample-5",
-      "title": "Designing idempotent APIs that survive retries",
-      "url": "https://netflixtechblog.com/idempotent-apis",
-      "domain": "netflixtechblog.com",
-      "ageMinutes": 540,
-      "tags": ["system-design"],
-      "readingTimeMinutes": 11,
-      "sources": [
-        {
-          "kind": "rss",
-          "slug": "netflix-tech",
-          "name": "Netflix Tech",
-          "itemUrl": "https://netflixtechblog.com/idempotent-apis",
-          "points": null,
-          "comments": null,
-          "reactions": null,
-          "stars": null
-        }
-      ]
-    },
-    {
-      "id": "sample-6",
-      "title": "A tour of CSS anchor positioning",
-      "url": "https://www.joshwcomeau.com/css/anchor-positioning",
-      "domain": "joshwcomeau.com",
-      "ageMinutes": 660,
-      "tags": ["css", "web-platform"],
-      "readingTimeMinutes": 10,
-      "sources": [
-        {
-          "kind": "rss",
-          "slug": "josh-comeau",
-          "name": "Josh Comeau",
-          "itemUrl": "https://www.joshwcomeau.com/css/anchor-positioning",
-          "points": null,
-          "comments": null,
-          "reactions": null,
-          "stars": null
-        }
-      ]
-    },
-    {
       "id": "sample-7",
       "title": "Building a distributed rate limiter with Redis and Lua",
       "url": "https://blog.cloudflare.com/distributed-rate-limiter",
@@ -157,16 +105,6 @@
       "tags": ["system-design", "security"],
       "readingTimeMinutes": 12,
       "sources": [
-        {
-          "kind": "rss",
-          "slug": "cloudflare",
-          "name": "Cloudflare",
-          "itemUrl": "https://blog.cloudflare.com/distributed-rate-limiter",
-          "points": null,
-          "comments": null,
-          "reactions": null,
-          "stars": null
-        },
         {
           "kind": "hn",
           "slug": "hn",
@@ -206,27 +144,6 @@
           "points": null,
           "comments": 45,
           "reactions": 210,
-          "stars": null
-        }
-      ]
-    },
-    {
-      "id": "sample-9",
-      "title": "SQLite as a production database: what changed",
-      "url": "https://simonwillison.net/2026/sqlite-production",
-      "domain": "simonwillison.net",
-      "ageMinutes": 900,
-      "tags": ["databases"],
-      "readingTimeMinutes": 5,
-      "sources": [
-        {
-          "kind": "rss",
-          "slug": "simon-willison",
-          "name": "Simon Willison",
-          "itemUrl": "https://simonwillison.net/2026/sqlite-production",
-          "points": null,
-          "comments": null,
-          "reactions": null,
           "stars": null
         }
       ]

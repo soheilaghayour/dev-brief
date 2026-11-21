@@ -1,5 +1,5 @@
 // The enabled sources (PRD §2.1 row 2); the RSS blogs are off (§8.8).
-const SOURCES = ['Hacker News', 'Dev.to'];
+const SOURCES = ['Hacker News', 'Dev.to', 'GitHub'];
 
 export function SourceStrip() {
   return (

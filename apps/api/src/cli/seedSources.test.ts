@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SEED_SOURCES } from './seedSources.js';
 
-describe('sources.json (owner decision 2026-11-21, PRD §8.8)', () => {
+describe('sources.json (PRD §8.8)', () => {
   it('switches every RSS blog source off', () => {
     const rss = SEED_SOURCES.filter(({ kind }) => kind === 'rss');
     expect(rss.length).toBeGreaterThan(0);

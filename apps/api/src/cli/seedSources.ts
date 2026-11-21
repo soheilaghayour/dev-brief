@@ -24,7 +24,7 @@ const SeedSourcesSchema = z.array(
 /** The seeded sources, validated, with `enabled` defaulted to true. */
 export const SEED_SOURCES = SeedSourcesSchema.parse(sourcesJson);
 
-/** Upserts every seeded source by slug, so running it again adds no rows. `enabled` is written on update too: that is how a source already in production is switched off (or on) by a deploy. */
+/** Upserts every seeded source by slug, writing `enabled` on update too, so a deploy switches a source on or off. */
 export async function seedSources(prisma: PrismaClient) {
   for (const { slug, ...fields } of SEED_SOURCES) {
     await prisma.source.upsert({ where: { slug }, create: { slug, ...fields }, update: fields });

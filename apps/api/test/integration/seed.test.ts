@@ -61,6 +61,17 @@ describe('source seed', () => {
     expect(after).toEqual(before.map((source) => ({ ...source, updatedAt: expect.any(Date) })));
   });
 
+  it('reverts an enabled flag changed only in the database, so sources.json is the only switch', async () => {
+    await seedSources(prisma);
+    await prisma.source.update({ where: { slug: 'hn' }, data: { enabled: false } });
+
+    await seedSources(prisma);
+
+    expect(await prisma.source.findUniqueOrThrow({ where: { slug: 'hn' } })).toMatchObject({
+      enabled: true,
+    });
+  });
+
   it('keeps the stories of a switched-off source', async () => {
     const source = await createSource(prisma, 'rss-react-blog', 'rss', { enabled: true });
     await createStory(prisma, {
