@@ -14,9 +14,13 @@ import { SourceBadge } from './SourceBadge';
 import { TagBadge } from './TagBadge';
 
 const MAX_VISIBLE_TAGS = 3;
+const TITLE_CLASS = 'text-foreground rounded-sm text-base font-medium hover:underline';
+
+/** The fields the card renders; the landing preview sends only these to the browser. */
+export type CardStory = Omit<StoryCardData, 'excerpt' | 'author' | 'rankScore' | 'canSummarize'>;
 
 type StoryCardProps = {
-  story: StoryCardData;
+  story: CardStory;
   isSaved: boolean;
   onToggleSave: () => void;
   /** Denser rows for previews: tags stay, the reading time goes. */
@@ -25,12 +29,14 @@ type StoryCardProps = {
   isActive?: boolean;
   /** The Follow / Mute menu the tag and source badges open; absent where preferences don't apply, like the landing preview. */
   preferenceMenu?: ComponentProps<typeof TagBadge>['menu'];
-  /** The "+N related" control of a cluster card; passed in, so pages without clusters (the landing preview, /saved) don't load it. */
+  /** The "+N related" control of a cluster card: the feed's expanding toggle or the landing preview's static link; passed in, so pages without clusters (/saved) load neither. */
   relatedToggle?: ComponentType<RelatedToggleProps>;
   /** The combined source line of a cluster card, in place of the per-source badges; passed in for the same reason as `relatedToggle`. */
   sourceLine?: ComponentType<ClusterSourceLineProps>;
   /** Opens "Add to collection"; absent where collections are off or unavailable, so the card shows no entry. */
   onAddToCollection?: () => void;
+  /** Where the title links in the same tab, such as the landing preview's story page; absent, it opens the original in a new tab. */
+  titleHref?: string;
   /** Extra controls beside the save button, such as a board's "Remove from collection". */
   actions?: ReactNode;
   /** A slot under the card's content, such as a board's note preview. */
@@ -47,6 +53,7 @@ export function StoryCard({
   relatedToggle: RelatedToggle,
   sourceLine: SourceLine,
   onAddToCollection,
+  titleHref,
   actions,
   note,
 }: StoryCardProps) {
@@ -66,14 +73,16 @@ export function StoryCard({
     >
       <div className="min-w-0 flex-1">
         <h2 className="leading-snug">
-          <a
-            href={story.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground rounded-sm text-base font-medium hover:underline"
-          >
-            {story.title}
-          </a>
+          {titleHref ? (
+            // Thirty preview titles would otherwise prefetch thirty dynamic story pages on every landing visit.
+            <Link href={titleHref} prefetch={false} className={TITLE_CLASS}>
+              {story.title}
+            </Link>
+          ) : (
+            <a href={story.url} target="_blank" rel="noopener noreferrer" className={TITLE_CLASS}>
+              {story.title}
+            </a>
+          )}
           <span className="text-muted-foreground ml-2 text-xs whitespace-nowrap">
             {story.domain}
           </span>
