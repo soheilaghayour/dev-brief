@@ -1,19 +1,9 @@
-import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
+import { signInThroughTestRoute } from './signIn';
 
 const APP_URL = 'http://localhost:3000';
 // The guest store's key (`GUEST_STORAGE_KEY` in apps/web/src/lib/guest/clear.ts).
 const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
-
-// The test-mode route needs AUTH_TEST_MODE=true on the API; the Origin header passes Better Auth's CSRF check.
-async function signInThroughTestRoute(page: Page) {
-  const response = await page.request.post(`${APP_URL}/api/auth/test/sign-in`, {
-    headers: { Origin: APP_URL },
-    // A fresh user per test: the delete-account test must not remove the user another test is using.
-    data: { email: `${randomUUID()}@example.com` },
-  });
-  expect(response.ok()).toBe(true);
-}
 
 test('AC-1.5.1 /sign-in offers GitHub and Google and nothing else', async ({ page }) => {
   await page.goto('/sign-in');

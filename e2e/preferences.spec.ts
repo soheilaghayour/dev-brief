@@ -1,8 +1,7 @@
-import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
+import { signInThroughTestRoute } from './signIn';
 
 // Needs NEXT_PUBLIC_FEATURE_PREFERENCES and FEATURE_PREFERENCES on, as in CI's e2e build.
-const APP_URL = 'http://localhost:3000';
 // The guest store's key (`GUEST_STORAGE_KEY` in apps/web/src/lib/guest/guestStore.ts).
 const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
 
@@ -18,15 +17,6 @@ async function openFeed(page: Page) {
 async function storedPrefs(page: Page) {
   const stored = await page.evaluate((key) => localStorage.getItem(key), GUEST_STORAGE_KEY);
   return (JSON.parse(stored ?? '{}') as { prefs?: unknown }).prefs;
-}
-
-// The test-mode route needs AUTH_TEST_MODE=true on the API; the Origin header passes Better Auth's CSRF check.
-async function signInThroughTestRoute(page: Page) {
-  const response = await page.request.post(`${APP_URL}/api/auth/test/sign-in`, {
-    headers: { Origin: APP_URL },
-    data: { email: `${randomUUID()}@example.com` },
-  });
-  expect(response.ok()).toBe(true);
 }
 
 test('AC-2.5.1 AC-2.5.2 a guest mutes a tag from a badge, its stories disappear and stay hidden after a reload', async ({

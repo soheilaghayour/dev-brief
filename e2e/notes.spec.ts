@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signInThroughTestRoute } from './signIn';
 
 // Needs NEXT_PUBLIC_FEATURE_COLLECTIONS on (web), as in CI's e2e run.
 
@@ -178,4 +179,35 @@ test('AC-3.4.2 n opens the note editor on the active saved card, and not inside 
 
   await page.keyboard.press('n');
   expect((await editor.inputValue()).length).toBe(NOTE.length + 1);
+});
+
+test('AC-3.4.2 a signed-in user edits a note that persists after a reload, and is asked before unsaving the story', async ({
+  page,
+}) => {
+  await signInThroughTestRoute(page);
+  const story = await firstStory(page);
+  await saveWithNote(page, story);
+
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Note' })).toHaveValue(NOTE);
+
+  const edited = `${NOTE} again`;
+  await page.getByRole('textbox', { name: 'Note' }).fill(edited);
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Note' })).toHaveValue(edited);
+  await page.goto('/saved');
+  await expect(cards(page).first()).toContainText(`📝 ${edited}`);
+
+  // The feed has not loaded the note: the unsave looks it up before it asks (AC-3.4.1).
+  await page.goto('/feed?sort=latest');
+  const card = page.locator(`article[data-story-id="${story.id}"]`);
+  await card.getByRole('button', { name: 'Save story' }).click();
+  const dialog = page.getByRole('dialog', { name: `Remove “${story.title}” and its note?` });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Remove story and note' }).click();
+  await expect(card.getByRole('button', { name: 'Save story' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });
