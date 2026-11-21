@@ -110,6 +110,13 @@ describe('findForbiddenModules', () => {
     ]);
   });
 
+  it('AC-3.4.2 reports react-markdown found in a first-load script', () => {
+    const nextDir = writeSavedBuild('x=/^(https?|ircs?|mailto|xmpp)$/i;');
+    expect(findForbiddenModules(nextDir, ['/saved'])).toEqual([
+      { route: '/saved', module: 'react-markdown', script: 'static/chunks/a.js' },
+    ]);
+  });
+
   it('AC-3.3.3 passes first-load scripts without Recharts', () => {
     expect(findForbiddenModules(writeSavedBuild('x=1;'), ['/saved'])).toEqual([]);
   });
@@ -203,6 +210,7 @@ describe('next/dynamic', () => {
       'components/collections/LazyCollectionsSidebar.tsx',
       'components/layout/LazyToaster.tsx',
       'components/layout/SheetLauncher.tsx',
+      'components/notes/LazyNotes.tsx',
       'features/copilot/CopilotLauncher.tsx',
       'features/copilot/LazyBriefingView.tsx',
       'features/copilot/LazyCopilotLauncher.tsx',
