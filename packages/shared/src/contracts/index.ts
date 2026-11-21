@@ -15,3 +15,4 @@ export * from './stats.js';
 export * from './story.js';
 export * from './summary.js';
 export * from './tags.js';
+export * from './collections.js';

@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -15,17 +16,19 @@ import {
   MergeResponseSchema,
   PaginationQuerySchema,
   SaveIdsSchema,
+  SaveNotePatchSchema,
   SaveSchema,
   SavedStoryPageSchema,
   StoryIdSchema,
 } from '@devbrief/shared';
-import type { MergeRequest, PaginationQuery } from '@devbrief/shared';
+import type { MergeRequest, PaginationQuery, SaveNotePatch } from '@devbrief/shared';
 import { PrivateNoStore } from '../../common/cache/cacheControl.js';
 import {
   MUTATIONS_LIMIT,
   UserRateLimit,
   UserRateLimitGuard,
 } from '../../common/rate-limit/userRateLimit.guard.js';
+import { RequiresFeature } from '../../common/features/requiresFeature.decorator.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
 import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { AuthGuard, type CurrentUserData } from '../auth/auth.guard.js';
@@ -54,6 +57,30 @@ export class SavesController {
   @Contract({ response: SaveIdsSchema })
   ids(@CurrentUser() user: CurrentUserData) {
     return this.saves.ids(user.id);
+  }
+
+  @Get('saves/:storyId')
+  @RequiresFeature('collections')
+  @PrivateNoStore()
+  @Contract({ response: SaveSchema })
+  get(
+    @CurrentUser() user: CurrentUserData,
+    @Param('storyId', new ZodPipe(StoryIdSchema)) storyId: string,
+  ) {
+    return this.saves.get(user.id, storyId);
+  }
+
+  @Patch('saves/:storyId')
+  @RequiresFeature('collections')
+  @PrivateNoStore()
+  @UserRateLimit(MUTATIONS_LIMIT)
+  @Contract({ body: SaveNotePatchSchema, response: SaveSchema })
+  setNote(
+    @CurrentUser() user: CurrentUserData,
+    @Param('storyId', new ZodPipe(StoryIdSchema)) storyId: string,
+    @Body(new ZodPipe(SaveNotePatchSchema)) body: SaveNotePatch,
+  ) {
+    return this.saves.setNote(user.id, storyId, body);
   }
 
   @Put('saves/:storyId')

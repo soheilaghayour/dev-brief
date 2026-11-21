@@ -6,6 +6,7 @@ export const ApiErrorCodeSchema = z.enum([
   'UNAUTHENTICATED', // 401
   'FORBIDDEN_ORIGIN', // 403
   'NOT_FOUND', // 404
+  'CONFLICT', // 409 (retryable: a per-user write lock was busy)
   'FEATURE_DISABLED', // 404 (phase flag off)
   'RATE_LIMITED', // 429 (short-window throttle)
   'QUOTA_EXCEEDED', // 429 (daily quota)
