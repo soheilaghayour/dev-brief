@@ -11,6 +11,7 @@ import { IngestionModule } from './modules/ingestion/ingestion.module.js';
 import { IngestionScheduler } from './modules/ingestion/ingestion.scheduler.js';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
 import { PreferencesModule } from './modules/preferences/preferences.module.js';
+import { RadarModule } from './modules/radar/radar.module.js';
 import { RankingModule } from './modules/ranking/ranking.module.js';
 import { ClusteringModule } from './modules/clustering/clustering.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
@@ -35,6 +36,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
     SourcesModule,
     StatsModule,
     TagsModule,
+    RadarModule,
     IngestionModule,
     RankingModule,
     MaintenanceModule,
