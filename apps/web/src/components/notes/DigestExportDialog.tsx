@@ -5,7 +5,7 @@ import type { StoryCard } from '@devbrief/shared';
 import { isoWeekRange, recentIsoWeeks, renderDigestMarkdown } from '@devbrief/shared';
 import { ChevronDownIcon } from 'lucide-react';
 import { useCollections } from '@/components/collections/useCollections';
-import { useReturnFocus } from '@/components/collections/useReturnFocus';
+import { useReturnFocus } from '@/lib/useReturnFocus';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import {

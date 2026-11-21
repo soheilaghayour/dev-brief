@@ -1,6 +1,6 @@
 'use client';
 
-import { useReturnFocus } from '@/components/collections/useReturnFocus';
+import { useReturnFocus } from '@/lib/useReturnFocus';
 import { cancelUnsave, type UnsaveRequest } from '@/components/saves/unsaveRequest';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
