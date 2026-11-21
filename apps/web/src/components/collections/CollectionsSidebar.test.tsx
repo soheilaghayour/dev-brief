@@ -44,8 +44,6 @@ afterEach(() => {
 async function showSidebar(activeSlug?: string) {
   const mounted = await mount(<CollectionsSidebar activeSlug={activeSlug} />);
   unmount = mounted.unmount;
-  // A signed-in user has no sidebar to wait for.
-  if (auth.user) return;
   await vi.waitFor(() =>
     expect(document.querySelector('nav[aria-label="Collections"]')).not.toBeNull(),
   );
@@ -91,13 +89,6 @@ describe('CollectionsSidebar', () => {
       ['Interview0', '/collections/interview'],
     ]);
     expect(byRole('button', 'New')).not.toBeNull();
-  });
-
-  it('AC-3.4.1 renders nothing for a signed-in user, whose collections are unavailable', async () => {
-    auth.user = { id: 'u1' };
-    await seedGuestStore([collection('a', 'Mine', 0)]);
-    await showSidebar();
-    expect(document.querySelector('nav[aria-label="Collections"]')).toBeNull();
   });
 
   it('AC-3.4.1 creates a collection from the New dialog', async () => {

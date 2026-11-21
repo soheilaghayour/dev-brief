@@ -1,9 +1,11 @@
 import { MutationObserver, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { SavedStoryPage, StoryCard } from '@devbrief/shared';
+import { ApiError } from '@/lib/api/apiError';
 import {
   patchSaveIds,
   patchSavedList,
+  SAVE_BUSY_NOTICE,
   SAVE_FAILED_NOTICE,
   SAVE_IDS_KEY,
   SAVE_LIST_KEY,
@@ -93,6 +95,28 @@ describe('saveMutationOptions', () => {
     expect(queryClient.getQueryState(SAVE_LIST_KEY)?.isInvalidated).toBe(true);
   });
 
+  it('AC-3.4.1 an unsave refetches the collections, since the server removed the story from every board, and forgets its note', async () => {
+    const { queryClient, observer } = setup({ deleteSave: () => Promise.resolve() });
+    queryClient.setQueryData(['collections'], { items: [] });
+    queryClient.setQueryData(['collections', 'c1'], { collection: {}, items: [] });
+    queryClient.setQueryData(['saves', 'note', 'a'], { storyId: 'a' });
+
+    await observer.mutate({ storyId: 'a', save: false });
+
+    expect(queryClient.getQueryState(['collections'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['collections', 'c1'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(['saves', 'note', 'a'])).toBeUndefined();
+  });
+
+  it('a save leaves the collections alone', async () => {
+    const { queryClient, observer } = setup({ putSave: () => Promise.resolve(undefined as never) });
+    queryClient.setQueryData(['collections'], { items: [] });
+
+    await observer.mutate({ storyId: 'b', save: true });
+
+    expect(queryClient.getQueryState(['collections'])?.isInvalidated).toBe(false);
+  });
+
   it('AC-1.5.4 sends a quick save then unsave in order, so the server ends on the last intent', async () => {
     let finishPut: () => void = () => {};
     const putSave = vi.fn(
@@ -108,5 +132,60 @@ describe('saveMutationOptions', () => {
     finishPut();
     await Promise.all([put, del]);
     expect(deleteSave).toHaveBeenCalledWith('b');
+  });
+});
+
+describe('saveMutationOptions on a busy account lock', () => {
+  const busy = () => new ApiError('CONFLICT', 'busy', 'req', 409, undefined);
+
+  function setup(deleteSave: () => Promise<void>) {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(SAVE_IDS_KEY, { ids: ['a'] });
+    const notify = vi.fn();
+    const observer = new MutationObserver(
+      queryClient,
+      saveMutationOptions(queryClient, {
+        putSave: () => Promise.reject(new Error('unused')),
+        deleteSave: vi.fn(deleteSave),
+        notify,
+      }),
+    );
+    return { queryClient, notify, observer };
+  }
+
+  it('AC-1.5.4 sends the request again after 250 ms and 500 ms before it gives up', async () => {
+    vi.useFakeTimers();
+    try {
+      let attempts = 0;
+      const { notify, observer } = setup(async () => {
+        attempts += 1;
+        if (attempts < 3) throw busy();
+      });
+
+      const done = observer.mutate({ storyId: 'a', save: false });
+      await vi.advanceTimersByTimeAsync(750);
+      await done;
+
+      expect(attempts).toBe(3);
+      expect(notify).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('AC-1.5.4 a lock that stays busy rolls back and says the account is busy syncing', async () => {
+    vi.useFakeTimers();
+    try {
+      const { queryClient, notify, observer } = setup(() => Promise.reject(busy()));
+
+      const done = observer.mutate({ storyId: 'a', save: false }).catch(() => undefined);
+      await vi.advanceTimersByTimeAsync(750);
+      await done;
+
+      expect(notify).toHaveBeenCalledWith(SAVE_BUSY_NOTICE);
+      expect(queryClient.getQueryData(SAVE_IDS_KEY)).toEqual({ ids: ['a'] });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

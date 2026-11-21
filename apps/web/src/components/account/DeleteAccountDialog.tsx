@@ -60,8 +60,9 @@ function DeleteAccountForm() {
     }
     clearGuestData();
     queryClient.setQueryData(ME_QUERY_KEY, null);
-    // The next sign-in must not see this account's saves.
+    // The next sign-in must not see this account's saves or collections.
     queryClient.removeQueries({ queryKey: ['saves'] });
+    queryClient.removeQueries({ queryKey: ['collections'] });
     // Queued, not toasted: the landing page loads Sonner only when a toast is pending.
     queuePendingToast('account-deleted');
     router.push('/');

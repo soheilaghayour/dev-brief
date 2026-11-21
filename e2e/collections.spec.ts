@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signInThroughTestRoute } from './signIn';
 
 // Needs NEXT_PUBLIC_FEATURE_COLLECTIONS on (web), as in CI's e2e run.
 
@@ -198,4 +199,89 @@ test('/saved and a board load without layout shift while the sidebar is fetched'
     console.log(`CLS ${path} ${total}`);
     expect(total, path).toBeLessThan(0.05);
   }
+});
+
+const NOTE = 'Merged with the **account**';
+
+async function selectFirstStory(page: Page) {
+  await page.goto('/feed?sort=latest');
+  await expect(cards(page).first()).toBeVisible();
+  return (await cards(page).first().getAttribute('data-story-id')) ?? '';
+}
+
+// A guest saves the first story, notes it and puts it on a new board.
+async function guestBoardWithNote(page: Page, board: string) {
+  const id = await selectFirstStory(page);
+  await page.goto(`/story/${id}`);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const note = page.getByRole('textbox', { name: 'Note' });
+  await expect(note).toBeVisible();
+  await note.fill(NOTE);
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+
+  await createCollection(page, board);
+  await cards(page).first().getByRole('button', { name: 'Add to collection' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add to collection' });
+  await dialog.getByRole('checkbox', { name: new RegExp(board) }).click();
+  await expect(dialog.getByRole('checkbox', { name: new RegExp(board) })).toBeChecked();
+  await page.keyboard.press('Escape');
+  await expect(
+    sidebar(page).getByRole('link', { name: new RegExp(`^${board}\\s*1$`) }),
+  ).toBeVisible();
+  return id;
+}
+
+// The device released everything it sent, so what follows can only come from the account.
+async function signInAndMerge(page: Page, board: string) {
+  const id = await guestBoardWithNote(page, board);
+  const email = await signInThroughTestRoute(page);
+  await page.goto('/saved');
+  await expect(page.getByText('1 saved story, 1 collection and 1 note synced')).toBeVisible();
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  return { id, email };
+}
+
+test('AC-3.4.5 a guest board, story and note merge on sign-in and then come from the server', async ({
+  page,
+}) => {
+  const { id } = await signInAndMerge(page, 'Merge board');
+  await expect(sidebar(page).getByRole('link', { name: /^Merge board\s*1$/ })).toBeVisible();
+  await expect(cards(page)).toHaveCount(1);
+  await expect(cards(page).first()).toHaveAttribute('data-story-id', id);
+  await expect(cards(page).first()).toContainText(`📝 ${NOTE}`);
+  await page.goto('/collections/merge-board');
+  await expect(cards(page)).toHaveCount(1);
+  await expect(cards(page).first()).toContainText(`📝 ${NOTE}`);
+});
+
+test('AC-1.5.8 AC-3.4.5 signing out empties the device, and signing in again finds everything in the account', async ({
+  page,
+}) => {
+  const { email } = await signInAndMerge(page, 'Return board');
+  await page.getByRole('button', { name: 'Account menu' }).click();
+  await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  await expect(page.getByRole('banner').getByRole('button', { name: 'Sign in' })).toBeVisible();
+  await page.goto('/saved');
+  await expect(sidebar(page).getByRole('link', { name: /Return board/ })).toHaveCount(0);
+  await signInThroughTestRoute(page, email);
+  await page.goto('/saved');
+  await expect(sidebar(page).getByRole('link', { name: /^Return board\s*1$/ })).toBeVisible();
+});
+
+test('AC-3.4.3 a signed-in rename is kept by the server and survives a reload', async ({
+  page,
+}) => {
+  await signInAndMerge(page, 'Old name');
+  await sidebar(page).getByRole('button', { name: 'Actions for Old name' }).click();
+  await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await page.getByRole('dialog').getByLabel('Name').fill('Backlog');
+  await page.getByRole('button', { name: 'Rename' }).click();
+  await expect(sidebar(page).getByRole('link', { name: /^Backlog/ })).toHaveAttribute(
+    'href',
+    '/collections/old-name',
+  );
+  await page.reload();
+  await expect(sidebar(page).getByRole('link', { name: /^Backlog\s*1$/ })).toBeVisible();
+  await expect(sidebar(page).getByRole('link', { name: /Old name/ })).toHaveCount(0);
 });

@@ -71,7 +71,7 @@ export function AddToCollectionProvider({ children }: { children: ReactNode }) {
   return <CollectionsEnabledProvider>{children}</CollectionsEnabledProvider>;
 }
 
-/** `canAdd` is false with the flag off and for a signed-in user, so cards then show no entry. */
+/** `canAdd` is false with the flag off and while the collections load, so cards then show no entry. */
 export function useAddToCollection() {
   return useContext(AddToCollectionContext);
 }

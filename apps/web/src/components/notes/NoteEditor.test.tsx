@@ -3,6 +3,7 @@ import { act } from 'react';
 import { NOTE_MAX_LENGTH } from '@devbrief/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { byRole, click, mount } from '@/components/collections/collectionsHarness';
+import { forgetAllFailedNotes } from '@/components/saves/pendingNote';
 import { NoteEditor, NOTE_SAVE_DELAY_MS } from './NoteEditor';
 
 const STORY = 'cstoryaaaaaaaaaaaaaaaaaa';
@@ -29,6 +30,7 @@ beforeEach(() => {
   saves.setNoteNow.mockReset();
   saves.prepareNoteWrites.mockReset();
   saves.stored = null;
+  forgetAllFailedNotes();
 });
 
 afterEach(() => {
@@ -59,6 +61,40 @@ async function advance(ms: number) {
     await vi.advanceTimersByTimeAsync(ms);
   });
 }
+
+describe('NoteEditor failed and overlapping writes', () => {
+  it('AC-3.4.2 a failed write followed by close and reopen shows the unsaved text with "retrying"', async () => {
+    saves.setNote.mockResolvedValue('failed');
+    await showEditor();
+    await type('typed text');
+    await advance(NOTE_SAVE_DELAY_MS);
+    expect(indicator()).toContain('retrying');
+
+    unmount();
+    unmount = () => {};
+    saves.setNote.mockReset().mockResolvedValue('saved');
+    await showEditor();
+
+    expect(textarea().value).toBe('typed text');
+    expect(indicator()).toContain('retrying');
+  });
+
+  it('AC-3.4.2 never shows "Saved" while a newer write is still unconfirmed', async () => {
+    const answers: ((outcome: string) => void)[] = [];
+    saves.setNote.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+    await showEditor();
+    await type('first');
+    await advance(NOTE_SAVE_DELAY_MS);
+    await type('second');
+    await advance(NOTE_SAVE_DELAY_MS);
+    expect(answers).toHaveLength(2);
+
+    await act(async () => answers[0]?.('saved'));
+    expect(indicator()).not.toBe('Saved');
+    await act(async () => answers[1]?.('saved'));
+    expect(indicator()).toBe('Saved');
+  });
+});
 
 describe('NoteEditor autosave', () => {
   it('AC-3.4.2 writes nothing before 800 ms and once after, from the last keystroke', async () => {
@@ -140,7 +176,7 @@ describe('NoteEditor autosave', () => {
     expect(saves.setNote).not.toHaveBeenCalled();
   });
 
-  it('AC-3.4.2 writes when the tab turns hidden', async () => {
+  it('AC-3.4.2 writes through the queue when the tab turns hidden, so it stays in order with earlier writes', async () => {
     await showEditor();
     await type('typed just now');
     const hidden = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
@@ -149,7 +185,8 @@ describe('NoteEditor autosave', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    expect(saves.setNoteNow).toHaveBeenCalledWith(STORY, 'typed just now');
+    expect(saves.setNote).toHaveBeenCalledWith(STORY, 'typed just now');
+    expect(saves.setNoteNow).not.toHaveBeenCalled();
     hidden.mockRestore();
   });
 

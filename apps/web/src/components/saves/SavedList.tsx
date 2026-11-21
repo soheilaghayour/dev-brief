@@ -12,6 +12,7 @@ import { StoryCard } from '@/components/feed/StoryCard';
 import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { SAVED_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
+import { useNotesVersion } from './useNotesVersion';
 import { useSaves } from './useSaves';
 import { useSavedStories } from './useSavedStories';
 
@@ -31,6 +32,8 @@ function SavedEmpty() {
 
 export function SavedList() {
   const saves = useSaves();
+  // The notes under the cards are read from the caches.
+  useNotesVersion();
   const saved = useSavedStories();
   const addToCollection = useAddToCollection();
   const stories = saved.status === 'ready' ? saved.stories : [];

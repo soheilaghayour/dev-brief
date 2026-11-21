@@ -18,7 +18,7 @@ type DigestExportMenuProps = {
   fixedCollection?: DigestScope;
 };
 
-/** The "Export weekly digest" button of Saved and of a board; absent with the collections flag off and for a signed-in user. */
+/** The "Export weekly digest" button of Saved and of a board; absent with the collections flag off. */
 export function DigestExportMenu({ stories, fixedCollection }: DigestExportMenuProps) {
   const { canNote } = useSaves();
   const [isOpen, setIsOpen] = useState(false);

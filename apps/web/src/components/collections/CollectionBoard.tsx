@@ -10,12 +10,14 @@ import { StoryCard } from '@/components/feed/StoryCard';
 import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { lookupInChunks } from '@/components/saves/savedStories';
+import { useNotesVersion } from '@/components/saves/useNotesVersion';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import { BOARD_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
 import { AddToCollectionShortcut, useAddToCollection } from './AddToCollection';
 import { BoardSkeleton } from './BoardSkeleton';
 import { CollectionsSidebar } from './CollectionsSidebar';
+import { useCollectionItems } from './useCollectionItems';
 import { useCollections, type CollectionView } from './useCollections';
 
 function BoardNotFound() {
@@ -60,7 +62,7 @@ function useBoardStories(collection: CollectionView) {
   if (newIds.length > 0) setLookupIds([...lookupIds, ...newIds]);
 
   const query = useQuery({
-    queryKey: ['collections', 'board', collection.id, lookupIds],
+    queryKey: ['collection-board', collection.id, lookupIds],
     queryFn: async () => {
       const { lookupStories } = await import('@/lib/api/endpoints');
       return lookupInChunks(lookupIds, lookupStories);
@@ -88,6 +90,8 @@ function useBoardStories(collection: CollectionView) {
 function BoardContent({ collection }: { collection: CollectionView }) {
   const collections = useCollections();
   const saves = useSaves();
+  // The notes under the cards are read from the caches.
+  useNotesVersion();
   const addToCollection = useAddToCollection();
   const { stories, isLoading, query } = useBoardStories(collection);
   const { activeId, leaveStory, toggleStory } = useStoryListNavigation({
@@ -165,14 +169,16 @@ function BoardContent({ collection }: { collection: CollectionView }) {
   );
 }
 
-/** A guest's collection at `/collections/<slug>`, with its sidebar; a slug that isn't on this device shows a not-found state. */
+/** A collection at `/collections/<slug>`, with its sidebar; a slug that isn't the user's own shows a not-found state. */
 export function CollectionBoard({ slug }: { slug: string }) {
   const collections = useCollections();
-  if (collections.status === 'loading') return <BoardSkeleton />;
   const collection =
     collections.status === 'ready'
       ? collections.collections.find((candidate) => candidate.slug === slug)
       : undefined;
+  // An account's board holds its items on the server; the empty state must not flash before they arrive.
+  const { isLoading: isLoadingItems } = useCollectionItems(collection ? [collection.id] : []);
+  if (collections.status === 'loading' || isLoadingItems) return <BoardSkeleton />;
   if (!collection) return <BoardNotFound />;
 
   return (

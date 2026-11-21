@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { isPendingCollectionId } from './collectionKeys';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
+import { useCollectionItems } from './useCollectionItems';
 import { preloadCollectionWriters, useCollections, type CollectionView } from './useCollections';
 import { useReturnFocus } from '@/lib/useReturnFocus';
 
@@ -36,6 +38,11 @@ export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialo
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
   // A second Enter while the first create is pending would make a duplicate collection.
   const isCreating = useRef(false);
+
+  // An account's boards hold their items on the server: the ticks wait until every board has arrived.
+  const { isLoading: isLoadingMembers } = useCollectionItems(
+    collections.status === 'ready' ? collections.collections.map(({ id }) => id) : [],
+  );
 
   useEffect(preloadCollectionWriters, []);
 
@@ -127,11 +134,12 @@ export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialo
             >
               <Checkbox
                 checked={isChecked(collection)}
+                disabled={isLoadingMembers || isPendingCollectionId(collection.id)}
                 onChange={() => void toggleMembership(collection)}
               />
               <span className="min-w-0 flex-1 truncate">{collection.name}</span>
               <span className="text-muted-foreground text-xs tabular-nums">
-                {collection.items.length}
+                {collection.itemCount}
               </span>
             </label>
           ))}

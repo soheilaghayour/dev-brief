@@ -31,7 +31,7 @@ export function DeleteCollectionDialog({
   onClose,
 }: DeleteCollectionDialogProps) {
   const collections = useCollections();
-  const count = collection.items.length;
+  const count = collection.itemCount;
   const returnFocus = useReturnFocus(opener);
 
   async function confirm() {

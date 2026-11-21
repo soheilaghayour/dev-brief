@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import type { CollectionAction } from './CollectionMenuDropdown';
 import { CollectionMenu } from './CollectionMenu';
+import { isPendingCollectionId } from './collectionKeys';
 import { CollectionsSidebarSkeleton } from './CollectionsSidebarSkeleton';
 import type { CollectionDialog } from './CollectionDialogs';
 import { useCollections, type CollectionView } from './useCollections';
@@ -126,13 +127,14 @@ export function CollectionsSidebar({ activeSlug }: CollectionsSidebarProps) {
             <RowLink
               href={`/collections/${collection.slug}`}
               label={collection.name}
-              count={collection.items.length}
+              count={collection.itemCount}
               isActive={collection.slug === activeSlug}
             />
             <CollectionMenu
               name={collection.name}
               isFirst={index === 0}
               isLast={index === list.length - 1}
+              isPending={isPendingCollectionId(collection.id)}
               onAction={(action) => runAction(collection, action)}
             />
           </li>
