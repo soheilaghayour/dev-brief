@@ -17,10 +17,22 @@ import {
   storyWithItems,
 } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
-import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
+import {
+  effectiveFeedQuery,
+  feedCacheKey,
+  parseKeyset,
+  questionKeywords,
+  type Keyset,
+} from './feedQuery.js';
 
 /** Above this many source items, a source filter is not resolved to a list of story ids. */
 const SMALL_SOURCE_STORIES = 500;
+
+/** Options for in-process callers; the feed contract does not carry them. */
+export type FirstPageOptions = {
+  /** Match a story holding any keyword of `q` (not all of them), best `ts_rank_cd` first, instead of the feed's `websearch_to_tsquery`. */
+  ftsMode?: 'any';
+};
 
 /** `sortScore` is Top's sort key: rankScore with the follow boost applied. */
 type PageRow = { id: string; publishedAt: Date; sortScore: number };
@@ -63,20 +75,22 @@ export class FeedService {
     return page;
   }
 
-  /**
-   * The first page of a query read straight from the database, bypassing the response cache, for callers
-   * that are not an HTTP request: they are not bound by the contract's limits (a `q` over 100 characters)
-   * and must not see a page cached up to a minute ago.
-   */
-  async readFirstPage(requested: FeedQuery): Promise<StoryCard[]> {
+  /** The first page of a query read uncached and past the contract's limits (a `q` over 100 characters), for callers that are not an HTTP request. */
+  async readFirstPage(requested: FeedQuery, options: FirstPageOptions = {}): Promise<StoryCard[]> {
     const query = effectiveFeedQuery(requested);
-    const rows = await this.selectPage(query, undefined);
+    const rows = await this.selectPage(query, undefined, options);
     return this.loadCards(rows.slice(0, query.limit).map((row) => row.id));
   }
 
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
-  private async selectPage(query: FeedQuery, keyset: Keyset | undefined) {
+  private async selectPage(
+    query: FeedQuery,
+    keyset: Keyset | undefined,
+    { ftsMode }: FirstPageOptions = {},
+  ) {
     const { exclusions, boost } = personalisation(query);
+    const keywords = ftsMode === 'any' && query.q ? questionKeywords(query.q) : undefined;
+    if (keywords?.length === 0) return [];
     // A small source is better a list of ids than an EXISTS probe: the planner can't size the subquery, and without
     // the list it walks the whole rankScore (Top) or publishedAt (Latest) index looking for the few matches.
     const sourceStoryIds = query.sources?.length
@@ -97,14 +111,15 @@ export class FeedService {
         : query.sources?.length
           ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
           : []),
-      ...(query.q
+      ...(query.q && !keywords
         ? [Prisma.sql`s."searchVector" @@ websearch_to_tsquery('english', ${query.q})`]
         : []),
       ...exclusions,
     ];
     const limit = query.limit + 1;
-    const pageQuery =
-      query.sort === 'latest'
+    const pageQuery = keywords
+      ? keywordPage(filters, keywords, limit)
+      : query.sort === 'latest'
         ? latestPage(filters, keyset, limit)
         : topPage(filters, boost, keyset, limit);
     return this.prisma.$queryRaw<PageRow[]>(pageQuery);
@@ -167,6 +182,23 @@ function personalisation(query: FeedQuery) {
   // One multiplier however many follows match.
   const boost = follows.length ? Prisma.sql`(${Prisma.join(follows, ' OR ')})` : undefined;
   return { exclusions, boost };
+}
+
+/** The stories holding any keyword, and at least two of them when there are two or more, best `ts_rank_cd` first. */
+function keywordPage(filters: Prisma.Sql[], keywords: string[], limit: number) {
+  // The keywords are letters and digits only, so they can't add tsquery syntax.
+  const anyKeyword = Prisma.sql`to_tsquery('english', ${keywords.join(' | ')})`;
+  const matchedKeywords = Prisma.sql`(SELECT count(*) FROM unnest(${keywords}::text[]) AS keyword
+    WHERE s."searchVector" @@ plainto_tsquery('english', keyword))`;
+  const conditions = [
+    ...filters,
+    Prisma.sql`s."searchVector" @@ ${anyKeyword}`,
+    Prisma.sql`${matchedKeywords} >= ${Math.min(keywords.length, 2)}::int`,
+  ];
+  return Prisma.sql`
+    SELECT s."id", s."publishedAt", s."rankScore" AS "sortScore" FROM "Story" s
+    ${whereClause(conditions)}
+    ORDER BY ts_rank_cd(s."searchVector", ${anyKeyword}) DESC, s."id" DESC LIMIT ${limit}`;
 }
 
 function latestPage(filters: Prisma.Sql[], keyset: Keyset | undefined, limit: number) {

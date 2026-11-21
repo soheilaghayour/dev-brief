@@ -1,6 +1,6 @@
 import { encodeCursor, InvalidCursorError, type FeedQuery } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { effectiveFeedQuery, feedCacheKey, parseKeyset } from './feedQuery.js';
+import { effectiveFeedQuery, feedCacheKey, parseKeyset, questionKeywords } from './feedQuery.js';
 
 const baseQuery: FeedQuery = { sort: 'top', limit: 20 };
 
@@ -91,5 +91,26 @@ describe('effectiveFeedQuery', () => {
 
   it('keeps them on Top', () => {
     expect(effectiveFeedQuery({ ...baseQuery, ...boosts })).toEqual({ ...baseQuery, ...boosts });
+  });
+});
+
+describe('questionKeywords', () => {
+  it('keeps the subject words of a question, lowercased and once each', () => {
+    expect(questionKeywords('What did Cloudflare announce for Workers? Cloudflare!')).toEqual([
+      'cloudflare',
+      'announce',
+      'workers',
+    ]);
+  });
+
+  it('drops the filler words and one-character words', () => {
+    expect(
+      questionKeywords("What are developers saying about Rust vs Go this week? It's X"),
+    ).toEqual(['rust', 'go']);
+  });
+
+  it('is empty for a question of filler only, and carries no tsquery syntax', () => {
+    expect(questionKeywords('What is this week?')).toEqual([]);
+    expect(questionKeywords("rust' | !go & (c:*) <-> d")).toEqual(['rust', 'go']);
   });
 });

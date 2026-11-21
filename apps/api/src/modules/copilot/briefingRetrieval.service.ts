@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { isTagSlug, tagStory, type StoryCard, type TagSlug } from '@devbrief/shared';
+import { WINDOW_DAYS } from '../../common/tag-velocity/tagVelocity.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { FeedService } from '../feed/feed.service.js';
 import { MIN_COVERAGE_STORIES, suggestedTags } from './noCoverageBriefing.js';
@@ -39,10 +40,7 @@ export class BriefingRetrievalService {
     private readonly feed: FeedService,
   ) {}
 
-  /**
-   * Stories matching the question's tags or its full-text search, from the feed's 7-day Top window, best rank first.
-   * With fewer than 3, returns `no_coverage` and the tags to suggest instead.
-   */
+  /** Finds the stories matching the question's tags or keywords in the feed's 7-day window, or `no_coverage` with tags to suggest. */
   async retrieve(question: string, now = new Date()): Promise<Retrieval> {
     const stories = await this.findStories(question);
     if (stories.length >= MIN_COVERAGE_STORIES) return { kind: 'retrieved', stories };
@@ -60,7 +58,10 @@ export class BriefingRetrievalService {
       tags.length
         ? this.feed.readFirstPage({ sort: 'top', tags, limit: MAX_RETRIEVED_STORIES })
         : [],
-      this.feed.readFirstPage({ sort: 'top', q: question, limit: MAX_RETRIEVED_STORIES }),
+      this.feed.readFirstPage(
+        { sort: 'top', q: question, limit: MAX_RETRIEVED_STORIES },
+        { ftsMode: 'any' },
+      ),
     ]);
     const byId = new Map([...byTag, ...byText].map((card) => [card.id, card]));
     const cards = [...byId.values()]
@@ -75,7 +76,10 @@ export class BriefingRetrievalService {
   }
 
   private async popularTags(now: Date) {
-    const since = new Date(Math.floor(now.getTime() / DAY_MS) * DAY_MS - 7 * DAY_MS);
+    // The same 7 UTC days as `TagsService`: today and the six before it.
+    const since = new Date(
+      Math.floor(now.getTime() / DAY_MS) * DAY_MS - (WINDOW_DAYS['7d'] - 1) * DAY_MS,
+    );
     const totals = await this.prisma.tagDailyStat.groupBy({
       by: ['tag'],
       where: { day: { gte: since } },
