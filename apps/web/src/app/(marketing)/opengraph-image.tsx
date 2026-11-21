@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'DevBrief — Your morning scan in 5 min';
+export const alt = 'DevBrief — Your morning tech scan in 5 minutes';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -34,7 +34,7 @@ export default function OpenGraphImage() {
           letterSpacing: -2,
         }}
       >
-        Your morning scan in 5 min
+        Your morning tech scan in 5 minutes
       </div>
       <div style={{ fontSize: 34, marginTop: 36, color: '#a4a9bd' }}>
         Hacker News, Dev.to and GitHub. One fair ranking.
