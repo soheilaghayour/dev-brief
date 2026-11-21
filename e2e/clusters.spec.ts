@@ -15,7 +15,9 @@ test('AC-2.2.1 the feed shows one card for the cluster, with the combined line a
   await expect(cards).toHaveCount(1);
   const card = cards.first();
   await expect(card).toHaveAttribute('data-story-id', REPRESENTATIVE);
-  await expect(card).toContainText(/Trending on HN \(▲ \d+\) & Dev\.to \(♥ \d+\) · 1 blog/);
+  await expect(card).toContainText(
+    /Trending on HN \(▲ \d+ points\) & Dev\.to \(♥ \d+ reactions\) · 1 blog/,
+  );
   await expect(card.getByRole('button', { name: /\+2 related/ })).toHaveAttribute(
     'aria-expanded',
     'false',
