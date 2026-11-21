@@ -3,6 +3,7 @@ import type { StorySummary } from '@devbrief/shared';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { findSummary } from '../../common/story-card/clusterSummary.js';
 import { toStorySummary } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
@@ -45,10 +46,12 @@ export class OnDemandSummaryService {
   ): Promise<OnDemandResult> {
     const story = await this.prisma.story.findUnique({
       where: { id: storyId },
-      include: { summary: true },
+      select: { id: true, clusterId: true },
     });
     if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
-    if (story.summary) return { kind: 'cached', summary: toStorySummary(story.summary) };
+    // For a cluster member this is the cluster's summary, wherever it is stored.
+    const stored = await findSummary(this.prisma, story, this.env.FEATURE_CLUSTERS);
+    if (stored) return { kind: 'cached', summary: toStorySummary(stored) };
 
     const quota = this.quotaOf(requester, now);
     await this.takeSlot(quota);

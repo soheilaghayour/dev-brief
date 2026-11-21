@@ -8,7 +8,7 @@ import { mockLanguageModel, modelReply } from '../mockLanguageModel.js';
 import { summaryFixtureFetch } from '../summaryFixtures.js';
 import { createTestApp } from './createTestApp.js';
 import { createSource } from './seedStories.js';
-import { createDiscussedStory, SUMMARIES_ON } from './summariesTestModule.js';
+import { createDiscussedStory, createSummaryCluster, SUMMARIES_ON } from './summariesTestModule.js';
 import { useTestDatabase } from './testDatabase.js';
 
 const env = loadEnv({ ...process.env, ...SUMMARIES_ON });
@@ -324,5 +324,120 @@ describe('on-demand summaries', () => {
     expect(ApiErrorSchema.parse(last.body).error.code).toBe('RATE_LIMITED');
     expect(last.get('RateLimit-Limit')).toBe('5');
     expect(last.get('Retry-After')).toBeDefined();
+  });
+});
+
+describe('on-demand cluster summaries', () => {
+  const prisma = useTestDatabase();
+  let hnSourceId = '';
+  let devtoSourceId = '';
+  let app: INestApplication | undefined;
+  let ipCounter = 0;
+
+  beforeAll(async () => {
+    hnSourceId = (await createSource(prisma, 'hn-cluster-od', 'hn')).id;
+    devtoSourceId = (await createSource(prisma, 'devto-cluster-od', 'devto')).id;
+  });
+
+  beforeEach(async () => {
+    await prisma.llmUsage.deleteMany();
+    await prisma.rateLimitCounter.deleteMany();
+    await prisma.story.deleteMany();
+    await prisma.cluster.deleteMany();
+  });
+
+  afterEach(() => app?.close());
+
+  async function boot() {
+    const model = mockLanguageModel(async () => {
+      // A pause long enough for a concurrent request to reach the cluster lock.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return modelReply(MODEL_OUTPUT);
+    });
+    const upstream = summaryFixtureFetch({ hnFallbackId: RECORDED_THREAD_ID });
+    app = await createTestApp(
+      [],
+      { ...SUMMARIES_ON, FEATURE_CLUSTERS: 'true' },
+      { languageModel: model, upstreamFetch: upstream.fetch },
+    );
+    return { model, requests: upstream.requests };
+  }
+
+  function post(storyId: string) {
+    ipCounter += 1;
+    return request(app!.getHttpServer())
+      .post(`/api/v1/stories/${storyId}/summary`)
+      .set('Origin', env.APP_URL)
+      .set('X-Forwarded-For', `203.0.113.${ipCounter}`)
+      .send({ deviceId: DEVICE });
+  }
+
+  const seedCluster = () =>
+    createSummaryCluster(prisma, {
+      hnSourceId,
+      devtoSourceId,
+      members: [
+        { title: 'OD rep', rankScore: 9, items: [{ kind: 'hn', externalId: '50544168' }] },
+        { title: 'OD member B', rankScore: 5, items: [{ kind: 'devto', externalId: '5075072' }] },
+        { title: 'OD member C', rankScore: 3, items: [{ kind: 'hn', externalId: '888' }] },
+      ],
+    });
+
+  it("AC-2.3.1 F2.3 Clusters answers 200 with member B's summary, no LLM call and no fetch, when member A is asked", async () => {
+    const { ids } = await seedCluster();
+    const { model, requests } = await boot();
+    await prisma.summary.create({
+      data: {
+        storyId: ids[1]!,
+        tldr: MODEL_OUTPUT.tldr,
+        basedOnComments: 12,
+        trigger: 'auto',
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: '0.0003',
+      },
+    });
+
+    const response = await post(ids[0]!);
+
+    expect(response.status).toBe(200);
+    expect(StorySummarySchema.parse(response.body).storyId).toBe(ids[1]);
+    expect(model.doGenerateCalls).toHaveLength(0);
+    expect(requests).toHaveLength(0);
+    expect(await prisma.rateLimitCounter.count({ where: { count: { gt: 0 } } })).toBe(0);
+  });
+
+  it("F2.3 Clusters answers 201 with the representative's id for a member, then 200 cached for every member", async () => {
+    const { ids } = await seedCluster();
+    const { model } = await boot();
+
+    const created = await post(ids[2]!);
+    expect(created.status).toBe(201);
+    expect(StorySummarySchema.parse(created.body).storyId).toBe(ids[0]);
+
+    for (const id of ids) {
+      const again = await post(id);
+      expect(again.status).toBe(200);
+      expect(StorySummarySchema.parse(again.body)).toEqual(created.body);
+    }
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect((await prisma.summary.findMany()).map((row) => row.storyId)).toEqual([ids[0]]);
+  });
+
+  it('F2.3 Clusters creates exactly one Summary and at most one LLM call for two concurrent POSTs for two members', async () => {
+    const { ids } = await seedCluster();
+    const { model } = await boot();
+
+    const [first, second] = await Promise.all([post(ids[1]!), post(ids[2]!)]);
+
+    expect([first.status, second.status].sort()).toEqual([200, 201]);
+    expect(first.body).toEqual(second.body);
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(await prisma.summary.count()).toBe(1);
+    // The request that found the summary stored gave its quota slot back.
+    const used = await prisma.rateLimitCounter.aggregate({ _sum: { count: true } });
+    expect(used._sum.count).toBe(1);
   });
 });

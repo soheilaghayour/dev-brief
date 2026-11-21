@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import type { LanguageModel } from 'ai';
 import { AppModule } from '../../src/app.module.js';
 import { DevtoClient } from '../../src/common/devto/devtoClient.js';
-import { ENV } from '../../src/common/env/env.module.js';
+import { ENV, type Env } from '../../src/common/env/env.module.js';
 import { HttpClient } from '../../src/common/http/httpClient.js';
 import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { configureApp } from '../../src/configureApp.js';
@@ -30,12 +30,17 @@ const UNSCRIPTED_UPSTREAM: typeof fetch = async () => {
 /** A SummaryInputsService override whose HN Algolia and Dev.to requests go to `upstreamFetch`, with instant retries and no Dev.to gap. */
 export function summaryInputsOverride(upstreamFetch: typeof fetch) {
   return {
-    factory: (prisma: PrismaService) => {
+    factory: (prisma: PrismaService, env: Env) => {
       // random = 0 makes retry backoff instant.
       const http = new HttpClient(upstreamFetch, () => 0);
-      return new SummaryInputsService(prisma, http, new DevtoClient(http, async () => undefined));
+      return new SummaryInputsService(
+        prisma,
+        http,
+        new DevtoClient(http, async () => undefined),
+        env,
+      );
     },
-    inject: [PrismaService],
+    inject: [PrismaService, ENV],
   };
 }
 

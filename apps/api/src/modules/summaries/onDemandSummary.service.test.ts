@@ -10,7 +10,8 @@ const summary = { storyId: 'cstory', tldr: ['a', 'b', 'c'] } as GenerateResult['
 function setup(generated: GenerateResult) {
   let count = 0;
   const prisma = {
-    story: { findUnique: async () => ({ id: 'cstory', summary: null }) },
+    story: { findUnique: async () => ({ id: 'cstory', clusterId: null }) },
+    summary: { findFirst: async () => null },
     rateLimitCounter: {
       updateMany: async ({ where }: { where: { count: { lt: number } } }) => {
         if (count === 0 || count >= where.count.lt) return { count: 0 };

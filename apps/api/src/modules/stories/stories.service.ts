@@ -4,6 +4,7 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { toStoryCards } from '../../common/story-card/clusterCards.js';
+import { findSummary, summarizedClusterIds } from '../../common/story-card/clusterSummary.js';
 import {
   type StoryFeatures,
   storyFeatures,
@@ -34,6 +35,11 @@ export class StoriesService {
     const [card] = await toStoryCards(this.prisma, [story], this.features);
     const clusterMembers =
       this.features.clusters && story.clusterId ? await this.otherMembers(story.clusterId, id) : [];
+    // The cluster's summary on any member's page; a single story's own otherwise.
+    const summary =
+      this.features.summaries && this.features.clusters && story.clusterId
+        ? await findSummary(this.prisma, story, true)
+        : story.summary;
     return {
       ...card!,
       firstSeenAt: story.firstSeenAt.toISOString(),
@@ -45,7 +51,7 @@ export class StoriesService {
       })),
       ...(clusterMembers.length > 0 && { clusterMembers }),
       ...(this.features.summaries && {
-        summary: story.summary && toStorySummary(story.summary),
+        summary: summary && toStorySummary(summary),
       }),
     };
   }
@@ -56,7 +62,8 @@ export class StoriesService {
       include: storyWithItems,
       orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
     });
-    return members.map((member) => toStoryCard(member, this.features));
+    const summarized = await summarizedClusterIds(this.prisma, [clusterId]);
+    return members.map((member) => toStoryCard(member, this.features, undefined, summarized));
   }
 
   async lookup(ids: string[]): Promise<StoryLookupResponse> {

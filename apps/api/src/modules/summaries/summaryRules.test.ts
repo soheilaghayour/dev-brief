@@ -6,6 +6,7 @@ import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import {
   AUTO_ATTEMPTS_PER_RUN,
+  AUTO_HN_REQUESTS_PER_RUN,
   autoCandidateIds,
   autoFailureAction,
   inputFailureScope,
@@ -92,5 +93,26 @@ describe('autoFailureAction', () => {
 
   it('leaves any other error to the engine', () => {
     expect(autoFailureAction(new Error('database down'))).toBe('unexpected');
+  });
+});
+
+describe('autoCandidateIds HN requests', () => {
+  const hnStory = (id: string, hnItems: number) => ({
+    id,
+    items: Array.from({ length: hnItems }, () => ({ commentsCount: 10, source: { kind: 'hn' } })),
+  });
+
+  it('F2.3 Clusters counts HN items, not stories, against the per-run Algolia budget', () => {
+    const stories = [hnStory('a', 10), hnStory('b', 10), hnStory('c', 6), hnStory('d', 5)];
+
+    // c would be the 26th request and is passed over; d still fits.
+    expect(autoCandidateIds(stories, new Set())).toEqual(['a', 'b', 'd']);
+  });
+
+  it('F2.3 Clusters does not count Dev.to items as HN requests', () => {
+    const devto = { id: 'devto', items: [{ commentsCount: 10, source: { kind: 'devto' } }] };
+    const stories = [hnStory('a', AUTO_HN_REQUESTS_PER_RUN), devto];
+
+    expect(autoCandidateIds(stories, new Set())).toEqual(['a', 'devto']);
   });
 });

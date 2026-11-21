@@ -57,11 +57,12 @@ export function toStorySummary(summary: Summary): StorySummary {
   };
 }
 
-/** `clusters` holds the cluster info of the page's cards by cluster id; it is read only while the clusters flag is on. */
+/** `clusters` holds the cluster info of the page's cards by cluster id; `summarizedClusters` the ids of clusters where some member has a summary. Both are read only while the clusters flag is on. */
 export function toStoryCard(
   story: StoryWithItems,
   features: StoryFeatures,
   clusters?: ReadonlyMap<string, CardCluster>,
+  summarizedClusters?: ReadonlySet<string>,
 ): StoryCard {
   const cluster = features.clusters && story.clusterId ? clusters?.get(story.clusterId) : undefined;
   return {
@@ -78,6 +79,12 @@ export function toStoryCard(
     sources: story.items.map(toSourceRef),
     rankScore: story.rankScore,
     ...(cluster && { cluster }),
-    ...(features.summaries && { hasSummary: story.summary !== null }),
+    ...(features.summaries && {
+      hasSummary:
+        story.summary !== null ||
+        (features.clusters &&
+          story.clusterId !== null &&
+          !!summarizedClusters?.has(story.clusterId)),
+    }),
   };
 }

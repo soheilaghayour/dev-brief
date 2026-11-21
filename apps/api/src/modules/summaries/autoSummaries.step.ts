@@ -62,24 +62,56 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
   // Older stories keep a frozen rankScore and never reach Top, so the Top window bounds the candidates.
   private async candidateIds(now: Date) {
     const [stories, failedToday] = await Promise.all([
-      this.prisma.story.findMany({
-        where: { publishedAt: { gte: topWindowStart(now) }, summary: null },
-        select: { id: true, items: { select: { commentsCount: true } } },
-        orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
-      }),
-      // A story whose auto call failed today would most likely fail again, so it waits for tomorrow.
-      this.prisma.llmUsage.findMany({
-        where: {
-          day: utcDay(now),
-          feature: 'summary_auto',
-          status: 'failed' satisfies LedgerStatus,
-          refId: { not: null },
-        },
-        select: { refId: true },
-        distinct: ['refId'],
-      }),
+      this.loadStories(now),
+      this.loadFailedToday(now),
     ]);
-    const failedIds = new Set(failedToday.flatMap(({ refId }) => (refId ? [refId] : [])));
-    return autoCandidateIds(stories, failedIds);
+    return autoCandidateIds(stories, failedToday);
+  }
+
+  // With clusters on a candidate is a primary story, judged by its whole cluster; off, every story is its own.
+  private async loadStories(now: Date) {
+    const itemSelect = { commentsCount: true, source: { select: { kind: true } } } as const;
+    const clusters = this.env.FEATURE_CLUSTERS;
+    const rows = await this.prisma.story.findMany({
+      where: {
+        publishedAt: { gte: topWindowStart(now) },
+        summary: null,
+        ...(clusters && {
+          isPrimary: true,
+          // A summary on any member covers the whole cluster.
+          OR: [
+            { clusterId: null },
+            { cluster: { stories: { none: { summary: { isNot: null } } } } },
+          ],
+        }),
+      },
+      select: {
+        id: true,
+        items: { select: itemSelect },
+        // Loaded only for clustered stories, and read only with the flag on.
+        cluster: { select: { stories: { select: { items: { select: itemSelect } } } } },
+      },
+      orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      items:
+        clusters && row.cluster ? row.cluster.stories.flatMap((member) => member.items) : row.items,
+    }));
+  }
+
+  // A story whose auto call failed today would most likely fail again, so it waits for tomorrow.
+  private async loadFailedToday(now: Date) {
+    const failedToday = await this.prisma.llmUsage.findMany({
+      where: {
+        day: utcDay(now),
+        feature: 'summary_auto',
+        status: 'failed' satisfies LedgerStatus,
+        refId: { not: null },
+      },
+      select: { refId: true },
+      distinct: ['refId'],
+    });
+    return new Set(failedToday.flatMap(({ refId }) => (refId ? [refId] : [])));
   }
 }
