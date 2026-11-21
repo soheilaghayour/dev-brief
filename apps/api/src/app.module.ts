@@ -16,6 +16,7 @@ import { RankingModule } from './modules/ranking/ranking.module.js';
 import { ClusteringModule } from './modules/clustering/clustering.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
 import { SourcesModule } from './modules/sources/sources.module.js';
+import { CollectionsModule } from './modules/collections/collections.module.js';
 import { SavesModule } from './modules/saves/saves.module.js';
 import { StoriesModule } from './modules/stories/stories.module.js';
 import { SummariesHttpModule } from './modules/summaries/summariesHttp.module.js';
@@ -32,6 +33,7 @@ import { TagsModule } from './modules/tags/tags.module.js';
     ClustersModule,
     SummariesHttpModule,
     SavesModule,
+    CollectionsModule,
     PreferencesModule,
     SourcesModule,
     StatsModule,

@@ -9,8 +9,11 @@ import {
   type Preferences,
   type Save,
   type SaveIds,
+  type SaveNotePatch,
   type SavedStoryPage,
 } from '@devbrief/shared';
+import { lockCollectionWrites } from '../../common/collections/collectionWriteLock.js';
+import { renumberItems } from '../../common/collections/itemOrder.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -22,7 +25,9 @@ import {
   storyWithItems,
 } from '../../common/story-card/storyCard.mapper.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { planCollectionMerge } from './collectionMergePlan.js';
 import { planSaveMerge } from './mergePlan.js';
+import { planNoteMerge } from './noteMergePlan.js';
 import { planPreferenceMerge } from './preferenceMergePlan.js';
 
 const CURSOR_SORT = 'saved';
@@ -37,8 +42,21 @@ function parseSavedCursor(cursor: string) {
   return { savedAt, storyId };
 }
 
-function toSave(save: { storyId: string; savedAt: Date }): Save {
-  return { storyId: save.storyId, savedAt: save.savedAt.toISOString() };
+type SaveRow = { storyId: string; savedAt: Date; note: string | null; noteUpdatedAt: Date | null };
+
+/** The note fields are left out while the collections flag is off, so flag-off responses match Phase 2. */
+function noteFields(save: SaveRow, collectionsOn: boolean) {
+  return collectionsOn
+    ? { note: save.note, noteUpdatedAt: save.noteUpdatedAt?.toISOString() ?? null }
+    : {};
+}
+
+function toSave(save: SaveRow, collectionsOn: boolean): Save {
+  return {
+    storyId: save.storyId,
+    savedAt: save.savedAt.toISOString(),
+    ...noteFields(save, collectionsOn),
+  };
 }
 
 /** Adds the guest's preferences the account lacks inside the merge transaction; answers `merged.preferences`. */
@@ -60,18 +78,106 @@ async function mergePreferences(
   return plan.mergedCount;
 }
 
+type MergeContext = { tx: Prisma.TransactionClient; userId: string; knownStoryIds: Set<string> };
+
+/** Merges guest collections by slug inside the merge transaction; answers the plan's counts and unknown stories. */
+async function mergeCollections(
+  { tx, userId, knownStoryIds }: MergeContext,
+  incoming: NonNullable<MergeRequest['collections']>,
+) {
+  await lockCollectionWrites(tx, userId);
+  const accountCollections = await tx.collection.findMany({
+    where: { userId },
+    select: { id: true, slug: true, position: true, items: { select: { storyId: true } } },
+  });
+  const bySlug = new Map(accountCollections.map((collection) => [collection.slug, collection]));
+  const plan = planCollectionMerge({
+    incoming,
+    existing: new Map(
+      accountCollections.map((collection) => [
+        collection.slug,
+        {
+          storyIds: new Set(collection.items.map((item) => item.storyId)),
+          itemCount: collection.items.length,
+        },
+      ]),
+    ),
+    nextCollectionPosition: accountCollections.reduce(
+      (next, collection) => Math.max(next, collection.position + 1),
+      0,
+    ),
+    knownStoryIds,
+  });
+  // A CollectionItem points at its owner's Save, so the story is saved first.
+  const itemStoryIds = [
+    ...new Set(plan.collections.flatMap((c) => c.itemsToAdd.map((item) => item.storyId))),
+  ];
+  await tx.save.createMany({
+    data: itemStoryIds.map((storyId) => ({ userId, storyId })),
+    skipDuplicates: true,
+  });
+  for (const planned of plan.collections) {
+    const collectionId =
+      bySlug.get(planned.slug)?.id ??
+      (
+        await tx.collection.create({
+          data: {
+            userId,
+            slug: planned.slug,
+            name: planned.name,
+            position: planned.position,
+          },
+          select: { id: true },
+        })
+      ).id;
+    await tx.collectionItem.createMany({
+      data: planned.itemsToAdd.map((item) => ({ collectionId, userId, ...item })),
+      skipDuplicates: true,
+    });
+  }
+  return plan;
+}
+
+/** Merges guest notes inside the merge transaction; answers the plan's counts and unknown stories. */
+async function mergeNotes(
+  { tx, userId, knownStoryIds }: MergeContext,
+  incoming: NonNullable<MergeRequest['notes']>,
+) {
+  const saves = await tx.save.findMany({
+    where: { userId, storyId: { in: incoming.map((note) => note.storyId) } },
+    select: { storyId: true, note: true },
+  });
+  const plan = planNoteMerge({
+    incoming,
+    existing: new Map(saves.map((save) => [save.storyId, save.note])),
+    knownStoryIds,
+  });
+  // Sorted so two concurrent merges write in the same order and can't deadlock.
+  const toSet = [...plan.toSet].sort((a, b) => a.storyId.localeCompare(b.storyId));
+  for (const { storyId, note, noteUpdatedAt } of toSet) {
+    await tx.save.upsert({
+      where: { userId_storyId: { userId, storyId } },
+      create: { userId, storyId, note, noteUpdatedAt: new Date(noteUpdatedAt) },
+      update: { note, noteUpdatedAt: new Date(noteUpdatedAt) },
+    });
+  }
+  return plan;
+}
+
 /** Room for the worst case: every one of 500 saves moves earlier, one round trip each. */
 const MERGE_TRANSACTION_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class SavesService {
   private readonly features: StoryFeatures;
+  private readonly collectionsOn: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ENV) env: Env,
   ) {
     this.features = storyFeatures(env);
+    this.collectionsOn = env.FEATURE_COLLECTIONS;
   }
 
   async list(userId: string, { cursor, limit }: PaginationQuery): Promise<SavedStoryPage> {
@@ -101,6 +207,7 @@ export class SavesService {
       items: pageRows.map((row, index) => ({
         story: cards[index]!,
         savedAt: row.savedAt.toISOString(),
+        ...noteFields(row, this.collectionsOn),
       })),
       nextCursor:
         rows.length > limit && lastRow
@@ -118,6 +225,25 @@ export class SavesService {
     return { ids: rows.map((row) => row.storyId) };
   }
 
+  async get(userId: string, storyId: string): Promise<Save> {
+    const save = await this.prisma.save.findUnique({
+      where: { userId_storyId: { userId, storyId } },
+    });
+    if (!save) throw new ApiException('NOT_FOUND', 'Story is not saved.');
+    return toSave(save, this.collectionsOn);
+  }
+
+  /** Sets or clears the note of a saved story; an empty note counts as cleared. */
+  async setNote(userId: string, storyId: string, { note }: SaveNotePatch): Promise<Save> {
+    const text = note === '' ? null : note;
+    const { count } = await this.prisma.save.updateMany({
+      where: { userId, storyId },
+      data: { note: text, noteUpdatedAt: text === null ? null : new Date() },
+    });
+    if (count === 0) throw new ApiException('NOT_FOUND', 'Story is not saved.');
+    return this.get(userId, storyId);
+  }
+
   /** Saves the story; saving again keeps the first savedAt. */
   async save(userId: string, storyId: string): Promise<Save> {
     const story = await this.prisma.story.findUnique({
@@ -130,26 +256,50 @@ export class SavesService {
       create: { userId, storyId },
       update: {},
     });
-    return toSave(save);
+    return toSave(save, this.collectionsOn);
   }
 
+  /** Removes the save and its note; its collection items cascade, then each board closes the gap. */
   async unsave(userId: string, storyId: string) {
-    await this.prisma.save.deleteMany({ where: { userId, storyId } });
+    await this.prisma.$transaction(async (tx) => {
+      await lockCollectionWrites(tx, userId);
+      const items = await tx.collectionItem.findMany({
+        where: { userId, storyId },
+        select: { collectionId: true },
+      });
+      await tx.save.deleteMany({ where: { userId, storyId } });
+      for (const { collectionId } of items) await renumberItems(tx, collectionId);
+    });
   }
 
-  async merge(userId: string, { saves, preferences }: MergeRequest): Promise<MergeResponse> {
-    const storyIds = [...new Set(saves.map((save) => save.storyId))];
-    const { plan, preferenceCount } = await this.prisma.$transaction(
+  async merge(
+    userId: string,
+    { saves, preferences, collections, notes }: MergeRequest,
+  ): Promise<MergeResponse> {
+    const storyIds = [
+      ...new Set([
+        ...saves.map((save) => save.storyId),
+        ...(collections ?? []).flatMap((collection) =>
+          collection.items.map((item) => item.storyId),
+        ),
+        ...(notes ?? []).map((note) => note.storyId),
+      ]),
+    ];
+    const saveStoryIds = [...new Set(saves.map((save) => save.storyId))];
+    const result = await this.prisma.$transaction(
       async (tx) => {
         const stories = await tx.story.findMany({
           where: { id: { in: storyIds } },
           select: { id: true },
         });
-        const existing = await tx.save.findMany({ where: { userId, storyId: { in: storyIds } } });
+        const knownStoryIds = new Set(stories.map((story) => story.id));
+        const existing = await tx.save.findMany({
+          where: { userId, storyId: { in: saveStoryIds } },
+        });
         const mergePlan = planSaveMerge({
           incoming: saves,
           existing: new Map(existing.map((row) => [row.storyId, row.savedAt.toISOString()])),
-          knownStoryIds: new Set(stories.map((story) => story.id)),
+          knownStoryIds,
         });
         // Sorted so two concurrent merges insert in the same order and can't deadlock.
         const byStoryId = (a: { storyId: string }, b: { storyId: string }) =>
@@ -173,17 +323,33 @@ export class SavesService {
             data: { savedAt },
           });
         }
+        const preferenceCount = preferences ? await mergePreferences(tx, userId, preferences) : 0;
+        const context = { tx, userId, knownStoryIds };
         return {
           plan: mergePlan,
-          preferenceCount: preferences ? await mergePreferences(tx, userId, preferences) : 0,
+          preferenceCount,
+          collectionPlan: collections ? await mergeCollections(context, collections) : undefined,
+          notePlan: notes ? await mergeNotes(context, notes) : undefined,
         };
       },
       { timeout: MERGE_TRANSACTION_TIMEOUT_MS },
     );
+    const missingStoryIds = [
+      ...new Set([
+        ...result.plan.missingStoryIds,
+        ...(result.collectionPlan?.missingStoryIds ?? []),
+        ...(result.notePlan?.missingStoryIds ?? []),
+      ]),
+    ];
     return {
-      merged: { saves: plan.mergedCount, preferences: preferenceCount },
-      skipped: { saves: plan.missingStoryIds.length },
-      missingStoryIds: plan.missingStoryIds,
+      merged: {
+        saves: result.plan.mergedCount,
+        preferences: result.preferenceCount,
+        collections: result.collectionPlan?.mergedCount ?? 0,
+        notes: result.notePlan?.mergedCount ?? 0,
+      },
+      skipped: { saves: missingStoryIds.length, notes: result.notePlan?.skippedCount ?? 0 },
+      missingStoryIds,
     };
   }
 }

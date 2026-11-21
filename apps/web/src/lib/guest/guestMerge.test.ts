@@ -69,8 +69,8 @@ describe('guestMergeResult', () => {
 
   it('AC-1.5.5 removes every sent save, including unknown stories, and reports the synced count', () => {
     const result = guestMergeResult(request, {
-      merged: { saves: 1, preferences: 0 },
-      skipped: { saves: 1 },
+      merged: { saves: 1, preferences: 0, collections: 0, notes: 0 },
+      skipped: { saves: 1, notes: 0 },
       missingStoryIds: ['gone'],
     });
     expect(result.confirmedStoryIds).toEqual(['a', 'gone']);
@@ -79,8 +79,8 @@ describe('guestMergeResult', () => {
 
   it('AC-1.5.5 words the toast "N saved stories synced"', () => {
     const result = guestMergeResult(request, {
-      merged: { saves: 2, preferences: 0 },
-      skipped: { saves: 0 },
+      merged: { saves: 2, preferences: 0, collections: 0, notes: 0 },
+      skipped: { saves: 0, notes: 0 },
       missingStoryIds: [],
     });
     expect(result.notice).toBe('2 saved stories synced');
@@ -88,8 +88,8 @@ describe('guestMergeResult', () => {
 
   it('shows no toast when nothing was synced', () => {
     const result = guestMergeResult(request, {
-      merged: { saves: 0, preferences: 0 },
-      skipped: { saves: 2 },
+      merged: { saves: 0, preferences: 0, collections: 0, notes: 0 },
+      skipped: { saves: 2, notes: 0 },
       missingStoryIds: ['a', 'gone'],
     });
     expect(result.notice).toBeNull();
@@ -99,14 +99,18 @@ describe('guestMergeResult', () => {
     const sent = { ...EMPTY_PREFERENCES, follow: { tags: ['rust' as const], sources: [] } };
     const result = guestMergeResult(
       { ...request, preferences: sent },
-      { merged: { saves: 1, preferences: 1 }, skipped: { saves: 1 }, missingStoryIds: ['gone'] },
+      {
+        merged: { saves: 1, preferences: 1, collections: 0, notes: 0 },
+        skipped: { saves: 1, notes: 0 },
+        missingStoryIds: ['gone'],
+      },
     );
     expect(result.confirmedPreferences).toEqual(sent);
     expect(result.notice).toBe('1 saved story synced');
     expect(
       guestMergeResult(request, {
-        merged: { saves: 1, preferences: 0 },
-        skipped: { saves: 1 },
+        merged: { saves: 1, preferences: 0, collections: 0, notes: 0 },
+        skipped: { saves: 1, notes: 0 },
         missingStoryIds: ['gone'],
       }).confirmedPreferences,
     ).toBeUndefined();
