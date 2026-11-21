@@ -14,6 +14,8 @@ type RequestOptions = {
   cache?: RequestCache;
   /** The visitor's Cookie header, forwarded by server-side calls made for a signed-in visitor. */
   cookie?: string;
+  /** Aborts the request, and a streamed body being read. */
+  signal?: AbortSignal;
 };
 
 type ApiClientConfig = {
@@ -73,11 +75,20 @@ export function createApiClient({
   internalToken,
   fetch: fetchImpl = fetch,
 }: ApiClientConfig = {}) {
-  async function send({ method = 'GET', path, query, body, cache, cookie }: RequestOptions) {
+  async function send({
+    method = 'GET',
+    path,
+    query,
+    body,
+    cache,
+    cookie,
+    signal,
+  }: RequestOptions) {
     const response = await fetchImpl(buildUrl(baseUrl ?? defaultBaseUrl(), path, query), {
       method,
       credentials: 'include',
       cache,
+      signal,
       headers: requestHeaders(body !== undefined, internalToken, cookie),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -106,7 +117,10 @@ export function createApiClient({
     await send(options);
   }
 
-  return { request, requestNoContent };
+  /** Sends a request and returns the 2xx response unread, for a streamed body. */
+  const requestStream = send;
+
+  return { request, requestNoContent, requestStream };
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;

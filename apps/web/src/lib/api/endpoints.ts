@@ -1,5 +1,6 @@
 import {
   ClusterDetailSchema,
+  CopilotQuotaSchema,
   FeedPageSchema,
   HealthSchema,
   MeSchema,
@@ -138,4 +139,12 @@ export function getPreferences({ cookie }: { cookie?: string } = {}) {
 
 export function putPreferences(body: Preferences) {
   return apiClient.request({ method: 'PUT', path: '/me/preferences', body }, PreferencesSchema);
+}
+
+/** What is left of today's copilot questions for this device (and the signed-in user, if any). */
+export function getCopilotQuota(deviceId: string, signal?: AbortSignal) {
+  return apiClient.request(
+    { path: '/copilot/quota', query: { deviceId }, cache: 'no-store', signal },
+    CopilotQuotaSchema,
+  );
 }
