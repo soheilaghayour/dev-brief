@@ -221,8 +221,8 @@ describe('account saves', () => {
     const first = await user.merge(body);
     expect(first.status).toBe(200);
     expect(MergeResponseSchema.parse(first.body)).toEqual({
-      merged: { saves: 2, preferences: 0 },
-      skipped: { saves: 0 },
+      merged: { saves: 2, preferences: 0, collections: 0, notes: 0 },
+      skipped: { saves: 0, notes: 0 },
       missingStoryIds: [],
     });
     const afterFirst = await prisma.save.findMany({
@@ -266,8 +266,8 @@ describe('account saves', () => {
     });
     expect(response.status).toBe(200);
     expect(MergeResponseSchema.parse(response.body)).toEqual({
-      merged: { saves: 1, preferences: 0 },
-      skipped: { saves: 1 },
+      merged: { saves: 1, preferences: 0, collections: 0, notes: 0 },
+      skipped: { saves: 1, notes: 0 },
       missingStoryIds: [UNKNOWN_STORY_ID],
     });
     expect(await prisma.save.count({ where: { userId: user.userId } })).toBe(1);
@@ -287,7 +287,12 @@ describe('account saves', () => {
       },
     });
     expect(response.status).toBe(200);
-    expect(MergeResponseSchema.parse(response.body).merged).toEqual({ saves: 0, preferences: 2 });
+    expect(MergeResponseSchema.parse(response.body).merged).toEqual({
+      saves: 0,
+      preferences: 2,
+      collections: 0,
+      notes: 0,
+    });
     const rows = await prisma.feedPreference.findMany({
       where: { userId: user.userId },
       select: { kind: true, value: true, mode: true },
@@ -310,7 +315,12 @@ describe('account saves', () => {
       },
     };
     const first = await user.merge(body);
-    expect(MergeResponseSchema.parse(first.body).merged).toEqual({ saves: 1, preferences: 3 });
+    expect(MergeResponseSchema.parse(first.body).merged).toEqual({
+      saves: 1,
+      preferences: 3,
+      collections: 0,
+      notes: 0,
+    });
     const rowsAfterFirst = await prisma.feedPreference.findMany({
       where: { userId: user.userId },
       orderBy: { value: 'asc' },
