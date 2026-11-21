@@ -21,6 +21,13 @@ function Probe({ onSave, onGoToSaved }: { onSave: () => void; onGoToSaved: () =>
   return null;
 }
 
+const LATE = { id: 'late', keys: 'l', description: 'Late', scope: 'Test' } satisfies Shortcut;
+
+function LateProbe() {
+  useShortcut(LATE, () => {});
+  return null;
+}
+
 function press(key: string) {
   act(() => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
@@ -36,20 +43,24 @@ async function mount() {
   const onGoToSaved = vi.fn();
   const container = document.createElement('div');
   const root = createRoot(container);
-  act(() =>
-    root.render(
-      <HotkeysProvider>
-        <Probe onSave={onSave} onGoToSaved={onGoToSaved} />
-      </HotkeysProvider>,
-    ),
-  );
+  function render(withLateShortcut: boolean) {
+    act(() =>
+      root.render(
+        <HotkeysProvider>
+          <Probe onSave={onSave} onGoToSaved={onGoToSaved} />
+          {withLateShortcut && <LateProbe />}
+        </HotkeysProvider>,
+      ),
+    );
+  }
+  render(false);
   unmount = () => act(() => root.unmount());
   // The key bindings load lazily, after the first render.
   await act(async () => {
     await import('./ShortcutBindings');
   });
   await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
-  return { onSave, onGoToSaved };
+  return { onSave, onGoToSaved, render };
 }
 
 describe('HotkeysProvider', () => {
@@ -66,5 +77,14 @@ describe('HotkeysProvider', () => {
     press('s');
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onGoToSaved).not.toHaveBeenCalled();
+  });
+
+  it('AC-1.3.8 a shortcut registering between the leader and the second key does not lose the leader', async () => {
+    const { onSave, onGoToSaved, render } = await mount();
+    press('g');
+    render(true);
+    press('s');
+    expect(onGoToSaved).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
