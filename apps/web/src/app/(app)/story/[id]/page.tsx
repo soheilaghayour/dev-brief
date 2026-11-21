@@ -34,6 +34,10 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
   const story = await loadStory((await params).id);
   if (!story) notFound();
   const autoStart = (await searchParams).summarize === '1';
+  // A cluster summary draws on every member, so it names every member's sources.
+  const sourceNames = [
+    ...new Set((story.cluster?.sources ?? story.sources).map((source) => source.name)),
+  ];
 
   return (
     <article className="flex flex-col gap-8">
@@ -43,6 +47,7 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
           storyId={story.id}
           summary={story.summary ?? null}
           canSummarize={story.canSummarize ?? false}
+          origin={{ url: story.url, domain: story.domain, sourceNames }}
           autoStart={autoStart}
         />
       )}

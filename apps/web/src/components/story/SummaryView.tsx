@@ -1,6 +1,9 @@
 import type { StorySummary } from '@devbrief/shared';
 import { ConsensusCallout } from './ConsensusCallout';
 
+/** Where a summary comes from: the story's original page and the sources that carried it. */
+export type SummaryOrigin = { url: string; domain: string; sourceNames: string[] };
+
 function TldrList({ tldr }: { tldr: StorySummary['tldr'] }) {
   return (
     <ul className="list-disc space-y-1.5 pl-5 leading-relaxed">
@@ -20,8 +23,21 @@ function SummaryConsensus({ consensus }: { consensus: StorySummary['consensus'] 
   );
 }
 
+function OriginLink({ origin }: { origin: SummaryOrigin }) {
+  return (
+    <a
+      href={origin.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-foreground rounded-sm text-xs font-medium underline"
+    >
+      Read the original on {origin.domain} <span aria-hidden="true">↗</span>
+    </a>
+  );
+}
+
 /** A summary as plain text nodes (AC-2.3.6): the model's words are never parsed as HTML or Markdown. */
-export function SummaryView({ summary }: { summary: StorySummary }) {
+export function SummaryView({ summary, origin }: { summary: StorySummary; origin: SummaryOrigin }) {
   return (
     <section
       aria-labelledby="ai-summary"
@@ -34,13 +50,17 @@ export function SummaryView({ summary }: { summary: StorySummary }) {
         >
           Summary
         </h2>
-        <p className="text-muted-foreground text-xs">
-          AI-generated
-          {summary.consensus && <> · based on {summary.consensus.basedOnComments} comments</>}
-        </p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="text-muted-foreground text-xs">
+            AI-generated
+            {summary.consensus && <> · based on {summary.consensus.basedOnComments} comments</>}
+          </p>
+          <OriginLink origin={origin} />
+        </div>
       </div>
       <TldrList tldr={summary.tldr} />
       <SummaryConsensus consensus={summary.consensus} />
+      <p className="text-muted-foreground text-xs">Source: {origin.sourceNames.join(', ')}</p>
     </section>
   );
 }

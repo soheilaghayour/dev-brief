@@ -12,7 +12,7 @@ import { loadDeviceId } from '@/lib/guest/loadDeviceId';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { summaryErrorMessage } from './summaryErrors';
-import { SummaryView } from './SummaryView';
+import { SummaryView, type SummaryOrigin } from './SummaryView';
 
 const SUMMARIZE_STORY = {
   id: 'story-summarize',
@@ -31,7 +31,15 @@ async function requestSummary(storyId: string) {
 }
 
 /** The Summarize button; on success the summary takes its place without a reload. */
-export function SummarizeButton({ storyId, autoStart }: { storyId: string; autoStart: boolean }) {
+export function SummarizeButton({
+  storyId,
+  origin,
+  autoStart,
+}: {
+  storyId: string;
+  origin: SummaryOrigin;
+  autoStart: boolean;
+}) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
@@ -64,7 +72,7 @@ export function SummarizeButton({ storyId, autoStart }: { storyId: string; autoS
     router.replace(pathname, { scroll: false });
   });
 
-  if (stored.data) return <SummaryView summary={stored.data} />;
+  if (stored.data) return <SummaryView summary={stored.data} origin={origin} />;
 
   const failure = request.isError
     ? summaryErrorMessage(request.error, { isGuest: user === null })

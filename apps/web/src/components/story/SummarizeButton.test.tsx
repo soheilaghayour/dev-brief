@@ -29,6 +29,12 @@ const SUMMARY: StorySummary = {
   createdAt: '2026-11-20T10:00:00.000Z',
 };
 
+const ORIGIN = {
+  url: 'https://example.com/post',
+  domain: 'example.com',
+  sourceNames: ['Hacker News'],
+};
+
 let container: HTMLDivElement;
 let unmount = () => {};
 let queryClient: QueryClient;
@@ -41,7 +47,7 @@ async function render(autoStart = false, cached?: StorySummary) {
   await act(async () => {
     root.render(
       <QueryClientProvider client={queryClient}>
-        <SummarizeButton storyId="story-1" autoStart={autoStart} />
+        <SummarizeButton storyId="story-1" origin={ORIGIN} autoStart={autoStart} />
       </QueryClientProvider>,
     );
   });
