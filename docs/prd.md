@@ -56,7 +56,7 @@
 | Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, keyboard navigation, dark/light themes, generative UI rendered with native React components |
 | Product ownership | Phased scope, a guest-first funnel, a cost model, measurable acceptance criteria, a public changelog |
 | Pragmatic full stack | NestJS REST with a Zod contract shared with the web app, a relational Prisma schema, Postgres full-text search and `pg_trgm`, scheduled ingestion with circuit breaking, OAuth sessions |
-| AI engineering with guardrails | Structured outputs, an under-$2/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
+| AI engineering with guardrails | Structured outputs, an under-$10/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
 | Operability | One VPS run by Coolify, CI on every PR, Sentry, backups, a health endpoint, no Kubernetes or queues |
 
 ### 1.5 Product principles
@@ -76,7 +76,7 @@
 | Feed API p95 server time | ≤ 150 ms | P1 |
 | Exact-duplicate cards visible in Top (last 24 h) | 0 | P1 |
 | Cluster precision / recall on the labelled fixture (recorded model replies) | ≥ 0.90 / ≥ 0.70 | P2 |
-| LLM spend | < $2.00 per calendar month, enforced by a hard cap | P2–P3 |
+| LLM spend | < $10.00 per calendar month, enforced by a hard cap | P2–P3 |
 | Copilot time to first rendered component | ≤ 3 s at p50 | P3 |
 
 ### 1.7 Non-goals (all phases)
@@ -308,14 +308,14 @@ Acceptance criteria:
 
 ### 3.2 Phase 2 — V2: AI synthesis and smart clustering
 
-**Goal:** remove cross-source duplicate noise and surface what the community actually concluded, at near-zero cost.
+**Goal:** remove cross-source duplicate noise and surface what the community actually concluded, on every card, for a few dollars a month.
 
 **In scope**
 | ID | Feature |
 |---|---|
 | F2.1 | Cross-source story clustering: a deterministic pre-filter, then one Claude Haiku 5.5 decision per new story with candidates (no embeddings) |
 | F2.2 | Cluster cards and a cluster/story detail view |
-| F2.3 | AI summaries: auto 3-bullet TL;DR and "Community Consensus" for the top 20 stories per day, plus on-demand "Summarize" |
+| F2.3 | AI summaries: an auto 3-bullet TL;DR and "Community Consensus" for every new story, its first point on the feed card, plus on-demand "Summarize" |
 | F2.4 | GitHub source (Search API: new repos sorted by stars) |
 | F2.5 | Follow/mute tags and sources (guest-local plus account sync) |
 | F2.6 | LLM spend ledger and caps (shared with Phase 3) |
@@ -391,10 +391,16 @@ Default UI (the orchestrator's choice while the owner was away; reversible): a c
 
 #### F2.3 AI summaries
 - Model: `claude-haiku-5-5` via Vercel AI SDK structured output (schema `StorySummaryLlmSchema`).
-- Input: title, the best available text (the Dev.to `body_markdown` truncated to ~1,000 tokens, or the RSS excerpt), and top comments from all cluster members (HN via Algolia `GET /api/v1/items/{id}` as one call with the nested tree, Dev.to via `GET /api/comments?a_id={id}`). Comments are flattened breadth-first and trimmed to ≤ 2,400 tokens.
+- Input: title, the best available text that §8.8 permits (the Dev.to `body_markdown` truncated to ~1,000 tokens, or the RSS excerpt), and top comments from all cluster members (HN via Algolia `GET /api/v1/items/{id}` as one call with the nested tree, Dev.to via `GET /api/comments?a_id={id}`). Comments are flattened breadth-first and trimmed to ≤ 2,400 tokens.
 - Output: `tldr: string[3]` (≤ 25 words each) and `consensus: { pros: string[≤3], cons: string[≤3], verdict: "mostly_positive" | "mixed" | "mostly_negative", basedOnComments: number } | null`. Consensus is `null` when fewer than 5 comments exist, and the UI then says "Not enough discussion yet".
-- Auto: after each ingestion run, unsummarised primary stories are summarised in `rankScore` order until 20 auto-summaries exist for the current UTC day. Only stories with ≥ 10 comments in total are eligible for auto.
+- Auto: after each ingestion run, the step summarises the unsummarised primary stories of the Top window in `rankScore` order, so every new story gets a summary.
+  - A story is eligible once it has ≥ 10 comments in total (`AUTO_MIN_COMMENTS`) or was first seen ≥ 2 h ago (`AUTO_SUMMARY_MIN_AGE_HOURS = 2`), whichever comes first. A summary is cached forever, so a fresh thread first gathers some discussion.
+  - A story whose model input would hold nothing but its title (no comments and no text that §8.8 permits, such as a GitHub repo) is never auto-summarised, because three points from a title alone would be invented.
+  - Each UTC day allows up to `AUTO_SUMMARIES_PER_DAY = 400` auto summaries, the top of the §5.3 volume, under the `summary_auto` cap (§8.1). A run keeps its limits of 25 attempts and 25 HN Algolia requests (§8.3), which an hourly run of about 8–17 new stories fits.
+  - A story left over by a cap or a run limit stays a candidate while it is in the Top window. Fresh stories usually rank highest, so at launch the window's backlog drains over a few days, newest first.
 - On-demand: a "Summarize" button on any story calls `POST /api/v1/stories/:id/summary`.
+- **Card line:** a feed card whose story or cluster has a summary shows that summary's first TL;DR point (`tldr[0]`, ≤ 220 chars) under the title, as plain text clamped to 2 lines. A story without a summary yet shows no line: there is no excerpt fallback. A cluster card's line comes from the cluster's summary (Clusters, below). The API sends it as `summaryLine` on every `StoryCard` (§6.1). The story page keeps the full panel (3 points and the consensus).
+  - Cost: at most 220 chars more per card, about 4.4 KB per 20-card feed page before gzip (the shorter excerpt of §8.8 saves up to 300 chars per card). It is data, not script: the card adds a few lines of markup, and the `/feed` first-load JS budget (§8.5) is unchanged.
 - **Cached forever:** a Story never gets a second Summary row (unique `storyId`). The summary is deleted only when the Story is purged.
 - **Clusters** (with F2.1 on): the comment count for auto eligibility is summed over all members. A clustered story's summary is looked up across all its members, newest first. Only when no member has one is a new summary generated, from all members' inputs, and stored on the representative. The same lookup serves `GET /stories/:id/summary`, `POST` (cached → 200) and the summary panel on any member's page.
 
@@ -406,6 +412,8 @@ Acceptance criteria:
 - **AC-2.3.5** LLM output that fails schema validation is retried once, then the request returns 502 `GENERATION_FAILED`, and nothing is cached.
 - **AC-2.3.6** Summary text is rendered as plain text (no HTML or Markdown injection) and labelled "AI-generated · based on N comments".
 - **AC-2.3.7** A prompt-injection fixture (a comment containing "ignore previous instructions…") yields output that still validates against the schema and contains no instructions from the fixture (snapshot test with a recorded response).
+- **AC-2.3.8** Given a primary story in the Top window without a summary, with ≥ 10 comments or first seen ≥ 2 h ago, and with model input beyond its title, then the next ingestion run's auto step summarises it, unless `AUTO_SUMMARIES_PER_DAY`, the `summary_auto` or global cap, or the run's limits stop the step first. A title-only story is never sent to the model.
+- **AC-2.3.9** Given a story or its cluster has a summary, then every `StoryCard` the API returns for it carries `summaryLine` equal to that summary's `tldr[0]`, and the card renders it under the title as plain text clamped to 2 lines. Given no summary, `summaryLine` is `null` and the card shows no line.
 
 #### F2.4 GitHub source
 - Call: `GET /search/repositories?q=created:>{today-7d} stars:>50&sort=stars&order=desc&per_page=30` with `GITHUB_TOKEN`, making at most 2 calls per run.
@@ -424,7 +432,7 @@ Acceptance criteria:
 
 ### 3.3 Phase 3 — V3: A2UI research copilot, Tech Radar and knowledge workspace
 
-**Goal:** showcase frontend architecture at its highest level: generative UI composed from native design-system components, data visualisation, and rich client state, still at under $2/month.
+**Goal:** showcase frontend architecture at its highest level: generative UI composed from native design-system components, data visualisation, and rich client state, still at under $10/month.
 
 **In scope**
 | ID | Feature |
@@ -479,7 +487,7 @@ Retrieval: the tag path is `tagStory(question)`. The FTS path matches a story th
 | O2 | Buy the domain (`devbrief.dev` is a placeholder) and update `APP_URL`, the OAuth callbacks and the OG metadata. | User | Before the public launch of Phase 1 |
 | O3 | The GitHub "trending" proxy (new repos by stars) is not true star velocity. Decide whether daily star snapshots are worth it. | PM | Phase 2 review |
 | O4 | **Resolved 2026-11-20.** `@a2ui/react` and `@a2ui/web_core` are pinned to exactly 0.15.0, which speaks A2UI v1.0 on React 19, Next 16 and the workspace's Zod 3.25. The renderer is client-only by necessity, not by choice: importing `@a2ui/react` on the server throws (§6.4.3). Its lazy chunk is ≈ 89 KB gzip. The findings are in `DECISIONS.md`. | Eng | Done 2026-11-20 |
-| O5 | **Monthly LLM budget.** With the cluster cap, the per-feature caps add up to $0.075/day once the copilot ships, while the global cap stays at $0.064/day to keep the < $2.00/month promise (§8.1). On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot then serves its example-briefing fallback. A budget of $2.50/month would allow a $0.08/day global cap. | User | Before Phase 3 |
+| O5 | **Resolved 2026-11-21.** The monthly LLM budget target is $10.00 (§1.6), up from $2.00, so the auto step can summarise every new story (F2.3). The global cap is $0.32/day (31 × $0.32 = $9.92), above the $0.285/day the feature caps add up to with the copilot (§8.1). The owner's monthly API credits cover it; they expire at month end, and when they run out calls stop and nothing is charged. | User | Done 2026-11-21 |
 
 ---
 
@@ -1220,6 +1228,7 @@ export const StoryCardSchema = z.object({
     sources: z.array(SourceRefSchema),
   }).nullable().optional(),
   hasSummary: z.boolean().optional(),      // P2 (additive)
+  summaryLine: z.string().max(220).nullable().optional(), // P2 (additive): the summary's tldr[0] (F2.3 card line), null without one
 });
 
 export const StoryDetailSchema = StoryCardSchema.extend({
@@ -1275,7 +1284,7 @@ Test-only route: `POST /api/auth/test/sign-in` creates a session for a fixture u
 ### 6.3 REST endpoints — Phase 2 (additive)
 | # | Method | Path | Auth | Query / Body | 2xx response | Notes |
 |---|---|---|---|---|---|---|
-| 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster` and `hasSummary` | |
+| 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster`, `hasSummary` and `summaryLine` | |
 | 16 | GET | `/api/v1/clusters/:id` | public | none | 200 `ClusterDetailSchema` `{ id, representative: StoryCard, members: StoryCard[], sourceKinds, summary: StorySummary \| null }` | `members` excludes the representative. `summary` is the cluster's (F2.3 Clusters). 404 `NOT_FOUND`, or `FEATURE_DISABLED` with the flag off |
 | 17 | GET | `/api/v1/stories/:id/summary` | public | none | 200 `StorySummarySchema` | 404 `NOT_FOUND` if none yet |
 | 18 | POST | `/api/v1/stories/:id/summary` | optional | `{ deviceId: uuid }` (guests) | 200 (cached) or 201 (generated) `StorySummarySchema` | 429 `QUOTA_EXCEEDED`, 503 `SPEND_CAP_REACHED`, 502 `GENERATION_FAILED` |
@@ -1757,28 +1766,29 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 
 | Feature | Input tokens (max) | Output tokens (max) | Worst-case cost per call | Volume cap | Worst-case per day | Worst case per 31-day month |
 |---|---|---|---|---|---|---|
-| Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | 20/day | $0.0150 | $0.465 |
+| Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | every new story: `AUTO_SUMMARIES_PER_DAY = 400`; the cap pays for 300/day at worst case | $0.2250 | $6.975 |
 | On-demand summaries (P2) | 4,000 | 700 | $0.00075 | 15 new/day globally (cache hits free) | $0.01125 | $0.349 |
 | Clustering decisions (P2) | 1,000 (system + schema 280 + 6 stories × 120) | 50 | 1,000×$0.10/1M + 50×$0.50/1M = **$0.000125** | ≤ 1 per new story with candidates; the cap allows 160/day at worst case, ≈ 265/day at the expected $0.000075 | $0.0200 | $0.620 |
 | Copilot (P3) | 6,000 (fixed ≈ 1,728: system ≈ 375 + plan schema ≈ 1,353; plus ≈ 277 per story × 15 stories; total ≤ 6,000) | 1,500 | 6,000×$0.10/1M + 1,500×$0.50/1M = **$0.00135** | 20 fresh questions/day globally (cache/fallback free) | $0.0270 | $0.837 |
 | Example briefings (P3) | 6,000 | 1,500 | $0.00135 | 3, manual, rare | n/a | ≈ $0.004 |
-| **Total** | | | | | **$0.07325** | **≈ $2.27**, above $2.00, so the global cap below is the binding stop |
+| **Total** | | | | | **$0.28325** | **≈ $8.79**, under $10.00; the global cap below is the backstop |
 
 **Hard caps (config, `apps/api/src/modules/llm/budget.ts`, overridable by env)**
 | Cap | Value |
 |---|---|
-| `LLM_CAP_SUMMARY_AUTO_USD_DAY` | 0.015 |
+| `LLM_CAP_SUMMARY_AUTO_USD_DAY` | 0.225: 300 worst-case summaries (300 × $0.00075), or ≈ 550 at the measured settled cost of $0.000409 a summary |
 | `LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY` | 0.012 |
 | `LLM_CAP_CLUSTER_USD_DAY` | 0.020: 160 worst-case decisions ($0.02 / $0.000125), or ≈ 265 at the expected settled cost of $0.000075 a call; the pre-filter must keep its expected spend ≥ 30% under the cap |
 | `LLM_CAP_COPILOT_USD_DAY` | 0.028 |
-| `LLM_CAP_GLOBAL_USD_DAY` | **0.064**, the binding stop: 31 × $0.064 = **$1.984 < $2.00** |
+| `LLM_CAP_GLOBAL_USD_DAY` | **0.32**, the backstop: 31 × $0.32 = **$9.92 < $10.00** |
 | `LLM_PRICE_INPUT_PER_MTOK` / `LLM_PRICE_OUTPUT_PER_MTOK` | 0.10 / 0.50 |
 
 - **Enforcement:** before each call, a transaction sums `reservedUsd` for the day and feature. If `spent + worstCase > cap`, it refuses; otherwise it inserts a `reserved` row. After the call, the row is settled with the actual `costUsd`. Failed calls settle at their actual usage. This holds even under concurrency because it is serialised by a per-day advisory lock.
-- **Cap arithmetic:** in Phase 2, the per-feature caps add up to $0.015 + $0.012 + $0.020 = $0.047/day, under the $0.064 global cap, so the global cap never starves a Phase 2 feature. With the copilot (Phase 3), they add up to $0.075/day. On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot falls back to its example briefing. A $0.08 global cap would allow 31 × $0.08 = $2.48 per month, which breaks the §1.6 target (open item O5).
+- **Cap arithmetic:** in Phase 2, the per-feature caps add up to $0.225 + $0.012 + $0.020 = $0.257/day. With the copilot (Phase 3), they add up to $0.285/day. Both are under the $0.32 global cap, so no feature starves another: the global cap stops a day only when a feature cap was overridden too high by env. 31 × $0.285 = $8.84 a month at worst case, plus the rare example briefings, stays under the $10.00 target (§1.6, O5).
+- **Volume behind the auto-summary cap:** 200–400 new stories a day (§5.3), about 300 on a typical day. At the worst case, 300 × $0.00075 = $0.225/day, which is the cap. Like the cluster cap, it limits settled spend: each call reserves its worst case and settles at its actual usage. One real summary (an HN story with 185 comments) settled at $0.000409 on 2026-11-21, so a 400-story day costs about 400 × $0.000409 = $0.164 and fits; most stories have fewer comments and cost less. On a day when the cap runs out first, the remaining stories stay candidates for the next day (F2.3).
 - **Volume behind the cluster cap:** 200–400 new stories a day (§5.3). The pre-filter's floor sends only stories with a plausible duplicate to the model, about 30–45% of them at a production-sized window of about 1,200 stories. The cap limits settled spend: each call reserves its worst case, then settles at its actual usage, so only the day's last reservation needs the worst-case room. The expected settled cost is about 650 input tokens and under 20 output tokens: 650 × $0.10/1M + 20 × $0.50/1M = $0.000075 a call. Settling uses the provider's reported `usage`, not the ledger's estimate (which over-counts and is only the basis of the reservation); the 650 comes from that estimate on the recorded stories, so it errs high. This per-call cost is unverified until #82 records real usage. About 176 calls on a 400-story day then cost about $0.0132, which leaves 34% headroom under the cap. When the cap runs out late in a day, the remaining stories stay single, which is the Phase 1 behaviour.
-- **Expected real spend** is well below the cap, at about $0.80–1.20 per month: actual outputs are around 350–900 tokens for summaries and about 15 tokens for a clustering decision. About 176 clustering decisions a day at the expected $0.000075 each cost about $0.013/day (≈ $0.40/month). Copilot traffic is low, and caching takes effect.
-- **Backstop:** a monthly spend limit is also set in the provider console (operations runbook).
+- **Expected real spend** is well below the caps, at about $4–5 per month: about 300 auto summaries a day at the measured $0.000409 cost about $0.12/day (≈ $3.80/month), and about 176 clustering decisions a day at the expected $0.000075 each cost about $0.013/day (≈ $0.40/month). On-demand summaries are rare once every story has one, copilot traffic is low, and caching takes effect.
+- **Backstop:** the production key belongs to its own Anthropic Console workspace, `devbrief`, which has a monthly spend limit of $10 (operations runbook). The key is long-lived, with a reminder to rotate it. It is never exported in a shell profile, where other tools on the same machine, Claude Code among them, would bill their calls to it.
 - **Cost levers:** summaries are cached forever. Identical copilot questions are cached for 24 h. Landing examples are pre-generated. The no-coverage path makes no LLM call. Optional LLM tagging (F2.7) piggybacks on the summary call at zero extra calls. Clustering makes no call for a story without candidates and never re-decides a story. There are no embeddings. Provider prompt caching for the static system prompt is an extra saving and is not counted above.
 - **Copilot quotas:** guests get 3 per day per (IP hash, device id), with an IP backstop of 10 per day. Signed-in users get 20 per day. All are counted in `RateLimitCounter`, keyed by UTC day. When the global cap is hit, the copilot serves the example-briefing fallback.
 
