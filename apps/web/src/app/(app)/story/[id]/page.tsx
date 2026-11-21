@@ -14,6 +14,8 @@ type StoryPageProps = {
   searchParams: Promise<{ summarize?: string }>;
 };
 
+const SUMMARY_SOURCE_KINDS = new Set<string>(['hn', 'devto']);
+
 // Shared by the metadata and the page, so one request serves both.
 const loadStory = cache(async (id: string) => {
   try {
@@ -34,9 +36,13 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
   const story = await loadStory((await params).id);
   if (!story) notFound();
   const autoStart = (await searchParams).summarize === '1';
-  // A cluster summary draws on every member, so it names every member's sources.
+  // A cluster summary draws on every member, so it names every member's sources; only HN and Dev.to feed a summary (hasSummaryInput).
   const sourceNames = [
-    ...new Set((story.cluster?.sources ?? story.sources).map((source) => source.name)),
+    ...new Set(
+      (story.cluster?.sources ?? story.sources)
+        .filter((source) => SUMMARY_SOURCE_KINDS.has(source.kind))
+        .map((source) => source.name),
+    ),
   ];
 
   return (

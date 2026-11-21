@@ -663,7 +663,9 @@ describe('summary quotation check', () => {
     expect(response.status).toBe(201);
     expect(StorySummarySchema.parse(response.body).tldr).toEqual(MODEL_OUTPUT.tldr);
     expect(model.doGenerateCalls).toHaveLength(2);
-    const rows = await prisma.llmUsage.findMany({ orderBy: { createdAt: 'asc' } });
+    const rows = await prisma.llmUsage.findMany({
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
     expect(rows.map((row) => row.status)).toEqual(['failed', 'settled']);
     expect(rows.every((row) => row.refId === target.id)).toBe(true);
     const stored = await prisma.summary.findUniqueOrThrow({ where: { storyId: target.id } });

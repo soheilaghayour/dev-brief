@@ -171,8 +171,8 @@ describe('the v2 system prompt', () => {
   it('AC-2.3.10 is version 2 and tells the model to paraphrase and never quote', async () => {
     expect(PROMPT_VERSION).toBe(2);
     await expect(SYSTEM_PROMPT).toMatchFileSnapshot('./__snapshots__/storySummary.v2.system.txt');
-    expect(SYSTEM_PROMPT).toContain('own words');
-    expect(SYSTEM_PROMPT).toContain('no quotation marks');
+    expect(SYSTEM_PROMPT).toContain('never copy 8 or more words in a row');
+    expect(SYSTEM_PROMPT).toContain('No quotation marks');
   });
 });
 
@@ -197,6 +197,14 @@ describe('prompt injection', () => {
       expect(recordingViolations(recording)).not.toEqual([]);
     },
   );
+
+  it('AC-2.3.7 flags a recording whose requestHash answers another prompt', () => {
+    const stale = { ...recording, requestHash: 'not-the-hash-of-this-prompt' };
+
+    expect(recordingViolations(stale)).toContain(
+      'the recording answers another prompt: record it again',
+    );
+  });
 
   it('AC-2.3.7 keeps the injected comment inside its own source block of the prompt', async () => {
     await expect(prompt).toMatchFileSnapshot(

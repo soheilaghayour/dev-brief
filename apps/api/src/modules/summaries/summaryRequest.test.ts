@@ -73,4 +73,48 @@ describe('summaryRequest', () => {
     expect(request.schema.safeParse(restatesText).success).toBe(false);
     expect(request.schema.safeParse(restatesComment).success).toBe(false);
   });
+
+  it('AC-2.3.10 compares against the text the prompt carries, not its unseen tail', () => {
+    const tailOnly = 'tail words one two three four five six seven eight';
+    const text = `${'filler '.repeat(8_000)}${tailOnly}`;
+    const request = summaryRequest({ title: 'Title', text, threads: [] });
+    const copiesTail = { ...clean, tldr: [`They wrote ${tailOnly} again`, ...clean.tldr.slice(1)] };
+    const head = 'filler '.repeat(8);
+    const copiesHead = { ...clean, tldr: [`They wrote ${head}again`, ...clean.tldr.slice(1)] };
+
+    expect(request.prompt).not.toContain('tail words');
+    expect(request.schema.safeParse(copiesTail).success).toBe(true);
+    expect(request.schema.safeParse(copiesHead).success).toBe(false);
+  });
+
+  it('AC-2.3.10 allows a first point that restates the title the text begins with', () => {
+    const title = 'Designated initializers give C callers named arguments without new syntax';
+    const request = summaryRequest({ title, text: `${title}. More follows.`, threads: [] });
+
+    const restated = { ...clean, tldr: [title, ...clean.tldr.slice(1)] };
+
+    expect(request.schema.safeParse(restated).success).toBe(true);
+  });
+
+  it('AC-2.3.10 keeps sources separate: a run never spans the text and a comment', () => {
+    const request = summaryRequest({
+      title: 'T',
+      text: 'alpha beta gamma delta',
+      threads: [[{ text: 'epsilon zeta eta theta', children: [] }]],
+    });
+    const spanning = {
+      ...clean,
+      tldr: ['alpha beta gamma delta epsilon zeta eta theta', ...clean.tldr.slice(1)],
+    };
+
+    expect(request.schema.safeParse(spanning).success).toBe(true);
+  });
+
+  it('AC-2.3.10 checks a 2 MB text in well under 50 ms', () => {
+    const text = 'lorem ipsum dolor sit amet '.repeat(80_000);
+    const started = performance.now();
+    summaryRequest({ title: 'T', text, threads: [] }).schema.safeParse(clean);
+
+    expect(performance.now() - started).toBeLessThan(50);
+  });
 });

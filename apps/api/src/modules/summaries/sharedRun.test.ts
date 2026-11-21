@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { longestSharedRun, normalisedWords, SUMMARY_MAX_SHARED_WORDS } from './sharedRun.js';
+import { sharedRunFinder, normalisedWords, SUMMARY_MAX_SHARED_WORDS } from './sharedRun.js';
+
+const longestSharedRun = (output: string, sources: readonly string[], title = '') =>
+  sharedRunFinder(sources, title)(output);
 
 const SOURCE = 'one two three four five six seven eight nine ten eleven twelve';
 
@@ -13,7 +16,31 @@ describe('normalisedWords', () => {
       'really',
     ]);
     expect(normalisedWords('Amiga’s "tag list"')).toEqual(['amigas', 'tag', 'list']);
-    expect(normalisedWords('Node.js/Deno v1.2.3')).toEqual(['node', 'js', 'deno', 'v1', '2', '3']);
+    expect(normalisedWords('Amiga‘s ʼtag` list')).toEqual(['amigas', 'tag', 'list']);
+  });
+
+  it('joins . _ / @ and - between letters or digits into one token, but splits them at a word edge', () => {
+    expect(normalisedWords('Next.js 16.0.1 on 2026-11-21')).toEqual([
+      'nextjs',
+      '1601',
+      'on',
+      '20261121',
+    ]);
+    expect(normalisedWords('a_b/c@d-e')).toEqual(['abcde']);
+    expect(normalisedWords('end. -- start - (x)')).toEqual(['end', 'start', 'x']);
+  });
+
+  it('applies NFKC, drops invisible characters and lowercases İ without splitting it', () => {
+    expect(normalisedWords('ﬁne ＡＢＣ')).toEqual(['fine', 'abc']);
+    expect(normalisedWords('co\u00ADoper\u200Bate zero\u200Dwidth')).toEqual([
+      'cooperate',
+      'zerowidth',
+    ]);
+    expect(normalisedWords('İstanbul')).toEqual(['istanbul']);
+  });
+
+  it('leaves a run of CJK characters as one token', () => {
+    expect(normalisedWords('日本語のテキスト です')).toEqual(['日本語のテキスト', 'です']);
   });
 
   it('keeps letters and digits of any script', () => {
@@ -57,6 +84,29 @@ describe('longestSharedRun', () => {
 
   it('AC-2.3.10 counts a repeated word by position, not as a long run', () => {
     expect(longestSharedRun('one one one one one one one one one', ['one two one one'])).toBe(2);
+  });
+
+  it('AC-2.3.10 lets shared version strings and dotted names count as one word each', () => {
+    expect(longestSharedRun('Next.js 16.0.1 ships today', ['Next.js 16.0.1 ships today'])).toBe(4);
+    const comment = 'TypeScript 5.7.2 and Node.js 22.11.0 now ship together';
+    const output = 'Upgrading to TypeScript 5.7.2 and Node.js 22.11.0 fixed it';
+    expect(longestSharedRun(output, [comment])).toBeLessThanOrEqual(SUMMARY_MAX_SHARED_WORDS);
+    expect(
+      longestSharedRun('released on 2026-11-21 in Berlin', ['released on 2026-11-21 in Berlin']),
+    ).toBe(5);
+  });
+
+  it('AC-2.3.10 still fails a real copied passage of 8 words', () => {
+    const passage = 'the macro trick is clever but it breaks';
+    expect(longestSharedRun(`They say ${passage} often`, [`Intro. ${passage} soon.`])).toBe(8);
+  });
+
+  it('AC-2.3.10 ignores words that restate a title of more than 7 words, and only those', () => {
+    const title = 'Designated initializers give C callers named arguments without new syntax';
+    const source = `${title} and then a few further words follow here`;
+    expect(longestSharedRun(title, [source], title)).toBe(0);
+    expect(longestSharedRun(title, [source])).toBe(10);
+    expect(longestSharedRun(`${title} and then a few further words`, [source], title)).toBe(6);
   });
 
   it('is 0 for no sources, no output or nothing shared', () => {

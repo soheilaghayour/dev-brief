@@ -51,9 +51,24 @@ describe('SummaryPanel', () => {
     expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
     // The arrow is decorative: the accessible name is the text without it.
     link?.querySelector('[aria-hidden]')?.remove();
-    expect(link?.textContent?.trim()).toBe('Read the original on blog.example.com');
+    expect(link?.textContent?.trim()).toBe(
+      'Read the original on blog.example.com (opens in a new tab)',
+    );
+    expect(link?.className).toContain('text-sm');
+    expect(link?.className).toContain('font-medium');
     expect(html).toContain('Source: Hacker News, Dev.to');
     expect(link?.parentElement?.textContent).toContain('AI-generated');
+  });
+
+  it('AC-2.3.11 puts the link in the header, above the TL;DR', () => {
+    const html = renderToStaticMarkup(
+      <SummaryPanel storyId="story-1" summary={SUMMARY} canSummarize origin={ORIGIN} />,
+    );
+    const document = new DOMParser().parseFromString(html, 'text/html');
+    const link = document.querySelector('a');
+    const tldr = document.querySelector('ul');
+
+    expect(link?.compareDocumentPosition(tldr!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it('shows the verdict with pros and cons', () => {

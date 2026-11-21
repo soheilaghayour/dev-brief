@@ -29,9 +29,10 @@ function OriginLink({ origin }: { origin: SummaryOrigin }) {
       href={origin.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-foreground rounded-sm text-xs font-medium underline"
+      className="text-foreground rounded-sm text-sm font-medium underline"
     >
       Read the original on {origin.domain} <span aria-hidden="true">↗</span>
+      <span className="sr-only">(opens in a new tab)</span>
     </a>
   );
 }

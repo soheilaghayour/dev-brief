@@ -102,6 +102,16 @@ describe('SummarizeButton', () => {
     expect(queryClient.getQueryData(['summary', 'story-1'])).toEqual(SUMMARY);
   });
 
+  it('AC-2.3.11 shows the original link and the sources on a fresh summary', async () => {
+    api.summarizeStory.mockResolvedValue(SUMMARY);
+    await render();
+
+    await click();
+
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(ORIGIN.url);
+    expect(container.textContent).toContain('Source: Hacker News');
+  });
+
   it('starts once on its own for ?summarize=1', async () => {
     api.summarizeStory.mockResolvedValue(SUMMARY);
 
