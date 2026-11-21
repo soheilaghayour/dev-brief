@@ -350,7 +350,7 @@ describe('on-demand cluster summaries', () => {
 
   async function boot() {
     const model = mockLanguageModel(async () => {
-      // A pause long enough for a concurrent request to reach the cluster lock.
+      // A pause long enough for concurrent requests to arrive while the first generation is in flight.
       await new Promise((resolve) => setTimeout(resolve, 100));
       return modelReply(MODEL_OUTPUT);
     });
@@ -381,6 +381,22 @@ describe('on-demand cluster summaries', () => {
         { title: 'OD member B', rankScore: 5, items: [{ kind: 'devto', externalId: '5075072' }] },
         { title: 'OD member C', rankScore: 3, items: [{ kind: 'hn', externalId: '888' }] },
       ],
+    });
+
+  let memberCounter = 0;
+  // A cluster of `size` members, each with one HN item of its own.
+  const seedClusterOf = (size: number) =>
+    createSummaryCluster(prisma, {
+      hnSourceId,
+      devtoSourceId,
+      members: Array.from({ length: size }, (_, index) => {
+        memberCounter += 1;
+        return {
+          title: `OD generated ${memberCounter}`,
+          rankScore: size - index,
+          items: [{ kind: 'hn' as const, externalId: String(7_000_000 + memberCounter) }],
+        };
+      }),
     });
 
   it("AC-2.3.1 F2.3 Clusters answers 200 with member B's summary, no LLM call and no fetch, when member A is asked", async () => {
@@ -439,5 +455,38 @@ describe('on-demand cluster summaries', () => {
     // The request that found the summary stored gave its quota slot back.
     const used = await prisma.rateLimitCounter.aggregate({ _sum: { count: true } });
     expect(used._sum.count).toBe(1);
+  });
+
+  it('F2.3 Clusters gives 1 Summary, 1 LLM call, one 201 and four 200s with their quota returned for 5 concurrent POSTs for members of one cluster', async () => {
+    const { ids } = await seedClusterOf(5);
+    const { model } = await boot();
+
+    const responses = await Promise.all(ids.map((id) => post(id)));
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 200, 200, 200, 201]);
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(await prisma.summary.count()).toBe(1);
+    const used = await prisma.rateLimitCounter.aggregate({ _sum: { count: true } });
+    expect(used._sum.count).toBe(1);
+  });
+
+  it('F2.3 Clusters finishes 12 concurrent generations for 12 clusters with no error, while feed requests keep answering', async () => {
+    const clusters = [];
+    for (let index = 0; index < 12; index += 1) clusters.push(await seedClusterOf(2));
+    await boot();
+    const started = Date.now();
+
+    const generating = Promise.all(clusters.map(({ ids }) => post(ids[1]!)));
+    // The generations are mid-flight (the model takes 100 ms) when the feed is asked.
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    const feeds = await Promise.all(
+      Array.from({ length: 5 }, () => request(app!.getHttpServer()).get('/api/v1/feed')),
+    );
+    const responses = await generating;
+
+    expect(feeds.map((response) => response.status)).toEqual([200, 200, 200, 200, 200]);
+    expect(responses.map((response) => response.status)).toEqual(Array(12).fill(201));
+    expect(await prisma.summary.count()).toBe(12);
+    expect(Date.now() - started).toBeLessThan(10_000);
   });
 });

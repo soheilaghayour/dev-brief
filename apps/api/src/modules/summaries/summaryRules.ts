@@ -31,28 +31,37 @@ export function storedConsensus(
 
 type CandidateStory = {
   id: string;
+  /** Set with clusters on: a failed try of any member's representative blocks the whole cluster. */
+  clusterId?: string | null;
   /** Every item of the story, or of all members of its cluster. */
   items: readonly { commentsCount: number | null; source?: { kind: string } }[];
 };
 
-/** The ids one run tries, in the given order: discussed enough, not failed earlier today, within `AUTO_ATTEMPTS_PER_RUN` stories and `AUTO_HN_REQUESTS_PER_RUN` HN requests; a story that no longer fits the requests is passed over. */
-export function autoCandidateIds(
+export type AutoCandidate = { id: string; hnRequests: number };
+
+/** The stories worth an auto summary, in the given order: discussed enough and not failed earlier today (`failedToday` holds cluster ids and the ids of single stories). */
+export function autoCandidates(
   stories: readonly CandidateStory[],
   failedToday: ReadonlySet<string>,
-) {
-  const ids: string[] = [];
-  let hnRequests = 0;
-  for (const story of stories) {
-    if (ids.length === AUTO_ATTEMPTS_PER_RUN) break;
-    if (failedToday.has(story.id)) continue;
+): AutoCandidate[] {
+  return stories.flatMap((story) => {
+    if (failedToday.has(story.clusterId ?? story.id)) return [];
     const comments = story.items.reduce((sum, item) => sum + (item.commentsCount ?? 0), 0);
-    if (comments < AUTO_MIN_COMMENTS) continue;
-    const requests = story.items.filter((item) => item.source?.kind === 'hn').length;
-    if (hnRequests + requests > AUTO_HN_REQUESTS_PER_RUN) continue;
-    hnRequests += requests;
-    ids.push(story.id);
-  }
-  return ids;
+    if (comments < AUTO_MIN_COMMENTS) return [];
+    const hnRequests = story.items.filter((item) => item.source?.kind === 'hn').length;
+    return [{ id: story.id, hnRequests }];
+  });
+}
+
+/** Whether a candidate still fits the run: within `AUTO_ATTEMPTS_PER_RUN` tries and `AUTO_HN_REQUESTS_PER_RUN` HN requests. */
+export function fitsRunBudget(
+  candidate: AutoCandidate,
+  used: { attempts: number; hnRequests: number },
+) {
+  return (
+    used.attempts < AUTO_ATTEMPTS_PER_RUN &&
+    used.hnRequests + candidate.hnRequests <= AUTO_HN_REQUESTS_PER_RUN
+  );
 }
 
 /** Whether a failed input fetch concerns only its story (a 404, a malformed payload) or its whole upstream (5xx, 429, timeout, lost connection, the run's budget). */

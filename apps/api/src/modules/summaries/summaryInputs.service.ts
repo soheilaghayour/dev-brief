@@ -55,7 +55,7 @@ export class SummaryInputsService {
     private readonly prisma: PrismaService,
     private readonly http: HttpClient,
     private readonly devto: DevtoClient,
-    @Inject(ENV) private readonly env: Pick<Env, 'FEATURE_CLUSTERS'> = { FEATURE_CLUSTERS: false },
+    @Inject(ENV) private readonly env: Pick<Env, 'FEATURE_CLUSTERS'>,
   ) {}
 
   /** Throws `NOT_FOUND` for an unknown story and `SummaryInputsUnavailableError` when any fetch fails or `signal` aborts. */
@@ -69,8 +69,8 @@ export class SummaryInputsService {
     const items = members.flatMap((member) => member.items);
     const hnItems = items.filter((item) => item.source.kind === 'hn');
     const devtoItems = items.filter((item) => item.source.kind === 'devto');
-    // One article call, for the representative's own Dev.to item: the text is the representative's.
-    const articleItem = representative.items.find((item) => item.source.kind === 'devto');
+    // One article call, whatever the cluster size: the representative's Dev.to item, else the first member's (HN stories have no excerpt).
+    const articleItem = items.find((item) => item.source.kind === 'devto');
     // The first failed fetch cancels the story's others, queued Dev.to requests included: the summary is off either way.
     const storyFetches = new AbortController();
     const fetchSignal = signal
@@ -92,7 +92,7 @@ export class SummaryInputsService {
       return {
         storyId: representative.id,
         title: representative.title,
-        // The representative's best text; when it has none, the first member that has an excerpt.
+        // The article's text; without one, the first excerpt in member order.
         text: articleText || members.find((member) => member.excerpt)?.excerpt || null,
         threads: threads.map(({ comments }) => comments),
       };

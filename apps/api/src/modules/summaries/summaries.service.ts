@@ -13,7 +13,7 @@ import {
   type StorySummaryLlm,
   StorySummaryLlmSchema,
 } from '../llm/prompts/storySummary.v1.js';
-import { lockClusterSummary } from './clusterSummaryLock.js';
+import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { SummaryInputsService } from './summaryInputs.service.js';
 import { summaryRequest } from './summaryRequest.js';
 import { storedConsensus } from './summaryRules.js';
@@ -26,12 +26,12 @@ const FEATURE_BY_TRIGGER = {
   on_demand: 'summary_on_demand',
 } as const satisfies Record<SummaryTrigger, LlmFeature>;
 
-// The lock is held across the upstream fetches and the model call, which outlast Prisma's 5 s default.
-const CLUSTER_LOCK_TRANSACTION = { maxWait: 10_000, timeout: 180_000 };
-
 /** Reads and generates story summaries; a story or cluster is summarised at most once, and a failed generation stores nothing. */
 @Injectable()
 export class SummariesService {
+  // One generation per cluster at a time within this process; across instances the unique `Summary.storyId` decides.
+  private readonly generating = new Map<string, Promise<GenerateResult>>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly inputs: SummaryInputsService,
@@ -52,29 +52,39 @@ export class SummariesService {
     trigger: SummaryTrigger,
     { userId, signal }: { userId?: string; signal?: AbortSignal } = {},
   ): Promise<GenerateResult> {
-    // A cached summary costs no fetch and no LLM call.
-    const existing = await this.find(storyId);
-    if (existing) return { kind: 'cached', summary: existing };
-
-    const clusterId = await this.clusterOf(storyId);
-    if (!clusterId) return this.generateAndStore(storyId, trigger, { userId, signal });
-    // The lock lives in a transaction of its own; the reads and the insert use the pool, so they are committed before the lock is released.
-    return this.prisma.$transaction(async (tx) => {
-      await lockClusterSummary(tx, clusterId);
-      // A request for another member may have stored the cluster's summary while this one waited.
-      const stored = await this.find(storyId);
-      if (stored) return { kind: 'cached' as const, summary: stored };
-      return this.generateAndStore(storyId, trigger, { userId, signal });
-    }, CLUSTER_LOCK_TRANSACTION);
-  }
-
-  private async clusterOf(storyId: string) {
-    if (!this.env.FEATURE_CLUSTERS) return null;
     const story = await this.prisma.story.findUnique({
       where: { id: storyId },
-      select: { clusterId: true },
+      select: { id: true, clusterId: true },
     });
-    return story?.clusterId ?? null;
+    // A cached summary costs no fetch and no LLM call.
+    const existing = story && (await this.findFor(story));
+    if (existing) return { kind: 'cached', summary: existing };
+
+    const clusterId = this.env.FEATURE_CLUSTERS ? story?.clusterId : null;
+    if (!story || !clusterId) return this.generateAndStore(storyId, trigger, { userId, signal });
+
+    const running = this.generating.get(clusterId);
+    if (running) {
+      // Another member's request is generating the cluster's summary; wait for it instead of paying for a second call.
+      const { summary } = await untilAborted(running, signal, storyId);
+      return { kind: 'cached', summary };
+    }
+    const generation = this.generateAsLeader(story, trigger, { userId, signal }).finally(() =>
+      this.generating.delete(clusterId),
+    );
+    this.generating.set(clusterId, generation);
+    return generation;
+  }
+
+  private async generateAsLeader(
+    story: { id: string; clusterId: string | null },
+    trigger: SummaryTrigger,
+    options: { userId?: string; signal?: AbortSignal },
+  ): Promise<GenerateResult> {
+    // A previous leader may have stored the summary after this request's first check and left the map before it looked.
+    const stored = await this.findFor(story);
+    if (stored) return { kind: 'cached', summary: stored };
+    return this.generateAndStore(story.id, trigger, options);
   }
 
   private async generateAndStore(
@@ -102,7 +112,10 @@ export class SummariesService {
       where: { id: storyId },
       select: { id: true, clusterId: true },
     });
-    if (!story) return null;
+    return story && this.findFor(story);
+  }
+
+  private async findFor(story: { id: string; clusterId: string | null }) {
     const row = await findSummary(this.prisma, story, this.env.FEATURE_CLUSTERS);
     return row && toStorySummary(row);
   }
@@ -146,4 +159,20 @@ export class SummariesService {
       return { kind: 'raced', summary: winner };
     }
   }
+}
+
+/** Resolves with `generation`, or rejects as an unreachable upstream when `signal` aborts first. */
+function untilAborted<Result>(
+  generation: Promise<Result>,
+  signal: AbortSignal | undefined,
+  storyId: string,
+) {
+  if (!signal) return generation;
+  return new Promise<Result>((resolve, reject) => {
+    const abort = () =>
+      reject(new SummaryInputsUnavailableError(storyId, 'upstream', { cause: signal.reason }));
+    if (signal.aborted) return abort();
+    signal.addEventListener('abort', abort, { once: true });
+    generation.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
 }

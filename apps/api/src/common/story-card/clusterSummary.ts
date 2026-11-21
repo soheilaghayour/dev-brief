@@ -9,10 +9,7 @@ const NEWEST_FIRST = [
   { id: 'desc' },
 ] satisfies Prisma.SummaryOrderByWithRelationInput[];
 
-/**
- * Where a story's summary lives: on any member of its cluster while clusters are on, otherwise on the story itself.
- * The one rule behind `GET /stories/:id/summary`, story detail, the cluster endpoint and a card's `hasSummary`.
- */
+/** Where a story's summary lives: on any member of its cluster while clusters are on, otherwise on the story itself. */
 export function summaryWhere(story: StoryRef, clustersOn: boolean): Prisma.SummaryWhereInput {
   return clustersOn && story.clusterId
     ? { story: { clusterId: story.clusterId } }
@@ -29,16 +26,6 @@ export function findSummary(
     where: summaryWhere(story, clustersOn),
     orderBy: NEWEST_FIRST,
   });
-}
-
-/** The newest of summaries already loaded, in the order `findSummary` uses. */
-export function newestSummary<Row extends { createdAt: Date; id: string }>(rows: readonly Row[]) {
-  return rows.reduce<Row | null>((newest, row) => {
-    if (!newest) return row;
-    const later =
-      row.createdAt.getTime() - newest.createdAt.getTime() || row.id.localeCompare(newest.id);
-    return later > 0 ? row : newest;
-  }, null);
 }
 
 /** The ids, among `clusterIds`, of clusters where some member has a summary; one query. */

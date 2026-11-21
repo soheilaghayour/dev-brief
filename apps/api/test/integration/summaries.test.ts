@@ -405,7 +405,9 @@ describe('cluster summary generator', () => {
     expect(prompt).toContain('<source id=\\"title\\">\\nRep story');
     expect(prompt).toContain("I always thought Amiga's");
     expect(prompt).toContain('The 3 KB search result versus a 16,000-tool catalogue');
+    // The representative is HN-only, so member B's article is the one article call.
     expect(upstreamRequests.sort()).toEqual([
+      'https://dev.to/api/articles/5075072',
       'https://dev.to/api/comments?a_id=5075072',
       'https://hn.algolia.com/api/v1/items/50544168',
       'https://hn.algolia.com/api/v1/items/777',
@@ -456,6 +458,22 @@ describe('cluster summary generator', () => {
     expect(model.doGenerateCalls).toHaveLength(1);
     expect(await prisma.summary.count()).toBe(1);
     expect(results[0].summary).toEqual(results[1].summary);
+  });
+
+  it("F2.3 Clusters stops waiting for another request's generation when the run's signal aborts", async () => {
+    const { ids } = await seedCluster();
+    const { summaries, model } = await generator(CLUSTERS_ON);
+    const abortion = new AbortController();
+
+    const leader = summaries.generate(ids[1]!, 'on_demand');
+    const waiter = summaries.generate(ids[2]!, 'auto', { signal: abortion.signal });
+    // Let the waiter find the leader's generation in flight.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    abortion.abort(new Error('run budget spent'));
+
+    await expect(waiter).rejects.toBeInstanceOf(SummaryInputsUnavailableError);
+    expect((await leader).kind).toBe('created');
+    expect(model.doGenerateCalls).toHaveLength(1);
   });
 
   it('F2.3 Clusters summarises each story alone with the clusters flag off', async () => {
@@ -556,5 +574,20 @@ describe('cluster summary reads', () => {
     expect(member.status).toBe(404);
     const detail = StoryDetailSchema.parse((await get(flagOff, `/api/v1/stories/${ids[1]}`)).body);
     expect(detail.summary).toBeNull();
+  });
+
+  it("F2.3 Clusters reports a card's hasSummary from its own summary only with the clusters flag off", async () => {
+    // Only the last member holds a summary, so with the flag on every member would say true.
+    const response = await request(flagOff.getHttpServer())
+      .post('/api/v1/stories/lookup')
+      .set('Origin', process.env.APP_URL ?? '')
+      .send({ ids });
+
+    const cards = StoryLookupResponseSchema.parse(response.body).items;
+    expect(cards.map((card) => [card.id, card.hasSummary])).toEqual([
+      [ids[0], false],
+      [ids[1], false],
+      [ids[2], true],
+    ]);
   });
 });

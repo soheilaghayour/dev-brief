@@ -36,7 +36,9 @@ function inputsService(
   };
   // random = 0 makes retry backoff instant.
   const http = new HttpClient(recordingFetch, () => 0);
-  return new SummaryInputsService(prisma, http, new DevtoClient(http, pause, () => clock.now));
+  return new SummaryInputsService(prisma, http, new DevtoClient(http, pause, () => clock.now), {
+    FEATURE_CLUSTERS: false,
+  });
 }
 
 describe('collectSummaryInputs', () => {
@@ -245,6 +247,7 @@ describe('collectSummaryInputs of a cluster', () => {
     expect(inputs).toMatchObject({ storyId: 'rep', title: 'Title rep' });
     expect(inputs.threads).toHaveLength(4);
     expect(requests.sort()).toEqual([
+      'https://dev.to/api/articles/5071647',
       'https://dev.to/api/comments?a_id=5071647',
       'https://dev.to/api/comments?a_id=5075072',
       'https://hn.algolia.com/api/v1/items/111',
@@ -252,15 +255,29 @@ describe('collectSummaryInputs of a cluster', () => {
     ]);
   });
 
-  it("F2.3 Clusters takes the representative's text, and the first member's excerpt only when it has none", async () => {
-    const { fetch: fixtureFetch } = summaryFixtureFetch({ hnFallbackId: '50544168' });
-    const withText = clusterService(threeMembers(), true, fixtureFetch);
-    expect((await withText.service.collectSummaryInputs('b')).text).toBe('Representative excerpt');
+  it("F2.3 Clusters takes the first Dev.to member's article when the representative has none", async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const { service } = clusterService(threeMembers(), true, fixtureFetch);
 
-    const members = threeMembers();
-    members[0] = member('rep', [item('hn', '50544168')]);
-    const withoutText = clusterService(members, true, fixtureFetch);
-    expect((await withoutText.service.collectSummaryInputs('rep')).text).toBe('B excerpt');
+    const inputs = await service.collectSummaryInputs('rep');
+
+    expect(inputs.text).toMatch(/^Hey everyone!/);
+    expect(requests.filter((url) => url.includes('/articles/'))).toEqual([
+      'https://dev.to/api/articles/5071647',
+    ]);
+  });
+
+  it('F2.3 Clusters falls back to the first excerpt in member order when no member is on Dev.to', async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const members = [
+      member('rep', [item('hn', '50544168')]),
+      member('b', [item('hn', '111')], { excerpt: 'B excerpt' }),
+      member('c', [item('rss', 'abc')], { excerpt: 'C excerpt' }),
+    ];
+    const { service } = clusterService(members, true, fixtureFetch);
+
+    expect((await service.collectSummaryInputs('c')).text).toBe('B excerpt');
+    expect(requests.filter((url) => url.includes('/articles/'))).toEqual([]);
   });
 
   it("F2.3 Clusters fetches one article, the representative's own Dev.to item", async () => {
