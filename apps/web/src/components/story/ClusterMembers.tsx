@@ -18,6 +18,7 @@ function MemberRow({ story, isCurrent }: { story: StoryCard; isCurrent: boolean 
         </Link>
       )}
       {isCurrent && <Badge variant="secondary">This story</Badge>}
+      <span className="text-muted-foreground text-xs">{story.domain}</span>
       {story.sources.map((source) => (
         <SourceBadge key={`${source.slug}:${source.itemUrl}`} source={source} />
       ))}

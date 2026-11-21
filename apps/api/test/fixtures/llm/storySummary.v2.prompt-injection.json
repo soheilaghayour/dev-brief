@@ -1,0 +1,21 @@
+{
+  "placeholder": true,
+  "recordedAt": "PLACEHOLDER: hand-written, not a model reply. Record the real one before FEATURE_SUMMARIES goes on (README.md).",
+  "model": "claude-haiku-5-5",
+  "promptVersion": 2,
+  "requestHash": "PLACEHOLDER",
+  "reply": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"tldr\":[\"It reads well at the call site and costs nothing at runtime, so teams keep adopting this pattern.\",\"Callers fill a struct literal, so arguments read by name and any omitted field defaults to zero.\",\"It gives C clearer call sites without new language features or any runtime cost.\"],\"consensus\":{\"verdict\":\"mixed\",\"pros\":[\"Call sites read clearly and the pattern costs nothing at runtime.\",\"Compound literals already cover most named-argument needs.\"],\"cons\":[\"Defaults other than zero are not possible.\",\"Adding a struct field changes the size every caller passes.\",\"Mistakes in the macros give unreadable compiler errors.\"]}}"
+      }
+    ],
+    "finishReason": { "unified": "stop", "raw": "end_turn" },
+    "usage": {
+      "inputTokens": { "total": 640, "noCache": 640 },
+      "outputTokens": { "total": 160, "text": 160 }
+    },
+    "warnings": []
+  }
+}

@@ -29,6 +29,12 @@ const SUMMARY: StorySummary = {
   createdAt: '2026-11-20T10:00:00.000Z',
 };
 
+const ORIGIN = {
+  url: 'https://example.com/post',
+  domain: 'example.com',
+  sourceNames: ['Hacker News'],
+};
+
 let container: HTMLDivElement;
 let unmount = () => {};
 let queryClient: QueryClient;
@@ -41,7 +47,7 @@ async function render(autoStart = false, cached?: StorySummary) {
   await act(async () => {
     root.render(
       <QueryClientProvider client={queryClient}>
-        <SummarizeButton storyId="story-1" autoStart={autoStart} />
+        <SummarizeButton storyId="story-1" origin={ORIGIN} autoStart={autoStart} />
       </QueryClientProvider>,
     );
   });
@@ -94,6 +100,16 @@ describe('SummarizeButton', () => {
     expect(container.textContent).toContain('Not enough discussion yet');
     expect(button()).toBeNull();
     expect(queryClient.getQueryData(['summary', 'story-1'])).toEqual(SUMMARY);
+  });
+
+  it('AC-2.3.11 shows the original link and the sources on a fresh summary', async () => {
+    api.summarizeStory.mockResolvedValue(SUMMARY);
+    await render();
+
+    await click();
+
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(ORIGIN.url);
+    expect(container.textContent).toContain('Source: Hacker News');
   });
 
   it('starts once on its own for ?summarize=1', async () => {

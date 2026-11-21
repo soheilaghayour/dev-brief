@@ -11,8 +11,7 @@ import {
   MAX_OUTPUT_TOKENS,
   PROMPT_VERSION,
   type StorySummaryLlm,
-  StorySummaryLlmSchema,
-} from '../llm/prompts/storySummary.v1.js';
+} from '../llm/prompts/storySummary.v2.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { SummaryInputsService } from './summaryInputs.service.js';
 import { summaryRequest } from './summaryRequest.js';
@@ -93,10 +92,10 @@ export class SummariesService {
     { userId, signal }: { userId?: string; signal?: AbortSignal },
   ): Promise<GenerateResult> {
     const inputs = await this.inputs.collectSummaryInputs(storyId, { signal });
-    const { system, prompt, basedOnComments } = summaryRequest(inputs);
+    const { system, prompt, basedOnComments, schema } = summaryRequest(inputs);
     const result = await this.llm.generateStructured({
       feature: FEATURE_BY_TRIGGER[trigger],
-      schema: StorySummaryLlmSchema,
+      schema,
       system,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,

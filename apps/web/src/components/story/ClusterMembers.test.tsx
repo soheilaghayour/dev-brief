@@ -54,6 +54,12 @@ describe('ClusterMembers', () => {
     expect(html).toContain('This story');
   });
 
+  it('AC-2.3.11 shows the domain of each member', () => {
+    const html = renderToStaticMarkup(<ClusterMembers story={detail(DEVTO, [HN])} />);
+
+    expect(html.match(/example\.com<\/span>/g)).toHaveLength(2);
+  });
+
   it('renders nothing for a story that is not clustered', () => {
     expect(renderToStaticMarkup(<ClusterMembers story={detail(HN)} />)).toBe('');
   });

@@ -31,7 +31,7 @@ export type ClusterPair = {
 };
 
 /** The recorded replies, one per pair that passes the pre-filter, keyed by pair id, each with the hash of the request it answers. */
-export type PairsRecording = Omit<LlmRecording, 'reply'> & {
+export type PairsRecording = Omit<LlmRecording, 'reply' | 'requestHash'> & {
   replies: Record<string, LlmRecording['reply']>;
   requestHashes: Record<string, string>;
 };
