@@ -11,7 +11,6 @@ import {
 } from '@/lib/guest/guestMerge';
 import { removeGuestPreferences } from '@/lib/guest/guestPreferences';
 import { latestGuestData, removeGuestSaves, setGuestPendingMerge } from '@/lib/guest/guestSaves';
-import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
 import { releaseMergedCollectionsAndNotes } from '@/lib/guest/releaseMerged';
 import { notify } from '@/lib/toast/notify';
 
@@ -31,10 +30,10 @@ function isRejected(error: unknown) {
 /** Sends the device's saves, preferences, collections and notes to the account, and lets go of each part once the server confirms the request that carried it. */
 export async function mergeGuestData(queryClient: QueryClient) {
   const { saves, prefs, collections, notes, pendingMerge } = await latestGuestData();
-  // The web sends only what its flags let a user create.
+  // Saves and prefs are always sent; only collections and notes depend on the collections flag.
   const plan = planGuestMerge({
     saves,
-    prefs: isFeatureEnabled('preferences') ? prefs : EMPTY_PREFERENCES,
+    prefs,
     collections: isFeatureEnabled('collections') ? collections : [],
     notes: isFeatureEnabled('collections') ? notes : {},
     pendingMerge,

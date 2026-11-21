@@ -2,19 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { Features } from '@/config/features';
 import { Kbd } from '@/components/ui/Kbd';
 import { cn } from '@/lib/cn';
 import { displayKeys } from '@/lib/hotkeys/shortcutRules';
-import { getNavItems } from './navItems';
+import { NAV_ITEMS } from './navItems';
 
-export function NavLinks({ features }: { features?: Features }) {
+export function NavLinks() {
   const pathname = usePathname();
-  const items = getNavItems(features);
 
   return (
     <nav aria-label="Main" className="grid gap-0.5">
-      {items.map((item) => {
+      {NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link

@@ -3,7 +3,6 @@ import type { SourceRef } from '@devbrief/shared';
 import type { ComponentType } from 'react';
 import type { PreferenceMenuProps } from '@/components/preferences/PreferenceMenu';
 import { Badge } from '@/components/ui/Badge';
-import { isFeatureEnabled } from '@/config/features';
 import { formatCompactCount } from '@/lib/format/formatCompactCount';
 import type { PreferenceKind } from '@/lib/guest/preferences';
 
@@ -77,7 +76,7 @@ function SourceBadgeContent({ source }: Pick<SourceBadgeProps, 'source'>) {
 /** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
 export function SourceBadge({ source, menu: Menu }: SourceBadgeProps) {
   const content = <SourceBadgeContent source={source} />;
-  if (!Menu || !isFeatureEnabled('preferences')) {
+  if (!Menu) {
     return (
       <Badge variant="outline" data-source-kind={source.kind}>
         {content}

@@ -6,9 +6,9 @@ import { ClusterSourceLine } from './ClusterSourceLine';
 import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
 
-const features = vi.hoisted(() => ({ preferences: false, summaries: false, clusters: false }));
+const features = vi.hoisted(() => ({ summaries: false, clusters: false }));
 vi.mock('@/config/features', () => ({
-  isFeatureEnabled: (flag: 'preferences' | 'summaries' | 'clusters') => features[flag],
+  isFeatureEnabled: (flag: 'summaries' | 'clusters') => features[flag],
 }));
 
 const STORY: StoryCardData = {
@@ -150,25 +150,15 @@ describe('StoryCard', () => {
   const menuTriggers = (html: string) => html.match(/<button[^>]*aria-haspopup="menu"/g) ?? [];
 
   it('AC-2.5.1 makes every tag and source badge a menu trigger where preferences apply', () => {
-    features.preferences = true;
     const html = render(STORY, { preferenceMenu: PreferenceMenu });
     // Two tags and three sources; the badges keep their data attributes on the trigger.
     expect(menuTriggers(html)).toHaveLength(5);
     expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-tag="typescript"/);
     expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-source-kind="hn"/);
-    features.preferences = false;
   });
 
   it('keeps the badges plain without a preferenceMenu, as in the landing preview', () => {
-    features.preferences = true;
     expect(menuTriggers(render(STORY))).toHaveLength(0);
-    features.preferences = false;
-  });
-
-  it('AC-2.5.1 renders the badges without a menu while the preferences flag is off', () => {
-    const html = render(STORY, { preferenceMenu: PreferenceMenu });
-    expect(menuTriggers(html)).toHaveLength(0);
-    expect(html.match(/data-tag=/g)).toHaveLength(2);
   });
 
   it('links a TL;DR badge to the story page when the story has a summary', () => {

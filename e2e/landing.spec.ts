@@ -93,7 +93,7 @@ test('AC-L6 renders dark on first paint for a dark OS and keeps a chosen theme a
   expect(await firstPaintClass()).not.toContain('dark');
 });
 
-test('AC-L7 the nav and the bento tile show Radar while its phase flag is on', async ({ page }) => {
+test('AC-L7 the nav and the bento tile show Radar', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveText([
     'Feed',

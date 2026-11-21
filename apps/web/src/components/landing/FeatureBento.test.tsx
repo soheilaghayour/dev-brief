@@ -4,24 +4,26 @@ import { FEATURES } from '@/config/features';
 import { FeatureBento, visibleTiles } from './FeatureBento';
 
 describe('FeatureBento', () => {
-  it('AC-L7 renders exactly the three Phase 1 tiles and no Phase 3 text', () => {
-    expect(visibleTiles()).toHaveLength(3);
+  it('AC-L7 renders the Radar tile with every flag off, and no copilot text', () => {
+    expect(
+      visibleTiles({
+        ...FEATURES,
+        clusters: false,
+        summaries: false,
+        copilot: false,
+        collections: false,
+      }),
+    ).toHaveLength(4);
     const html = renderToStaticMarkup(<FeatureBento />);
     for (const title of [
       'Keyboard-first feed',
       'Guest mode, real features',
       'Fair cross-source ranking',
+      'Tech Radar',
     ]) {
       expect(html).toContain(title);
     }
     expect(html).not.toContain('Ask the News');
-  });
-
-  it('AC-L7 shows the Tech Radar tile only while the radar flag is on', () => {
-    const titles = (radar: boolean) =>
-      visibleTiles({ ...FEATURES, radar }).map((tile) => tile.title);
-    expect(titles(false)).not.toContain('Tech Radar');
-    expect(titles(true)).toContain('Tech Radar');
   });
 
   it('AC-L7 shows the Collections & notes tile only while the collections flag is on', () => {

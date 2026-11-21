@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Needs FEATURE_RADAR (API) and NEXT_PUBLIC_FEATURE_RADAR (web) on, as in CI's e2e run, and the TagDailyStat rows of `pnpm --filter api db:seed:e2e`.
+// Radar has no flag; this needs the TagDailyStat rows of `pnpm --filter api db:seed:e2e`.
 
 const moversTable = (page: Page) => page.getByRole('table', { name: 'Top movers' });
 const chartTable = (page: Page) => page.getByRole('table', { name: /^Velocity/ });

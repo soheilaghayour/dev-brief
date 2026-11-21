@@ -9,15 +9,13 @@ const EnvSchema = z.object({
   INTERNAL_API_TOKEN: z.string().min(16),
 });
 
-const PhaseFlagSchema = z.enum(['true', 'false']).optional();
+const FeatureFlagSchema = z.enum(['true', 'false']).default('false');
 
 const FeatureFlagEnvSchema = z.object({
-  NEXT_PUBLIC_FEATURE_SUMMARIES: PhaseFlagSchema,
-  NEXT_PUBLIC_FEATURE_PREFERENCES: PhaseFlagSchema,
-  NEXT_PUBLIC_FEATURE_CLUSTERS: PhaseFlagSchema,
-  NEXT_PUBLIC_FEATURE_COPILOT: PhaseFlagSchema,
-  NEXT_PUBLIC_FEATURE_RADAR: PhaseFlagSchema,
-  NEXT_PUBLIC_FEATURE_COLLECTIONS: PhaseFlagSchema,
+  FEATURE_SUMMARIES: FeatureFlagSchema,
+  FEATURE_CLUSTERS: FeatureFlagSchema,
+  FEATURE_COPILOT: FeatureFlagSchema,
+  FEATURE_COLLECTIONS: FeatureFlagSchema,
 });
 
 /** The public origin for absolute URLs in metadata; `next build` runs without environment, so a missing APP_URL gives the local default. */
@@ -31,9 +29,9 @@ export function loadEnv(source: EnvSource = process.env) {
   return parseEnv(EnvSchema, source);
 }
 
-/** Fails the build on a `NEXT_PUBLIC_FEATURE_*` value other than `'true'` or `'false'`. */
+/** Fails the build on a `FEATURE_*` value other than `'true'` or `'false'`; returns every flag, unset ones as `'false'`, for next.config's `env`. */
 export function validateFeatureFlagEnv(source: EnvSource = process.env) {
-  parseEnv(FeatureFlagEnvSchema, source);
+  return parseEnv(FeatureFlagEnvSchema, source);
 }
 
 function parseEnv<Schema extends z.ZodTypeAny>(

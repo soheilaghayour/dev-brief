@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInThroughTestRoute } from './signIn';
 
-// Needs NEXT_PUBLIC_FEATURE_PREFERENCES and FEATURE_PREFERENCES on, as in CI's e2e build.
+// Preferences have no flag; this needs only the seeded e2e database.
 // The guest store's key (`GUEST_STORAGE_KEY` in apps/web/src/lib/guest/guestStore.ts).
 const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
 

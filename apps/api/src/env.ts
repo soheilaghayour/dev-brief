@@ -46,10 +46,8 @@ const EnvSchema = z
     GITHUB_TOKEN: z.preprocess((value) => value || undefined, z.string().optional()),
     AUTH_TEST_MODE: BooleanFlagSchema,
     FEATURE_SUMMARIES: BooleanFlagSchema,
-    FEATURE_PREFERENCES: BooleanFlagSchema,
     FEATURE_CLUSTERS: BooleanFlagSchema,
     FEATURE_COPILOT: BooleanFlagSchema,
-    FEATURE_RADAR: BooleanFlagSchema,
     FEATURE_COLLECTIONS: BooleanFlagSchema,
     /** Summarises the top stories after each ingestion run; takes effect only with FEATURE_SUMMARIES. */
     AUTO_SUMMARIES: BooleanFlagSchema,

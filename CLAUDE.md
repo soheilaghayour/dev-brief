@@ -11,7 +11,7 @@ the Zod schemas in `packages/shared/src/contracts`.
 
 Every fact lives in one place; every other place links to it, never copies it. Code
 constants have one source (tag slugs in `core/taxonomy.ts`, LLM caps in `llm/budget.ts`,
-phase flags in `config/features.ts`).
+feature flags in `config/features.ts`).
 
 | Place                               | Its one job                                                                                                         |
 | :---------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
@@ -66,7 +66,7 @@ apps/
     src/lib/guest/              # Zustand guest store (persist → localStorage)
     src/lib/hotkeys/            # shortcut registry: feeds both handlers and the help dialog
     src/content/                # landing-fixture.json: landing data when the API is unreachable at first build
-    src/config/                 # features.ts: phase flags
+    src/config/                 # features.ts: feature flags
     scripts/                    # checkBundleBudgets.mjs: the first-load JS gate (PRD §8.5); addCompileHints.mjs: runs after next build
   api/                          # NestJS (Express) + Prisma + scheduled ingestion
     prisma/                     # schema.prisma, migrations/, seed/sources.json
@@ -132,7 +132,7 @@ a category name like `common/` is its specific name.
 - Components reach personal state only through the mode hooks (`useSaves()`; P2/P3: `usePreferences()`, `useCollections()`): they never read storage or branch on auth. The URL (`nuqs`) is the only source of truth for filters.
 - Colors only by role (`bg-background`, `text-muted-foreground`, `border-border`, `bg-accent`); palette values exist only in the shadcn CSS variables: design changes stay one-line.
 - `components/ui/` is the design system: shadcn primitives that know nothing about stories or sources. App components build on it and never use raw form controls (`<input>`, `<button>`, `<textarea>`, `<select>`); labels and fieldsets are structure, not controls. A2UI catalog components are thin adapters over the same app components (`StoryCard`, `TagBadge`, …), not separate UIs.
-- A feature behind an off phase flag is absent from the HTML, and its API routes return 404 `FEATURE_DISABLED`.
+- A feature behind an off feature flag is absent from the HTML, and its API routes return 404 `FEATURE_DISABLED`.
 - A Prisma migration is created only by an issue that declares the schema change, and only one such branch is open at a time: parallel branches can't produce conflicting migration histories.
 - Tests use recorded fixtures: no test makes a live network call and CI never calls the live LLM.
 - Don't abstract until code is duplicated three times, and no wrapper component that only forwards props: wrong abstractions cost more than duplication.

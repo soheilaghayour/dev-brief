@@ -8,6 +8,10 @@ Two apps and one shared package:
 - `apps/api`: NestJS on Express, global prefix `api/v1`.
 - `packages/shared`: Zod contracts and pure core functions used by both apps.
 
+## Feature flags
+
+One env variable per unlaunched feature; see PRD §3.
+
 ## AI pipeline
 
 `apps/api/src/modules/llm/` is the only code that calls a model. Feature modules import `LlmModule` and call `LlmService.generateStructured({ feature, schema, system, prompt, maxOutputTokens })`, which returns the validated object with its token counts and cost, or throws `SpendCapReachedError` (callers answer 503 `SPEND_CAP_REACHED`) or `GenerationFailedError` (502 `GENERATION_FAILED`).

@@ -8,7 +8,7 @@ type BentoTile = {
   text: string;
   visual: ReactNode;
   className?: string;
-  /** The tile exists in the HTML only while this phase flag is on. */
+  /** The tile exists in the HTML only while this feature flag is on. */
   flag?: FeatureFlag;
 };
 
@@ -152,7 +152,6 @@ const TILES: readonly BentoTile[] = [
     text: 'See which technologies are gaining or losing attention over 7 and 30 days, by stories or engagement.',
     visual: <RadarVisual />,
     className: 'md:col-span-3',
-    flag: 'radar',
   },
   {
     title: 'Collections & notes',
@@ -163,7 +162,7 @@ const TILES: readonly BentoTile[] = [
   },
 ];
 
-/** The bento tiles whose phase flag is on. */
+/** The bento tiles whose feature flag is on. */
 export function visibleTiles(features?: Features) {
   return TILES.filter((tile) => !tile.flag || isFeatureEnabled(tile.flag, features));
 }

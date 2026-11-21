@@ -4,7 +4,7 @@ import { ENV, type Env } from '../env/env.module.js';
 import { ApiException } from '../errors/api.exception.js';
 import { FEATURE_ENV, RequiresFeature } from './requiresFeature.decorator.js';
 
-/** Answers 404 FEATURE_DISABLED on a `@RequiresFeature` route whose phase flag is off. */
+/** Answers 404 FEATURE_DISABLED on a `@RequiresFeature` route whose feature flag is off. */
 @Injectable()
 export class FeatureGuard implements CanActivate {
   constructor(

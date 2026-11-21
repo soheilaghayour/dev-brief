@@ -24,7 +24,6 @@ const stat = (daysAgo: number, tag: string, storyCount: number, engagementSum = 
 describe('GET /api/v1/radar', () => {
   const prisma = useTestDatabase();
   let on: INestApplication;
-  let off: INestApplication;
 
   const get = (path: string, app = on) => request(app.getHttpServer()).get(`/api/v1/radar${path}`);
 
@@ -53,14 +52,13 @@ describe('GET /api/v1/radar', () => {
       tags: ['python'],
       itemSourceIds: [hn.id],
     });
-    on = await createTestApp([], { FEATURE_RADAR: 'true' });
-    off = await createTestApp([], { FEATURE_RADAR: 'false' });
+    // Radar has no flag.
+    on = await createTestApp();
   });
 
   afterAll(async () => {
     vi.useRealTimers();
     await on.close();
-    await off.close();
   });
 
   it('AC-3.3.2 parses with RadarSchema, carries the public cache headers and defaults to 7d stories', async () => {
@@ -137,10 +135,10 @@ describe('GET /api/v1/radar', () => {
     expect((await get('?tags=react,vue,rust,go,python')).status).toBe(200);
   });
 
-  it('answers 404 FEATURE_DISABLED with the flag off', async () => {
-    const response = await get('', off);
-    expect(response.status).toBe(404);
-    expect(ApiErrorSchema.parse(response.body).error.code).toBe('FEATURE_DISABLED');
+  it('AC-1.7.8 answers GET /radar (radar has no flag)', async () => {
+    const response = await get('');
+    expect(response.status).toBe(200);
+    expect(RadarSchema.parse(response.body)).toMatchObject({ window: '7d' });
   });
 
   it('serves a cached response within the hour and a fresh one after the post-run cache clear', async () => {

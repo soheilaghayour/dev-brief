@@ -36,40 +36,44 @@ describe('loadEnv', () => {
 });
 
 describe('validateFeatureFlagEnv', () => {
-  it("accepts 'true', 'false' or unset for each NEXT_PUBLIC_FEATURE_* flag", () => {
-    expect(() => validateFeatureFlagEnv({})).not.toThrow();
-    expect(() =>
+  it("AC-1.7.8 accepts 'true', 'false' or unset for each FEATURE_* flag and returns all four", () => {
+    expect(validateFeatureFlagEnv({})).toEqual({
+      FEATURE_SUMMARIES: 'false',
+      FEATURE_CLUSTERS: 'false',
+      FEATURE_COPILOT: 'false',
+      FEATURE_COLLECTIONS: 'false',
+    });
+    expect(
       validateFeatureFlagEnv({
-        NEXT_PUBLIC_FEATURE_SUMMARIES: 'true',
-        NEXT_PUBLIC_FEATURE_PREFERENCES: 'false',
-        NEXT_PUBLIC_FEATURE_CLUSTERS: 'true',
-        NEXT_PUBLIC_FEATURE_COPILOT: 'true',
-        NEXT_PUBLIC_FEATURE_RADAR: 'false',
-        NEXT_PUBLIC_FEATURE_COLLECTIONS: 'true',
+        FEATURE_SUMMARIES: 'true',
+        FEATURE_CLUSTERS: 'false',
+        FEATURE_COPILOT: 'true',
+        FEATURE_COLLECTIONS: 'true',
       }),
-    ).not.toThrow();
+    ).toEqual({
+      FEATURE_SUMMARIES: 'true',
+      FEATURE_CLUSTERS: 'false',
+      FEATURE_COPILOT: 'true',
+      FEATURE_COLLECTIONS: 'true',
+    });
   });
 
-  it('rejects the values the API also rejects instead of reading them as off', () => {
-    for (const value of ['TRUE', '1', 'yes', '']) {
-      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_SUMMARIES: value })).toThrow(
-        /NEXT_PUBLIC_FEATURE_SUMMARIES/,
-      );
-      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_PREFERENCES: value })).toThrow(
-        /NEXT_PUBLIC_FEATURE_PREFERENCES/,
-      );
-      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_CLUSTERS: value })).toThrow(
-        /NEXT_PUBLIC_FEATURE_CLUSTERS/,
-      );
-      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_COPILOT: value })).toThrow(
-        /NEXT_PUBLIC_FEATURE_COPILOT/,
-      );
-      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_RADAR: value })).toThrow(
-        /NEXT_PUBLIC_FEATURE_RADAR/,
-      );
-      expect(() => validateFeatureFlagEnv({ NEXT_PUBLIC_FEATURE_COLLECTIONS: value })).toThrow(
-        /NEXT_PUBLIC_FEATURE_COLLECTIONS/,
-      );
+  it('AC-1.7.8 rejects FEATURE_COPILOT=yes and the other values the API also rejects', () => {
+    for (const value of ['yes', 'TRUE', '1', '']) {
+      for (const flag of [
+        'FEATURE_SUMMARIES',
+        'FEATURE_CLUSTERS',
+        'FEATURE_COPILOT',
+        'FEATURE_COLLECTIONS',
+      ]) {
+        expect(() => validateFeatureFlagEnv({ [flag]: value })).toThrow(new RegExp(flag));
+      }
     }
+  });
+
+  it('AC-1.7.8 leaves out radar and preferences, which have no flag', () => {
+    const flags = validateFeatureFlagEnv({ FEATURE_RADAR: 'yes', FEATURE_PREFERENCES: 'yes' });
+    expect(Object.keys(flags)).not.toContain('FEATURE_RADAR');
+    expect(Object.keys(flags)).not.toContain('FEATURE_PREFERENCES');
   });
 });

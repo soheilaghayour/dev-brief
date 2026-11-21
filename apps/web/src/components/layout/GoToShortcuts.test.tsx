@@ -4,13 +4,13 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { GoToShortcuts } from './GoToShortcuts';
-import { getGoToTargets, getNavItems } from './navItems';
+import { getGoToTargets, NAV_ITEMS } from './navItems';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
-const flags = vi.hoisted(() => ({ radar: false, collections: true }));
+const flags = vi.hoisted(() => ({ collections: true }));
 vi.mock('@/config/features', () => ({
   isFeatureEnabled: (name: keyof typeof flags, features?: typeof flags) =>
     (features ?? flags)[name],
@@ -69,6 +69,6 @@ describe('g c', () => {
       href: '/saved',
       shortcut: { description: 'Go to Collections' },
     });
-    expect(getNavItems().map(({ href }) => href)).toEqual(['/feed', '/saved']);
+    expect(NAV_ITEMS.map(({ href }) => href)).toEqual(['/feed', '/saved', '/radar']);
   });
 });

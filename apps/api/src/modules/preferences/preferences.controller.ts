@@ -2,7 +2,6 @@ import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
 import { PreferencesSchema } from '@devbrief/shared';
 import type { Preferences } from '@devbrief/shared';
 import { PrivateNoStore } from '../../common/cache/cacheControl.js';
-import { RequiresFeature } from '../../common/features/requiresFeature.decorator.js';
 import {
   MUTATIONS_LIMIT,
   UserRateLimit,
@@ -15,7 +14,6 @@ import { CurrentUser } from '../auth/currentUser.decorator.js';
 import { PreferencesService } from './preferences.service.js';
 
 @Controller('me/preferences')
-@RequiresFeature('preferences')
 @UseGuards(AuthGuard, UserRateLimitGuard)
 export class PreferencesController {
   constructor(private readonly preferences: PreferencesService) {}
