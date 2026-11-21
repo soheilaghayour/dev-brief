@@ -12,11 +12,15 @@ export const EMPTY_PREFERENCES: Preferences = {
   mute: { tags: [], sources: [] },
 };
 
+/** A guest's Markdown note on a saved story; an empty note is never stored. */
+export type GuestNote = { note: string; updatedAt: string };
+
 export type GuestData = {
   deviceId: string;
   saves: Save[];
   prefs: Preferences;
   collections: GuestCollection[];
+  notes: Record<string, GuestNote>;
   hintDismissed: boolean;
   /** Set while a guest → account merge has started and not yet been confirmed by the server. */
   pendingMerge: boolean;
@@ -30,6 +34,7 @@ export function createGuestData(deviceId: string): GuestData {
     saves: [],
     prefs: EMPTY_PREFERENCES,
     collections: [],
+    notes: {},
     hintDismissed: false,
     pendingMerge: false,
   };
@@ -59,6 +64,28 @@ export function withoutStoriesInCollections(
   storyIds: readonly string[],
 ): GuestCollection[] {
   return collections.map((collection) => withoutStories(collection, storyIds));
+}
+
+/** Stores the note, or removes it for `null`; a story that isn't saved can't hold a note. */
+export function withNote(
+  notes: Readonly<Record<string, GuestNote>>,
+  saves: readonly Save[],
+  storyId: string,
+  note: string | null,
+  now: Date,
+) {
+  if (!saves.some((save) => save.storyId === storyId)) return notes;
+  if (note === null) return withoutNotes(notes, [storyId]);
+  return { ...notes, [storyId]: { note, updatedAt: now.toISOString() } };
+}
+
+export function withoutNotes(
+  notes: Readonly<Record<string, GuestNote>>,
+  storyIds: readonly string[],
+) {
+  const kept = { ...notes };
+  for (const storyId of storyIds) delete kept[storyId];
+  return kept;
 }
 
 /** Newest-saved first; the stored order is insertion order. */
