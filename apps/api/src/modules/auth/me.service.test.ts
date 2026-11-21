@@ -5,7 +5,11 @@ import { MeService } from './me.service.js';
 
 describe('MeService.deleteMe', () => {
   it('keeps the session when deleting the user fails, so the user is never half signed out', async () => {
-    const prisma = { user: { delete: vi.fn().mockRejectedValue(new Error('db down')) } };
+    const prisma = {
+      copilotQuery: { deleteMany: vi.fn() },
+      user: { delete: vi.fn() },
+      $transaction: vi.fn().mockRejectedValue(new Error('db down')),
+    };
     const auth = { api: { signOut: vi.fn() } };
     const service = new MeService(prisma as unknown as PrismaService, auth as unknown as Auth);
 

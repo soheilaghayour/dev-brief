@@ -14,9 +14,9 @@ export const FEATURES: Features = {
   clusters: process.env.NEXT_PUBLIC_FEATURE_CLUSTERS === 'true',
   summaries: process.env.NEXT_PUBLIC_FEATURE_SUMMARIES === 'true',
   preferences: process.env.NEXT_PUBLIC_FEATURE_PREFERENCES === 'true',
-  copilot: false,
-  radar: false,
-  collections: false,
+  copilot: process.env.NEXT_PUBLIC_FEATURE_COPILOT === 'true',
+  radar: process.env.NEXT_PUBLIC_FEATURE_RADAR === 'true',
+  collections: process.env.NEXT_PUBLIC_FEATURE_COLLECTIONS === 'true',
 };
 
 export function isFeatureEnabled(flag: FeatureFlag, features: Features = FEATURES) {

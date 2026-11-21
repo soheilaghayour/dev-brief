@@ -48,6 +48,9 @@ describe('loadEnv', () => {
       FEATURE_SUMMARIES: false,
       FEATURE_PREFERENCES: false,
       FEATURE_CLUSTERS: false,
+      FEATURE_COPILOT: false,
+      FEATURE_RADAR: false,
+      FEATURE_COLLECTIONS: false,
     });
     expect(loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ...SUMMARIES_SECRETS })).toMatchObject(
       {
@@ -126,10 +129,10 @@ describe('loadEnv', () => {
     expect(loadEnv({ ...validEnv, NODE_ENV: 'production' }).AUTH_TEST_MODE).toBe(false);
   });
 
-  it('requires ANTHROPIC_API_KEY only when an LLM feature flag (FEATURE_SUMMARIES or FEATURE_CLUSTERS) is on', () => {
+  it('requires ANTHROPIC_API_KEY only when an LLM feature flag (FEATURE_SUMMARIES, FEATURE_CLUSTERS or FEATURE_COPILOT) is on', () => {
     expect(loadEnv(validEnv).ANTHROPIC_API_KEY).toBeUndefined();
     expect(() => loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true' })).toThrow(
-      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true, FEATURE_CLUSTERS=true or FEATURE_COPILOT=true/,
     );
     expect(() =>
       loadEnv({ ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: '' }),
@@ -141,7 +144,7 @@ describe('loadEnv', () => {
 
   it('requires ANTHROPIC_API_KEY when FEATURE_CLUSTERS=true', () => {
     expect(() => loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'true' })).toThrow(
-      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true/,
+      /ANTHROPIC_API_KEY: is required when FEATURE_SUMMARIES=true, FEATURE_CLUSTERS=true or FEATURE_COPILOT=true/,
     );
     expect(
       loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'true', ANTHROPIC_API_KEY: 'test-key' })
@@ -150,11 +153,32 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...validEnv, FEATURE_CLUSTERS: 'on' })).toThrow(/FEATURE_CLUSTERS/);
   });
 
-  it('requires IP_HASH_SECRET of 32+ characters only when FEATURE_SUMMARIES=true', () => {
+  it('refuses to boot with FEATURE_COPILOT=true and no ANTHROPIC_API_KEY or no IP_HASH_SECRET', () => {
+    const copilotOn = { ...validEnv, FEATURE_COPILOT: 'true' };
+    expect(() =>
+      loadEnv({ ...copilotOn, IP_HASH_SECRET: SUMMARIES_SECRETS.IP_HASH_SECRET }),
+    ).toThrow(/ANTHROPIC_API_KEY: is required when .*FEATURE_COPILOT=true/);
+    expect(() => loadEnv({ ...copilotOn, ANTHROPIC_API_KEY: 'test-key' })).toThrow(
+      /IP_HASH_SECRET: is required when .*FEATURE_COPILOT=true/,
+    );
+    expect(loadEnv({ ...copilotOn, ...SUMMARIES_SECRETS }).FEATURE_COPILOT).toBe(true);
+  });
+
+  it('reads FEATURE_RADAR and FEATURE_COLLECTIONS without any LLM secret and rejects other values', () => {
+    expect(loadEnv({ ...validEnv, FEATURE_RADAR: 'true' }).FEATURE_RADAR).toBe(true);
+    expect(loadEnv({ ...validEnv, FEATURE_COLLECTIONS: 'true' }).FEATURE_COLLECTIONS).toBe(true);
+    expect(() => loadEnv({ ...validEnv, FEATURE_COPILOT: 'on' })).toThrow(/FEATURE_COPILOT/);
+    expect(() => loadEnv({ ...validEnv, FEATURE_RADAR: '1' })).toThrow(/FEATURE_RADAR/);
+    expect(() => loadEnv({ ...validEnv, FEATURE_COLLECTIONS: 'TRUE' })).toThrow(
+      /FEATURE_COLLECTIONS/,
+    );
+  });
+
+  it('requires IP_HASH_SECRET of 32+ characters when summaries or copilot is on', () => {
     const summariesOn = { ...validEnv, FEATURE_SUMMARIES: 'true', ANTHROPIC_API_KEY: 'test-key' };
     expect(loadEnv(validEnv).IP_HASH_SECRET).toBeUndefined();
     expect(() => loadEnv(summariesOn)).toThrow(
-      /IP_HASH_SECRET: is required when FEATURE_SUMMARIES=true/,
+      /IP_HASH_SECRET: is required when FEATURE_SUMMARIES=true or FEATURE_COPILOT=true/,
     );
     expect(() => loadEnv({ ...summariesOn, IP_HASH_SECRET: 'too-short' })).toThrow(
       /IP_HASH_SECRET/,

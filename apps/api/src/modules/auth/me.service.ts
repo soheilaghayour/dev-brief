@@ -31,10 +31,14 @@ export class MeService {
     };
   }
 
-  /** Deletes the user (sessions, accounts and saves cascade) and returns the headers that expire the session cookie. */
+  /** Deletes the user (sessions, accounts, saves and collections cascade) with their copilot questions, and returns the headers that expire the session cookie. */
   async deleteMe(userId: string, requestHeaders: IncomingHttpHeaders) {
     // Deleting first, so a failed delete leaves the user signed in; signOut tolerates the session the cascade removed.
-    await this.prisma.user.delete({ where: { id: userId } });
+    // CopilotQuery has no relation to User, so the cascade can't reach it.
+    await this.prisma.$transaction([
+      this.prisma.copilotQuery.deleteMany({ where: { userId } }),
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
     const { headers } = await this.auth.api.signOut({
       headers: fromNodeHeaders(requestHeaders),
       returnHeaders: true,

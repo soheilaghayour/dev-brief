@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateTagStats,
   clusterNeedsUpkeep,
+  copilotQueryCutoff,
   ingestionRunCutoff,
   llmUsageCutoff,
   planClusterUpkeep,
@@ -21,6 +22,23 @@ describe('dailyRules', () => {
     const now = new Date('2026-06-01T00:00:00Z');
     expect(storyCutoff(now).toISOString()).toBe('2026-03-03T00:00:00.000Z');
     expect(ingestionRunCutoff(now).toISOString()).toBe('2026-05-02T00:00:00.000Z');
+  });
+
+  it('keeps CopilotQuery 30 days before now, whatever the local zone', () => {
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'Europe/Berlin';
+    try {
+      expect(copilotQueryCutoff(new Date('2026-06-01T23:30:00Z')).toISOString()).toBe(
+        '2026-05-02T23:30:00.000Z',
+      );
+      // Berlin's clocks went forward on 2026-03-29; a retention day is still 24 hours.
+      expect(copilotQueryCutoff(new Date('2026-04-10T12:00:00Z')).toISOString()).toBe(
+        '2026-03-11T12:00:00.000Z',
+      );
+    } finally {
+      if (previousZone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousZone;
+    }
   });
 
   it('keeps LlmUsage 400 and RateLimitCounter 7 whole UTC days before today', () => {

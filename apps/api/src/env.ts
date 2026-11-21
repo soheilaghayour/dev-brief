@@ -48,6 +48,9 @@ const EnvSchema = z
     FEATURE_SUMMARIES: BooleanFlagSchema,
     FEATURE_PREFERENCES: BooleanFlagSchema,
     FEATURE_CLUSTERS: BooleanFlagSchema,
+    FEATURE_COPILOT: BooleanFlagSchema,
+    FEATURE_RADAR: BooleanFlagSchema,
+    FEATURE_COLLECTIONS: BooleanFlagSchema,
     /** Summarises the top stories after each ingestion run; takes effect only with FEATURE_SUMMARIES. */
     AUTO_SUMMARIES: BooleanFlagSchema,
     /** Clusters the new stories after each ingestion run; takes effect only with FEATURE_CLUSTERS. */
@@ -67,16 +70,22 @@ const EnvSchema = z
   // Dev and CI run without a key; an enabled LLM feature must not boot without one.
   .refine(
     (env) =>
-      !(env.FEATURE_SUMMARIES || env.FEATURE_CLUSTERS) || env.ANTHROPIC_API_KEY !== undefined,
+      !(env.FEATURE_SUMMARIES || env.FEATURE_CLUSTERS || env.FEATURE_COPILOT) ||
+      env.ANTHROPIC_API_KEY !== undefined,
     {
       path: ['ANTHROPIC_API_KEY'],
-      message: 'is required when FEATURE_SUMMARIES=true or FEATURE_CLUSTERS=true',
+      message:
+        'is required when FEATURE_SUMMARIES=true, FEATURE_CLUSTERS=true or FEATURE_COPILOT=true',
     },
   )
-  .refine((env) => !env.FEATURE_SUMMARIES || env.IP_HASH_SECRET !== undefined, {
-    path: ['IP_HASH_SECRET'],
-    message: 'is required when FEATURE_SUMMARIES=true',
-  })
+  // Summary and copilot quotas both hash client IPs.
+  .refine(
+    (env) => !(env.FEATURE_SUMMARIES || env.FEATURE_COPILOT) || env.IP_HASH_SECRET !== undefined,
+    {
+      path: ['IP_HASH_SECRET'],
+      message: 'is required when FEATURE_SUMMARIES=true or FEATURE_COPILOT=true',
+    },
+  )
   // Fails closed on the public origin too: an unset NODE_ENV defaults to development.
   .refine(
     (env) =>
