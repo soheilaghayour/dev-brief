@@ -36,7 +36,9 @@ function inputsService(
   };
   // random = 0 makes retry backoff instant.
   const http = new HttpClient(recordingFetch, () => 0);
-  return new SummaryInputsService(prisma, http, new DevtoClient(http, pause, () => clock.now));
+  return new SummaryInputsService(prisma, http, new DevtoClient(http, pause, () => clock.now), {
+    FEATURE_CLUSTERS: false,
+  });
 }
 
 describe('collectSummaryInputs', () => {
@@ -190,5 +192,120 @@ describe('collectSummaryInputs', () => {
     await expect(service.collectSummaryInputs('missing')).rejects.toMatchObject({
       code: 'NOT_FOUND',
     } satisfies Partial<ApiException>);
+  });
+});
+
+describe('collectSummaryInputs of a cluster', () => {
+  type Member = StoryRow & { id: string };
+  const member = (id: string, items: Member['items'], more: Partial<Member> = {}): Member => ({
+    id,
+    title: `Title ${id}`,
+    excerpt: null,
+    items,
+    ...more,
+  });
+
+  // The story read finds the asked member; the cluster read lists every member, already in rankScore order.
+  function clusterService(members: Member[], flag: boolean, fetchStub: typeof fetch) {
+    const clusterRead = { calls: 0 };
+    const prisma = {
+      story: {
+        findUnique: async ({ where }: { where: { id: string } }) => {
+          const found = members.find((row) => row.id === where.id);
+          return found && { ...found, clusterId: 'cluster-1' };
+        },
+      },
+      cluster: {
+        findUnique: async () => {
+          clusterRead.calls += 1;
+          return { representativeStoryId: members[0]!.id, stories: members };
+        },
+      },
+    } as unknown as PrismaService;
+    const http = new HttpClient(fetchStub, () => 0);
+    const service = new SummaryInputsService(
+      prisma,
+      http,
+      new DevtoClient(http, async () => undefined),
+      { FEATURE_CLUSTERS: flag },
+    );
+    return { service, clusterRead };
+  }
+
+  const threeMembers = () => [
+    member('rep', [item('hn', '50544168')], { excerpt: 'Representative excerpt' }),
+    member('b', [item('devto', '5071647'), item('hn', '111')], { excerpt: 'B excerpt' }),
+    member('c', [item('devto', '5075072')]),
+  ];
+
+  it('F2.3 Clusters reads the HN and Dev.to threads of all 3 members, under the representative', async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const { service } = clusterService(threeMembers(), true, fixtureFetch);
+
+    const inputs = await service.collectSummaryInputs('c');
+
+    expect(inputs).toMatchObject({ storyId: 'rep', title: 'Title rep' });
+    expect(inputs.threads).toHaveLength(4);
+    expect(requests.sort()).toEqual([
+      'https://dev.to/api/articles/5071647',
+      'https://dev.to/api/comments?a_id=5071647',
+      'https://dev.to/api/comments?a_id=5075072',
+      'https://hn.algolia.com/api/v1/items/111',
+      'https://hn.algolia.com/api/v1/items/50544168',
+    ]);
+  });
+
+  it("F2.3 Clusters takes the first Dev.to member's article when the representative has none", async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const { service } = clusterService(threeMembers(), true, fixtureFetch);
+
+    const inputs = await service.collectSummaryInputs('rep');
+
+    expect(inputs.text).toMatch(/^Hey everyone!/);
+    expect(requests.filter((url) => url.includes('/articles/'))).toEqual([
+      'https://dev.to/api/articles/5071647',
+    ]);
+  });
+
+  it('F2.3 Clusters falls back to the first excerpt in member order when no member is on Dev.to', async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const members = [
+      member('rep', [item('hn', '50544168')]),
+      member('b', [item('hn', '111')], { excerpt: 'B excerpt' }),
+      member('c', [item('rss', 'abc')], { excerpt: 'C excerpt' }),
+    ];
+    const { service } = clusterService(members, true, fixtureFetch);
+
+    expect((await service.collectSummaryInputs('c')).text).toBe('B excerpt');
+    expect(requests.filter((url) => url.includes('/articles/'))).toEqual([]);
+  });
+
+  it("F2.3 Clusters fetches one article, the representative's own Dev.to item", async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const members = threeMembers();
+    members[0] = member('rep', [item('devto', '5075072')]);
+    const { service } = clusterService(members, true, fixtureFetch);
+
+    await service.collectSummaryInputs('rep');
+
+    expect(requests.filter((url) => url.includes('/articles/'))).toEqual([
+      'https://dev.to/api/articles/5075072',
+    ]);
+  });
+
+  it('F2.3 Clusters uses only the story itself with the clusters flag off', async () => {
+    const { fetch: fixtureFetch, requests } = summaryFixtureFetch({ hnFallbackId: '50544168' });
+    const { service, clusterRead } = clusterService(threeMembers(), false, fixtureFetch);
+
+    const inputs = await service.collectSummaryInputs('b');
+
+    expect(inputs).toMatchObject({ storyId: 'b', title: 'Title b' });
+    expect(inputs.text).toMatch(/^Hey everyone!/);
+    expect(clusterRead.calls).toBe(0);
+    expect(requests.sort()).toEqual([
+      'https://dev.to/api/articles/5071647',
+      'https://dev.to/api/comments?a_id=5071647',
+      'https://hn.algolia.com/api/v1/items/111',
+    ]);
   });
 });

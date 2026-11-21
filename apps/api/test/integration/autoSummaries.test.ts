@@ -1,15 +1,17 @@
 import type { TestingModule } from '@nestjs/testing';
 import { APICallError } from 'ai';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
 import { LLM_CAP_SUMMARY_AUTO_USD_DAY, utcDay } from '../../src/modules/llm/budget.js';
 import { AutoSummariesStep } from '../../src/modules/summaries/autoSummaries.step.js';
+import { SummariesService } from '../../src/modules/summaries/summaries.service.js';
 import { AUTO_ATTEMPTS_PER_RUN } from '../../src/modules/summaries/summaryRules.js';
 import { modelReply } from '../mockLanguageModel.js';
 import { createSource } from './seedStories.js';
 import {
   createDiscussedStory,
   createSummariesModule,
+  createSummaryCluster,
   promptOf,
   SUMMARIES_ON,
 } from './summariesTestModule.js';
@@ -288,5 +290,201 @@ describe('auto summaries', () => {
     }
     moduleRef = undefined;
     expect(await prisma.summary.count()).toBe(0);
+  });
+});
+
+describe('auto summaries of clusters', () => {
+  const prisma = useTestDatabase();
+  const CLUSTERS_AUTO_ON = { ...AUTO_ON, FEATURE_CLUSTERS: 'true' };
+  let hnSourceId = '';
+  let devtoSourceId = '';
+  let moduleRef: TestingModule | undefined;
+  let externalIds = 100_000;
+
+  beforeAll(async () => {
+    hnSourceId = (await createSource(prisma, 'hn-cluster-auto', 'hn')).id;
+    devtoSourceId = (await createSource(prisma, 'devto-cluster-auto', 'devto')).id;
+  });
+
+  beforeEach(async () => {
+    await prisma.llmUsage.deleteMany();
+    await prisma.story.deleteMany();
+    await prisma.cluster.deleteMany();
+  });
+
+  afterEach(() => moduleRef?.close());
+
+  async function run(env: Record<string, string> = CLUSTERS_AUTO_ON) {
+    const created = await createSummariesModule({
+      doGenerate: async () => modelReply(MODEL_OUTPUT),
+      env,
+      fixtures: { hnFallbackId: '50544168' },
+    });
+    moduleRef = created.moduleRef;
+    await created.moduleRef.get(IngestionService).run();
+    return created;
+  }
+
+  const titlesSummarised = (model: { doGenerateCalls: Parameters<typeof promptOf>[0][] }) =>
+    model.doGenerateCalls.map((call) => /Story (\w+)/.exec(promptOf(call))?.[1]);
+
+  const failedAutoCall = (refId: string) =>
+    prisma.llmUsage.create({
+      data: {
+        day: utcDay(new Date()),
+        feature: 'summary_auto',
+        model: 'claude-haiku-5-5',
+        status: 'failed',
+        reservedUsd: '0.00075',
+        costUsd: '0',
+        refId,
+      },
+    });
+
+  const hnItem = (commentsCount: number) => ({
+    kind: 'hn' as const,
+    externalId: String((externalIds += 1)),
+    commentsCount,
+  });
+
+  const cluster = (
+    names: string[],
+    commentsPerMember: number,
+    { itemsPerMember = 1, topRank = 5 } = {},
+  ) =>
+    createSummaryCluster(prisma, {
+      hnSourceId,
+      devtoSourceId,
+      members: names.map((name, index) => ({
+        title: `Story ${name}`,
+        rankScore: topRank - index,
+        items: Array.from({ length: itemsPerMember }, () => hnItem(commentsPerMember)),
+      })),
+    });
+
+  it('F2.3 Clusters never makes a non-primary story an auto candidate, even when it ranks first', async () => {
+    // The representative is too old for the Top window, so it is skipped; the member ranks first and holds the comments.
+    const { ids } = await cluster(['rep', 'member'], 0);
+    await prisma.sourceItem.updateMany({
+      where: { storyId: ids[1]! },
+      data: { commentsCount: 46 },
+    });
+    await prisma.story.update({ where: { id: ids[1]! }, data: { rankScore: 99 } });
+    await prisma.story.update({
+      where: { id: ids[0]! },
+      data: { publishedAt: new Date(Date.now() - 60 * DAY_MS) },
+    });
+
+    const { model } = await run();
+
+    expect(model.doGenerateCalls).toHaveLength(0);
+    expect(await prisma.summary.count()).toBe(0);
+  });
+
+  it('F2.3 Clusters skips a cluster whose representative failed today, even after the representative moved', async () => {
+    const { ids, clusterId } = await cluster(['oldrep', 'newrep'], 30);
+    await failedAutoCall(ids[0]!);
+    await prisma.cluster.update({
+      where: { id: clusterId },
+      data: { representativeStoryId: ids[1]! },
+    });
+    await prisma.story.update({ where: { id: ids[0]! }, data: { isPrimary: false } });
+    await prisma.story.update({ where: { id: ids[1]! }, data: { isPrimary: true } });
+
+    const { model } = await run();
+
+    expect(model.doGenerateCalls).toHaveLength(0);
+  });
+
+  it('F2.3 Clusters gives the HN requests of a candidate found already summarised to the next ones', async () => {
+    // 4 clusters of 8 HN requests each: 3 fit in 25, and 3 more after the first costs none.
+    for (let index = 0; index < 4; index += 1) {
+      await cluster([`g${index}`, `g${index}m`], 20, { itemsPerMember: 4, topRank: 100 - index });
+    }
+    const created = await createSummariesModule({
+      doGenerate: async () => modelReply(MODEL_OUTPUT),
+      env: CLUSTERS_AUTO_ON,
+      fixtures: { hnFallbackId: '50544168' },
+    });
+    moduleRef = created.moduleRef;
+    const summaries = created.moduleRef.get(SummariesService);
+    // Another request stored the first candidate's summary after the step chose its candidates.
+    vi.spyOn(summaries, 'generate').mockImplementationOnce(async (storyId) => ({
+      kind: 'cached',
+      summary: {
+        storyId,
+        tldr: [],
+        consensus: null,
+        model: 'm',
+        createdAt: new Date().toISOString(),
+      },
+    }));
+
+    await created.moduleRef.get(IngestionService).run();
+
+    expect(created.model.doGenerateCalls).toHaveLength(3);
+  });
+
+  it('F2.3 Clusters makes a cluster eligible when its comments reach 10 only summed over its members', async () => {
+    await cluster(['summed', 'summedb', 'summedc'], 4);
+    await cluster(['short', 'shortb'], 4, { topRank: 4 });
+
+    const { model } = await run();
+
+    expect(titlesSummarised(model)).toEqual(['summed']);
+  });
+
+  it('F2.3 Clusters skips a cluster with a summary on any member, and summarises the next story', async () => {
+    const { ids } = await cluster(['covered', 'coveredb'], 30);
+    await createDiscussedStory(prisma, {
+      title: 'Story alone',
+      sourceId: hnSourceId,
+      externalId: String((externalIds += 1)),
+      rankScore: 1,
+    });
+    await prisma.summary.create({
+      data: {
+        storyId: ids[1]!,
+        tldr: MODEL_OUTPUT.tldr,
+        basedOnComments: 12,
+        trigger: 'on_demand',
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: '0.0003',
+      },
+    });
+
+    const { model } = await run();
+
+    expect(titlesSummarised(model)).toEqual(['alone']);
+  });
+
+  it('F2.3 Clusters makes at most 25 HN Algolia requests in a run when candidates hold several HN items each', async () => {
+    // 12 clusters of 2 members x 2 HN items: 4 requests each, so 6 fit in 25.
+    for (let index = 0; index < 12; index += 1) {
+      await cluster([`c${index}`, `c${index}m`], 20, { itemsPerMember: 2, topRank: 100 - index });
+    }
+
+    const { model, upstreamRequests } = await run();
+
+    const algolia = upstreamRequests.filter((url) => url.includes('hn.algolia.com'));
+    expect(algolia).toHaveLength(24);
+    expect(model.doGenerateCalls).toHaveLength(6);
+  });
+
+  it("F2.3 Clusters keeps today's per-story behaviour with the clusters flag off", async () => {
+    // Flag off, every story counts alone: the member qualifies, the representative does not.
+    const { ids } = await cluster(['offrep', 'offmember'], 0);
+    await prisma.sourceItem.updateMany({
+      where: { storyId: ids[1]! },
+      data: { commentsCount: 46 },
+    });
+
+    const { model } = await run(AUTO_ON);
+
+    expect(titlesSummarised(model)).toEqual(['offmember']);
+    expect((await prisma.summary.findMany()).map((row) => row.storyId)).toEqual([ids[1]]);
   });
 });

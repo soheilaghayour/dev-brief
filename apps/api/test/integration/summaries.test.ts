@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import {
   ApiErrorSchema,
+  ClusterDetailSchema,
   FeedPageSchema,
   SavedStoryPageSchema,
   StoryDetailSchema,
@@ -20,6 +21,7 @@ import { createSource } from './seedStories.js';
 import {
   createDiscussedStory,
   createSummariesModule,
+  createSummaryCluster,
   promptOf,
   SUMMARIES_ON,
 } from './summariesTestModule.js';
@@ -343,5 +345,249 @@ describe('summary reads', () => {
     StoryDetailSchema.parse(detail);
     expect(detail).not.toHaveProperty('hasSummary');
     expect(detail).not.toHaveProperty('summary');
+  });
+});
+
+const CLUSTERS_ON = { ...SUMMARIES_ON, FEATURE_CLUSTERS: 'true' };
+const DAY_MS = 86_400_000;
+
+describe('cluster summary generator', () => {
+  const prisma = useTestDatabase();
+  let hnSourceId = '';
+  let devtoSourceId = '';
+  let moduleRef: TestingModule | undefined;
+
+  beforeAll(async () => {
+    hnSourceId = (await createSource(prisma, 'hn-cluster-gen', 'hn')).id;
+    devtoSourceId = (await createSource(prisma, 'devto-cluster-gen', 'devto')).id;
+  });
+
+  beforeEach(async () => {
+    await prisma.llmUsage.deleteMany();
+    await prisma.story.deleteMany();
+    await prisma.cluster.deleteMany();
+  });
+
+  afterEach(() => moduleRef?.close());
+
+  async function generator(env: Record<string, string>) {
+    const created = await createSummariesModule({
+      doGenerate: async () => modelReply(MODEL_OUTPUT),
+      env,
+      fixtures: { hnFallbackId: '50544168' },
+    });
+    moduleRef = created.moduleRef;
+    return { ...created, summaries: created.moduleRef.get(SummariesService) };
+  }
+
+  // The representative has an HN item, B a Dev.to item, C another HN item.
+  const seedCluster = () =>
+    createSummaryCluster(prisma, {
+      hnSourceId,
+      devtoSourceId,
+      members: [
+        { title: 'Rep story', rankScore: 9, items: [{ kind: 'hn', externalId: '50544168' }] },
+        { title: 'Member B', rankScore: 5, items: [{ kind: 'devto', externalId: '5075072' }] },
+        { title: 'Member C', rankScore: 3, items: [{ kind: 'hn', externalId: '777' }] },
+      ],
+    });
+
+  it("F2.3 Clusters builds the summary from all 3 members' HN and Dev.to comments and stores it on the representative", async () => {
+    const { ids } = await seedCluster();
+    const { summaries, model, upstreamRequests } = await generator(CLUSTERS_ON);
+
+    // Asked through a non-representative member.
+    const result = await summaries.generate(ids[2]!, 'on_demand');
+
+    expect(result.kind).toBe('created');
+    expect(result.summary.storyId).toBe(ids[0]);
+    const prompt = promptOf(model.doGenerateCalls[0]!);
+    expect(prompt).toContain('<source id=\\"title\\">\\nRep story');
+    expect(prompt).toContain("I always thought Amiga's");
+    expect(prompt).toContain('The 3 KB search result versus a 16,000-tool catalogue');
+    // The representative is HN-only, so member B's article is the one article call.
+    expect(upstreamRequests.sort()).toEqual([
+      'https://dev.to/api/articles/5075072',
+      'https://dev.to/api/comments?a_id=5075072',
+      'https://hn.algolia.com/api/v1/items/50544168',
+      'https://hn.algolia.com/api/v1/items/777',
+    ]);
+    const rows = await prisma.summary.findMany();
+    expect(rows.map((row) => row.storyId)).toEqual([ids[0]]);
+    expect(await prisma.llmUsage.findMany()).toMatchObject([{ refId: ids[0] }]);
+  });
+
+  it('F2.3 Clusters returns cached with no LLM call and no fetch for every member once any member has a summary', async () => {
+    const { ids } = await seedCluster();
+    await prisma.summary.create({
+      data: {
+        storyId: ids[1]!,
+        tldr: MODEL_OUTPUT.tldr,
+        basedOnComments: 12,
+        trigger: 'auto',
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: '0.0003',
+      },
+    });
+    const { summaries, model, upstreamRequests } = await generator(CLUSTERS_ON);
+
+    for (const id of ids) {
+      const result = await summaries.generate(id, 'on_demand');
+      expect(result.kind).toBe('cached');
+      expect(result.summary.storyId).toBe(ids[1]);
+    }
+
+    expect(model.doGenerateCalls).toHaveLength(0);
+    expect(upstreamRequests).toHaveLength(0);
+    expect(await prisma.summary.count()).toBe(1);
+  });
+
+  it('F2.3 Clusters creates exactly one Summary and one LLM call for two concurrent requests for two members', async () => {
+    const { ids } = await seedCluster();
+    const { summaries, model } = await generator(CLUSTERS_ON);
+
+    const results = await Promise.all([
+      summaries.generate(ids[1]!, 'on_demand'),
+      summaries.generate(ids[2]!, 'on_demand'),
+    ]);
+
+    expect(results.map((result) => result.kind).sort()).toEqual(['cached', 'created']);
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(await prisma.summary.count()).toBe(1);
+    expect(results[0].summary).toEqual(results[1].summary);
+  });
+
+  it("F2.3 Clusters stops waiting for another request's generation when the run's signal aborts", async () => {
+    const { ids } = await seedCluster();
+    const { summaries, model } = await generator(CLUSTERS_ON);
+    const abortion = new AbortController();
+
+    const leader = summaries.generate(ids[1]!, 'on_demand');
+    const waiter = summaries.generate(ids[2]!, 'auto', { signal: abortion.signal });
+    // Let the waiter find the leader's generation in flight.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    abortion.abort(new Error('run budget spent'));
+
+    await expect(waiter).rejects.toBeInstanceOf(SummaryInputsUnavailableError);
+    expect((await leader).kind).toBe('created');
+    expect(model.doGenerateCalls).toHaveLength(1);
+  });
+
+  it('F2.3 Clusters summarises each story alone with the clusters flag off', async () => {
+    const { ids } = await seedCluster();
+    const { summaries, model, upstreamRequests } = await generator(SUMMARIES_ON);
+
+    const result = await summaries.generate(ids[1]!, 'on_demand');
+
+    expect(result.summary.storyId).toBe(ids[1]);
+    expect(upstreamRequests.sort()).toEqual([
+      'https://dev.to/api/articles/5075072',
+      'https://dev.to/api/comments?a_id=5075072',
+    ]);
+    expect(promptOf(model.doGenerateCalls[0]!)).not.toContain("I always thought Amiga's");
+  });
+});
+
+describe('cluster summary reads', () => {
+  const prisma = useTestDatabase();
+  let flagOn: INestApplication;
+  let flagOff: INestApplication;
+  let ids: string[] = [];
+  let clusterId = '';
+
+  const summaryData = (storyId: string, createdAt: Date) => ({
+    storyId,
+    tldr: MODEL_OUTPUT.tldr,
+    basedOnComments: 12,
+    trigger: 'auto' as const,
+    model: 'claude-haiku-5-5',
+    promptVersion: 1,
+    inputTokens: 1,
+    outputTokens: 1,
+    costUsd: '0.0003',
+    createdAt,
+  });
+
+  beforeAll(async () => {
+    const hn = await createSource(prisma, 'hn-cluster-reads', 'hn');
+    const devto = await createSource(prisma, 'devto-cluster-reads', 'devto');
+    ({ ids, clusterId } = await createSummaryCluster(prisma, {
+      hnSourceId: hn.id,
+      devtoSourceId: devto.id,
+      members: [
+        { title: 'Reads rep', rankScore: 9, items: [{ kind: 'hn', externalId: '1' }] },
+        { title: 'Reads B', rankScore: 5, items: [{ kind: 'devto', externalId: '2' }] },
+        { title: 'Reads C', rankScore: 3, items: [{ kind: 'hn', externalId: '3' }] },
+      ],
+    }));
+    // Two members hold a summary: the newer one is the cluster's.
+    await prisma.summary.create({ data: summaryData(ids[0]!, new Date(Date.now() - DAY_MS)) });
+    await prisma.summary.create({ data: summaryData(ids[2]!, new Date()) });
+    flagOn = await createTestApp([], { ...CLUSTERS_ON, AUTH_TEST_MODE: 'true' });
+    flagOff = await createTestApp([], { ...SUMMARIES_ON, AUTH_TEST_MODE: 'true' });
+  });
+
+  afterAll(async () => {
+    await flagOn.close();
+    await flagOff.close();
+  });
+
+  const get = (app: INestApplication, path: string) => request(app.getHttpServer()).get(path);
+
+  it('F2.3 Clusters reports the same cluster summary on every member by GET summary, story detail, the cluster endpoint and hasSummary', async () => {
+    for (const id of ids) {
+      const summary = StorySummarySchema.parse(
+        (await get(flagOn, `/api/v1/stories/${id}/summary`)).body,
+      );
+      expect(summary.storyId).toBe(ids[2]);
+      const detail = StoryDetailSchema.parse((await get(flagOn, `/api/v1/stories/${id}`)).body);
+      expect(detail).toMatchObject({ hasSummary: true, summary: { storyId: ids[2] } });
+    }
+
+    const cluster = ClusterDetailSchema.parse(
+      (await get(flagOn, `/api/v1/clusters/${clusterId}`)).body,
+    );
+    expect(cluster.summary).toMatchObject({ storyId: ids[2] });
+    expect(cluster.representative.hasSummary).toBe(true);
+    expect(cluster.members.map((member) => member.hasSummary)).toEqual([true, true]);
+
+    const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=latest')).body);
+    expect(feed.items.map((card) => [card.id, card.hasSummary])).toEqual([[ids[0], true]]);
+  });
+
+  it("F2.3 Clusters shows a member's hasSummary and summary from another member even when it has none of its own", async () => {
+    await prisma.summary.deleteMany({ where: { storyId: ids[0]! } });
+
+    const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=latest')).body);
+    expect(feed.items[0]).toMatchObject({ id: ids[0], hasSummary: true });
+    const detail = StoryDetailSchema.parse((await get(flagOn, `/api/v1/stories/${ids[0]}`)).body);
+    expect(detail.summary).toMatchObject({ storyId: ids[2] });
+  });
+
+  it('F2.3 Clusters reads each story by its own summary with the clusters flag off', async () => {
+    const own = await get(flagOff, `/api/v1/stories/${ids[2]}/summary`);
+    expect(own.status).toBe(200);
+    const member = await get(flagOff, `/api/v1/stories/${ids[1]}/summary`);
+    expect(member.status).toBe(404);
+    const detail = StoryDetailSchema.parse((await get(flagOff, `/api/v1/stories/${ids[1]}`)).body);
+    expect(detail.summary).toBeNull();
+  });
+
+  it("F2.3 Clusters reports a card's hasSummary from its own summary only with the clusters flag off", async () => {
+    // Only the last member holds a summary, so with the flag on every member would say true.
+    const response = await request(flagOff.getHttpServer())
+      .post('/api/v1/stories/lookup')
+      .set('Origin', process.env.APP_URL ?? '')
+      .send({ ids });
+
+    const cards = StoryLookupResponseSchema.parse(response.body).items;
+    expect(cards.map((card) => [card.id, card.hasSummary])).toEqual([
+      [ids[0], false],
+      [ids[1], false],
+      [ids[2], true],
+    ]);
   });
 });

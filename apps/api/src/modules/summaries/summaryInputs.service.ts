@@ -1,9 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DevtoClient } from '../../common/devto/devtoClient.js';
+import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { createLimiter } from '../../common/http/createLimiter.js';
 import { HttpClient } from '../../common/http/httpClient.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import type { CommentNode } from './flattenComments.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { inputFailureScope } from './summaryRules.js';
@@ -25,17 +27,24 @@ const ALGOLIA_CONCURRENCY = 4;
 
 /** What one summary is built from, before the prompt trims it to its budget. */
 export type SummaryInputs = {
+  /** The story summarised: the representative's id for a clustered story. */
   storyId: string;
   title: string;
-  /** The Dev.to article body or the story's excerpt, as plain text; null when the story has neither. */
+  /** The Dev.to article body or the excerpt, as plain text; null when no member has either. */
   text: string | null;
-  /** One comment tree per source item. */
+  /** One comment tree per source item, of every cluster member. */
   threads: CommentNode[][];
 };
 
 type InputItem = { externalId: string; source: { kind: string } };
+type InputStory = { id: string; title: string; excerpt: string | null; items: InputItem[] };
 
-/** Loads a story with its own items' comments and text; the one place clustering widens to all cluster members. */
+const ITEMS_SELECT = {
+  select: { externalId: true, source: { select: { kind: true } } },
+  orderBy: [{ engagement: 'desc' }, { id: 'asc' }],
+} satisfies Prisma.Story$itemsArgs;
+
+/** Loads a story's comments and text; with clusters on, those of every member of its cluster. */
 @Injectable()
 export class SummaryInputsService {
   private readonly logger = new Logger(SummaryInputsService.name);
@@ -46,6 +55,7 @@ export class SummaryInputsService {
     private readonly prisma: PrismaService,
     private readonly http: HttpClient,
     private readonly devto: DevtoClient,
+    @Inject(ENV) private readonly env: Pick<Env, 'FEATURE_CLUSTERS'>,
   ) {}
 
   /** Throws `NOT_FOUND` for an unknown story and `SummaryInputsUnavailableError` when any fetch fails or `signal` aborts. */
@@ -53,19 +63,14 @@ export class SummaryInputsService {
     storyId: string,
     { signal }: { signal?: AbortSignal } = {},
   ): Promise<SummaryInputs> {
-    const story = await this.prisma.story.findUnique({
-      where: { id: storyId },
-      include: {
-        items: {
-          select: { externalId: true, source: { select: { kind: true } } },
-          orderBy: [{ engagement: 'desc' }, { id: 'asc' }],
-        },
-      },
-    });
-    if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
-
-    const hnItems = story.items.filter((item) => item.source.kind === 'hn');
-    const devtoItems = story.items.filter((item) => item.source.kind === 'devto');
+    // The representative first, then the other members by rank: it decides the title and the text, and the order of the threads.
+    const [representative, ...others] = await this.loadMembers(storyId);
+    const members = [representative, ...others];
+    const items = members.flatMap((member) => member.items);
+    const hnItems = items.filter((item) => item.source.kind === 'hn');
+    const devtoItems = items.filter((item) => item.source.kind === 'devto');
+    // One article call, whatever the cluster size: the representative's Dev.to item, else the first member's (HN stories have no excerpt).
+    const articleItem = items.find((item) => item.source.kind === 'devto');
     // The first failed fetch cancels the story's others, queued Dev.to requests included: the summary is off either way.
     const storyFetches = new AbortController();
     const fetchSignal = signal
@@ -80,19 +85,47 @@ export class SummaryInputsService {
       const [hnThreads, devtoThreads, articleText] = await Promise.all([
         Promise.all(hnItems.map((item) => failFast(this.fetchHnThread(item, fetchSignal)))),
         Promise.all(devtoItems.map((item) => failFast(this.fetchDevtoThread(item, fetchSignal)))),
-        devtoItems[0] ? failFast(this.fetchDevtoArticleText(devtoItems[0], fetchSignal)) : null,
+        articleItem ? failFast(this.fetchDevtoArticleText(articleItem, fetchSignal)) : null,
       ]);
       const threads = [...hnThreads, ...devtoThreads];
-      this.logDropped(storyId, threads);
+      this.logDropped(representative.id, threads);
       return {
-        storyId,
-        title: story.title,
-        text: articleText || story.excerpt,
+        storyId: representative.id,
+        title: representative.title,
+        // The article's text; without one, the first excerpt in member order.
+        text: articleText || members.find((member) => member.excerpt)?.excerpt || null,
         threads: threads.map(({ comments }) => comments),
       };
     } catch (error) {
-      throw new SummaryInputsUnavailableError(storyId, inputFailureScope(error), { cause: error });
+      throw new SummaryInputsUnavailableError(representative.id, inputFailureScope(error), {
+        cause: error,
+      });
     }
+  }
+
+  /** The story's cluster members, representative first and the rest by rankScore, or the story alone; throws `NOT_FOUND`. */
+  private async loadMembers(storyId: string): Promise<[InputStory, ...InputStory[]]> {
+    const story = await this.prisma.story.findUnique({
+      where: { id: storyId },
+      include: { items: ITEMS_SELECT },
+    });
+    if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
+    if (!this.env.FEATURE_CLUSTERS || !story.clusterId) return [story];
+    const cluster = await this.prisma.cluster.findUnique({
+      where: { id: story.clusterId },
+      select: {
+        representativeStoryId: true,
+        stories: {
+          select: { id: true, title: true, excerpt: true, items: ITEMS_SELECT },
+          orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
+        },
+      },
+    });
+    const representative = cluster?.stories.find(
+      (member) => member.id === cluster.representativeStoryId,
+    );
+    if (!cluster || !representative) return [story];
+    return [representative, ...cluster.stories.filter((member) => member !== representative)];
   }
 
   private fetchHnThread(item: InputItem, signal: AbortSignal) {

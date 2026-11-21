@@ -1,5 +1,6 @@
 import type { StoryCard } from '@devbrief/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { summarizedClusterIds } from './clusterSummary.js';
 import {
   toSourceRef,
   toStoryCard,
@@ -37,12 +38,21 @@ async function loadCardClusters(
   return clusters;
 }
 
-/** Maps stories to cards, adding each clustered story's `cluster` when the flag is on. */
+/** Maps stories to cards, adding each clustered story's `cluster` when the flag is on; `knownSummarized` spares the summary query when the caller already asked it. */
 export async function toStoryCards(
   prisma: PrismaService,
   stories: readonly StoryWithItems[],
   features: StoryFeatures,
+  knownSummarized?: ReadonlySet<string>,
 ): Promise<StoryCard[]> {
   const clusters = await loadCardClusters(prisma, stories, features);
-  return stories.map((story) => toStoryCard(story, features, clusters));
+  // A card says it has a summary when any member of its cluster does.
+  const summarized =
+    knownSummarized ??
+    (features.summaries && features.clusters
+      ? await summarizedClusterIds(prisma, [
+          ...new Set(stories.flatMap((story) => story.clusterId ?? [])),
+        ])
+      : undefined);
+  return stories.map((story) => toStoryCard(story, features, clusters, summarized));
 }

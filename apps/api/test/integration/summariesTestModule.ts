@@ -12,6 +12,7 @@ import { SummaryInputsService } from '../../src/modules/summaries/summaryInputs.
 import { mockLanguageModel } from '../mockLanguageModel.js';
 import { summaryFixtureFetch } from '../summaryFixtures.js';
 import { summaryInputsOverride } from './createTestApp.js';
+import { createCluster } from './seedStories.js';
 
 /** Summaries on, with a key the mock model never sends and a secret for the IP digests. */
 export const SUMMARIES_ON = {
@@ -103,4 +104,60 @@ export async function createDiscussedStory(
       },
     },
   });
+}
+
+type ClusterMemberSeed = {
+  title: string;
+  rankScore: number;
+  excerpt?: string;
+  /** One SourceItem each; an HN id without a recording is served the fallback thread, a Dev.to id needs a recorded one. */
+  items: { kind: 'hn' | 'devto'; externalId: string; commentsCount?: number }[];
+};
+
+/** Inserts the member stories with their items and groups them into a Cluster; the first member is the representative. */
+export async function createSummaryCluster(
+  prisma: PrismaClient,
+  {
+    hnSourceId,
+    devtoSourceId,
+    members,
+  }: { hnSourceId: string; devtoSourceId: string; members: ClusterMemberSeed[] },
+) {
+  const sourceIdOf = { hn: hnSourceId, devto: devtoSourceId };
+  const ids: string[] = [];
+  for (const member of members) {
+    const url = `https://example.com/${encodeURIComponent(member.title)}`;
+    const story = await prisma.story.create({
+      data: {
+        canonicalUrl: url,
+        url,
+        domain: 'example.com',
+        title: member.title,
+        normalizedTitle: member.title.toLowerCase(),
+        excerpt: member.excerpt,
+        publishedAt: new Date(),
+        rankScore: member.rankScore,
+        tags: [],
+        taggerVersion: 1,
+        items: {
+          create: member.items.map((item) => ({
+            sourceId: sourceIdOf[item.kind],
+            externalId: item.externalId,
+            url,
+            canonicalUrl: url,
+            title: member.title,
+            publishedAt: new Date(),
+            commentsCount: item.commentsCount ?? 6,
+          })),
+        },
+      },
+    });
+    ids.push(story.id);
+  }
+  const cluster = await createCluster(prisma, {
+    memberIds: ids,
+    representativeId: ids[0]!,
+    sourceKinds: ['hn', 'devto'],
+  });
+  return { clusterId: cluster.id, ids };
 }

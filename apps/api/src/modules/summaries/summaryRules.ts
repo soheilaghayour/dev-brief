@@ -14,8 +14,11 @@ export const AUTO_SUMMARIES_PER_DAY = 20;
 /** PRD F2.3: only stories with at least this many comments, summed over their items, are summarised automatically. */
 export const AUTO_MIN_COMMENTS = 10;
 
-/** PRD §8.3: one run tries at most this many stories, failed ones included, which keeps it within the per-run Algolia budget. */
+/** One run tries at most this many stories, failed ones included, so a run of Dev.to-only stories stays bounded too. */
 export const AUTO_ATTEMPTS_PER_RUN = 25;
+
+/** PRD §8.3: one run makes at most this many HN Algolia requests, one per HN item of every story it tries, failed tries included. */
+export const AUTO_HN_REQUESTS_PER_RUN = 25;
 
 /** The consensus to store: the model's, with the server's comment count, or null when too few comments went in. */
 export function storedConsensus(
@@ -26,19 +29,39 @@ export function storedConsensus(
   return { ...consensus, basedOnComments };
 }
 
-/** The ids one run tries, in the given order: discussed enough, not failed earlier today, at most `AUTO_ATTEMPTS_PER_RUN`. */
-export function autoCandidateIds(
-  stories: readonly { id: string; items: readonly { commentsCount: number | null }[] }[],
+type CandidateStory = {
+  id: string;
+  /** Set with clusters on: a failed try of any member's representative blocks the whole cluster. */
+  clusterId?: string | null;
+  /** Every item of the story, or of all members of its cluster. */
+  items: readonly { commentsCount: number | null; source?: { kind: string } }[];
+};
+
+export type AutoCandidate = { id: string; hnRequests: number };
+
+/** The stories worth an auto summary, in the given order: discussed enough and not failed earlier today (`failedToday` holds cluster ids and the ids of single stories). */
+export function autoCandidates(
+  stories: readonly CandidateStory[],
   failedToday: ReadonlySet<string>,
+): AutoCandidate[] {
+  return stories.flatMap((story) => {
+    if (failedToday.has(story.clusterId ?? story.id)) return [];
+    const comments = story.items.reduce((sum, item) => sum + (item.commentsCount ?? 0), 0);
+    if (comments < AUTO_MIN_COMMENTS) return [];
+    const hnRequests = story.items.filter((item) => item.source?.kind === 'hn').length;
+    return [{ id: story.id, hnRequests }];
+  });
+}
+
+/** Whether a candidate still fits the run: within `AUTO_ATTEMPTS_PER_RUN` tries and `AUTO_HN_REQUESTS_PER_RUN` HN requests. */
+export function fitsRunBudget(
+  candidate: AutoCandidate,
+  used: { attempts: number; hnRequests: number },
 ) {
-  return stories
-    .filter(
-      (story) =>
-        !failedToday.has(story.id) &&
-        story.items.reduce((sum, item) => sum + (item.commentsCount ?? 0), 0) >= AUTO_MIN_COMMENTS,
-    )
-    .slice(0, AUTO_ATTEMPTS_PER_RUN)
-    .map((story) => story.id);
+  return (
+    used.attempts < AUTO_ATTEMPTS_PER_RUN &&
+    used.hnRequests + candidate.hnRequests <= AUTO_HN_REQUESTS_PER_RUN
+  );
 }
 
 /** Whether a failed input fetch concerns only its story (a 404, a malformed payload) or its whole upstream (5xx, 429, timeout, lost connection, the run's budget). */

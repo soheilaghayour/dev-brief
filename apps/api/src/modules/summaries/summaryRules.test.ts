@@ -6,7 +6,9 @@ import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import {
   AUTO_ATTEMPTS_PER_RUN,
-  autoCandidateIds,
+  AUTO_HN_REQUESTS_PER_RUN,
+  autoCandidates,
+  fitsRunBudget,
   autoFailureAction,
   inputFailureScope,
   storedConsensus,
@@ -30,7 +32,7 @@ describe('storedConsensus', () => {
   });
 });
 
-describe('autoCandidateIds', () => {
+describe('autoCandidates', () => {
   it('keeps stories with at least 10 comments summed over their items, in the given order', () => {
     const stories = [
       { id: 'nine', items: [{ commentsCount: 5 }, { commentsCount: 4 }] },
@@ -39,19 +41,58 @@ describe('autoCandidateIds', () => {
       { id: 'many', items: [{ commentsCount: 300 }] },
     ];
 
-    expect(autoCandidateIds(stories, new Set())).toEqual(['ten', 'many']);
+    expect(autoCandidates(stories, new Set()).map(({ id }) => id)).toEqual(['ten', 'many']);
   });
 
-  it('leaves out the stories that failed today and stops at the per-run attempts', () => {
-    const stories = Array.from({ length: AUTO_ATTEMPTS_PER_RUN + 5 }, (_, index) => ({
-      id: `s${index}`,
-      items: [{ commentsCount: 10 }],
-    }));
+  it('leaves out the stories that failed today', () => {
+    const stories = ['s0', 's1', 's2'].map((id) => ({ id, items: [{ commentsCount: 10 }] }));
 
-    const ids = autoCandidateIds(stories, new Set(['s0', 's2']));
+    expect(autoCandidates(stories, new Set(['s0', 's2'])).map(({ id }) => id)).toEqual(['s1']);
+  });
 
-    expect(ids).toHaveLength(AUTO_ATTEMPTS_PER_RUN);
-    expect(ids.slice(0, 3)).toEqual(['s1', 's3', 's4']);
+  it('keys a failure by the cluster, so a representative that moved does not retry its cluster', () => {
+    const items = [{ commentsCount: 10 }];
+    const stories = [
+      { id: 'newRep', clusterId: 'c1', items },
+      { id: 'single', clusterId: null, items },
+    ];
+
+    expect(autoCandidates(stories, new Set(['c1'])).map(({ id }) => id)).toEqual(['single']);
+  });
+
+  it('counts the HN items of each candidate', () => {
+    const hnItem = { commentsCount: 10, source: { kind: 'hn' } };
+    const devtoItem = { commentsCount: 10, source: { kind: 'devto' } };
+
+    expect(autoCandidates([{ id: 'a', items: [hnItem, devtoItem, hnItem] }], new Set())).toEqual([
+      { id: 'a', hnRequests: 2 },
+    ]);
+  });
+});
+
+describe('fitsRunBudget', () => {
+  it('stops at the per-run attempts', () => {
+    const candidate = { id: 'a', hnRequests: 0 };
+
+    expect(fitsRunBudget(candidate, { attempts: AUTO_ATTEMPTS_PER_RUN - 1, hnRequests: 0 })).toBe(
+      true,
+    );
+    expect(fitsRunBudget(candidate, { attempts: AUTO_ATTEMPTS_PER_RUN, hnRequests: 0 })).toBe(
+      false,
+    );
+  });
+
+  it('F2.3 Clusters counts HN items, not stories, against the per-run Algolia budget', () => {
+    const used = { attempts: 2, hnRequests: AUTO_HN_REQUESTS_PER_RUN - 5 };
+
+    expect(fitsRunBudget({ id: 'c', hnRequests: 6 }, used)).toBe(false);
+    expect(fitsRunBudget({ id: 'd', hnRequests: 5 }, used)).toBe(true);
+    expect(
+      fitsRunBudget(
+        { id: 'devto', hnRequests: 0 },
+        { attempts: 0, hnRequests: AUTO_HN_REQUESTS_PER_RUN },
+      ),
+    ).toBe(true);
   });
 });
 

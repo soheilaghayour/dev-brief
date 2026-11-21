@@ -3,6 +3,7 @@ import type { ClusterDetail } from '@devbrief/shared';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { findSummary } from '../../common/story-card/clusterSummary.js';
 import {
   type StoryFeatures,
   storyFeatures,
@@ -27,7 +28,7 @@ export class ClustersService {
       where: { id },
       include: {
         stories: {
-          include: { ...storyWithItems, summary: true },
+          include: storyWithItems,
           orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
         },
       },
@@ -36,18 +37,18 @@ export class ClustersService {
       (story) => story.id === cluster.representativeStoryId,
     );
     if (!cluster || !representative) throw new ApiException('NOT_FOUND', 'Cluster not found.');
+    const summary = this.features.summaries
+      ? await findSummary(this.prisma, representative, true)
+      : null;
+    const summarized = new Set(summary ? [cluster.id] : []);
     return {
       id: cluster.id,
-      representative: toStoryCard(representative, this.features),
+      representative: toStoryCard(representative, this.features, undefined, summarized),
       members: cluster.stories
         .filter((story) => story.id !== representative.id)
-        .map((story) => toStoryCard(story, this.features)),
+        .map((story) => toStoryCard(story, this.features, undefined, summarized)),
       sourceKinds: cluster.sourceKinds,
-      // The representative's own summary until summaries widen to the cluster.
-      summary:
-        this.features.summaries && representative.summary
-          ? toStorySummary(representative.summary)
-          : null,
+      summary: summary && toStorySummary(summary),
     };
   }
 }
