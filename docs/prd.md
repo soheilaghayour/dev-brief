@@ -20,6 +20,7 @@
 | **Story** | One canonical link after exact dedup. It has 1..n SourceItems. It is the unit shown on a feed card in Phase 1. |
 | **Cluster** | Phase 2. A group of distinct Stories about the same event, such as a release post, its HN thread and a Dev.to write-up. |
 | **Summary line** | Phase 2. The first TL;DR point of a story's or cluster's summary, shown under the title on its feed card (F2.3). |
+| **TDM reservation** | A source's opt-out from text and data mining (§ 44b UrhG, Art. 4 of the EU DSM Directive), in machine-readable form or in its terms. None of a reserved source's text reaches the model (§8.8). |
 | **Briefing** | Phase 3. A generated, interactive answer to a research question, rendered as an A2UI surface. |
 | **Guest** | A visitor without an account. Their state lives in `localStorage`. They can do everything except sync. |
 | **Feature flag** | The env variable `FEATURE_<NAME>` that hides a feature while it is unfinished or not yet launched. The launch deletes it (§3). |
@@ -169,6 +170,7 @@ Rules:
 - **AC-L8** `/impressum` and `/privacy` exist, are linked from the footer, and are statically rendered.
 - **AC-L9** The page has a `<title>`, a meta description, a canonical URL, Open Graph and Twitter tags, and a generated OG image (`opengraph-image.tsx`).
 - **AC-L10** With `prefers-reduced-motion: reduce`, no looping animations run.
+- **AC-L11** `/privacy` names Anthropic as a processor and says what it receives: for summaries and clustering, story titles, excerpts, Dev.to article text and public comments; for the copilot, the question as typed plus the retrieved stories' titles, excerpts and summaries. It says that no account data, IP address or device id is sent, and gives the basis for the transfer outside the EU. It ships before any AI flag is on in production (§8.8 launch gate).
 
 ---
 
@@ -221,8 +223,8 @@ Source contracts for Phase 1:
 | Source | Calls per run | Mapping |
 |---|---|---|
 | HN (Firebase) | `GET /v0/topstories.json`, keeping the first 100 IDs. Then `GET /v0/item/{id}.json` for each, with concurrency 10. | Keep items where `type === "story"` and that are not `dead` or `deleted`. `url` falls back to `https://news.ycombinator.com/item?id={id}` for Ask/Show HN posts without a URL. `points = score`, `comments = descendants`, `discussionUrl = HN item URL`, `publishedAt = time`. |
-| Dev.to (Forem v1) | `GET /api/articles?top=1&per_page=50` and `GET /api/articles/latest?per_page=50`. Send the header `Accept: application/vnd.forem.api-v1+json`. Requests are serial, ≥ 2.5 s apart. | `url = canonical_url ?? url`, which makes cross-posts dedup against the original blog. `reactions = public_reactions_count`, `comments = comments_count`, `sourceTags = tag_list`, `readingTimeMinutes = reading_time_minutes`, `discussionUrl = url` (the dev.to page). |
-| RSS (seeded list, ~10) | One conditional GET per feed (`If-None-Match` / `If-Modified-Since`). Concurrency 4. | Keep items published in the last 7 days, at most 20 per feed. `externalId = sha1(guid ?? link)`. `excerpt` = plain-text snippet ≤ 500 chars. `sourceTags = categories`. Engagement = none (baseline percentile). |
+| Dev.to (Forem v1) | `GET /api/articles?top=1&per_page=50` and `GET /api/articles/latest?per_page=50`. Send the header `Accept: application/vnd.forem.api-v1+json`. Requests are serial, ≥ 2.5 s apart. | `url = canonical_url ?? url`, which makes cross-posts dedup against the original blog. `reactions = public_reactions_count`, `comments = comments_count`, `sourceTags = tag_list`, `readingTimeMinutes = reading_time_minutes`, `discussionUrl = url` (the dev.to page). `excerpt` = the first sentence of `description` as plain text, ≤ 200 chars (§8.8). |
+| RSS (seeded list, ~10) | One conditional GET per feed (`If-None-Match` / `If-Modified-Since`). Concurrency 4. | Keep items published in the last 7 days, at most 20 per feed. `externalId = sha1(guid ?? link)`. `excerpt` = the first sentence as plain text, ≤ 200 chars (§8.8). `sourceTags = categories`. Engagement = none (baseline percentile). |
 
 Seeded RSS feeds live in `apps/api/prisma/seed/sources.json`. The initial list is: React Blog, TypeScript Blog, Vercel Blog, Cloudflare Blog, Netflix Tech Blog, Uber Engineering, Simon Willison, Josh Comeau, web.dev, and Node.js Blog. The implementer verifies each feed URL works and replaces any that are dead.
 
@@ -415,6 +417,8 @@ Acceptance criteria:
 - **AC-2.3.7** A prompt-injection fixture (a comment containing "ignore previous instructions…") yields output that still validates against the schema and contains no instructions from the fixture (snapshot test with a recorded response).
 - **AC-2.3.8** Given a primary story in the Top window without a summary, with ≥ 10 comments or first seen ≥ 2 h ago, and with model input beyond its title, then the next ingestion run's auto step summarises it, unless `AUTO_SUMMARIES_PER_DAY`, the `summary_auto` or global cap, or the run's limits stop the step first. A title-only story is never sent to the model.
 - **AC-2.3.9** Given a story or its cluster has a summary, then every `StoryCard` the API returns for it carries `summaryLine` equal to that summary's `tldr[0]`, and the card renders it under the title as plain text clamped to 2 lines. Given no summary, `summaryLine` is `null` and the card shows no line.
+- **AC-2.3.10** Summaries use prompt `storySummary.v2` (`promptVersion = 2`), which tells the model to paraphrase and never quote (§8.8). A TL;DR point, pro or con that repeats 8 or more consecutive words of the model's input, compared without case and punctuation, fails validation and so gets the one retry of AC-2.3.5. v2's recorded replies are new fixture files (§8.2), so the AC-2.3.7 recording is made for v2.
+- **AC-2.3.11** Every rendered summary shows its story's source names and a prominent link to the original: on the story page, "Read the original on <domain> ↗" beside the panel's label; on a feed card, the summary line sits under the title, which links to the original (AC-1.3.7).
 
 #### F2.4 GitHub source
 - Call: `GET /search/repositories?q=created:>{today-7d} stars:>50&sort=stars&order=desc&per_page=30` with `GITHUB_TOKEN`, making at most 2 calls per run.
@@ -590,7 +594,7 @@ dev-brief/
 │     ├─ src/modules/maintenance/            rollup + retention job
 │     ├─ src/modules/{clustering,summaries,preferences,llm}/   (P2)
 │     ├─ src/modules/{copilot,radar,collections}/              (P3)
-│     ├─ src/cli/                            ingestOnce.ts, generateExampleBriefings.ts (P3)
+│     ├─ src/cli/                            ingestOnce.ts, removeContent.ts (§8.8), generateExampleBriefings.ts (P3)
 │     └─ test/{integration,fixtures}/
 ├─ packages/shared/
 │  ├─ src/contracts/                         Zod API schemas + inferred types (per resource)
@@ -736,6 +740,7 @@ sequenceDiagram
 | `FeedPreference` | P2 | Follow/mute |
 | `LlmUsage` | P2 | Spend ledger |
 | `RateLimitCounter` | P2 | Daily quotas (summaries, copilot) |
+| `ContentRemoval` (+ `Source.tdmReserved`) | P2 | Removal on request and TDM reservations (§8.8) |
 | `Collection`, `CollectionItem` | P3 | Boards |
 | `CopilotQuery`, `ExampleBriefing` | P3 | Copilot cache, history and landing examples |
 
@@ -834,6 +839,7 @@ model Source {
   feedUrl             String?                       // RSS only
   enabled             Boolean      @default(true)
   baselinePercentile  Float?                        // RSS: fixed percentile (default 0.6)
+  tdmReserved         Boolean      @default(false)  // P2, §8.8: none of its text reaches the model
   // conditional GET (RSS)
   etag                String?
   lastModified        String?
@@ -856,7 +862,7 @@ model Story {
   domain               String                       // "react.dev"
   title                String
   normalizedTitle      String                       // dedup key #2 (±72h)
-  excerpt              String?                      // plain text ≤ 500 chars
+  excerpt              String?                      // plain text, first sentence, ≤ 200 chars (§8.8)
   author               String?
   publishedAt          DateTime                     // earliest across items
   firstSeenAt          DateTime     @default(now())
@@ -1052,6 +1058,20 @@ model RateLimitCounter {
   @@id([key, day])
 }
 
+enum ContentRemovalKind {
+  domain
+  source
+}
+
+model ContentRemoval {                               // §8.8 removal on request
+  id        String             @id @default(cuid())
+  kind      ContentRemovalKind
+  value     String                                   // "example.com" (subdomains included) or a source slug
+  reason    String?                                  // the request, briefly
+  createdAt DateTime           @default(now())
+  @@unique([kind, value])
+}
+
 // ───────────────────────────── Phase 3 ─────────────────────────────
 
 model Collection {
@@ -1144,6 +1164,7 @@ Migration rule: in Phase 1 **work item P1-02 creates the initial migrations**. A
 | `RateLimitCounter` | 7 days | Daily job |
 | `CopilotQuery` | 30 days (the cache uses only the last 24 h) | Daily job |
 | `ExampleBriefing` | Until regenerated | Manual CLI |
+| `ContentRemoval` | Until restored | `content:restore` CLI (§8.8) |
 | User data | Until account deletion (cascade) | `DELETE /api/v1/me` |
 | Backups | 14 daily snapshots | Coolify scheduled backup → object storage |
 
@@ -1800,7 +1821,8 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 - Story text and comments are wrapped in delimited `<source id="…">` blocks. The system prompt tells the model that this content is data and never instructions.
 - Output is always schema-constrained (structured output) and validated with Zod. One retry is allowed, then the call fails closed.
 - The LLM cannot emit URLs, HTML or arbitrary component names. Links and numbers are injected server-side, and storyIds and tags are checked against allowlists.
-- Prompts are versioned (`promptVersion`) in `apps/api/src/modules/llm/prompts/`, with snapshot tests using a recorded provider response. CI never calls the live LLM.
+- Prompts are versioned (`promptVersion`) in `apps/api/src/modules/llm/prompts/`, with snapshot tests using a recorded provider response. CI never calls the live LLM. A new prompt version gets its own recordings in new fixture files; a recording is never edited.
+- No text from a source with a TDM reservation goes into a prompt (§8.8).
 - The model is configured through `LLM_MODEL=claude-haiku-5-5`. The provider is swappable through the AI SDK provider registry, and the price table is keyed by model.
 
 ### 8.3 External sources: timeouts, retries, circuit breaking
@@ -1875,7 +1897,7 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
   - A2UI messages are validated against the catalog before sending, and treated as untrusted on the client: only catalog components are registered.
 - **Headers (Next.js `headers()` and Nest):** HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (deny all unused), and a CSP of `default-src 'self'` that allows Sentry ingest and inline styles from Tailwind. Scripts are `'self'` plus Next's nonce.
 - **Secrets:** Coolify environment variables only, never committed. `.env.example` lists every variable. Env is validated with Zod at boot in both apps (fail fast), and `AUTH_TEST_MODE` is forbidden in production. GitHub, Google, Anthropic and GitHub-search tokens use the least scope (`user:email`, read-only PAT).
-- **Privacy:** GDPR basics for the German market. There are Impressum and Datenschutz pages. Only essential cookies are used, so no consent banner is needed. No third-party analytics. Sentry runs with `sendDefaultPii: false`. Account deletion is self-serve, and copilot questions are retained for 30 days.
+- **Privacy:** GDPR basics for the German market. There are Impressum and Datenschutz pages, and the privacy page names every processor, Anthropic included (AC-L11). Only essential cookies are used, so no consent banner is needed. No third-party analytics. Sentry runs with `sendDefaultPii: false`. Account deletion is self-serve, and copilot questions are retained for 30 days.
 - **Dependencies:** Dependabot (weekly) and `pnpm audit --prod` in CI (fails on high or critical). `@a2ui/*` and `better-auth` are pinned to exact versions.
 
 ### 8.7 Testing and CI
@@ -1891,6 +1913,48 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 **CI workflow (`.github/workflows/ci.yml`) on every PR and on push to `main`:** setup (pnpm and Node from `.nvmrc`, with cache) → lint → typecheck → unit → integration (Postgres service) → build → size check → E2E smoke → Lighthouse. A PR needs all checks green. Merge is by squash, through the orchestrator. Coolify deploys from `main` after the push.
 
 **Agent rules (also stated in `AGENTS.md`):** one issue per PR. Each PR lists the AC IDs it covers and adds tests for each one. Agents must not change `packages/shared/src/contracts` without updating every consumer in the same PR. Migrations are created only by issues that declare them. PRs touching `docs/` keep this PRD consistent.
+
+### 8.8 Content rights
+DevBrief links to what its sources publish and summarises the public discussion around it. It never fetches a publisher's page (§3.2): it stores titles, links, engagement numbers and short excerpts from each source's API or feed, and the model sees only the text below.
+
+| Source kind | Stored | Sent to the model |
+|---|---|---|
+| HN | Item title, link, author, points, comment count | The title and the public comments (Algolia) for summaries; the title for clustering and the copilot |
+| Dev.to | Title, link, author, excerpt, tags, reactions, comment count | The title, the article body (`body_markdown`, ≤ 1,000 tokens) and the comments for summaries; the title and excerpt for clustering and the copilot |
+| RSS | Title, link, author, excerpt, categories | The title and excerpt (summaries, clustering, copilot) |
+| GitHub | Title (`owner/repo: description`), link, stars, language, topics | The title for clustering and the copilot; no summary, since a title-only story isn't summarised (F2.3) |
+
+The copilot also receives a story's summary, which is DevBrief's own text.
+
+**Rights table.** One row per source in `apps/api/prisma/seed/sources.json`. "Terms / licence" records the source's API or feed terms and the licence of its content; "TDM opt-out" records whether it reserves text and data mining, through robots.txt, the TDM-Rep header or `/.well-known/tdmrep.json`, or its terms. Status is `unchecked` or `checked` (with the date).
+
+| Source | Terms / licence | TDM opt-out | Stored | Sent to the model | Status |
+|---|---|---|---|---|---|
+| `hn` (Hacker News) | — | — | Title, link, author, points, comment count | Title; comments (summaries) | unchecked |
+| `devto` (Dev.to) | — | — | Title, link, author, excerpt, tags, reactions, comment count | Title, excerpt; article body and comments (summaries) | unchecked |
+| `github` (GitHub) | — | — | Title (`owner/repo: description`), link, stars, language, topics | Title (clustering, copilot) | unchecked |
+| `rss-react-blog` (React Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-typescript-blog` (TypeScript Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-vercel-blog` (Vercel Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-cloudflare-blog` (Cloudflare Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-netflix-tech-blog` (Netflix Tech Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-shopify-engineering` (Shopify Engineering) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-simon-willison` (Simon Willison) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-josh-comeau` (Josh Comeau) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-web-dev` (web.dev) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-nodejs-blog` (Node.js Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+
+Acceptance criteria:
+- **AC-R1** The rights table has one row per source in `sources.json`, and a test that reads this section fails when a seeded slug has no row. A new source joins `sources.json` only together with its row, filled in and `checked`, in the same PR.
+- **AC-R2** A source whose row records a TDM reservation has `"tdmReserved": true` in `sources.json`, which the seed stores on `Source.tdmReserved`. No text from its items (title, excerpt, article body or comments) goes into any prompt: summaries, clustering or the copilot. A story whose items all come from reserved sources gets no clustering call and isn't retrieved by the copilot; it is never auto-summarised, the story page shows no Summarize button, and `POST /stories/:id/summary` answers 404 `NOT_FOUND`. A story with other sources too is summarised from their text only.
+- **AC-R3** RSS descriptions and Dev.to `description`s are stored as plain text cut to their first sentence and to ≤ 200 chars at a word boundary, with `…` when cut. Excerpts stored before this rule are cut the same way once, as a data step without a schema change; `searchVector` follows, as it is generated.
+- **AC-R4** Removal on request. The Impressum names the address for removal requests. `pnpm --filter api content:remove (--domain <domain> | --source <slug>) --reason <text> --confirm-database <name>` stores a `ContentRemoval` row and, in one transaction, deletes every matching Story with its items, summary, saves, collection items and notes. A domain matches a Story whose `domain` is it or one of its subdomains; a source matches a Story with any item from it, and that source is disabled. From then on ingestion drops matching items before they are stored, and the seed doesn't re-enable a removed source. `content:restore` with the same arguments deletes the row; content returns only when it is ingested again. Removed stories leave every page within the cache times: 60 s plus 300 s stale-while-revalidate for API responses (§8.4), and 15 min for the landing page.
+- Summaries paraphrase, stay short (F2.3: ≤ 25 words a point) and always show their source and a prominent link to the original: AC-2.3.10 and AC-2.3.11.
+
+**Launch gate (owner task, no test).** Before the first AI feature goes on in production (the launches in §3):
+1. Every row of the rights table is `checked`, and every TDM reservation is in `sources.json`.
+2. A German IT and copyright lawyer has reviewed this section and the summary feature (F2.3). The Phase 3 launch checklist carries this step.
+3. `/privacy` names Anthropic (AC-L11).
 
 ---
 
