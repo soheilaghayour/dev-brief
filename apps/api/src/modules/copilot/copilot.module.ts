@@ -8,6 +8,6 @@ import { BriefingRetrievalService } from './briefingRetrieval.service.js';
 @Module({
   imports: [FeedModule, LlmModule],
   providers: [BriefingRetrievalService, BriefingPipelineService],
-  exports: [BriefingPipelineService],
+  exports: [BriefingPipelineService, BriefingRetrievalService],
 })
 export class CopilotModule {}

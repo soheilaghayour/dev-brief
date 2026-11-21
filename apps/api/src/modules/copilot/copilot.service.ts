@@ -84,6 +84,18 @@ export class CopilotService {
     });
   }
 
+  /** The stored example briefings in landing order. */
+  async examples() {
+    const rows = await this.prisma.exampleBriefing.findMany({ orderBy: { position: 'asc' } });
+    return {
+      items: rows.map(({ slug, question, messages }) => ({
+        slug,
+        question,
+        messages: StoredMessagesSchema.parse(messages),
+      })),
+    };
+  }
+
   /** What is left of the requester's daily questions; a guest must name its device. */
   quota(requester: Requester, deviceId: string | undefined) {
     if (!requester.userId && !deviceId) {
