@@ -15,7 +15,7 @@ import { Kbd } from '@/components/ui/Kbd';
 import { ToggleGroup } from '@/components/ui/ToggleGroup';
 import { cn } from '@/lib/cn';
 import type { ExampleBriefing } from './exampleBriefingData';
-import { PANEL_STYLE } from './exampleTabStyles';
+import { PANEL_STYLE, SELECTED_TAB_CLASS } from './exampleTabStyles';
 import {
   PREVIEW_TAGS,
   feedFocusHref,
@@ -254,10 +254,7 @@ function TagChip({ label, slug, isSelected, onChoose }: TagChipProps) {
       size="xs"
       aria-pressed={isSelected}
       onClick={choose}
-      className={cn(
-        'text-muted-foreground rounded-full',
-        isSelected && 'bg-accent text-accent-foreground border-primary/40',
-      )}
+      className={cn('text-muted-foreground rounded-full', isSelected && SELECTED_TAB_CLASS)}
     >
       {label}
     </Button>

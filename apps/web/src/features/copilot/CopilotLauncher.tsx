@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
 import { cn } from '@/lib/cn';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
-import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
+import { isApplePlatform, type Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { LAUNCHER_SIZE } from './launcherSize';
 
 // The bar, the renderer and the stream parser are fetched the first time the bar opens.
@@ -32,7 +32,7 @@ export function CopilotLauncher() {
   const [opening, setOpening] = useState<Opening>();
   const button = useRef<HTMLButtonElement>(null);
   // The launcher renders on the client only, so the platform is known here.
-  const isApple = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+  const isApple = isApplePlatform();
 
   function open() {
     if (!isOpen) {

@@ -31,10 +31,10 @@ export function ExampleBriefingsLoader({
   children,
 }: ExampleBriefingsLoaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const handoffRef = useRef<StaticTabsHandoff>({
+  const [handoff] = useState<StaticTabsHandoff>(() => ({
     selected: 0,
     hadFocus: () => containerRef.current?.contains(document.activeElement) ?? false,
-  });
+  }));
   const [isNear, setIsNear] = useState(false);
 
   // A transition keeps the server-rendered tabs on screen, focus included, until the chunk has arrived.
@@ -59,7 +59,7 @@ export function ExampleBriefingsLoader({
 
   function handleClick(event: MouseEvent<HTMLDivElement>) {
     const tab = (event.target as Element).closest('[role="tab"]');
-    if (tab) handoffRef.current.selected = [...tab.parentElement!.children].indexOf(tab);
+    if (tab) handoff.selected = [...tab.parentElement!.children].indexOf(tab);
     startLoading();
   }
 
@@ -68,9 +68,9 @@ export function ExampleBriefingsLoader({
     const tab = (event.target as Element).closest('[role="tab"]');
     const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
     if (!tab || !step) return;
-    const next = (handoffRef.current.selected + step + examples.length) % examples.length;
+    const next = (handoff.selected + step + examples.length) % examples.length;
     event.preventDefault();
-    handoffRef.current.selected = next;
+    handoff.selected = next;
     (tab.parentElement!.children[next] as HTMLElement).focus();
     startLoading();
   }
@@ -86,11 +86,7 @@ export function ExampleBriefingsLoader({
     >
       <Suspense fallback={children}>
         {isNear ? (
-          <ExampleBriefingTabs
-            examples={examples}
-            isSample={isSample}
-            handoff={handoffRef.current}
-          />
+          <ExampleBriefingTabs examples={examples} isSample={isSample} handoff={handoff} />
         ) : (
           children
         )}

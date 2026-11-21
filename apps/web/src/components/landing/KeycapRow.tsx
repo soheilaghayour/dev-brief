@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { isFeatureEnabled, type Features } from '@/config/features';
 import { cn } from '@/lib/cn';
-import { isEditableTarget } from '@/lib/hotkeys/shortcutRules';
+import { isApplePlatform, isEditableTarget } from '@/lib/hotkeys/shortcutRules';
 
 type Keycap = {
   key: string;
@@ -60,7 +60,7 @@ export function KeycapRow({ features }: { features?: Features }) {
   const [pressedKey, setPressedKey] = useState<Keycap | null>(null);
 
   useEffect(() => {
-    setIsMac(navigator.userAgent.includes('Mac'));
+    setIsMac(isApplePlatform());
   }, []);
 
   useEffect(() => {
