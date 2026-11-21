@@ -5,6 +5,7 @@ import {
   topWindowStart,
   type FeedPage,
   type FeedQuery,
+  type StoryCard,
 } from '@devbrief/shared';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
@@ -60,6 +61,17 @@ export class FeedService {
     };
     this.cache.set(cacheKey, page, CACHE_TTL_MS);
     return page;
+  }
+
+  /**
+   * The first page of a query read straight from the database, bypassing the response cache, for callers
+   * that are not an HTTP request: they are not bound by the contract's limits (a `q` over 100 characters)
+   * and must not see a page cached up to a minute ago.
+   */
+  async readFirstPage(requested: FeedQuery): Promise<StoryCard[]> {
+    const query = effectiveFeedQuery(requested);
+    const rows = await this.selectPage(query, undefined);
+    return this.loadCards(rows.slice(0, query.limit).map((row) => row.id));
   }
 
   /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
