@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { MergeRequest, MergeResponse } from '@devbrief/shared';
 import {
-  guestMergeRelease,
   MERGE_BODY_BUDGET_BYTES,
-  mergeNotices,
-  planGuestMerge,
-} from './guestMerge';
+  MERGE_BODY_LIMIT_BYTES,
+  type MergeRequest,
+  type MergeResponse,
+} from '@devbrief/shared';
+import { guestMergeRelease, keptAfterMerge, mergeNotices, planGuestMerge } from './guestMerge';
 import { EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
 import { migrateGuestData } from './guestParser';
 
@@ -17,6 +17,7 @@ describe('planGuestMerge', () => {
     expect(planGuestMerge({ saves, prefs: EMPTY_PREFERENCES, pendingMerge: false })).toEqual({
       action: 'merge',
       requests: [{ version: 1, saves }],
+      oversized: { collections: 0, notes: 0 },
     });
   });
 
@@ -47,10 +48,12 @@ describe('planGuestMerge', () => {
     expect(planGuestMerge({ saves: [save('a')], prefs, pendingMerge: false })).toEqual({
       action: 'merge',
       requests: [{ version: 1, saves: [save('a')], preferences: prefs }],
+      oversized: { collections: 0, notes: 0 },
     });
     expect(planGuestMerge({ saves: [], prefs, pendingMerge: false })).toEqual({
       action: 'merge',
       requests: [{ version: 1, saves: [], preferences: prefs }],
+      oversized: { collections: 0, notes: 0 },
     });
   });
 
@@ -121,6 +124,7 @@ describe('planGuestMerge collections and notes', () => {
           notes: [{ storyId: 'a', note: 'hello', updatedAt: '2026-05-02T10:00:00.000Z' }],
         },
       ],
+      oversized: { collections: 0, notes: 0 },
     });
   });
 
@@ -159,7 +163,9 @@ describe('planGuestMerge collections and notes', () => {
     // 30 x 20 KB is 600 KB: one request would be refused by the body limit.
     expect(plan.requests.length).toBeGreaterThan(1);
     for (const request of plan.requests) {
-      expect(new TextEncoder().encode(JSON.stringify(request)).length).toBeLessThan(512 * 1024);
+      expect(new TextEncoder().encode(JSON.stringify(request)).length).toBeLessThan(
+        MERGE_BODY_LIMIT_BYTES,
+      );
       expect(new TextEncoder().encode(JSON.stringify(request)).length).toBeLessThanOrEqual(
         MERGE_BODY_BUDGET_BYTES + 1000,
       );
@@ -189,7 +195,9 @@ describe('planGuestMerge collections and notes', () => {
     // JSON keeps 語 as 3 UTF-8 bytes, so 10 notes are 600 KB.
     expect(plan.requests.length).toBeGreaterThan(1);
     for (const request of plan.requests) {
-      expect(new TextEncoder().encode(JSON.stringify(request)).length).toBeLessThan(512 * 1024);
+      expect(new TextEncoder().encode(JSON.stringify(request)).length).toBeLessThan(
+        MERGE_BODY_LIMIT_BYTES,
+      );
     }
   });
 
@@ -284,5 +292,113 @@ describe('pendingMerge in stored guest data', () => {
   it('AC-1.5.6 survives a reload, and older v1 data without it loads as false', () => {
     expect(migrateGuestData({ saves: [], pendingMerge: true }, 1)?.pendingMerge).toBe(true);
     expect(migrateGuestData({ saves: [] }, 1)?.pendingMerge).toBe(false);
+  });
+});
+
+const bodyBytes = (request: MergeRequest) =>
+  new TextEncoder().encode(JSON.stringify(request)).length;
+const storyIdOf = (n: number) => `c${String(n).padStart(24, '0')}`;
+
+function fullBoard(slug: string) {
+  return board(
+    slug,
+    Array.from({ length: 500 }, (_, index) => storyIdOf(index)),
+  );
+}
+
+describe('planGuestMerge request budget', () => {
+  it('AC-3.4.5 keeps every request under the budget with 50 boards of 500 stories, 500 notes and 500 saves, and sends everything', () => {
+    const saves = Array.from({ length: 500 }, (_, index) => save(storyIdOf(index)));
+    const plan = planGuestMerge({
+      saves,
+      prefs: EMPTY_PREFERENCES,
+      collections: Array.from({ length: 50 }, (_, index) => fullBoard(`board-${index}`)),
+      notes: Object.fromEntries(
+        Array.from({ length: 500 }, (_, index) => [storyIdOf(index), guestNote('n'.repeat(500))]),
+      ),
+      pendingMerge: false,
+    });
+    if (plan.action !== 'merge') throw new Error('expected a merge');
+    expect(plan.requests.length).toBeGreaterThan(1);
+    for (const request of plan.requests) {
+      expect(bodyBytes(request)).toBeLessThanOrEqual(MERGE_BODY_BUDGET_BYTES);
+    }
+    expect(plan.requests[0]?.saves).toHaveLength(500);
+    expect(plan.requests.flatMap((request) => request.collections ?? [])).toHaveLength(50);
+    expect(plan.requests.flatMap((request) => request.notes ?? [])).toHaveLength(500);
+    expect(plan.oversized).toEqual({ collections: 0, notes: 0 });
+  });
+
+  it('AC-3.4.5 keeps every request under the budget with 16 full boards, 500 saves and one 20,000-character multi-byte note', () => {
+    const plan = planGuestMerge({
+      saves: Array.from({ length: 500 }, (_, index) => save(storyIdOf(index))),
+      prefs: EMPTY_PREFERENCES,
+      collections: Array.from({ length: 16 }, (_, index) => fullBoard(`board-${index}`)),
+      notes: { [storyIdOf(1)]: guestNote('€'.repeat(20_000)) },
+      pendingMerge: false,
+    });
+    if (plan.action !== 'merge') throw new Error('expected a merge');
+    for (const request of plan.requests) {
+      expect(bodyBytes(request)).toBeLessThanOrEqual(MERGE_BODY_BUDGET_BYTES);
+    }
+    expect(plan.requests.flatMap((request) => request.collections ?? [])).toHaveLength(16);
+    expect(plan.requests.flatMap((request) => request.notes ?? [])).toHaveLength(1);
+  });
+
+  it('AC-3.4.5 a board is never split across requests', () => {
+    const plan = planGuestMerge({
+      saves: [],
+      prefs: EMPTY_PREFERENCES,
+      collections: Array.from({ length: 20 }, (_, index) => fullBoard(`board-${index}`)),
+      pendingMerge: false,
+    });
+    if (plan.action !== 'merge') throw new Error('expected a merge');
+    const slugs = plan.requests.flatMap((request) => request.collections ?? []).map((b) => b.slug);
+    expect(new Set(slugs).size).toBe(20);
+    for (const sent of plan.requests.flatMap((request) => request.collections ?? [])) {
+      expect(sent.items).toHaveLength(500);
+    }
+  });
+});
+
+describe('keptAfterMerge', () => {
+  const sentBoard = { slug: 'reading', name: 'reading', items: [{ storyId: 'a', position: 0 }] };
+  const sentNote = { storyId: 'a', note: 'hello', updatedAt: '2026-05-02T10:00:00.000Z' };
+
+  it('AC-3.4.5 releases a board and a note that are as they were sent', () => {
+    expect(
+      keptAfterMerge(
+        { collections: [board('reading', ['a'])], notes: { a: guestNote('hello') } },
+        { collections: [sentBoard], notes: [sentNote] },
+      ),
+    ).toEqual({ collections: [], notes: {} });
+  });
+
+  it('AC-3.4.5 keeps a board whose items changed after the request, and renumbers the rest', () => {
+    const kept = keptAfterMerge(
+      { collections: [board('reading', ['a', 'b']), board('other', ['a'])], notes: {} },
+      { collections: [sentBoard, { ...sentBoard, slug: 'other', name: 'other' }], notes: [] },
+    );
+    expect(kept.collections.map(({ slug, position }) => [slug, position])).toEqual([
+      ['reading', 0],
+    ]);
+  });
+
+  it('AC-3.4.5 keeps a note whose text or time changed after the request, and a note that was not sent', () => {
+    const kept = keptAfterMerge(
+      {
+        collections: [],
+        notes: {
+          a: guestNote('edited'),
+          b: { note: 'hello', updatedAt: '2026-05-09T10:00:00.000Z' },
+          c: guestNote('never sent'),
+        },
+      },
+      {
+        collections: [],
+        notes: [sentNote, { ...sentNote, storyId: 'b' }],
+      },
+    );
+    expect(Object.keys(kept.notes)).toEqual(['a', 'b', 'c']);
   });
 });

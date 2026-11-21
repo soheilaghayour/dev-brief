@@ -10,6 +10,7 @@ import { StoryCard } from '@/components/feed/StoryCard';
 import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { lookupInChunks } from '@/components/saves/savedStories';
+import { useNotesVersion } from '@/components/saves/useNotesVersion';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import { BOARD_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
@@ -89,6 +90,8 @@ function useBoardStories(collection: CollectionView) {
 function BoardContent({ collection }: { collection: CollectionView }) {
   const collections = useCollections();
   const saves = useSaves();
+  // The notes under the cards are read from the caches.
+  useNotesVersion();
   const addToCollection = useAddToCollection();
   const { stories, isLoading, query } = useBoardStories(collection);
   const { activeId, leaveStory, toggleStory } = useStoryListNavigation({

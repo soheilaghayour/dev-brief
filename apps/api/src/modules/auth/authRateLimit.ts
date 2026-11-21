@@ -1,13 +1,21 @@
 import { ThrottlerException } from '@nestjs/throttler';
 import type { NextFunction, Request, Response } from 'express';
+import { hasInternalToken } from '../../common/rate-limit/rateLimit.guard.js';
+import type { Env } from '../../common/env/env.module.js';
 
 export const AUTH_RATE_LIMIT_PER_MINUTE = 10;
 const WINDOW_MS = 60_000;
 
 type Window = { startedAt: number; count: number };
 
-/** Limits all of /api/auth/* to 10 requests per client IP per minute; Nest's throttler never sees this raw middleware. */
-export function createAuthRateLimit(now: () => number = Date.now) {
+/**
+ * Limits all of /api/auth/* to 10 requests per client IP per minute; Nest's throttler never sees this raw middleware.
+ * Only a test-mode API (§8.6 forbids it in production) skips it, and only for a request with the internal token, so the e2e suite's sign-ins don't share one IP's budget.
+ */
+export function createAuthRateLimit(
+  env: Pick<Env, 'AUTH_TEST_MODE' | 'INTERNAL_API_TOKEN'>,
+  now: () => number = Date.now,
+) {
   // Re-inserted on every new window, so iteration order is oldest window first.
   const windows = new Map<string, Window>();
 
@@ -19,6 +27,7 @@ export function createAuthRateLimit(now: () => number = Date.now) {
   }
 
   return (request: Request, response: Response, next: NextFunction) => {
+    if (env.AUTH_TEST_MODE && hasInternalToken(request, env)) return next();
     const currentTime = now();
     const key = request.ip ?? 'unknown';
     let window = windows.get(key);

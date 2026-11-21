@@ -1,22 +1,5 @@
 import type { Collection, CollectionDetail, CollectionList } from '@devbrief/shared';
 
-export const COLLECTIONS_KEY = ['collections'] as const;
-
-export function collectionKey(id: string) {
-  return ['collections', id] as const;
-}
-
-/** A collection the user just created, shown under this id until the server answers. */
-const PENDING_ID_PREFIX = 'pending-';
-
-export function pendingCollectionId(n: number) {
-  return `${PENDING_ID_PREFIX}${n}`;
-}
-
-export function isPendingCollectionId(id: string) {
-  return id.startsWith(PENDING_ID_PREFIX);
-}
-
 function inOrder(collections: readonly Collection[]) {
   return collections.map((collection, position) => ({ ...collection, position }));
 }

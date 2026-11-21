@@ -10,7 +10,7 @@ import { useGuestStore } from '@/lib/guest/guestStore';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
 import { notify } from '@/lib/toast/notify';
 import { useQueryCacheVersion } from '@/lib/useQueryCacheVersion';
-import { collectionKey, COLLECTIONS_KEY } from './accountCollections';
+import { collectionKey, COLLECTIONS_KEY } from './collectionKeys';
 
 export type CollectionView = {
   id: string;

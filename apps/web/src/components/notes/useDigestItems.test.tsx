@@ -11,11 +11,15 @@ vi.mock('@/config/features', () => ({ FEATURES: {}, isFeatureEnabled: () => true
 const server = vi.hoisted(() => ({
   pages: [] as unknown[],
   cursors: [] as (string | undefined)[],
+  limits: [] as (number | undefined)[],
+  failing: false,
 }));
 vi.mock('@/lib/api/endpoints', () => ({
   getSaveIds: async () => ({ ids: [] }),
-  getSaves: async ({ cursor }: { cursor?: string }) => {
+  getSaves: async ({ cursor, limit }: { cursor?: string; limit?: number }) => {
     server.cursors.push(cursor);
+    server.limits.push(limit);
+    if (server.failing) throw new Error('500');
     return server.pages[cursor ? Number(cursor) : 0];
   },
 }));
@@ -48,6 +52,8 @@ function Probe() {
 beforeEach(() => {
   server.pages = [];
   server.cursors = [];
+  server.limits = [];
+  server.failing = false;
   seen = undefined;
 });
 
@@ -81,5 +87,23 @@ describe('useDigestItems for an account', () => {
 
     await vi.waitFor(() => expect(seen?.items).toHaveLength(2));
     expect(server.cursors).toEqual([undefined, '1']);
+  });
+
+  it('AC-3.4.4 asks for pages of 50, the most a page can hold', async () => {
+    server.pages = [page([item(1, inWeek)], null)];
+    const mounted = await mount(<Probe />);
+    unmount = mounted.unmount;
+
+    await vi.waitFor(() => expect(seen?.items).toHaveLength(1));
+    expect(server.limits).toEqual([50]);
+  });
+
+  it('AC-3.4.4 reports a failed load as an error, not as an empty week', async () => {
+    server.failing = true;
+    const mounted = await mount(<Probe />);
+    unmount = mounted.unmount;
+
+    await vi.waitFor(() => expect(seen?.isError).toBe(true));
+    expect(seen?.items).toEqual([]);
   });
 });

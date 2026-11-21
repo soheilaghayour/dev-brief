@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
 import type { Collection, StoryCard as StoryCardData } from '@devbrief/shared';
+import { ApiError } from '@/lib/api/apiError';
 import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { AddToCollectionProvider, useAddToCollection } from './AddToCollection';
 import { CollectionBoard } from './CollectionBoard';
@@ -28,6 +30,7 @@ const server = vi.hoisted(() => ({
   rows: [] as unknown[],
   savedIds: [] as string[],
   failing: false,
+  conflicts: 0,
   gate: null as Promise<void> | null,
   calls: [] as string[],
 }));
@@ -39,6 +42,10 @@ function rows() {
 async function answer(call: string) {
   server.calls.push(call);
   await server.gate;
+  if (server.conflicts > 0) {
+    server.conflicts -= 1;
+    throw new ApiError('CONFLICT', 'busy', 'req', 409, undefined);
+  }
   if (server.failing) throw new Error('500');
 }
 
@@ -177,6 +184,7 @@ beforeEach(() => {
   server.rows = [];
   server.savedIds = [];
   server.failing = false;
+  server.conflicts = 0;
   server.gate = null;
   server.calls = [];
 });
@@ -448,5 +456,72 @@ describe('adding to an account collection', () => {
 
     await vi.waitFor(() => expect(notify).toHaveBeenCalled());
     await vi.waitFor(() => expect(checkboxes()[0]?.checked).toBe(false));
+  });
+});
+
+describe('account collection writes against the cache', () => {
+  async function seededClient() {
+    const queryClient = new QueryClient();
+    server.rows = [row('c1', 'Reading', 0, [1]), row('c2', 'Other', 1, [2])];
+    queryClient.setQueryData(['collections'], { items: rows().map(asCollection) });
+    for (const { id } of rows()) {
+      const { getCollection } = await import('@/lib/api/endpoints');
+      queryClient.setQueryData(['collections', id], await getCollection(id));
+    }
+    return queryClient;
+  }
+
+  it('AC-3.4.3 a rename refetches the list and its own board, and nothing broader', async () => {
+    const queryClient = await seededClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { renameAccountCollection } = await import('./accountCollectionWriters');
+
+    await expect(renameAccountCollection(queryClient, 'c1', 'Backlog')).resolves.toBe('renamed');
+
+    const filters = invalidate.mock.calls.map(([filter]) => filter);
+    expect(filters).toEqual([
+      { queryKey: ['collections'], exact: true },
+      { queryKey: ['collections', 'c1'], exact: true },
+    ]);
+  });
+
+  it('AC-3.4.3 a write that meets a busy lock is sent again after 250 ms and 500 ms, and then succeeds', async () => {
+    vi.useFakeTimers();
+    try {
+      const queryClient = await seededClient();
+      const { renameAccountCollection } = await import('./accountCollectionWriters');
+      server.conflicts = 2;
+
+      const renamed = renameAccountCollection(queryClient, 'c1', 'Backlog');
+      await vi.advanceTimersByTimeAsync(250);
+      expect(server.calls.filter((call) => call.startsWith('PATCH'))).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(500);
+
+      await expect(renamed).resolves.toBe('renamed');
+      expect(server.calls.filter((call) => call.startsWith('PATCH'))).toHaveLength(3);
+      expect(notify).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('AC-3.4.3 a lock that stays busy rolls the change back and says the account is busy syncing', async () => {
+    vi.useFakeTimers();
+    try {
+      const queryClient = await seededClient();
+      const { renameAccountCollection } = await import('./accountCollectionWriters');
+      server.conflicts = 3;
+
+      const renamed = renameAccountCollection(queryClient, 'c1', 'Backlog');
+      await vi.advanceTimersByTimeAsync(750);
+
+      await expect(renamed).resolves.toBe('failed');
+      expect(notify).toHaveBeenCalledWith('Your account is busy syncing — try again');
+      expect(
+        queryClient.getQueryData<{ items: Collection[] }>(['collections'])?.items[0]?.name,
+      ).toBe('Reading');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

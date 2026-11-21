@@ -1,11 +1,13 @@
 import type { InfiniteData, MutationOptions, QueryClient } from '@tanstack/react-query';
 import type { Save, SaveIds, SavedStoryPage } from '@devbrief/shared';
+import { isConflict, retryOnConflict } from '@/lib/api/retryOnConflict';
 
 export const SAVE_IDS_KEY = ['saves', 'ids'] as const;
 export const SAVE_LIST_KEY = ['saves', 'list'] as const;
 const SAVE_MUTATION_KEY = ['saves', 'toggle'] as const;
 
 export const SAVE_FAILED_NOTICE = "Couldn't save — retry";
+export const SAVE_BUSY_NOTICE = 'Your account is busy syncing — try again';
 
 type SavedList = InfiniteData<SavedStoryPage, string | undefined>;
 type ToggleVariables = { storyId: string; save: boolean };
@@ -45,7 +47,8 @@ export function saveMutationOptions(
     mutationKey: SAVE_MUTATION_KEY,
     // One scope runs the mutations in order, so a quick save then unsave can't reach the server reversed.
     scope: { id: 'saves' },
-    mutationFn: ({ storyId, save }) => (save ? putSave(storyId) : deleteSave(storyId)),
+    mutationFn: ({ storyId, save }) =>
+      retryOnConflict<unknown>(() => (save ? putSave(storyId) : deleteSave(storyId))),
     onMutate: async (variables) => {
       await Promise.all([
         queryClient.cancelQueries({ queryKey: SAVE_IDS_KEY, exact: true }),
@@ -60,12 +63,12 @@ export function saveMutationOptions(
       return snapshot;
     },
     // A rollback restores the snapshot from before any toggle still pending; the refetch in onSettled puts that toggle back.
-    onError: (_error, _variables, snapshot) => {
+    onError: (error, _variables, snapshot) => {
       if (snapshot) {
         queryClient.setQueryData(SAVE_IDS_KEY, snapshot.ids);
         queryClient.setQueryData(SAVE_LIST_KEY, snapshot.list);
       }
-      void notify(SAVE_FAILED_NOTICE);
+      void notify(isConflict(error) ? SAVE_BUSY_NOTICE : SAVE_FAILED_NOTICE);
     },
     // Only the last of several quick toggles refetches, so an early answer can't overwrite a later patch.
     onSettled: (_data, _error, { storyId, save }) => {

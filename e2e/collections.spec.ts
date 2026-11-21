@@ -231,19 +231,21 @@ async function guestBoardWithNote(page: Page, board: string) {
   return id;
 }
 
-// One test for the whole round trip: the auth routes allow 10 requests a minute per IP (§8.6), so sign-ins are spent sparingly.
-test('AC-3.4.5 a guest board, story and note merge on sign-in, come from the server, survive sign-out and sign-in, and a rename persists', async ({
-  page,
-}) => {
-  const id = await guestBoardWithNote(page, 'Merge board');
-
+// The device released everything it sent, so what follows can only come from the account.
+async function signInAndMerge(page: Page, board: string) {
+  const id = await guestBoardWithNote(page, board);
   const email = await signInThroughTestRoute(page);
   await page.goto('/saved');
   await expect(page.getByText('1 saved story, 1 collection and 1 note synced')).toBeVisible();
-
-  // The device released everything it sent, so what follows can only come from the account.
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  return { id, email };
+}
+
+test('AC-3.4.5 a guest board, story and note merge on sign-in and then come from the server', async ({
+  page,
+}) => {
+  const { id } = await signInAndMerge(page, 'Merge board');
   await expect(sidebar(page).getByRole('link', { name: /^Merge board\s*1$/ })).toBeVisible();
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toHaveAttribute('data-story-id', id);
@@ -251,27 +253,35 @@ test('AC-3.4.5 a guest board, story and note merge on sign-in, come from the ser
   await page.goto('/collections/merge-board');
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page).first()).toContainText(`📝 ${NOTE}`);
+});
 
-  // Signing out empties the device; signing in again finds everything in the account.
+test('AC-1.5.8 AC-3.4.5 signing out empties the device, and signing in again finds everything in the account', async ({
+  page,
+}) => {
+  const { email } = await signInAndMerge(page, 'Return board');
   await page.getByRole('button', { name: 'Account menu' }).click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByRole('banner').getByRole('button', { name: 'Sign in' })).toBeVisible();
   await page.goto('/saved');
-  await expect(sidebar(page).getByRole('link', { name: /Merge board/ })).toHaveCount(0);
+  await expect(sidebar(page).getByRole('link', { name: /Return board/ })).toHaveCount(0);
   await signInThroughTestRoute(page, email);
   await page.goto('/saved');
-  await expect(sidebar(page).getByRole('link', { name: /^Merge board\s*1$/ })).toBeVisible();
+  await expect(sidebar(page).getByRole('link', { name: /^Return board\s*1$/ })).toBeVisible();
+});
 
-  // A signed-in rename is kept by the server and survives a reload.
-  await sidebar(page).getByRole('button', { name: 'Actions for Merge board' }).click();
+test('AC-3.4.3 a signed-in rename is kept by the server and survives a reload', async ({
+  page,
+}) => {
+  await signInAndMerge(page, 'Old name');
+  await sidebar(page).getByRole('button', { name: 'Actions for Old name' }).click();
   await page.getByRole('menuitem', { name: 'Rename' }).click();
   await page.getByRole('dialog').getByLabel('Name').fill('Backlog');
   await page.getByRole('button', { name: 'Rename' }).click();
   await expect(sidebar(page).getByRole('link', { name: /^Backlog/ })).toHaveAttribute(
     'href',
-    '/collections/merge-board',
+    '/collections/old-name',
   );
   await page.reload();
   await expect(sidebar(page).getByRole('link', { name: /^Backlog\s*1$/ })).toBeVisible();
-  await expect(sidebar(page).getByRole('link', { name: /Merge board/ })).toHaveCount(0);
+  await expect(sidebar(page).getByRole('link', { name: /Old name/ })).toHaveCount(0);
 });

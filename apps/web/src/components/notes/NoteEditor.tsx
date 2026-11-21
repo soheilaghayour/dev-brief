@@ -11,7 +11,12 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { NOTE_MAX_LENGTH } from '@devbrief/shared';
-import { registerPendingNote } from '@/components/saves/pendingNote';
+import {
+  failedNote,
+  forgetFailedNote,
+  registerPendingNote,
+  rememberFailedNote,
+} from '@/components/saves/pendingNote';
 import { useNoteLoaded } from '@/components/saves/useNoteLoaded';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
@@ -61,11 +66,14 @@ export function NoteEditor(props: NoteEditorProps) {
 function NoteForm({ storyId, focusOnOpen = false, onDone }: NoteEditorProps) {
   const { note, setNote, setNoteNow, prepareNoteWrites } = useSaves();
   const counterId = useId();
-  const [text, setText] = useState(() => note(storyId) ?? '');
+  // A write that failed before the editor was closed leaves its text behind: it shows again and is sent again.
+  const [failedText] = useState(() => failedNote(storyId));
+  const [text, setText] = useState(() => failedText ?? note(storyId) ?? '');
   const [view, setView] = useState<'write' | 'preview'>('write');
-  const [status, setStatus] = useState<SaveStatus>('idle');
+  const [status, setStatus] = useState<SaveStatus>(failedText === undefined ? 'idle' : 'retrying');
   // The text not written yet, or null; kept in refs so blur and unmount flush what the last render didn't see.
-  const unsaved = useRef<string | null>(null);
+  const unsaved = useRef<string | null>(failedText ?? null);
+  const writesInFlight = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const writers = useRef({ setNote, setNoteNow, prepareNoteWrites });
@@ -78,13 +86,20 @@ function NoteForm({ storyId, focusOnOpen = false, onDone }: NoteEditorProps) {
     const value = unsaved.current;
     if (value === null) return;
     unsaved.current = null;
+    writesInFlight.current += 1;
     const outcome = await writers.current.setNote(storyId, value === '' ? null : value);
+    writesInFlight.current -= 1;
     if (outcome === 'failed') {
       // Typed text is never dropped: unless newer text came in meanwhile, the next change or blur sends it again.
       if (unsaved.current === null) unsaved.current = value;
+      rememberFailedNote(storyId, unsaved.current);
       setStatus('retrying');
     } else if (outcome === 'not-saved' || outcome === 'too-long') setStatus('failed');
-    else setStatus(unsaved.current === null ? 'saved' : 'saving');
+    else {
+      if (unsaved.current === null) forgetFailedNote(storyId);
+      // "Saved" only once the newest text is confirmed: an older write answering says nothing about it.
+      setStatus(unsaved.current === null && writesInFlight.current === 0 ? 'saved' : 'saving');
+    }
   }
 
   useEffect(() => {
@@ -116,8 +131,9 @@ function NoteForm({ storyId, focusOnOpen = false, onDone }: NoteEditorProps) {
       clearTimeout(timer.current);
       writers.current.setNoteNow(storyId, value === '' ? null : value);
     }
+    // A hidden page may come back, so it writes through the queue like any other write; only a closing page needs the request that outlives it.
     function writeWhenHidden() {
-      if (document.visibilityState === 'hidden') writeBeforeLeaving();
+      if (document.visibilityState === 'hidden') void flush();
     }
     window.addEventListener('pagehide', writeBeforeLeaving);
     document.addEventListener('visibilitychange', writeWhenHidden);

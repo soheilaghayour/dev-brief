@@ -1,13 +1,14 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { toNodeHandler } from 'better-auth/node';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { HSTS_MAX_AGE_SECONDS, PERMISSIONS_POLICY } from '@devbrief/shared';
+import { HSTS_MAX_AGE_SECONDS, MERGE_BODY_LIMIT_BYTES, PERMISSIONS_POLICY } from '@devbrief/shared';
 import helmet from 'helmet';
 import { assignRequestId } from './common/logging/requestId.js';
 import { PRIVATE_NO_STORE } from './common/cache/cacheControl.js';
 import { AUTH } from './modules/auth/auth.constants.js';
 import type { Auth } from './modules/auth/auth.js';
 import { createAuthRateLimit } from './modules/auth/authRateLimit.js';
+import { ENV, type Env } from './common/env/env.module.js';
 import { setupOpenApi } from './common/openapi/openapi.js';
 
 // Every /api/auth/* response is personal: session cookies, OAuth redirects, the session itself.
@@ -33,9 +34,14 @@ export function configureApp(app: NestExpressApplication) {
     next();
   });
   // Better Auth is mounted here, before the JSON parser: it needs the raw body.
-  app.use('/api/auth', noStore, createAuthRateLimit(), toNodeHandler(app.get<Auth>(AUTH)));
+  app.use(
+    '/api/auth',
+    noStore,
+    createAuthRateLimit(app.get<Env>(ENV)),
+    toNodeHandler(app.get<Auth>(AUTH)),
+  );
   // A merge carries up to 500 saves; the global parser below skips a body already parsed here.
-  app.use('/api/v1/me/merge', express.json({ limit: '512kb' }));
+  app.use('/api/v1/me/merge', express.json({ limit: MERGE_BODY_LIMIT_BYTES }));
   app.use(express.json({ limit: '100kb' }));
   app.setGlobalPrefix('api/v1');
   setupOpenApi(app);

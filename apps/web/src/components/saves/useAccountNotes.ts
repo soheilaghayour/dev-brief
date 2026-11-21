@@ -1,8 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { useQueryCacheVersion } from '@/lib/useQueryCacheVersion';
-import { findCachedNote, isNoteQueryKey } from './accountNoteCache';
+import { findCachedNote } from './accountNoteCache';
 
 type NoteWriter = typeof import('./accountNotes');
 let noteWriter: NoteWriter | undefined;
@@ -16,11 +15,9 @@ function prepareNoteWrites() {
   });
 }
 
-/** Notes kept in the account, read from whatever the caches hold (saved list, boards, the story's own save) and written optimistically. */
+/** Notes kept in the account, read from the caches and written optimistically; a surface that shows them subscribes with `useNotesVersion`. */
 export function useAccountNotes() {
   const queryClient = useQueryClient();
-  // Reads go straight to the caches, so a change to one has to re-render the components that read.
-  useQueryCacheVersion(isNoteQueryKey);
 
   function note(storyId: string) {
     return findCachedNote(queryClient, storyId)?.note ?? null;

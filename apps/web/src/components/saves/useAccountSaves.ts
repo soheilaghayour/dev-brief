@@ -17,6 +17,9 @@ const lazyRequests = {
   notify,
 };
 
+// Stories whose note is being looked up for an unsave.
+const lookingUp = new Set<string>();
+
 /** Saves kept in the account: ids from the API, changes applied to the cache first and rolled back on error. */
 export function useAccountSaves(enabled: boolean) {
   const queryClient = useQueryClient();
@@ -38,26 +41,31 @@ export function useAccountSaves(enabled: boolean) {
     return queryClient.getQueryData<SaveIds>(SAVE_IDS_KEY)?.ids ?? ids;
   }
   // A story's note is only in the caches where it was shown, so the unsave may have to ask the server for it.
-  async function hasNote(storyId: string) {
+  async function lookUpNote(storyId: string): Promise<'note' | 'none' | 'unknown'> {
     await flushPendingNote();
     const cached = findCachedNote(queryClient, storyId);
-    if (cached) return Boolean(cached.note);
+    if (cached) return cached.note ? 'note' : 'none';
     try {
       const save = await queryClient.fetchQuery({
         queryKey: noteKey(storyId),
         queryFn: async () => (await import('@/lib/api/endpoints')).getSave(storyId),
       });
-      return Boolean(save.note);
+      return save.note ? 'note' : 'none';
     } catch {
-      // A note that can't be looked up must not make the story impossible to unsave.
-      return false;
+      return 'unknown';
     }
   }
-  // Asks first when the story has a note, wherever the unsave comes from (AC-3.4.2); `onUnsave` runs only once it happens.
+  // Asks first when the story has a note, or may have one, wherever the unsave comes from (AC-3.4.2); `onUnsave` runs only once it happens.
   async function unsave(storyId: string, options?: ToggleSaveOptions) {
-    if (options && isFeatureEnabled('collections') && (await hasNote(storyId))) {
-      requestUnsave({ storyId, ...options });
-      return;
+    if (options && isFeatureEnabled('collections')) {
+      // A second press while the lookup is out would ask twice, or unsave behind the dialog.
+      if (lookingUp.has(storyId)) return;
+      lookingUp.add(storyId);
+      const found = await lookUpNote(storyId).finally(() => lookingUp.delete(storyId));
+      if (found !== 'none') {
+        requestUnsave({ storyId, ...options, isNoteUnknown: found === 'unknown' });
+        return;
+      }
     }
     options?.onUnsave?.();
     mutation.mutate({ storyId, save: false });

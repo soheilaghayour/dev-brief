@@ -39,6 +39,13 @@ export const SaveNotePatchSchema = z.object({
 });
 export type SaveNotePatch = z.infer<typeof SaveNotePatchSchema>;
 
+/** Notes in one merge request. */
+export const MERGE_NOTES_MAX = 500;
+/** The API's body limit for a merge request (PRD §8.6). */
+export const MERGE_BODY_LIMIT_BYTES = 512 * 1024;
+/** What the web fills a merge request to, leaving the envelope and the encoding of what it measured as margin. */
+export const MERGE_BODY_BUDGET_BYTES = 480_000;
+
 export const MergeRequestSchema = z.object({
   version: z.literal(1),
   saves: z.array(z.object({ storyId: StoryIdSchema, savedAt: z.string().datetime() })).max(500),
@@ -67,7 +74,7 @@ export const MergeRequestSchema = z.object({
         updatedAt: z.string().datetime(),
       }),
     )
-    .max(500)
+    .max(MERGE_NOTES_MAX)
     .optional(),
 });
 export type MergeRequest = z.infer<typeof MergeRequestSchema>;

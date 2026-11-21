@@ -14,11 +14,19 @@ type CollectionMenuProps = {
   name: string;
   isFirst: boolean;
   isLast: boolean;
+  /** A row the server hasn't answered for yet has no real id to act on. */
+  isPending?: boolean;
   onAction: (action: CollectionAction) => void;
 };
 
 /** The "…" button of a collection row: Rename, Move up, Move down, Delete. */
-export function CollectionMenu({ name, isFirst, isLast, onAction }: CollectionMenuProps) {
+export function CollectionMenu({
+  name,
+  isFirst,
+  isLast,
+  isPending = false,
+  onAction,
+}: CollectionMenuProps) {
   const [hasOpened, setHasOpened] = useState(false);
 
   function open() {
@@ -32,6 +40,7 @@ export function CollectionMenu({ name, isFirst, isLast, onAction }: CollectionMe
       size="icon"
       aria-label={`Actions for ${name}`}
       aria-haspopup="menu"
+      disabled={isPending}
       onClick={open}
     >
       <MoreHorizontalIcon aria-hidden="true" />

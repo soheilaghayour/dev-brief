@@ -63,6 +63,7 @@ export function DigestExportDialog({ stories, fixedCollection, onClose }: Digest
   // An account's board items are on the server: the scope's stories load when it is chosen.
   const scopeItems = useCollectionItems(chosenOption && !fixedCollection ? [chosenOption.id] : []);
   const isLoading = digestSource.isLoading || scopeItems.isLoading;
+  const isUnavailable = isLoading || digestSource.isError;
   const collection = chosen && {
     name: chosen.name,
     slug: chosen.slug,
@@ -147,11 +148,17 @@ export function DigestExportDialog({ stories, fixedCollection, onClose }: Digest
             </DropdownMenu>
           )}
         </div>
+        {digestSource.isError && (
+          <p role="alert" className="text-destructive text-sm">
+            Couldn’t load your saved stories, so there is nothing to export. Close this and try
+            again.
+          </p>
+        )}
         <div className="flex justify-end gap-2">
-          <Button variant="outline" disabled={isLoading} onClick={download}>
+          <Button variant="outline" disabled={isUnavailable} onClick={download}>
             Download .md
           </Button>
-          <Button disabled={isLoading} onClick={copy}>
+          <Button disabled={isUnavailable} onClick={copy}>
             Copy to clipboard
           </Button>
         </div>

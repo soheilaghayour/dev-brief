@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { isPendingCollectionId } from './collectionKeys';
 import {
   Dialog,
   DialogContent,
@@ -133,7 +134,7 @@ export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialo
             >
               <Checkbox
                 checked={isChecked(collection)}
-                disabled={isLoadingMembers}
+                disabled={isLoadingMembers || isPendingCollectionId(collection.id)}
                 onChange={() => void toggleMembership(collection)}
               />
               <span className="min-w-0 flex-1 truncate">{collection.name}</span>

@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import {
   COLLECTION_ITEMS_MAX,
   COLLECTIONS_MAX,
@@ -10,11 +10,11 @@ import {
   type SaveIds,
 } from '@devbrief/shared';
 import { patchSaveIds, SAVE_IDS_KEY } from '@/components/saves/accountSaves';
+import { isConflict, retryOnConflict } from '@/lib/api/retryOnConflict';
 import type { AddItemOutcome } from '@/lib/guest/collectionsState';
 import { notify } from '@/lib/toast/notify';
+import { collectionKey, COLLECTIONS_KEY, pendingCollectionId } from './collectionKeys';
 import {
-  collectionKey,
-  COLLECTIONS_KEY,
   detailRenamed,
   detailWithoutItems,
   listItemCount,
@@ -23,10 +23,10 @@ import {
   listWithCreated,
   listWithout,
   listWithReplaced,
-  pendingCollectionId,
 } from './accountCollections';
 
 export const COLLECTION_FAILED_NOTICE = "Couldn't update your collections — retry";
+export const COLLECTION_BUSY_NOTICE = 'Your account is busy syncing — try again';
 
 type Api = typeof import('@/lib/api/endpoints');
 const loadApi = (): Promise<Api> => import('@/lib/api/endpoints');
@@ -42,49 +42,50 @@ function inOrder<T>(request: () => Promise<T>) {
 let inFlight = 0;
 let pendingCount = 0;
 
-type Snapshot = { collections: [readonly unknown[], unknown][]; saveIds: SaveIds | undefined };
+type Snapshot = [QueryKey, unknown][];
 
-function takeSnapshot(queryClient: QueryClient): Snapshot {
-  return {
-    collections: queryClient.getQueriesData({ queryKey: COLLECTIONS_KEY }),
-    saveIds: queryClient.getQueryData<SaveIds>(SAVE_IDS_KEY),
-  };
-}
+/** What a change can patch: the list, the board it touches, and the saved ids when it saves the story too. */
+type Touched = { board?: string; saveIds?: boolean };
 
-function restore(queryClient: QueryClient, { collections, saveIds }: Snapshot) {
-  for (const [key, data] of collections) queryClient.setQueryData(key, data);
-  queryClient.setQueryData(SAVE_IDS_KEY, saveIds);
+function touchedKeys({ board, saveIds }: Touched): QueryKey[] {
+  return [
+    COLLECTIONS_KEY,
+    ...(board === undefined ? [] : [collectionKey(board)]),
+    ...(saveIds ? [SAVE_IDS_KEY] : []),
+  ];
 }
 
 type Result<T> = { ok: true; value: T } | { ok: false };
 
-/**
- * The optimistic pattern (PRD §7.5): cancel, snapshot, patch; roll back with a toast on error; refetch once the
- * last change settles. A rollback is skipped while another change is in flight, since its snapshot would undo that one's patch.
- */
+/** The optimistic pattern (PRD §7.5) for the entries a change touches. */
 async function optimistic<T>(
   queryClient: QueryClient,
+  touched: Touched,
   patch: () => void,
   request: () => Promise<T>,
-  { refreshSaves = false } = {},
 ): Promise<Result<T>> {
-  await queryClient.cancelQueries({ queryKey: COLLECTIONS_KEY });
-  const snapshot = takeSnapshot(queryClient);
+  const keys = touchedKeys(touched);
+  await Promise.all(keys.map((queryKey) => queryClient.cancelQueries({ queryKey, exact: true })));
+  const snapshot: Snapshot = keys.map((queryKey) => [queryKey, queryClient.getQueryData(queryKey)]);
   inFlight += 1;
   patch();
   try {
-    return { ok: true, value: await inOrder(request) };
-  } catch {
-    if (inFlight === 1) restore(queryClient, snapshot);
-    void notify(COLLECTION_FAILED_NOTICE);
+    return { ok: true, value: await inOrder(() => retryOnConflict(request)) };
+  } catch (error) {
+    if (inFlight === 1) {
+      for (const [queryKey, data] of snapshot) queryClient.setQueryData(queryKey, data);
+    }
+    void notify(isConflict(error) ? COLLECTION_BUSY_NOTICE : COLLECTION_FAILED_NOTICE);
     return { ok: false };
   } finally {
     inFlight -= 1;
     if (inFlight === 0) {
       // Awaited, so a caller that shows what the cache holds sees the server's answer.
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: COLLECTIONS_KEY }),
-        refreshSaves ? queryClient.invalidateQueries({ queryKey: ['saves'] }) : undefined,
+        ...keys
+          .filter((queryKey) => queryKey !== SAVE_IDS_KEY)
+          .map((queryKey) => queryClient.invalidateQueries({ queryKey, exact: true })),
+        touched.saveIds ? queryClient.invalidateQueries({ queryKey: ['saves'] }) : undefined,
       ]);
     }
   }
@@ -129,6 +130,7 @@ export async function createAccountCollection(queryClient: QueryClient, name: st
   };
   const result = await optimistic(
     queryClient,
+    {},
     () => setList(queryClient, (list) => listWithCreated(list, pending)),
     async () => {
       const { createCollection } = await loadApi();
@@ -149,6 +151,7 @@ export async function renameAccountCollection(queryClient: QueryClient, id: stri
     return 'missing' as const;
   const result = await optimistic(
     queryClient,
+    { board: id },
     () => {
       setList(queryClient, (list) => listRenamed(list, id, parsed.data));
       queryClient.setQueryData<CollectionDetail>(collectionKey(id), (detail) =>
@@ -171,6 +174,7 @@ export async function moveAccountCollection(
   if (index === -1 || target < 0 || target >= items.length) return;
   await optimistic(
     queryClient,
+    {},
     () => setList(queryClient, (list) => listMoved(list, id, target)),
     async () => (await loadApi()).updateCollection(id, { position: target }),
   );
@@ -179,6 +183,7 @@ export async function moveAccountCollection(
 export async function deleteAccountCollection(queryClient: QueryClient, id: string) {
   await optimistic(
     queryClient,
+    {},
     () => setList(queryClient, (list) => listWithout(list, id)),
     async () => (await loadApi()).deleteCollection(id),
   );
@@ -200,6 +205,7 @@ export async function addAccountCollectionItem(
   const savesToo = savedIds !== undefined && !savedIds.ids.includes(storyId);
   const result = await optimistic(
     queryClient,
+    { board: id, saveIds: savesToo },
     () => {
       setList(queryClient, (list) => listItemCount(list, id, 1));
       if (savesToo)
@@ -208,7 +214,6 @@ export async function addAccountCollectionItem(
         );
     },
     async () => (await loadApi()).putCollectionItem(id, storyId),
-    { refreshSaves: savesToo },
   );
   return result.ok ? 'added' : 'failed';
 }
@@ -221,6 +226,7 @@ export async function removeAccountCollectionItems(
   if (storyIds.length === 0) return;
   await optimistic(
     queryClient,
+    { board: id },
     () => {
       const detail = cachedDetail(queryClient, id);
       const present = detail

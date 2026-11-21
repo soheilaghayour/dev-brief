@@ -14,7 +14,7 @@ function sha256(value: string) {
 }
 
 /** True when the request carries the internal token, i.e. it is the web app's own server-side call, not a visitor. */
-export function hasInternalToken(request: Request, env: Env) {
+export function hasInternalToken(request: Request, env: Pick<Env, 'INTERNAL_API_TOKEN'>) {
   const supplied = request.headers[INTERNAL_TOKEN_HEADER];
   return (
     typeof supplied === 'string' &&

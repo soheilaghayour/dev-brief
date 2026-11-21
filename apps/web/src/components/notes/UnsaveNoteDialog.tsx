@@ -30,9 +30,15 @@ export function UnsaveNoteDialog({ request }: { request: UnsaveRequest }) {
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogHeader>
-          <DialogTitle>Remove “{request.title}” and its note?</DialogTitle>
+          <DialogTitle>
+            {request.isNoteUnknown
+              ? `Remove “${request.title}”?`
+              : `Remove “${request.title}” and its note?`}
+          </DialogTitle>
           <DialogDescription>
-            The note is deleted with the story and can’t be brought back.
+            {request.isNoteUnknown
+              ? 'This story may have a note. Remove it anyway?'
+              : 'The note is deleted with the story and can’t be brought back.'}
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-2">
@@ -40,7 +46,7 @@ export function UnsaveNoteDialog({ request }: { request: UnsaveRequest }) {
             Cancel
           </Button>
           <Button variant="destructive" onClick={confirm}>
-            Remove story and note
+            {request.isNoteUnknown ? 'Remove story' : 'Remove story and note'}
           </Button>
         </div>
       </DialogContent>
