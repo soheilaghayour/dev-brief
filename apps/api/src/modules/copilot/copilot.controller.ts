@@ -61,7 +61,8 @@ export class CopilotController {
       disconnect.signal,
     );
 
-    response.status(200).set(SSE_HEADERS).flushHeaders();
+    // `writeHead`, not Express's `set`, which would append a charset to the content type.
+    response.writeHead(200, SSE_HEADERS).flushHeaders();
     response.write(HEARTBEAT);
     const heartbeat = setInterval(() => response.write(HEARTBEAT), HEARTBEAT_INTERVAL_MS);
     try {
