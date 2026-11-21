@@ -10,7 +10,10 @@ const VERDICTS = {
   mostly_positive: { label: 'Mostly positive', Icon: ThumbsUpIcon },
   mixed: { label: 'Mixed', Icon: MinusIcon },
   mostly_negative: { label: 'Mostly negative', Icon: ThumbsDownIcon },
-} as const satisfies Record<Verdict, { label: string; Icon: ComponentType<{ className?: string }> }>;
+} as const satisfies Record<
+  Verdict,
+  { label: string; Icon: ComponentType<{ className?: string }> }
+>;
 
 export type ConsensusCalloutProps = {
   /** What the community is weighing; the heading reads "Community consensus" without one. */
