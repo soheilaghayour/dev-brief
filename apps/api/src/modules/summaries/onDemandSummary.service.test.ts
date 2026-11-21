@@ -12,6 +12,7 @@ function setup(generated: GenerateResult) {
   const prisma = {
     story: { findUnique: async () => ({ id: 'cstory', clusterId: null }) },
     summary: { findFirst: async () => null },
+    sourceItem: { findMany: async () => [{ commentsCount: 12, source: { kind: 'hn' } }] },
     rateLimitCounter: {
       updateMany: async ({ where }: { where: { count: { lt: number } } }) => {
         if (count === 0 || count >= where.count.lt) return { count: 0 };

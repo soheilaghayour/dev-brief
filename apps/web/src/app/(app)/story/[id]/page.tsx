@@ -39,7 +39,12 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
     <article className="flex flex-col gap-8">
       <StoryHeader story={story} />
       {isFeatureEnabled('summaries') && (
-        <SummaryPanel storyId={story.id} summary={story.summary ?? null} autoStart={autoStart} />
+        <SummaryPanel
+          storyId={story.id}
+          summary={story.summary ?? null}
+          canSummarize={story.canSummarize ?? false}
+          autoStart={autoStart}
+        />
       )}
       {isFeatureEnabled('collections') && <StoryNote storyId={story.id} />}
       <SourceItemList items={story.items} />

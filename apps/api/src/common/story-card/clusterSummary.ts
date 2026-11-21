@@ -40,3 +40,17 @@ export async function summarizedClusterIds(
   });
   return new Set(rows.flatMap((row) => row.story.clusterId ?? []));
 }
+
+/** The kind and comment count of every item of the story, or of all members of its cluster while clusters are on; what `hasSummaryInput` judges. */
+export function loadSummaryInputItems(
+  prisma: Pick<PrismaService, 'sourceItem'>,
+  story: StoryRef,
+  clustersOn: boolean,
+) {
+  return prisma.sourceItem.findMany({
+    where: {
+      story: clustersOn && story.clusterId ? { clusterId: story.clusterId } : { id: story.id },
+    },
+    select: { commentsCount: true, source: { select: { kind: true } } },
+  });
+}
