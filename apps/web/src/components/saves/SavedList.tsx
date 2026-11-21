@@ -9,6 +9,7 @@ import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { InfiniteSentinel } from '@/components/feed/InfiniteSentinel';
 import { StoryCard } from '@/components/feed/StoryCard';
+import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { SAVED_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
 import { useSaves } from './useSaves';
@@ -45,30 +46,37 @@ export function SavedList() {
   if (stories.length === 0) return <SavedEmpty />;
 
   return (
-    <div role="feed" aria-label="Saved stories">
-      <AddToCollectionShortcut storyId={activeId} />
-      {stories.map((story) => (
-        <StoryCard
-          key={story.id}
-          story={story}
-          isSaved={saves.isSaved(story.id)}
-          onToggleSave={() => toggleStory(story.id)}
-          isActive={story.id === activeId}
-          preferenceMenu={PreferenceMenu}
-          onAddToCollection={
-            addToCollection.canAdd ? () => addToCollection.open(story.id) : undefined
-          }
+    <div>
+      <div className="mb-2 flex justify-end">
+        <LazyDigestExportMenu stories={stories} />
+      </div>
+      <div role="feed" aria-label="Saved stories">
+        <AddToCollectionShortcut storyId={activeId} />
+        <LazyNoteShortcut storyId={activeId} />
+        {stories.map((story) => (
+          <StoryCard
+            key={story.id}
+            story={story}
+            isSaved={saves.isSaved(story.id)}
+            onToggleSave={() => toggleStory(story.id)}
+            isActive={story.id === activeId}
+            preferenceMenu={PreferenceMenu}
+            note={<LazyNoteSlot storyId={story.id} />}
+            onAddToCollection={
+              addToCollection.canAdd ? () => addToCollection.open(story.id) : undefined
+            }
+          />
+        ))}
+        {saved.loadMoreFailed && (
+          <FeedError message="Couldn't load more saved stories." onRetry={saved.loadMore} />
+        )}
+        {saved.isLoadingMore && <FeedSkeleton />}
+        <InfiniteSentinel
+          onVisible={saved.loadMore}
+          disabled={!saved.hasMore || saved.isLoadingMore || saved.loadMoreFailed}
+          loadedCount={stories.length}
         />
-      ))}
-      {saved.loadMoreFailed && (
-        <FeedError message="Couldn't load more saved stories." onRetry={saved.loadMore} />
-      )}
-      {saved.isLoadingMore && <FeedSkeleton />}
-      <InfiniteSentinel
-        onVisible={saved.loadMore}
-        disabled={!saved.hasMore || saved.isLoadingMore || saved.loadMoreFailed}
-        loadedCount={stories.length}
-      />
+      </div>
     </div>
   );
 }

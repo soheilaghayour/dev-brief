@@ -1,5 +1,6 @@
 'use client';
 
+import { isFeatureEnabled } from '@/config/features';
 import { useMe } from '@/lib/auth/useMe';
 import { useAccountSaves } from './useAccountSaves';
 import { useGuestSaves } from './useGuestSaves';
@@ -10,7 +11,18 @@ export function useSaves() {
   const guest = useGuestSaves();
   const account = useAccountSaves(Boolean(user));
 
-  if (user) return { mode: 'account' as const, isReady: true, ...account };
+  // Account notes arrive with account sync, so a signed-in user has no notes UI until then.
+  if (user) {
+    return {
+      mode: 'account' as const,
+      isReady: true,
+      ...account,
+      canNote: false,
+      note: () => null,
+      setNote: async () => 'not-saved' as const,
+      savedAt: () => null,
+    };
+  }
   // Waiting for /me avoids treating someone about to be recognised as signed in as a guest.
   return {
     mode: 'guest' as const,
@@ -18,5 +30,9 @@ export function useSaves() {
     ids: guest.ids,
     isSaved: guest.isSaved,
     toggle: guest.toggle,
+    canNote: isFeatureEnabled('collections'),
+    note: guest.note,
+    setNote: guest.setNote,
+    savedAt: guest.savedAt,
   };
 }

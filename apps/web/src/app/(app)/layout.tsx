@@ -5,6 +5,8 @@ import { QueryProvider } from '@/components/layout/QueryProvider';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { LazyAccountSlot } from '@/components/account/LazyAccountSlot';
 import { AddToCollectionProvider } from '@/components/collections/AddToCollection';
+import { LazyUnsaveNoteConfirm } from '@/components/notes/LazyNotes';
+import { isFeatureEnabled } from '@/config/features';
 import { GuestStoreHydrator } from '@/components/saves/GuestStoreHydrator';
 import { AppShell } from '@/components/layout/AppShell';
 import { FeedFilters } from '@/components/feed/FeedFilters';
@@ -19,6 +21,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <QueryProvider>
         <NuqsAdapter>
           <GuestStoreHydrator />
+          {isFeatureEnabled('collections') && <LazyUnsaveNoteConfirm />}
           <AddToCollectionProvider>
             <AppShell
               searchSlot={

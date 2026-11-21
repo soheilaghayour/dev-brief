@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { isFeatureEnabled } from '@/config/features';
 import { purgeGuestSaves, toggleGuestSave } from '@/lib/guest/guestSaves';
 import { sortSavesNewestFirst, type ToggleOutcome } from '@/lib/guest/guestState';
 import { guestStorage, useGuestStore } from '@/lib/guest/guestStore';
@@ -21,6 +22,19 @@ function announceSave(outcome: ToggleOutcome) {
 }
 
 function toggle(storyId: string) {
+  // Unsaving a story with a note asks first (AC-3.4.1); the dialog calls `confirmUnsave` when the reader agrees.
+  const { saves, notes } = useGuestStore.getState();
+  const isSaved = saves.some((save) => save.storyId === storyId);
+  if (isSaved && notes[storyId] && isFeatureEnabled('collections')) {
+    // The store loads with the confirmation chunk, which the layout fetches after first load.
+    void import('@/components/notes/unsaveRequest').then((module) => module.requestUnsave(storyId));
+    return;
+  }
+  confirmUnsave(storyId);
+}
+
+/** Toggles the save without asking, which is what the unsave confirmation runs once the reader agrees. */
+export function confirmUnsave(storyId: string) {
   // `now` is taken at click time; the write itself waits for the stored saves to load.
   void toggleGuestSave(storyId, new Date()).then(announceSave);
 }
@@ -32,10 +46,36 @@ export function useGuestSaves() {
   const list = useMemo(() => sortSavesNewestFirst(saves), [saves]);
   const ids = useMemo(() => list.map((save) => save.storyId), [list]);
   const savedIds = useMemo(() => new Set(ids), [ids]);
+  const notes = useGuestStore((state) => state.notes);
+  const savedAts = useMemo(() => new Map(list.map((save) => [save.storyId, save.savedAt])), [list]);
 
   function isSaved(storyId: string) {
     return savedIds.has(storyId);
   }
 
-  return { ids, list, isReady, isSaved, toggle, removeUnavailable: purgeGuestSaves };
+  function note(storyId: string) {
+    return notes[storyId]?.note ?? null;
+  }
+
+  function savedAt(storyId: string) {
+    return savedAts.get(storyId) ?? null;
+  }
+
+  // The writer (and Zod with it) loads on the first write.
+  async function setNote(storyId: string, markdown: string | null) {
+    const { setGuestNote } = await import('@/lib/guest/guestNotes');
+    return setGuestNote(storyId, markdown, new Date());
+  }
+
+  return {
+    ids,
+    list,
+    isReady,
+    isSaved,
+    toggle,
+    note,
+    setNote,
+    savedAt,
+    removeUnavailable: purgeGuestSaves,
+  };
 }
