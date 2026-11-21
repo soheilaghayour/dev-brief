@@ -3,9 +3,12 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SaveIds } from '@devbrief/shared';
-import { SAVE_IDS_KEY, saveMutationOptions } from './accountSaves';
+import { isFeatureEnabled } from '@/config/features';
 import { notify } from '@/lib/toast/notify';
-import type { ToggleSaveOptions } from './unsaveRequest';
+import { findCachedNote, noteKey } from './accountNoteCache';
+import { SAVE_IDS_KEY, saveMutationOptions } from './accountSaves';
+import { flushPendingNote } from './pendingNote';
+import { requestUnsave, type ToggleSaveOptions } from './unsaveRequest';
 
 // The endpoints module (and Zod with it) loads on the first request, not with the page.
 const lazyRequests = {
@@ -34,10 +37,34 @@ export function useAccountSaves(enabled: boolean) {
   function currentIds() {
     return queryClient.getQueryData<SaveIds>(SAVE_IDS_KEY)?.ids ?? ids;
   }
+  // A story's note is only in the caches where it was shown, so the unsave may have to ask the server for it.
+  async function hasNote(storyId: string) {
+    await flushPendingNote();
+    const cached = findCachedNote(queryClient, storyId);
+    if (cached) return Boolean(cached.note);
+    try {
+      const save = await queryClient.fetchQuery({
+        queryKey: noteKey(storyId),
+        queryFn: async () => (await import('@/lib/api/endpoints')).getSave(storyId),
+      });
+      return Boolean(save.note);
+    } catch {
+      // A note that can't be looked up must not make the story impossible to unsave.
+      return false;
+    }
+  }
+  // Asks first when the story has a note, wherever the unsave comes from (AC-3.4.2); `onUnsave` runs only once it happens.
+  async function unsave(storyId: string, options?: ToggleSaveOptions) {
+    if (options && isFeatureEnabled('collections') && (await hasNote(storyId))) {
+      requestUnsave({ storyId, ...options });
+      return;
+    }
+    options?.onUnsave?.();
+    mutation.mutate({ storyId, save: false });
+  }
   function toggle(storyId: string, options?: ToggleSaveOptions) {
-    const isSaved = currentIds().includes(storyId);
-    if (isSaved) options?.onUnsave?.();
-    mutation.mutate({ storyId, save: !isSaved });
+    if (currentIds().includes(storyId)) void unsave(storyId, options);
+    else mutation.mutate({ storyId, save: true });
   }
   function remove(storyId: string) {
     if (currentIds().includes(storyId)) mutation.mutate({ storyId, save: false });

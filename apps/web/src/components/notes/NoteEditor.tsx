@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { NOTE_MAX_LENGTH } from '@devbrief/shared';
 import { registerPendingNote } from '@/components/saves/pendingNote';
+import { useNoteLoaded } from '@/components/saves/useNoteLoaded';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
@@ -31,13 +32,14 @@ type NoteEditorProps = {
   onDone?: () => void;
 };
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
 
 const STATUS_TEXT = {
   idle: '',
   saving: 'Saving…',
   saved: 'Saved',
   failed: 'Couldn’t save',
+  retrying: 'Couldn’t save note — retrying',
 } satisfies Record<SaveStatus, string>;
 
 // "Saving…" is for the eyes only: announcing every pause in typing would talk over the reader.
@@ -46,10 +48,17 @@ const ANNOUNCEMENT = {
   saving: '',
   saved: 'Saved',
   failed: 'Couldn’t save',
+  retrying: 'Couldn’t save note — retrying',
 } satisfies Record<SaveStatus, string>;
 
-/** Write and Preview for one story's note, saved 800 ms after the last keystroke, on blur and on unmount. */
-export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorProps) {
+/** Write and Preview for one story's note, once the note is known (an account's may still be loading). */
+export function NoteEditor(props: NoteEditorProps) {
+  const isLoaded = useNoteLoaded(props.storyId);
+  return isLoaded ? <NoteForm {...props} /> : null;
+}
+
+/** Saves 800 ms after the last keystroke, on blur and on unmount; a failed account write keeps the text and tries again on the next change or blur. */
+function NoteForm({ storyId, focusOnOpen = false, onDone }: NoteEditorProps) {
   const { note, setNote, setNoteNow, prepareNoteWrites } = useSaves();
   const counterId = useId();
   const [text, setText] = useState(() => note(storyId) ?? '');
@@ -70,7 +79,11 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
     if (value === null) return;
     unsaved.current = null;
     const outcome = await writers.current.setNote(storyId, value === '' ? null : value);
-    if (outcome === 'not-saved' || outcome === 'too-long') setStatus('failed');
+    if (outcome === 'failed') {
+      // Typed text is never dropped: unless newer text came in meanwhile, the next change or blur sends it again.
+      if (unsaved.current === null) unsaved.current = value;
+      setStatus('retrying');
+    } else if (outcome === 'not-saved' || outcome === 'too-long') setStatus('failed');
     else setStatus(unsaved.current === null ? 'saved' : 'saving');
   }
 

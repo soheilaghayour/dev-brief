@@ -4,9 +4,8 @@ import { useState } from 'react';
 import type { StoryCard } from '@devbrief/shared';
 import { isoWeekRange, recentIsoWeeks, renderDigestMarkdown } from '@devbrief/shared';
 import { ChevronDownIcon } from 'lucide-react';
-import { useCollections } from '@/components/collections/useCollections';
+import { useCollectionItems, useCollections } from '@/components/collections/useCollections';
 import { useReturnFocus } from '@/lib/useReturnFocus';
-import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import {
   Dialog,
@@ -24,6 +23,7 @@ import {
 } from '@/components/ui/DropdownMenu';
 import { notify } from '@/lib/toast/notify';
 import { copyToClipboard, digestFileName, downloadMarkdown } from './digestFile';
+import { useDigestItems } from './useDigestItems';
 
 /** The current week and the previous 7 (AC-3.4.4). */
 const WEEK_COUNT = 8;
@@ -48,7 +48,6 @@ function weekLabel(week: string) {
 
 /** Pick a week and a scope, then download the Markdown digest or copy it. */
 export function DigestExportDialog({ stories, fixedCollection, onClose }: DigestExportDialogProps) {
-  const saves = useSaves();
   const collections = useCollections();
   const returnFocus = useReturnFocus();
   // Fixed while the dialog is open, so the week list doesn't shift under a reader at midnight UTC.
@@ -57,8 +56,12 @@ export function DigestExportDialog({ stories, fixedCollection, onClose }: Digest
   const [scope, setScope] = useState(ALL_SAVED);
 
   const options = collections.status === 'ready' ? collections.collections : [];
-  const chosen =
-    fixedCollection ?? options.find((collection) => collection.id === scope && scope !== ALL_SAVED);
+  const chosenOption = options.find((collection) => collection.id === scope && scope !== ALL_SAVED);
+  const chosen = fixedCollection ?? chosenOption;
+  const digestSource = useDigestItems(stories, week);
+  // An account's board items are on the server: the scope's stories load when it is chosen.
+  const scopeItems = useCollectionItems(chosenOption && !fixedCollection ? [chosenOption.id] : []);
+  const isLoading = digestSource.isLoading || scopeItems.isLoading;
   const collection = chosen && {
     name: chosen.name,
     slug: chosen.slug,
@@ -69,18 +72,14 @@ export function DigestExportDialog({ stories, fixedCollection, onClose }: Digest
     return renderDigestMarkdown({
       week,
       collection,
-      items: stories.flatMap((story) => {
-        const savedAt = saves.savedAt(story.id);
-        if (!savedAt) return [];
-        return {
-          storyId: story.id,
-          title: story.title,
-          url: story.url,
-          tags: story.tags,
-          savedAt,
-          note: saves.note(story.id),
-        };
-      }),
+      items: digestSource.items.map(({ story, savedAt, note }) => ({
+        storyId: story.id,
+        title: story.title,
+        url: story.url,
+        tags: story.tags,
+        savedAt,
+        note,
+      })),
     });
   }
   function download() {
@@ -148,10 +147,12 @@ export function DigestExportDialog({ stories, fixedCollection, onClose }: Digest
           )}
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={download}>
+          <Button variant="outline" disabled={isLoading} onClick={download}>
             Download .md
           </Button>
-          <Button onClick={copy}>Copy to clipboard</Button>
+          <Button disabled={isLoading} onClick={copy}>
+            Copy to clipboard
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

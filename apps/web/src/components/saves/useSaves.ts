@@ -2,6 +2,7 @@
 
 import { isFeatureEnabled } from '@/config/features';
 import { useMe } from '@/lib/auth/useMe';
+import { useAccountNotes } from './useAccountNotes';
 import { useAccountSaves } from './useAccountSaves';
 import { useGuestSaves } from './useGuestSaves';
 
@@ -10,19 +11,15 @@ export function useSaves() {
   const { data: user, isPending } = useMe();
   const guest = useGuestSaves();
   const account = useAccountSaves(Boolean(user));
+  const accountNotes = useAccountNotes();
 
-  // Account notes arrive with account sync, so a signed-in user has no notes UI until then.
   if (user) {
     return {
       mode: 'account' as const,
       isReady: true,
       ...account,
-      canNote: false,
-      note: () => null,
-      setNote: async () => 'not-saved' as const,
-      setNoteNow: () => {},
-      prepareNoteWrites: () => {},
-      savedAt: () => null,
+      canNote: isFeatureEnabled('collections'),
+      ...accountNotes,
     };
   }
   // Waiting for /me avoids treating someone about to be recognised as signed in as a guest.
