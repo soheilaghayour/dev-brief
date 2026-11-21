@@ -201,6 +201,7 @@ describe('next/dynamic', () => {
       'components/account/LazyAccountSlot.tsx',
       'components/layout/LazyToaster.tsx',
       'components/layout/SheetLauncher.tsx',
+      'features/copilot/LazyBriefingView.tsx',
       'lib/hotkeys/HotkeysProvider.tsx',
     ]);
   });

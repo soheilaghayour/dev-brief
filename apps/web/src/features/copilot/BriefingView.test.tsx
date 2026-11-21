@@ -227,7 +227,7 @@ describe('BriefingView', () => {
     await renderView(source);
     const [create, rootUpdate] = MESSAGES;
     await send(push, create);
-    await send(push, { version: '0.8', surfaceUpdate: {} });
+    await send(push, { version: '1.0', unknownEnvelope: {} });
     await send(push, 'not a message');
     await send(push, {
       version: '1.0',
