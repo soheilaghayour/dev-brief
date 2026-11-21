@@ -192,7 +192,7 @@ Rules:
 - Each flag is **one** env variable, `FEATURE_<NAME>` (`FEATURE_CLUSTERS`, `FEATURE_SUMMARIES`, `FEATURE_COPILOT`, `FEATURE_COLLECTIONS`). The API reads it at boot. The web build inlines the same variable through `next.config.ts` into `apps/web/src/config/features.ts`, so the web app is rebuilt after a change. There are no `NEXT_PUBLIC_FEATURE_*` variables.
 - A flag that is off hides the UI entry points, and the matching API routes return 404 `FEATURE_DISABLED`.
 - Production ships each flag off until its launch. `.env.example` turns on every flag whose feature needs no key (`FEATURE_COLLECTIONS=true`) and leaves the AI flags (`summaries`, `clusters`, `copilot`) off until a key is set. `AUTO_SUMMARIES` and `AUTO_CLUSTERING` are separate switches for the ingestion run's live model calls; they default to off and stay after their flags are deleted.
-- Launches: summaries once their real recorded reply exists (AC-2.3.7) and the content-rights launch gate holds (§8.8); clusters once their real recorded replies exist (AC-2.1.1); the copilot and collections at the Phase 3 launch.
+- Launches: summaries once their real recorded reply exists (AC-2.3.7); clusters once their real recorded replies exist (AC-2.1.1); the copilot and collections at the Phase 3 launch. The first AI feature to launch also waits for the content-rights launch gate (§8.8).
 - Once a flag is deleted, its feature's secrets (`ANTHROPIC_API_KEY`, `IP_HASH_SECRET`) are required at boot like any other. Dev and CI run with placeholder values and with the `AUTO_*` switches off, so no live model call is made.
 
 ### 3.1 Phase 1 — MVP
@@ -217,7 +217,7 @@ User stories:
 - As a **recruiter**, I want to see real, current content on the first screen so I can judge the product in seconds.
 - As a **visitor**, I want to enter the feed with one click and no account.
 
-Acceptance criteria: **AC-L1 – AC-L10** (§2.5).
+Acceptance criteria: **AC-L1 – AC-L14** (§2.5). AC-L11 gates the AI features (§8.8), and AC-L14 needs clustering (F2.1).
 
 #### F1.2 Scheduled ingestion
 User stories:
@@ -1992,7 +1992,7 @@ Acceptance criteria:
 
 **Launch gate (owner task, no test).** Before the first AI feature goes on in production (the launches in §3):
 1. Every row of the rights table is `checked`, and every TDM reservation is in `sources.json`.
-2. A German IT and copyright lawyer has reviewed this section and the summary feature (F2.3). The Phase 3 launch checklist carries this step.
+2. A German IT and copyright lawyer has reviewed this section and the summary feature (F2.3). This is an owner step of the launch checklist.
 3. `/privacy` names Anthropic (AC-L11).
 
 ---
