@@ -299,6 +299,7 @@ Acceptance criteria:
 - **AC-1.6.1** `/settings` shows: Appearance (System/Light/Dark) and, when signed in, Account (avatar, name, email, linked providers, Sign out, Delete account).
 - **AC-1.6.2** Delete account requires typing `delete` in a confirm dialog. It then calls `DELETE /api/v1/me`, which removes the user, sessions, accounts and saves (cascade), signs out and redirects to `/` with a toast.
 - **AC-1.6.3** Guests see Appearance and a "Clear local data" action, which resets `devbrief:guest:v1`.
+- **AC-1.6.4** Both themes use the palette of §7.1. A test reads the light and dark token values from `globals.css` and checks that each text token reaches ≥ 4.5:1 on the backgrounds it is used on, `--primary-foreground` included, and that no `--chart-*` token equals `--primary` or `--brand`.
 
 #### F1.7 Platform
 - **AC-1.7.1** `GET /api/v1/health` returns 200 `{ status: "ok" | "degraded", db: "ok", version, sources: [...] }`. `degraded` means at least one source is stale or has an open circuit. It returns 503 if the DB is unreachable.
@@ -1569,11 +1570,27 @@ Client handling: one `MessageProcessor` per briefing. Each `a2ui` event's data i
 ### 7.1 Design references and system
 | Area | Reference | What we take |
 |---|---|---|
-| Landing | [linear.app](https://linear.app), [raycast.com](https://www.raycast.com) | Product-window hero, hairline borders, gradient accents, keycap visuals, dark-first palette |
+| Landing | [linear.app](https://linear.app), [raycast.com](https://www.raycast.com) | Product-window hero, hairline borders, keycap visuals |
 | Feed density | [app.daily.dev](https://app.daily.dev), [news.ycombinator.com](https://news.ycombinator.com) | Scannable single-line metadata, source badges with numbers, j/k navigation, quick tag filters, no thumbnails |
 | Trends | [github.com/trending](https://github.com/trending), Vercel Analytics | Clean time-series, movers table, compact toggles (7d/30d) |
 
-System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--background`, `--foreground`, `--muted`, `--border`, `--accent`, and one brand accent hue). Themes use `next-themes` (class strategy, system default). Type: Geist Sans and Geist Mono via `next/font`, self-hosted with `display: swap`. Base text is 14 px in the app and 16 px on the landing page. Radius is 8 px for cards and 6 px for controls. Accessibility targets WCAG 2.2 AA: visible focus rings, contrast ≥ 4.5:1, every control reachable by keyboard, and `aria-live` toasts.
+System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--background`, `--foreground`, `--muted`, `--border`, `--accent`, and one brand accent hue). Themes use `next-themes` (class strategy, system default).
+
+**Palette "Warm Paper & Terracotta"** (the one brand hue is terracotta), light and dark:
+
+| Role | Tokens | Light | Dark |
+|---|---|---|---|
+| Background | `--background` | `#FAF8F5` | `#161514` |
+| Surface: sidebar, cards, menus | `--card`, `--popover`, `--secondary`, `--muted` | `#F3EFEA` | `#1E1C1A` |
+| Text | `--foreground` and the `*-foreground` of surfaces | `#1C1917` | `#EAE6DF` |
+| Brand for text, links, button fills and the focus ring | `--primary`, `--ring` | `#C2410C` | `#F0643B` |
+| Label on a brand fill | `--primary-foreground` | `#FFFFFF` | `#161514` |
+| Brand for large or decorative use only (text ≥ 24 px, icons, borders, the logo mark) | `--brand` | `#D94E1F` | `#F0643B` |
+
+- Contrast (WCAG): light `#C2410C` on the background is 4.9:1 and 4.5:1 on a surface, and white on `#C2410C` is 5.2:1; `#D94E1F` on the background is only 3.9:1, which passes for large text and graphics alone. Dark `#F0643B` on the background is 5.7:1, and its labels are dark (`#161514` on `#F0643B` is 5.7:1), because white on it is 3.2:1.
+- Every other token (`--muted-foreground`, `--border`, `--input`, `--accent`, `--destructive`, `--success`, `--warning`) is re-derived in the same warm hue, and text tokens keep ≥ 4.5:1 on the surfaces they sit on.
+- `--chart-1` … `--chart-5` are re-derived for the warm palette and none of them is the brand hue, so a chart line never reads as a link or a button. They stay distinguishable from each other in both themes.
+- `apps/web/src/app/icon.svg` and the generated OG image can't read CSS variables, so they use the palette's hex values: the background, the text colour and `--brand`. Type: Geist Sans and Geist Mono via `next/font`, self-hosted with `display: swap`. Base text is 14 px in the app and 16 px on the landing page. Radius is 8 px for cards and 6 px for controls. Accessibility targets WCAG 2.2 AA: visible focus rings, contrast ≥ 4.5:1, every control reachable by keyboard, and `aria-live` toasts.
 
 ### 7.2 Routes and views
 | Route | View | Render | Phase |
