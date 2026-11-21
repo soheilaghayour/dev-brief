@@ -54,7 +54,7 @@ export function SearchInput() {
   useShortcut(FOCUS_SEARCH, focusSearch);
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full max-w-md min-w-0">
       <SearchIcon
         className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
         aria-hidden="true"
@@ -67,7 +67,7 @@ export function SearchInput() {
         value={draft}
         maxLength={FEED_QUERY_MAX}
         onChange={updateDraft}
-        className="pr-8 pl-8"
+        className="min-w-0 pr-2 pl-8 md:pr-8"
       />
       {draft === '' && (
         <Kbd className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 md:inline-flex">

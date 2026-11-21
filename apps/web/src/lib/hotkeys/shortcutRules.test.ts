@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { displayKeys, isSequence, isSequenceLeader, shouldRunShortcut } from './shortcutRules';
 
 function element(markup: string) {
@@ -44,6 +44,26 @@ describe('shouldRunShortcut inside a menu', () => {
       expect(shouldRunShortcut(keys, item ?? null)).toBe(false);
     }
     expect(shouldRunShortcut('esc', item ?? null)).toBe(true);
+  });
+});
+
+describe('shouldRunShortcut behind an open dialog', () => {
+  afterEach(() => document.body.replaceChildren());
+
+  it('ignores single keys and sequences while a dialog is open, but not Esc or combos', () => {
+    document.body.innerHTML = '<div role="dialog" data-state="open"><button></button></div>';
+    const button = document.querySelector('button');
+    for (const keys of ['j', 's', '?', 'g>s']) {
+      expect(shouldRunShortcut(keys, button)).toBe(false);
+      expect(shouldRunShortcut(keys, document.body)).toBe(false);
+    }
+    expect(shouldRunShortcut('esc', button)).toBe(true);
+    expect(shouldRunShortcut('mod+k', button)).toBe(true);
+  });
+
+  it('runs again once the dialog is closed or gone', () => {
+    document.body.innerHTML = '<div role="dialog" data-state="closed"></div>';
+    expect(shouldRunShortcut('j', document.body)).toBe(true);
   });
 });
 

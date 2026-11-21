@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
+import { COPILOT_USER_DAILY_LIMIT } from '@devbrief/shared';
 import { ipDigest } from '../../common/rate-limit/ipDigest.js';
 import { utcDay } from '../../common/time/utcDay.js';
 
 const MS_PER_DAY = 86_400_000;
 
-export const USER_DAILY_LIMIT = 20;
 export const GUEST_DAILY_LIMIT = 3;
 export const GUEST_IP_DAILY_LIMIT = 10;
 
@@ -17,7 +17,7 @@ export function copilotQuota(requester: Requester, secret: string, now: Date) {
   if (requester.kind === 'user') {
     return {
       ...common,
-      counters: [{ key: `copilot:user:${requester.userId}`, limit: USER_DAILY_LIMIT }],
+      counters: [{ key: `copilot:user:${requester.userId}`, limit: COPILOT_USER_DAILY_LIMIT }],
       guestKey: undefined,
     };
   }

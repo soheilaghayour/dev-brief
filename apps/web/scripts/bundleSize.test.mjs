@@ -203,7 +203,9 @@ describe('next/dynamic', () => {
       'components/collections/LazyCollectionsSidebar.tsx',
       'components/layout/LazyToaster.tsx',
       'components/layout/SheetLauncher.tsx',
+      'features/copilot/CopilotLauncher.tsx',
       'features/copilot/LazyBriefingView.tsx',
+      'features/copilot/LazyCopilotLauncher.tsx',
       'lib/hotkeys/HotkeysProvider.tsx',
     ]);
   });

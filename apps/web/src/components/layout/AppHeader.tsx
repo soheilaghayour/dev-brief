@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { FEATURES, isFeatureEnabled, type Features } from '@/config/features';
+import { LazyCopilotLauncher } from '@/features/copilot/LazyCopilotLauncher';
 import { Logo } from './Logo';
 import { MenuIcon } from 'lucide-react';
 import { SheetLauncher } from './SheetLauncher';
@@ -9,9 +11,15 @@ type AppHeaderProps = {
   searchSlot?: ReactNode;
   sortSlot?: ReactNode;
   accountSlot?: ReactNode;
+  features?: Features;
 };
 
-export function AppHeader({ searchSlot, sortSlot, accountSlot }: AppHeaderProps) {
+export function AppHeader({
+  searchSlot,
+  sortSlot,
+  accountSlot,
+  features = FEATURES,
+}: AppHeaderProps) {
   return (
     <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
       <div className="flex h-14 items-center gap-2 px-3 md:px-4">
@@ -29,11 +37,14 @@ export function AppHeader({ searchSlot, sortSlot, accountSlot }: AppHeaderProps)
         >
           <SidebarContent />
         </SheetLauncher>
-        <div className="md:w-48">
+        {/* On a phone the menu, logo, theme toggle, Ask and account buttons fill the row, so the wordmark gives way to the diamond and stays for screen readers. */}
+        <div className="shrink-0 md:w-48 max-sm:[&_a]:p-1 max-sm:[&_span]:sr-only">
           <Logo />
         </div>
-        <div className="min-w-0 flex-1">{searchSlot}</div>
+        {/* Clipped, so a field squeezed narrower than its padding never paints over the buttons beside it. */}
+        <div className="min-w-0 flex-1 overflow-hidden p-0.5 -m-0.5">{searchSlot}</div>
         {sortSlot}
+        {isFeatureEnabled('copilot', features) && <LazyCopilotLauncher />}
         <ThemeToggle />
         {accountSlot}
       </div>

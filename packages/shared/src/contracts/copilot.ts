@@ -6,8 +6,14 @@ import { ApiErrorCodeSchema } from './error.js';
 /** PRD §3.3: the question's limit, in characters. */
 export const QUESTION_MAX_CHARS = 200;
 
+/** The shortest question the API accepts (it trims first). */
+export const QUESTION_MIN_CHARS = 3;
+
+/** PRD §3.3: questions a signed-in user may ask per UTC day. */
+export const COPILOT_USER_DAILY_LIMIT = 20;
+
 export const CopilotAskRequestSchema = z.object({
-  question: z.string().trim().min(3).max(QUESTION_MAX_CHARS),
+  question: z.string().trim().min(QUESTION_MIN_CHARS).max(QUESTION_MAX_CHARS),
   deviceId: z.string().uuid(),
 });
 export type CopilotAskRequest = z.infer<typeof CopilotAskRequestSchema>;

@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { createContext, useContext, useId } from 'react';
 import type { MouseEvent } from 'react';
 import Link from 'next/link';
 import { createComponentImplementation, type ReactCatalogComponent } from '@a2ui/react';
@@ -59,6 +59,18 @@ function isHttpUrl(url: string) {
 
 const storyPath = (storyId: string) => `/story/${encodeURIComponent(storyId)}`;
 
+/** What a host does when the reader follows an internal link in the briefing, e.g. closes the dialog the briefing sits in. */
+export const BriefingNavigationContext = createContext<() => void>(() => {});
+
+/** A plain click on a link that is going to navigate; a modified click opens a new tab and leaves the host alone. */
+function isFollowed(event: MouseEvent<HTMLAnchorElement>) {
+  return (
+    !event.defaultPrevented &&
+    event.button === 0 &&
+    !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+  );
+}
+
 /** A cited card in this briefing is focused in place; a chip whose card is absent follows its link to the story. */
 function focusCitedCard(event: MouseEvent<HTMLAnchorElement>, storyId: string) {
   const briefing = event.currentTarget.closest(`[${BRIEFING_ATTRIBUTE}]`);
@@ -101,6 +113,7 @@ const Briefing = createComponentImplementation(BriefingApi, ({ props, buildChild
 const KeyTakeaways = createComponentImplementation(KeyTakeawaysApi, ({ props }) => {
   const headingId = useId();
   const numbers = footnoteNumbers(props.items);
+  const onNavigate = useContext(BriefingNavigationContext);
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h3 id={headingId} className="text-lg font-semibold">
@@ -122,7 +135,10 @@ const KeyTakeaways = createComponentImplementation(KeyTakeawaysApi, ({ props }) 
                 <Link
                   href={storyPath(storyId)}
                   aria-label={`Go to source ${numbers.get(storyId)}`}
-                  onClick={(event) => focusCitedCard(event, storyId)}
+                  onClick={(event) => {
+                    focusCitedCard(event, storyId);
+                    if (isFollowed(event)) onNavigate();
+                  }}
                 >
                   [{numbers.get(storyId)}]
                 </Link>
@@ -135,51 +151,58 @@ const KeyTakeaways = createComponentImplementation(KeyTakeawaysApi, ({ props }) 
   );
 });
 
-const StoryClusterCard = createComponentImplementation(StoryClusterCardApi, ({ props }) => (
-  <article
-    data-story-id={props.storyId}
-    tabIndex={-1}
-    className="focus-visible:ring-ring scroll-mt-28 rounded-lg border p-3 outline-none focus-visible:ring-2"
-  >
-    <h3 className="leading-snug">
-      <Link href={storyPath(props.storyId)} className="text-base font-medium hover:underline">
-        {props.title}
-      </Link>
-      {isHttpUrl(props.url) ? (
-        <a
-          href={props.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted-foreground ml-2 text-xs hover:underline"
+const StoryClusterCard = createComponentImplementation(StoryClusterCardApi, ({ props }) => {
+  const onNavigate = useContext(BriefingNavigationContext);
+  return (
+    <article
+      data-story-id={props.storyId}
+      tabIndex={-1}
+      className="focus-visible:ring-ring scroll-mt-28 rounded-lg border p-3 outline-none focus-visible:ring-2"
+    >
+      <h3 className="leading-snug">
+        <Link
+          href={storyPath(props.storyId)}
+          onClick={(event) => isFollowed(event) && onNavigate()}
+          className="text-base font-medium hover:underline"
         >
-          {props.domain}
-        </a>
-      ) : (
-        <span className="text-muted-foreground ml-2 text-xs">{props.domain}</span>
-      )}
-    </h3>
-    <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-      {props.sources.map((source) => (
-        <SourceBadge
-          key={`${source.kind}:${source.url}`}
-          source={{ ...source, slug: source.label, name: source.label }}
-        />
-      ))}
-      <RelativeTime iso={props.publishedAt} />
-      {props.tags.map((tag, index) => (
-        <TagBadge key={`${index}:${tag}`} slug={tag} />
-      ))}
-    </div>
-    {props.tldr && props.tldr.length > 0 && (
-      <ul aria-label="TL;DR" className="mt-2 list-disc space-y-1 pl-5 text-sm">
-        {props.tldr.map((bullet, index) => (
-          <li key={`${index}:${bullet}`}>{bullet}</li>
+          {props.title}
+        </Link>
+        {isHttpUrl(props.url) ? (
+          <a
+            href={props.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground ml-2 text-xs hover:underline"
+          >
+            {props.domain}
+          </a>
+        ) : (
+          <span className="text-muted-foreground ml-2 text-xs">{props.domain}</span>
+        )}
+      </h3>
+      <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        {props.sources.map((source) => (
+          <SourceBadge
+            key={`${source.kind}:${source.url}`}
+            source={{ ...source, slug: source.label, name: source.label }}
+          />
         ))}
-      </ul>
-    )}
-    {props.note && <p className="text-muted-foreground mt-2 text-sm italic">{props.note}</p>}
-  </article>
-));
+        <RelativeTime iso={props.publishedAt} />
+        {props.tags.map((tag, index) => (
+          <TagBadge key={`${index}:${tag}`} slug={tag} />
+        ))}
+      </div>
+      {props.tldr && props.tldr.length > 0 && (
+        <ul aria-label="TL;DR" className="mt-2 list-disc space-y-1 pl-5 text-sm">
+          {props.tldr.map((bullet, index) => (
+            <li key={`${index}:${bullet}`}>{bullet}</li>
+          ))}
+        </ul>
+      )}
+      {props.note && <p className="text-muted-foreground mt-2 text-sm italic">{props.note}</p>}
+    </article>
+  );
+});
 
 const ConsensusCalloutView = createComponentImplementation(ConsensusCalloutApi, ({ props }) => (
   <ConsensusCallout
@@ -214,6 +237,7 @@ function Delta({ deltaPct }: { deltaPct: number }) {
 
 const TagBadgeListView = createComponentImplementation(TagBadgeListApi, ({ props }) => {
   const headingId = useId();
+  const onNavigate = useContext(BriefingNavigationContext);
   return (
     <section aria-labelledby={props.title ? headingId : undefined} className="flex flex-col gap-2">
       {props.title && (
@@ -224,7 +248,11 @@ const TagBadgeListView = createComponentImplementation(TagBadgeListApi, ({ props
       <ul className="flex flex-wrap gap-2">
         {props.tags.map(({ slug, deltaPct }, index) => (
           <li key={`${index}:${slug}`} className="flex items-center gap-1">
-            <Link href={`/feed?tags=${slug}`} className="rounded-sm hover:underline">
+            <Link
+              href={`/feed?tags=${slug}`}
+              onClick={(event) => isFollowed(event) && onNavigate()}
+              className="rounded-sm hover:underline"
+            >
               <TagBadge slug={slug} />
             </Link>
             {deltaPct !== undefined && <Delta deltaPct={deltaPct} />}

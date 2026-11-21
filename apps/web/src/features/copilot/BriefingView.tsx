@@ -5,7 +5,7 @@ import { A2uiSurface, type ReactCatalogComponent } from '@a2ui/react';
 import { MessageProcessor, type Subscription, type SurfaceModel } from '@a2ui/web_core/v1_0';
 import { A2uiServerMessageSchema } from '@devbrief/shared';
 import { BriefingSkeleton } from './BriefingSkeleton';
-import { devbriefCatalog } from './catalog';
+import { BriefingNavigationContext, devbriefCatalog } from './catalog';
 
 /** Where a briefing's messages come from: a live stream or a stored array that replays on subscribe. */
 export type BriefingSource = {
@@ -82,13 +82,24 @@ class BriefingErrorBoundary extends Component<
   }
 }
 
+const noNavigation = () => {};
+
 /** Renders one A2UI briefing with the DevBrief catalog: the skeleton until `root` arrives, then the sections as they stream in. */
-export default function BriefingView({ source }: { source: BriefingSource }) {
+export default function BriefingView({
+  source,
+  onNavigate,
+}: {
+  source: BriefingSource;
+  /** Called when the reader follows an internal link in the briefing. */
+  onNavigate?: () => void;
+}) {
   const surface = useRootedSurface(source);
   if (!surface) return <BriefingSkeleton />;
   return (
-    <BriefingErrorBoundary surface={surface}>
-      <A2uiSurface surface={surface} />
-    </BriefingErrorBoundary>
+    <BriefingNavigationContext value={onNavigate ?? noNavigation}>
+      <BriefingErrorBoundary surface={surface}>
+        <A2uiSurface surface={surface} />
+      </BriefingErrorBoundary>
+    </BriefingNavigationContext>
   );
 }

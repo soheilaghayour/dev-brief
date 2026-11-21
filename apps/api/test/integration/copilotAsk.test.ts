@@ -204,7 +204,8 @@ describe('POST /copilot/ask', () => {
       ip = freshIp(),
       cookie = '',
       origin = env.APP_URL,
-    }: { ip?: string; cookie?: string; origin?: string } = {},
+      internalToken,
+    }: { ip?: string; cookie?: string; origin?: string; internalToken?: string } = {},
   ) {
     const { port } = app!.getHttpServer().address() as AddressInfo;
     let text = '';
@@ -222,6 +223,7 @@ describe('POST /copilot/ask', () => {
           Origin: origin,
           'X-Forwarded-For': ip,
           Cookie: cookie,
+          ...(internalToken && { 'x-internal-token': internalToken }),
         },
       },
       (incoming) => {
@@ -545,6 +547,27 @@ describe('POST /copilot/ask', () => {
       expect(sixth.headers['ratelimit-limit']).toBe('5');
       expect(await prisma.rateLimitCounter.count()).toBe(0);
     });
+  });
+
+  it('skips the per-IP limit for the internal token, and not for a wrong one', async () => {
+    await seedStories(4);
+    await boot();
+    const ip = freshIp();
+    for (let index = 1; index <= 5; index += 1) {
+      await ask({ question: 'ab', deviceId: DEVICE }, { ip }).complete();
+    }
+
+    const trusted = await ask(
+      { question: 'ab', deviceId: DEVICE },
+      { ip, internalToken: env.INTERNAL_API_TOKEN },
+    ).complete();
+    const wrong = await ask(
+      { question: 'ab', deviceId: DEVICE },
+      { ip, internalToken: 'wrong-token-wrong-token' },
+    ).complete();
+
+    expect(trusted.status).toBe(400);
+    expect(wrong.status).toBe(429);
   });
 
   describe('spend cap fallback', () => {

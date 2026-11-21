@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { useCollections, type CollectionView } from './useCollections';
-import { useReturnFocus } from './useReturnFocus';
+import { useReturnFocus } from '@/lib/useReturnFocus';
 
 const NAME_ERROR = `Enter a name of ${CollectionNameSchema.minLength} to ${CollectionNameSchema.maxLength} characters.`;
 

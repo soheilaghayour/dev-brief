@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { preloadCollectionWriters, useCollections, type CollectionView } from './useCollections';
-import { useReturnFocus } from './useReturnFocus';
+import { useReturnFocus } from '@/lib/useReturnFocus';
 
 type AddToCollectionDialogProps = {
   storyId: string;
