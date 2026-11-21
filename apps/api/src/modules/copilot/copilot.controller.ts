@@ -15,7 +15,7 @@ import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { OptionalAuthGuard, type CurrentUserData } from '../auth/auth.guard.js';
 import { CurrentUser } from '../auth/currentUser.decorator.js';
 import { CopilotService } from './copilot.service.js';
-import { formatSseEvent, HEARTBEAT } from './copilotSse.js';
+import { formatSseEvent, HEARTBEAT, INTERNAL_ERROR } from './copilotSse.js';
 
 /** The short-window limit of PRD §8.6 for the ask route. */
 const ASK_IP_LIMIT = { bucket: 'copilot', perMinute: 5 };
@@ -73,12 +73,7 @@ export class CopilotController {
     } catch (error) {
       logger.error(error);
       if (!disconnect.signal.aborted) {
-        response.write(
-          formatSseEvent({
-            event: 'error',
-            data: { code: 'INTERNAL', message: 'Something went wrong.' },
-          }),
-        );
+        response.write(formatSseEvent(INTERNAL_ERROR));
       }
     } finally {
       clearInterval(heartbeat);

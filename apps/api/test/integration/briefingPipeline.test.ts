@@ -530,9 +530,7 @@ describe('briefing retrieval and pipeline', () => {
       const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
 
       expect(messagesOf(events)).toEqual([]);
-      expect(events).toMatchObject([
-        { kind: 'failed', error: { reason: 'invalid_output' } },
-      ]);
+      expect(events).toMatchObject([{ kind: 'failed', error: { reason: 'invalid_output' } }]);
     });
 
     it('opens with the whole title, then the sections in order, when the model writes sections first', async () => {

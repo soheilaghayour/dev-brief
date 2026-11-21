@@ -24,6 +24,12 @@ const EVENT_SCHEMAS = {
   done: CopilotDoneEventSchema,
 } satisfies Record<CopilotSseEvent['event'], z.ZodTypeAny>;
 
+/** The error event of an unexpected failure, which carries no detail the reader could act on. */
+export const INTERNAL_ERROR = {
+  event: 'error',
+  data: { code: 'INTERNAL', message: 'Something went wrong.' },
+} as const satisfies CopilotSseEvent;
+
 /** The comment line that keeps proxies from closing an idle connection. */
 export const HEARTBEAT = ': ping\n\n';
 

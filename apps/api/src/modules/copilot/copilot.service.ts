@@ -14,7 +14,7 @@ import { BriefingPipelineService } from './briefingPipeline.service.js';
 import { closestExample } from './closestExample.js';
 import { copilotQuota, type CopilotQuotaPlan } from './copilotQuota.js';
 import { CopilotQuotaService } from './copilotQuota.service.js';
-import type { CopilotSseEvent } from './copilotSse.js';
+import { INTERNAL_ERROR, type CopilotSseEvent } from './copilotSse.js';
 import { normalizeQuestion, questionHash } from './normalizeQuestion.js';
 
 type Requester = { userId?: string; ip: string };
@@ -26,11 +26,6 @@ const logger = new Logger('Copilot');
 const GENERATION_FAILED = {
   event: 'error',
   data: { code: 'GENERATION_FAILED', message: 'The briefing could not be generated.' },
-} as const satisfies CopilotSseEvent;
-
-const INTERNAL = {
-  event: 'error',
-  data: { code: 'INTERNAL', message: 'Something went wrong.' },
 } as const satisfies CopilotSseEvent;
 
 // Zod's inferred message type has no index signature, so Prisma's JSON input type rejects it though it is plain JSON.
@@ -210,7 +205,7 @@ export class CopilotService {
         yield* failure(!sectionSent);
       } else {
         logger.error(error);
-        yield* failure(!sectionSent, INTERNAL);
+        yield* failure(!sectionSent, INTERNAL_ERROR);
       }
     } finally {
       // The reader went away (or something unexpected threw) before the stream ended: a stored `failed` row, refunded unless a section went out.
