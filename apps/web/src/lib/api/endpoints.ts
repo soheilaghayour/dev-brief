@@ -5,6 +5,7 @@ import {
   MeSchema,
   MergeResponseSchema,
   PreferencesSchema,
+  RadarSchema,
   SaveIdsSchema,
   SaveSchema,
   SavedStoryPageSchema,
@@ -20,13 +21,17 @@ import type {
   MergeRequest,
   PaginationQuery,
   Preferences,
+  RadarMetric,
+  RadarWindow,
   StoryLookupRequest,
+  TagSlug,
 } from '@devbrief/shared';
 import { createApiClient } from './apiClient';
 
 const apiClient = createApiClient();
 
 type FeedParams = Partial<FeedQuery>;
+type RadarParams = { window: RadarWindow; metric: RadarMetric; tags?: readonly TagSlug[] };
 
 export function getHealth() {
   return apiClient.request({ path: '/health' }, HealthSchema);
@@ -81,6 +86,12 @@ export function getTags() {
 
 export function getStats() {
   return apiClient.request({ path: '/stats' }, StatsSchema);
+}
+
+export function getRadar({ window, metric, tags }: RadarParams) {
+  // List params travel comma-separated (PRD §6.1).
+  const query = { window, metric, tags: tags && tags.length > 0 ? tags.join(',') : undefined };
+  return apiClient.request({ path: '/radar', query }, RadarSchema);
 }
 
 export function getSources() {

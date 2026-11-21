@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { FEATURES } from '@/config/features';
 import { FeatureBento, visibleTiles } from './FeatureBento';
 
 describe('FeatureBento', () => {
@@ -14,5 +15,12 @@ describe('FeatureBento', () => {
       expect(html).toContain(title);
     }
     expect(html).not.toContain('Ask the News');
+  });
+
+  it('AC-L7 shows the Tech Radar tile only while the radar flag is on', () => {
+    const titles = (radar: boolean) =>
+      visibleTiles({ ...FEATURES, radar }).map((tile) => tile.title);
+    expect(titles(false)).not.toContain('Tech Radar');
+    expect(titles(true)).toContain('Tech Radar');
   });
 });
