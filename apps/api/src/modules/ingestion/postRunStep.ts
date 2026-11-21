@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
 /** PRD §4.3.1: the order the post-run steps run in, whatever order their modules register them. */
-const POST_RUN_ORDER = ['rank-recompute', 'auto-summaries', 'feed-cache-clear'] as const;
+const POST_RUN_ORDER = [
+  'clustering',
+  'rank-recompute',
+  'auto-summaries',
+  'feed-cache-clear',
+] as const;
 
-/** What a post-run step gets: `signal` aborts once the whole run's budget is spent. */
-export type PostRunContext = { runId: string; now: Date; signal: AbortSignal };
+/** What a post-run step gets: `startedAt` is when the run began on the database clock, and `signal` aborts once the whole run's budget is spent. */
+export type PostRunContext = { runId: string; startedAt: Date; now: Date; signal: AbortSignal };
 
 /** Work that follows a run once every source has settled, such as the rank recompute. */
 export interface IngestionPostRunStep {

@@ -1,0 +1,922 @@
+{
+  "placeholder": true,
+  "recordedAt": "2026-11-21T00:00:00.000Z",
+  "model": "claude-haiku-5-5",
+  "promptVersion": 1,
+  "replies": {
+    "node-26-5-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "typescript-6-1-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "bun-2-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "rust-1-92-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "loom-launch": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "java4shell-disclosure": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "cloudflare-dashboard-outage": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "anthropic-ipo-priced": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "postgres-19-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "vite-8-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "nextjs-17-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "linux-7-1-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "gitlab-19-6-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "sqlite-4-announce": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "tailwind-5-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "gpt-6-2-launch": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "muse-ember-launch": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "datasette-1-0a43": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "redis-agpl": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "firefox-150-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "kubernetes-1-36-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "python-3-15-rc": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "deno-3-release": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-19-1-vs-19-2": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "anthropic-ipo-priced-vs-debut": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "rust-1-92-vs-1-93": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "node-26-5-0-vs-26-5-1": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "typescript-6-1-rc-vs-final": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "postgres-19-vs-18-4": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "docker-podman-vs-acquisition": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "astro-6-vs-astro-conf": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-19-2-hands-on": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-19-2-opinion-wider": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "injection-react-conf": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "gemini-neon-vs-take": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "datasette-two-releases": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "llm-vs-llm-gemini": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "gemini-carbon-vs-neon": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    }
+  },
+  "requestHashes": {
+    "node-26-5-release": "53b66aa221365446",
+    "typescript-6-1-release": "8268cc6655bc1572",
+    "bun-2-release": "9c13c72ba0ba7ba7",
+    "rust-1-92-release": "751c0c86cbda0633",
+    "loom-launch": "5931d5971dd68cf7",
+    "java4shell-disclosure": "659ba9eefe67ad87",
+    "cloudflare-dashboard-outage": "af8900d00c82e46c",
+    "anthropic-ipo-priced": "961a2fd603eda7e9",
+    "postgres-19-release": "d4521dd75c359ce3",
+    "vite-8-release": "620cf77c488d5a65",
+    "nextjs-17-release": "7c7d198ffd831c99",
+    "linux-7-1-release": "bfcc90de5296c646",
+    "gitlab-19-6-release": "dd561e2d2045a6c1",
+    "sqlite-4-announce": "0b10f553c0597172",
+    "tailwind-5-release": "2e0268192956d645",
+    "gpt-6-2-launch": "9edf5150c5226983",
+    "muse-ember-launch": "06dae6bf4b2a6c62",
+    "datasette-1-0a43": "c61ab73fb43275dc",
+    "redis-agpl": "efa021126ccb5e8b",
+    "firefox-150-release": "7401118ce8809d72",
+    "kubernetes-1-36-release": "5ea24d43b46a3016",
+    "python-3-15-rc": "f30f7f529cf49754",
+    "deno-3-release": "ea92e8b30b02fdb5",
+    "react-19-1-vs-19-2": "134187eb9d3a89d9",
+    "anthropic-ipo-priced-vs-debut": "3d3a67c38261e09b",
+    "rust-1-92-vs-1-93": "4d953d903539d5eb",
+    "node-26-5-0-vs-26-5-1": "676160b8dbd547d3",
+    "typescript-6-1-rc-vs-final": "cddd1e343f55186c",
+    "postgres-19-vs-18-4": "9a1793bf50ebcf3d",
+    "docker-podman-vs-acquisition": "38d46978b9bc0643",
+    "astro-6-vs-astro-conf": "d02fd27e8bef4f2e",
+    "react-19-2-hands-on": "e1d610318f427640",
+    "react-19-2-opinion-wider": "9601460a3bb447a6",
+    "injection-react-conf": "33ccf620038b5fcd",
+    "gemini-neon-vs-take": "0e96345e323daa2c",
+    "datasette-two-releases": "3a5efc50329959a5",
+    "llm-vs-llm-gemini": "4b1dfcaf15b3cfab",
+    "gemini-carbon-vs-neon": "0d88ab0626a99695"
+  }
+}

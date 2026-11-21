@@ -1,0 +1,12 @@
+<source id="s">
+Bun 1.2 released
+bun.sh 2026-11-10
+Bun 1.2 adds a built-in Postgres client.
+</source>
+
+<source id="c1">
+Bun ships 1.2
+example.com 2026-11-10
+Bun 1.2 adds a built-in Postgres client.
+</source>
+

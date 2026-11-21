@@ -1,6 +1,7 @@
 import { StorySummarySchema } from '@devbrief/shared';
 import { z } from 'zod';
 import { estimateTokens, truncateToTokens } from '../budget.js';
+import { sourceBlock } from './sourceBlock.js';
 
 /** Stored on every Summary; a changed prompt or output schema is a new file with the next version. */
 export const PROMPT_VERSION = 1;
@@ -72,13 +73,6 @@ export type SummaryPromptInputs = {
   /** Comment texts in the order they go into the prompt, already trimmed to the comment budget. */
   comments: readonly string[];
 };
-
-/** Renders one delimited block; a complete source tag inside the data is cut out, so data can't end its block early. */
-function sourceBlock(id: string, content: string) {
-  // `[^<>]*>` matches only a whole tag: an unclosed `<source` stays as text instead of swallowing what follows it.
-  const inert = content.replace(/<\/?\s*source\b[^<>]*>/gi, ' ');
-  return `<source id="${id}">\n${inert}\n</source>\n\n`;
-}
 
 function commentBlock(text: string, position: number) {
   return sourceBlock(`comment-${position + 1}`, text);
