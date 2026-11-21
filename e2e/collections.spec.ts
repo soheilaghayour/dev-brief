@@ -5,6 +5,25 @@ import { expect, test, type Page } from '@playwright/test';
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Collections' });
 
+// The shortcuts bind after the lazy hotkeys chunk loads, and the dialog's chunk after `a`; keys typed earlier are lost.
+async function openAddDialog(page: Page) {
+  await page.goto('/feed?sort=latest');
+  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  await expect(
+    cards(page).first().getByRole('button', { name: 'Add to collection' }),
+  ).toBeVisible();
+  await page.keyboard.press('j');
+  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
+  const dialog = page.getByRole('dialog', { name: 'Add to collection' });
+  // The card's `a` binding registers in an effect just after `data-active` shows, so the first press can land a moment early.
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await page.keyboard.press('a');
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await expect(dialog.getByRole('textbox')).toBeFocused();
+  return dialog;
+}
+
 async function createCollection(page: Page, name: string) {
   await page.goto('/saved');
   await page.waitForLoadState('networkidle');
@@ -19,20 +38,15 @@ test('AC-3.4.1 AC-3.4.3 a guest creates a collection, adds a story with a, reloa
 }) => {
   await createCollection(page, 'Frontend Architecture');
 
-  await page.goto('/feed?sort=latest');
-  await page.waitForLoadState('networkidle');
-  const card = cards(page).first();
-  const title = (await card.locator('h2 a').textContent()) ?? '';
-  await page.keyboard.press('j');
-  await page.keyboard.press('a');
-
-  const dialog = page.getByRole('dialog', { name: 'Add to collection' });
-  await expect(dialog.getByRole('textbox')).toBeFocused();
+  const dialog = await openAddDialog(page);
+  const title = (await cards(page).first().locator('h2 a').textContent()) ?? '';
   await page.keyboard.type('front');
-  await dialog.getByRole('checkbox', { name: /Frontend Architecture/ }).check();
+  await dialog.getByRole('checkbox', { name: /Frontend Architecture/ }).click();
   await expect(dialog.getByRole('checkbox', { name: /Frontend Architecture/ })).toBeChecked();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+  // Focus is back on the card's title link, where it was when `a` was pressed.
+  await expect(cards(page).first().locator('h2 a')).toBeFocused();
 
   await page.goto('/saved');
   await page.reload();
@@ -50,10 +64,7 @@ test('AC-3.4.1 AC-3.4.3 a guest creates a collection, adds a story with a, reloa
 });
 
 test('AC-3.4.3 Enter on a new name creates the collection and adds the story', async ({ page }) => {
-  await page.goto('/feed?sort=latest');
-  await page.waitForLoadState('networkidle');
-  await page.keyboard.press('j');
-  await page.keyboard.press('a');
+  await openAddDialog(page);
   await page.keyboard.type('Rust reading');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('checkbox', { name: /Rust reading/ })).toBeVisible();
@@ -66,10 +77,7 @@ test('AC-3.4.3 Enter on a new name creates the collection and adds the story', a
 test('AC-3.4.1 renaming keeps the URL and deleting the collection keeps the save', async ({
   page,
 }) => {
-  await page.goto('/feed?sort=latest');
-  await page.waitForLoadState('networkidle');
-  await page.keyboard.press('j');
-  await page.keyboard.press('a');
+  await openAddDialog(page);
   await page.keyboard.type('Reading list');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('checkbox', { name: /Reading list/ })).toBeChecked();
@@ -136,4 +144,58 @@ test('AC-L7 the guest hint and the landing tile mention collections', async ({ p
   );
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Collections & notes' })).toBeVisible();
+});
+
+test('/saved and a board load without layout shift while the sidebar is fetched', async ({
+  page,
+}) => {
+  await page.goto('/feed?sort=latest');
+  await expect(cards(page).first()).toBeVisible();
+  const ids = await cards(page).evaluateAll((els) =>
+    els.slice(0, 2).map((el) => el.getAttribute('data-story-id')),
+  );
+  await page.evaluate((storyIds) => {
+    const now = new Date().toISOString();
+    localStorage.setItem(
+      'devbrief:guest:v1',
+      JSON.stringify({
+        version: 1,
+        deviceId: '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10',
+        saves: storyIds.map((storyId) => ({ storyId, savedAt: now })),
+        prefs: { follow: { tags: [], sources: [] }, mute: { tags: [], sources: [] } },
+        collections: ['Alpha', 'Beta'].map((name, position) => ({
+          id: `id-${name}`,
+          slug: name.toLowerCase(),
+          name,
+          description: null,
+          position,
+          items: storyIds.map((storyId, item) => ({ storyId, position: item, addedAt: now })),
+        })),
+        hintDismissed: true,
+        pendingMerge: false,
+      }),
+    );
+  }, ids);
+  await page.addInitScript(() => {
+    const shifts = { total: 0 };
+    (window as unknown as { __shifts: typeof shifts }).__shifts = shifts;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as unknown as {
+        value: number;
+        hadRecentInput: boolean;
+      }[])
+        if (!entry.hadRecentInput) shifts.total += entry.value;
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+
+  for (const path of ['/saved', '/collections/alpha']) {
+    await page.goto(path);
+    await expect(cards(page)).toHaveCount(2);
+    await expect(sidebar(page).getByRole('link', { name: /^Alpha/ })).toBeVisible();
+    const total = await page.evaluate(
+      () => (window as unknown as { __shifts: { total: number } }).__shifts.total,
+    );
+    console.log(`CLS ${path} ${total}`);
+    expect(total, path).toBeLessThan(0.05);
+  }
 });

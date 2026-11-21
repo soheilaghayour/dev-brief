@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { FolderOpenIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
@@ -13,7 +13,8 @@ import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import { BOARD_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
 import { AddToCollectionShortcut, useAddToCollection } from './AddToCollection';
-import { LazyCollectionsSidebar } from './LazyCollectionsSidebar';
+import { BoardSkeleton } from './BoardSkeleton';
+import { CollectionsSidebar } from './CollectionsSidebar';
 import { useCollections, type CollectionView } from './useCollections';
 
 function BoardNotFound() {
@@ -47,9 +48,16 @@ function BoardEmpty() {
   );
 }
 
-// The ids are fixed when the board first shows, so removing a card neither refetches nor reorders the rest.
+// Ids only join the lookup, never leave it, so removing a card neither refetches nor reorders the rest, while a story another tab added still appears.
 function useBoardStories(collection: CollectionView) {
-  const [lookupIds] = useState(() => collection.items.map(({ storyId }) => storyId));
+  const collections = useCollections();
+  const [lookupIds, setLookupIds] = useState(() => collection.items.map(({ storyId }) => storyId));
+  const looked = new Set(lookupIds);
+  const newIds = collection.items
+    .map(({ storyId }) => storyId)
+    .filter((storyId) => !looked.has(storyId));
+  if (newIds.length > 0) setLookupIds([...lookupIds, ...newIds]);
+
   const query = useQuery({
     queryKey: ['collections', 'board', collection.id, lookupIds],
     queryFn: async () => {
@@ -57,10 +65,22 @@ function useBoardStories(collection: CollectionView) {
       return lookupInChunks(lookupIds, lookupStories);
     },
     enabled: lookupIds.length > 0,
+    placeholderData: keepPreviousData,
   });
   const byId = new Map((query.data?.items ?? []).map((story) => [story.id, story]));
   // Collection order, and only what the collection still holds.
   const stories = collection.items.flatMap(({ storyId }) => byId.get(storyId) ?? []);
+
+  // A story that no longer exists can never show, so the board drops it from its own collection.
+  const missingIds = query.data?.missingIds;
+  const removeItems = collections.status === 'ready' ? collections.removeItems : undefined;
+  useEffect(() => {
+    const gone = (missingIds ?? []).filter((storyId) =>
+      collection.items.some((item) => item.storyId === storyId),
+    );
+    if (gone.length > 0) void removeItems?.(collection.id, gone);
+  }, [missingIds, collection.id, collection.items, removeItems]);
+
   return { stories, isLoading: lookupIds.length > 0 && query.isPending, query };
 }
 
@@ -77,7 +97,7 @@ function BoardContent({ collection }: { collection: CollectionView }) {
 
   function removeFromCollection(storyId: string) {
     leaveStory(storyId);
-    if (collections.status === 'ready') void collections.removeItem(collection.id, storyId);
+    if (collections.status === 'ready') void collections.removeItems(collection.id, [storyId]);
   }
   function retry() {
     void query.refetch();
@@ -133,7 +153,7 @@ function BoardContent({ collection }: { collection: CollectionView }) {
 /** A guest's collection at `/collections/<slug>`, with its sidebar; a slug that isn't on this device shows a not-found state. */
 export function CollectionBoard({ slug }: { slug: string }) {
   const collections = useCollections();
-  if (collections.status === 'loading') return <FeedSkeleton />;
+  if (collections.status === 'loading') return <BoardSkeleton />;
   const collection =
     collections.status === 'ready'
       ? collections.collections.find((candidate) => candidate.slug === slug)
@@ -142,7 +162,7 @@ export function CollectionBoard({ slug }: { slug: string }) {
 
   return (
     <div className="flex flex-col gap-6 md:flex-row">
-      <LazyCollectionsSidebar activeSlug={slug} />
+      <CollectionsSidebar activeSlug={slug} />
       <BoardContent collection={collection} />
     </div>
   );

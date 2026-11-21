@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import type { CollectionAction } from './CollectionMenuDropdown';
 import { CollectionMenu } from './CollectionMenu';
+import { CollectionsSidebarSkeleton } from './CollectionsSidebarSkeleton';
 import type { CollectionDialog } from './CollectionDialogs';
 import { useCollections, type CollectionView } from './useCollections';
 
@@ -43,13 +44,15 @@ function RowLink({
   );
 }
 
+function rowMenuButton(collectionId: string) {
+  return document.querySelector<HTMLElement>(
+    `[data-collection-id="${CSS.escape(collectionId)}"] button`,
+  );
+}
+
 // A moved row is re-inserted, which can drop focus; the menu button of the same collection takes it back.
 function focusRowMenu(collectionId: string) {
-  requestAnimationFrame(() => {
-    document
-      .querySelector<HTMLElement>(`[data-collection-id="${CSS.escape(collectionId)}"] button`)
-      ?.focus({ preventScroll: true });
-  });
+  requestAnimationFrame(() => rowMenuButton(collectionId)?.focus({ preventScroll: true }));
 }
 
 type CollectionsSidebarProps = {
@@ -66,6 +69,7 @@ export function CollectionsSidebar({ activeSlug }: CollectionsSidebarProps) {
   const [dialog, setDialog] = useState<CollectionDialog | null>(null);
   const [announcement, setAnnouncement] = useState('');
 
+  if (collections.status === 'loading') return <CollectionsSidebarSkeleton />;
   if (collections.status !== 'ready') return null;
   const { collections: list, move: moveInList } = collections;
 
@@ -73,14 +77,17 @@ export function CollectionsSidebar({ activeSlug }: CollectionsSidebarProps) {
     setDialog(null);
   }
   function openCreate() {
-    setDialog({ kind: 'create' });
+    setDialog({ kind: 'create', opener: newButton.current });
+  }
+  // Leaving first keeps the open board from flashing "Collection not found" once its collection is gone.
+  function leaveDeletedBoard(collection: CollectionView) {
+    if (collection.slug === activeSlug) router.push('/saved');
   }
   // The deleted row's controls are gone, so "+ New" is the nearest place to continue from.
   function afterDelete(collection: CollectionView) {
     setDialog(null);
     setAnnouncement(`Deleted collection ${collection.name}. Its stories stay saved.`);
-    if (collection.slug === activeSlug) router.push('/saved');
-    else requestAnimationFrame(() => newButton.current?.focus());
+    if (collection.slug !== activeSlug) requestAnimationFrame(() => newButton.current?.focus());
   }
   async function move(collection: CollectionView, direction: 'up' | 'down') {
     await moveInList(collection.id, direction);
@@ -91,9 +98,12 @@ export function CollectionsSidebar({ activeSlug }: CollectionsSidebarProps) {
     );
     focusRowMenu(collection.id);
   }
+  // The menu item that was chosen is about to go, so the row's menu button is the opener.
+  function openRowDialog(collection: CollectionView, kind: 'rename' | 'delete') {
+    setDialog({ kind, id: collection.id, opener: rowMenuButton(collection.id) });
+  }
   function runAction(collection: CollectionView, action: CollectionAction) {
-    if (action === 'rename') setDialog({ kind: 'rename', id: collection.id });
-    else if (action === 'delete') setDialog({ kind: 'delete', id: collection.id });
+    if (action === 'rename' || action === 'delete') openRowDialog(collection, action);
     else void move(collection, action === 'moveUp' ? 'up' : 'down');
   }
 
@@ -143,7 +153,12 @@ export function CollectionsSidebar({ activeSlug }: CollectionsSidebarProps) {
       </p>
       {dialog && (
         <Suspense fallback={null}>
-          <CollectionDialogs dialog={dialog} onDeleted={afterDelete} onClose={closeDialog} />
+          <CollectionDialogs
+            dialog={dialog}
+            onDeleting={leaveDeletedBoard}
+            onDeleted={afterDelete}
+            onClose={closeDialog}
+          />
         </Suspense>
       )}
     </nav>

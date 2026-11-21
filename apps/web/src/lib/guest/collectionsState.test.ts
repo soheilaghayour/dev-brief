@@ -176,7 +176,7 @@ describe('addToCollection', () => {
 describe('removing stories', () => {
   it('removeFromCollection leaves the story in other collections and closes the gap', () => {
     const collections = [board('a', 'A', 0, ['s1', 's2', 's3']), board('b', 'B', 1, ['s2'])];
-    const result = removeFromCollection(collections, 'a', 's2');
+    const result = removeFromCollection(collections, 'a', ['s2']);
     expect(result[0]?.items.map(({ storyId, position }) => [storyId, position])).toEqual([
       ['s1', 0],
       ['s3', 1],

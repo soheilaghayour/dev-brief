@@ -9,10 +9,15 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog';
 import { useCollections, type CollectionView } from './useCollections';
+import { useReturnFocus } from './useReturnFocus';
 
 type DeleteCollectionDialogProps = {
   collection: CollectionView;
-  /** Called after the collection is gone, so the caller can leave its board. */
+  /** Where focus returns when the dialog closes. */
+  opener: HTMLElement | null;
+  /** Called as the deletion is confirmed, before the collection goes, so the caller can leave its board first. */
+  onConfirm: () => void;
+  /** Called after the collection is gone. */
   onDeleted: () => void;
   onClose: () => void;
 };
@@ -20,14 +25,18 @@ type DeleteCollectionDialogProps = {
 /** Asks before deleting a collection, and says the saved stories stay. */
 export function DeleteCollectionDialog({
   collection,
+  opener,
+  onConfirm,
   onDeleted,
   onClose,
 }: DeleteCollectionDialogProps) {
   const collections = useCollections();
   const count = collection.items.length;
+  const returnFocus = useReturnFocus(opener);
 
   async function confirm() {
     if (collections.status !== 'ready') return;
+    onConfirm();
     await collections.remove(collection.id);
     onDeleted();
   }
@@ -37,7 +46,7 @@ export function DeleteCollectionDialog({
 
   return (
     <Dialog open onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogHeader>
           <DialogTitle>Delete “{collection.name}”?</DialogTitle>
           <DialogDescription>

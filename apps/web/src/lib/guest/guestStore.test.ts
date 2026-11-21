@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const STORAGE_KEY = 'devbrief:guest:v1';
 const A = 'cstoryaaaaaaaaaaaaaaaaaa';
+const B = 'cstorybbbbbbbbbbbbbbbbbb';
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
 const NOW = new Date('2026-05-01T10:00:00.000Z');
 
@@ -202,6 +203,43 @@ describe('guest store', () => {
     useGuestStore.getState().removeSaves([A]);
 
     expect(useGuestStore.getState().collections[0]?.items).toHaveLength(1);
+  });
+
+  it('AC-3.4.1 purging a save of a story that no longer exists takes it out of every collection, and the counts match', async () => {
+    const { localStorage } = fakeLocalStorage();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
+    const writers = await import('./guestCollections');
+    const first = await writers.createGuestCollection('One');
+    const second = await writers.createGuestCollection('Two');
+    for (const id of [first.created?.id ?? '', second.created?.id ?? ''])
+      for (const story of [A, B]) await writers.addGuestCollectionItem(id, story, NOW);
+
+    expect(useGuestStore.getState().purgeSaves([A])).toBe(1);
+
+    const state = useGuestStore.getState();
+    expect(state.saves.map((save) => save.storyId)).toEqual([B]);
+    expect(state.collections.map((c) => c.items.map((i) => [i.storyId, i.position]))).toEqual([
+      [[B, 0]],
+      [[B, 0]],
+    ]);
+  });
+
+  it('AC-3.4.1 never writes over stored collections that could not be read as a list', async () => {
+    const text = JSON.stringify({
+      version: 1,
+      deviceId: DEVICE_ID,
+      saves: [],
+      collections: 'weird',
+    });
+    const { items, localStorage } = fakeLocalStorage({ [STORAGE_KEY]: text });
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
+
+    useGuestStore.getState().toggleSave(A, NOW);
+
+    expect(useGuestStore.getState().saves).toHaveLength(1);
+    expect(items.get(STORAGE_KEY)).toBe(text);
   });
 
   it('AC-3.4.1 the writers rename, move and delete on the stored data', async () => {

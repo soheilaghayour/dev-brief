@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { GuestData } from './guestState';
-import { GUEST_STORAGE_KEY, useGuestStore } from './guestStore';
+import { GUEST_STORAGE_KEY, guestStorage, useGuestStore } from './guestStore';
 
 export const useGuestReady = create(() => ({ ready: false }));
 
@@ -13,11 +13,16 @@ let loading: Promise<void> | undefined;
  */
 export function hydrateGuestStore() {
   loading ??= (async () => {
-    const { mergeStoredGuest, migrateGuestData } = await import('./guestParser');
+    const { hasUnreadableCollections, mergeStoredGuest, migrateGuestData } =
+      await import('./guestParser');
     useGuestStore.persist.setOptions({
       migrate: (stored, version) => migrateGuestData(stored, version) as GuestData,
       // `merge` fills the fields the migration left out, so the partial value is safe here.
-      merge: (stored, current) => ({ ...current, ...mergeStoredGuest(stored, current) }),
+      merge: (stored, current) => {
+        // Reading them as none would erase them on the next write, so storage stays as it is.
+        if (hasUnreadableCollections(stored)) guestStorage.useMemoryOnly();
+        return { ...current, ...mergeStoredGuest(stored, current) };
+      },
     });
     await useGuestStore.persist.rehydrate();
     // The first write after loading: the storage guard lets it through now.

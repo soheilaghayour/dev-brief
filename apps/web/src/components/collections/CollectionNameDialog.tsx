@@ -1,35 +1,48 @@
 'use client';
 
-import { useId, useState, type SubmitEvent } from 'react';
+import { useId, useRef, useState, type SubmitEvent } from 'react';
+import { CollectionNameSchema } from '@devbrief/shared';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { useCollections, type CollectionView } from './useCollections';
+import { useReturnFocus } from './useReturnFocus';
 
-const NAME_ERROR = 'Enter a name of 1 to 60 characters.';
+const NAME_ERROR = `Enter a name of ${CollectionNameSchema.minLength} to ${CollectionNameSchema.maxLength} characters.`;
 
 type CollectionNameDialogProps = {
   /** The collection being renamed; absent when creating one. */
   collection?: CollectionView;
+  /** Where focus returns when the dialog closes. */
+  opener: HTMLElement | null;
   onClose: () => void;
 };
 
 /** Creates a collection, or renames the given one; the slug and URL stay on a rename. */
-export function CollectionNameDialog({ collection, onClose }: CollectionNameDialogProps) {
+export function CollectionNameDialog({ collection, opener, onClose }: CollectionNameDialogProps) {
   const collections = useCollections();
   const [name, setName] = useState(collection?.name ?? '');
   const [error, setError] = useState<string | null>(null);
   const inputId = useId();
   const errorId = useId();
+  const returnFocus = useReturnFocus(opener);
+  // A second Enter or click while the first write is pending would create the collection twice.
+  const isSubmitting = useRef(false);
 
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (collections.status !== 'ready') return;
-    const outcome = collection
-      ? await collections.rename(collection.id, name)
-      : (await collections.create(name)).outcome;
-    if (outcome === 'invalid') setError(NAME_ERROR);
-    else onClose();
+    if (collections.status !== 'ready' || isSubmitting.current) return;
+    isSubmitting.current = true;
+    try {
+      const outcome = collection
+        ? await collections.rename(collection.id, name)
+        : (await collections.create(name)).outcome;
+      // A refusal at the limit is told by its own toast; only a bad name is an error here.
+      if (outcome === 'invalid') setError(NAME_ERROR);
+      else onClose();
+    } finally {
+      isSubmitting.current = false;
+    }
   }
   function changeName(value: string) {
     setName(value);
@@ -41,7 +54,7 @@ export function CollectionNameDialog({ collection, onClose }: CollectionNameDial
 
   return (
     <Dialog open onOpenChange={handleOpenChange}>
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent aria-describedby={undefined} onCloseAutoFocus={returnFocus}>
         <DialogHeader>
           <DialogTitle>{collection ? 'Rename collection' : 'New collection'}</DialogTitle>
         </DialogHeader>

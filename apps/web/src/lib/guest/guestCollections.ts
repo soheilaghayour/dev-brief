@@ -54,9 +54,12 @@ export async function addGuestCollectionItem(collectionId: string, storyId: stri
   return result.outcome;
 }
 
-export async function removeGuestCollectionItem(collectionId: string, storyId: string) {
+export async function removeGuestCollectionItems(
+  collectionId: string,
+  storyIds: readonly string[],
+) {
   await loadLatestGuestStore();
   useGuestStore.setState({
-    collections: removeFromCollection(useGuestStore.getState().collections, collectionId, storyId),
+    collections: removeFromCollection(useGuestStore.getState().collections, collectionId, storyIds),
   });
 }

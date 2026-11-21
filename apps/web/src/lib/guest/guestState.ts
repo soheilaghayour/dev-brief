@@ -1,4 +1,5 @@
 import type { Preferences, Save } from '@devbrief/shared';
+import { withoutStories } from './collectionOrder';
 import type { GuestCollection } from './collectionsState';
 
 export const GUEST_STATE_VERSION = 1;
@@ -57,13 +58,7 @@ export function withoutStoriesInCollections(
   collections: readonly GuestCollection[],
   storyIds: readonly string[],
 ): GuestCollection[] {
-  const removed = new Set(storyIds);
-  return collections.map((collection) => ({
-    ...collection,
-    items: collection.items
-      .filter((item) => !removed.has(item.storyId))
-      .map((item, position) => ({ ...item, position })),
-  }));
+  return collections.map((collection) => withoutStories(collection, storyIds));
 }
 
 /** Newest-saved first; the stored order is insertion order. */

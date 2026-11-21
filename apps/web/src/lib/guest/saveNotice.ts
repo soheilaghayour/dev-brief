@@ -8,11 +8,14 @@ export function isSaveNoticeKind(value: unknown): value is SaveNoticeKind {
   return SAVE_NOTICE_KINDS.some((kind) => kind === value);
 }
 
+/** Shown when a guest's save list is full, whatever added the save. */
+export const SAVES_FULL_MESSAGE = `You can keep up to ${MAX_GUEST_SAVES} saves as a guest. Remove one or sign in.`;
+
 const MESSAGES = {
   'saved-on-device': 'Saved on this device · Sign in to sync',
   'storage-unavailable':
     'Your browser blocks storage, so saves last only until you close this tab. Sign in to keep them.',
-  full: `You can keep up to ${MAX_GUEST_SAVES} saves as a guest. Remove one or sign in.`,
+  full: SAVES_FULL_MESSAGE,
 } satisfies Record<SaveNoticeKind, string>;
 
 /** The toast a save deserves, or null; the on-device and storage notices show once per session. */

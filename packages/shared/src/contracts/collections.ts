@@ -17,7 +17,7 @@ export const CollectionSlugSchema = z
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
 
 export const CollectionNameSchema = z.string().trim().min(1).max(60);
-const CollectionDescriptionSchema = z.string().max(500);
+export const CollectionDescriptionSchema = z.string().max(500);
 
 export const CollectionSchema = z.object({
   id: z.string(),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Checkbox } from '@/components/ui/Checkbox';
 import {
   Dialog,
@@ -10,7 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
-import { useCollections, type CollectionView } from './useCollections';
+import { preloadCollectionWriters, useCollections, type CollectionView } from './useCollections';
+import { useReturnFocus } from './useReturnFocus';
 
 type AddToCollectionDialogProps = {
   storyId: string;
@@ -21,34 +22,75 @@ function matchesQuery(collection: CollectionView, query: string) {
   return collection.name.toLowerCase().includes(query.trim().toLowerCase());
 }
 
+function sameName(collection: CollectionView, name: string) {
+  return collection.name.toLowerCase() === name.toLowerCase();
+}
+
 /** Type to filter the collections, tick the ones the story belongs to, or press Enter on a new name to create it. */
 export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialogProps) {
   const collections = useCollections();
+  const returnFocus = useReturnFocus();
   const [query, setQuery] = useState('');
   const [announcement, setAnnouncement] = useState('');
+  // What the user just ticked, shown until the write lands, so a controlled checkbox doesn't snap back meanwhile.
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  // A second Enter while the first create is pending would make a duplicate collection.
+  const isCreating = useRef(false);
+
+  useEffect(preloadCollectionWriters, []);
+
   if (collections.status !== 'ready') return null;
 
   const matches = collections.collections.filter((collection) => matchesQuery(collection, query));
   const memberOf = new Set(collections.collectionsOf(storyId).map(({ id }) => id));
   const newName = query.trim();
-  const willCreate = newName !== '' && matches.length === 0;
+  // A name that only contains another's (Frontend in Frontend Architecture) is still new; only the same name isn't.
+  const willCreate =
+    newName !== '' && !collections.collections.some((collection) => sameName(collection, newName));
 
+  function isChecked(collection: CollectionView) {
+    return ticked[collection.id] ?? memberOf.has(collection.id);
+  }
+  function setTick(id: string, value: boolean | undefined) {
+    setTicked((previous) => {
+      const next = { ...previous };
+      if (value === undefined) delete next[id];
+      else next[id] = value;
+      return next;
+    });
+  }
   async function toggleMembership(collection: CollectionView) {
     if (collections.status !== 'ready') return;
-    if (memberOf.has(collection.id)) {
-      await collections.removeItem(collection.id, storyId);
-      setAnnouncement(`Removed from ${collection.name}.`);
-    } else if ((await collections.addItem(collection.id, storyId)) === 'added') {
-      setAnnouncement(`Added to ${collection.name}.`);
+    const wasMember = isChecked(collection);
+    setTick(collection.id, !wasMember);
+    try {
+      if (wasMember) {
+        await collections.removeItems(collection.id, [storyId]);
+        setAnnouncement(`Removed from ${collection.name}.`);
+      } else if ((await collections.addItem(collection.id, storyId)) === 'added') {
+        setAnnouncement(`Added to ${collection.name}.`);
+      }
+    } finally {
+      // The store now holds the truth: what landed stays ticked, what was refused or failed rolls back.
+      setTick(collection.id, undefined);
     }
   }
   async function createAndAdd() {
-    if (collections.status !== 'ready') return;
-    const created = await collections.create(newName);
-    if (created.outcome !== 'created') return;
-    await collections.addItem(created.id, storyId);
-    setAnnouncement(`Created ${newName} and added the story.`);
-    setQuery('');
+    if (collections.status !== 'ready' || isCreating.current) return;
+    isCreating.current = true;
+    try {
+      const created = await collections.create(newName);
+      if (created.outcome !== 'created') return;
+      const outcome = await collections.addItem(created.id, storyId);
+      setAnnouncement(
+        outcome === 'added'
+          ? `Created ${newName} and added the story.`
+          : `Created ${newName}. The story was not added.`,
+      );
+      setQuery('');
+    } finally {
+      isCreating.current = false;
+    }
   }
   function submitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== 'Enter') return;
@@ -61,7 +103,7 @@ export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialo
 
   return (
     <Dialog open onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogHeader>
           <DialogTitle>Add to collection</DialogTitle>
           <DialogDescription>
@@ -84,7 +126,7 @@ export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialo
               className="hover:bg-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
             >
               <Checkbox
-                checked={memberOf.has(collection.id)}
+                checked={isChecked(collection)}
                 onChange={() => void toggleMembership(collection)}
               />
               <span className="min-w-0 flex-1 truncate">{collection.name}</span>
@@ -94,19 +136,17 @@ export function AddToCollectionDialog({ storyId, onClose }: AddToCollectionDialo
             </label>
           ))}
         </fieldset>
-        {willCreate && (
-          <p className="text-muted-foreground text-sm">
-            No collection matches. Press Enter to create “{newName}” and add the story.
-          </p>
-        )}
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
+        <p role="status" className="text-muted-foreground text-sm empty:hidden">
+          {willCreate && `Press Enter to create “${newName}” and add the story.`}
+        </p>
         {collections.collections.length === 0 && newName === '' && (
           <p className="text-muted-foreground text-sm">
             You have no collections yet. Type a name to create one.
           </p>
         )}
-        <p role="status" className="sr-only">
-          {announcement}
-        </p>
       </DialogContent>
     </Dialog>
   );

@@ -20,6 +20,7 @@ export const guestStorage = createGuestStorage(browserLocalStorage);
 type GuestActions = {
   toggleSave: (storyId: string, now: Date) => ReturnType<typeof toggleSave>['outcome'];
   removeSaves: (storyIds: readonly string[]) => number;
+  purgeSaves: (storyIds: readonly string[]) => number;
   dismissHint: () => void;
   setPendingMerge: (pending: boolean) => void;
   reset: () => void;
@@ -76,6 +77,13 @@ export const useGuestStore = create<GuestStore>()(
         const saves = removeSaves(get().saves, storyIds);
         const removed = get().saves.length - saves.length;
         set({ saves });
+        return removed;
+      },
+      // For stories that no longer exist: nothing can show them, so they leave every collection too.
+      purgeSaves: (storyIds) => {
+        const saves = removeSaves(get().saves, storyIds);
+        const removed = get().saves.length - saves.length;
+        set({ saves, collections: withoutStoriesInCollections(get().collections, storyIds) });
         return removed;
       },
       dismissHint: () => set({ hintDismissed: true }),

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { useGuestStore } from '@/lib/guest/guestStore';
 import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
@@ -8,11 +9,12 @@ import {
   byRole,
   click,
   collection,
+  hotkeysReady,
   mount,
   NoopResizeObserver,
   pressKey,
+  preloadLazyModules,
   seedGuestStore,
-  settle,
   storyId,
 } from './collectionsHarness';
 
@@ -21,14 +23,13 @@ vi.mock('@/lib/auth/useMe', () => ({
   useMe: () => ({ data: auth.user, isPending: false }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-// next/dynamic's lazy load is the browser's business; the test mounts the sidebar itself.
-vi.mock('./LazyCollectionsSidebar', async () => ({
-  LazyCollectionsSidebar: (await import('./CollectionsSidebar')).CollectionsSidebar,
-}));
 vi.mock('@/lib/toast/notify', () => ({ notify: vi.fn() }));
-const lookup = vi.hoisted(() => ({ stories: [] as StoryCardData[] }));
+const lookup = vi.hoisted(() => ({ stories: [] as StoryCardData[], missingIds: [] as string[] }));
 vi.mock('@/lib/api/endpoints', () => ({
-  lookupStories: async () => ({ items: lookup.stories, missingIds: [] }),
+  lookupStories: async ({ ids }: { ids: string[] }) => ({
+    items: lookup.stories.filter(({ id }) => ids.includes(id)),
+    missingIds: lookup.missingIds,
+  }),
 }));
 
 function story(n: number): StoryCardData {
@@ -51,13 +52,16 @@ function story(n: number): StoryCardData {
 
 let unmount = () => {};
 
+beforeAll(preloadLazyModules);
+
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', NoopResizeObserver);
   // jsdom has no layout, so it has no scrollIntoView.
   Element.prototype.scrollIntoView = vi.fn();
   auth.user = null;
   // Not in collection order, so the test sees the board sort them.
-  lookup.stories = [story(2), story(3), story(1)];
+  lookup.stories = [story(2), story(3), story(1), story(4)];
+  lookup.missingIds = [];
 });
 
 afterEach(() => {
@@ -72,14 +76,15 @@ async function showBoard(slug: string) {
     </HotkeysProvider>,
   );
   unmount = mounted.unmount;
-  await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''), {
-    timeout: 5000,
-  });
-  await settle();
+  await hotkeysReady();
 }
 
 const titles = () =>
   [...document.querySelectorAll('article[data-story-id] h2 a')].map((link) => link.textContent);
+
+async function showsTitles(expected: string[]) {
+  await vi.waitFor(() => expect(titles()).toEqual(expected));
+}
 
 async function seedBoard() {
   await seedGuestStore(
@@ -96,7 +101,7 @@ describe('CollectionBoard', () => {
     await seedBoard();
     await showBoard('reading-list');
     expect(document.querySelector('h1')?.textContent).toBe('Reading list');
-    expect(titles()).toEqual(['Story 3', 'Story 1', 'Story 2']);
+    await showsTitles(['Story 3', 'Story 1', 'Story 2']);
     expect(document.querySelector('[role="feed"]')?.getAttribute('aria-label')).toBe(
       'Stories in Reading list',
     );
@@ -113,9 +118,11 @@ describe('CollectionBoard', () => {
     await seedBoard();
     await showBoard('reading-list');
 
+    await showsTitles(['Story 3', 'Story 1', 'Story 2']);
+
     await click(byRole('button', 'Remove from Reading list'));
 
-    expect(titles()).toEqual(['Story 1', 'Story 2']);
+    await showsTitles(['Story 1', 'Story 2']);
     const state = useGuestStore.getState();
     expect(state.collections[0]?.items.map((item) => item.storyId)).toEqual([
       storyId(1),
@@ -128,17 +135,19 @@ describe('CollectionBoard', () => {
   it('AC-3.4.1 unsaving on the board removes the story from every collection', async () => {
     await seedBoard();
     await showBoard('reading-list');
+    await showsTitles(['Story 3', 'Story 1', 'Story 2']);
     const card = document.querySelector(`article[data-story-id="${storyId(1)}"]`);
 
     await click(card?.querySelector('button[aria-label="Save story"]'));
 
-    expect(titles()).toEqual(['Story 3', 'Story 2']);
+    await showsTitles(['Story 3', 'Story 2']);
     expect(useGuestStore.getState().collections.map((c) => c.items.length)).toEqual([2, 0]);
   });
 
   it('AC-3.4.3 j moves the active card and s unsaves it, like /saved', async () => {
     await seedBoard();
     await showBoard('reading-list');
+    await showsTitles(['Story 3', 'Story 1', 'Story 2']);
 
     await pressKey(document, 'j');
     const active = () =>
@@ -148,13 +157,60 @@ describe('CollectionBoard', () => {
     expect(active()).toBe('Story 1');
 
     await pressKey(document, 's');
-    expect(titles()).toEqual(['Story 3', 'Story 2']);
+    await showsTitles(['Story 3', 'Story 2']);
     expect(active()).toBe('Story 2');
+  });
+
+  it('AC-3.4.3 a story another tab adds to the collection appears on the open board', async () => {
+    await seedBoard();
+    await showBoard('reading-list');
+    await showsTitles(['Story 3', 'Story 1', 'Story 2']);
+
+    await act(async () => {
+      const { collections, saves } = useGuestStore.getState();
+      useGuestStore.setState({
+        saves: [...saves, { storyId: storyId(4), savedAt: '2026-05-01T10:00:00.000Z' }],
+        collections: collections.map((board, index) =>
+          index === 0
+            ? {
+                ...board,
+                items: [
+                  ...board.items,
+                  { storyId: storyId(4), position: 3, addedAt: '2026-05-02T10:00:00.000Z' },
+                ],
+              }
+            : board,
+        ),
+      });
+    });
+
+    await showsTitles(['Story 3', 'Story 1', 'Story 2', 'Story 4']);
+  });
+
+  it('AC-3.4.3 a story that no longer exists leaves this collection, and the count follows', async () => {
+    lookup.missingIds = [storyId(2)];
+    await seedBoard();
+    await showBoard('reading-list');
+
+    await showsTitles(['Story 3', 'Story 1']);
+    await vi.waitFor(() =>
+      expect(useGuestStore.getState().collections[0]?.items.map((item) => item.storyId)).toEqual([
+        storyId(3),
+        storyId(1),
+      ]),
+    );
+    expect(
+      document.querySelector('nav[aria-label="Collections"] a[href="/collections/reading-list"]')
+        ?.textContent,
+    ).toBe('Reading list2');
   });
 
   it('shows an empty board with a hint', async () => {
     await seedGuestStore([collection('a', 'Empty one', 0)]);
     await showBoard('empty-one');
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Nothing in this collection yet'),
+    );
     expect(document.body.textContent).toContain('Nothing in this collection yet');
   });
 

@@ -5,7 +5,7 @@ import {
   collectionSlug,
 } from '@devbrief/shared';
 import type { Save } from '@devbrief/shared';
-import { sortCollections } from './collectionOrder';
+import { inPositionOrder, sortCollections, withoutStories } from './collectionOrder';
 import { MAX_GUEST_SAVES } from './guestState';
 
 export type GuestCollectionItem = { storyId: string; position: number; addedAt: string };
@@ -22,10 +22,6 @@ export type GuestCollection = {
 export type CreateOutcome = 'created' | 'full' | 'invalid';
 export type RenameOutcome = 'renamed' | 'invalid' | 'missing';
 export type AddItemOutcome = 'added' | 'exists' | 'collectionFull' | 'savesFull' | 'missing';
-
-function inPositionOrder<T extends { position: number }>(entries: readonly T[]) {
-  return entries.map((entry, position) => ({ ...entry, position }));
-}
 
 /** Adds a collection at the end; its slug is the one the server would give, and an over-limit or invalid name changes nothing. */
 export function createCollection(
@@ -124,18 +120,13 @@ export function addToCollection(
   };
 }
 
-/** Takes the story out of one collection and closes the gap; the save stays. */
+/** Takes the stories out of one collection and closes the gaps; the saves stay. */
 export function removeFromCollection(
   collections: readonly GuestCollection[],
   collectionId: string,
-  storyId: string,
+  storyIds: readonly string[],
 ) {
   return collections.map((collection) =>
-    collection.id === collectionId
-      ? {
-          ...collection,
-          items: inPositionOrder(collection.items.filter((item) => item.storyId !== storyId)),
-        }
-      : collection,
+    collection.id === collectionId ? withoutStories(collection, storyIds) : collection,
   );
 }

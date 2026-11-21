@@ -17,8 +17,8 @@ export type CollectionView = {
   items: { storyId: string; addedAt: string }[];
 };
 
-export type CreateResult = { outcome: 'created'; id: string } | { outcome: 'full' | 'invalid' };
-export type RenameResult = 'renamed' | 'invalid' | 'missing';
+type CreateResult = { outcome: 'created'; id: string } | { outcome: 'full' | 'invalid' };
+type RenameResult = 'renamed' | 'invalid' | 'missing';
 
 type Mutations = {
   create: (name: string) => Promise<CreateResult>;
@@ -26,7 +26,7 @@ type Mutations = {
   move: (id: string, direction: 'up' | 'down') => Promise<void>;
   remove: (id: string) => Promise<void>;
   addItem: (collectionId: string, storyId: string) => Promise<AddItemOutcome>;
-  removeItem: (collectionId: string, storyId: string) => Promise<void>;
+  removeItems: (collectionId: string, storyIds: readonly string[]) => Promise<void>;
 };
 
 export type Collections =
@@ -40,6 +40,12 @@ export type Collections =
 // The writers load on first use, so a page that only reads collections doesn't carry them.
 const loadWriters = () => import('@/lib/guest/guestCollections');
 
+/** Fetches the writers and the refusal texts ahead of their first use, so a quick first write waits for no chunk. */
+export function preloadCollectionWriters() {
+  void loadWriters();
+  void import('./collectionNotice');
+}
+
 // The refusal texts load with the first refusal, not with every page.
 async function announceRefusal(outcome: CreateOutcome | AddItemOutcome) {
   const { collectionNotice } = await import('./collectionNotice');
@@ -52,7 +58,8 @@ const guestMutations = {
     const { createGuestCollection } = await loadWriters();
     const { outcome, created } = await createGuestCollection(name);
     void announceRefusal(outcome);
-    return outcome === 'created' && created ? { outcome, id: created.id } : { outcome: 'invalid' };
+    if (outcome === 'created' && created) return { outcome, id: created.id };
+    return { outcome: outcome === 'full' ? 'full' : 'invalid' };
   },
   async rename(id, name) {
     return (await loadWriters()).renameGuestCollection(id, name);
@@ -71,8 +78,8 @@ const guestMutations = {
     void announceRefusal(outcome);
     return outcome;
   },
-  async removeItem(collectionId, storyId) {
-    await (await loadWriters()).removeGuestCollectionItem(collectionId, storyId);
+  async removeItems(collectionId, storyIds) {
+    await (await loadWriters()).removeGuestCollectionItems(collectionId, storyIds);
   },
 } satisfies Mutations;
 

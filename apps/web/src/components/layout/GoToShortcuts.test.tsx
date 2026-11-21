@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { GoToShortcuts } from './GoToShortcuts';
 import { getGoToTargets, getNavItems } from './navItems';
@@ -23,6 +23,9 @@ function press(key: string) {
   });
 }
 
+// Loaded once up front, so a test waits for its outcome and not for the chunk.
+beforeAll(() => import('@/lib/hotkeys/ShortcutBindings'));
+
 let unmount = () => {};
 afterEach(() => {
   unmount();
@@ -41,12 +44,7 @@ async function mount() {
     ),
   );
   unmount = () => act(() => root.unmount());
-  await act(async () => {
-    await import('@/lib/hotkeys/ShortcutBindings');
-  });
-  await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''), {
-    timeout: 5000,
-  });
+  await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
 }
 
 describe('g c', () => {

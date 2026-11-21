@@ -1,16 +1,31 @@
 'use client';
 
-import { createContext, lazy, Suspense, useContext, useMemo, useState } from 'react';
+import { createContext, lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { isFeatureEnabled } from '@/config/features';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
-import { useCollections } from './useCollections';
+import { preloadCollectionWriters, useCollections } from './useCollections';
 
 // The dialog (and Radix Dialog with it) is fetched the first time it opens.
+const loadDialog = () => import('./AddToCollectionDialog');
 const AddToCollectionDialog = lazy(() =>
-  import('./AddToCollectionDialog').then((module) => ({ default: module.AddToCollectionDialog })),
+  loadDialog().then((module) => ({ default: module.AddToCollectionDialog })),
 );
+
+// Fetched when the browser is idle, so a fast typist's first keys after `a` reach the dialog, not the page's shortcuts.
+function preloadWhenIdle() {
+  function preload() {
+    void loadDialog();
+    preloadCollectionWriters();
+  }
+  if (typeof window.requestIdleCallback === 'function') {
+    const handle = window.requestIdleCallback(preload);
+    return () => window.cancelIdleCallback(handle);
+  }
+  const handle = window.setTimeout(preload, 200);
+  return () => window.clearTimeout(handle);
+}
 
 const ADD_TO_COLLECTION = {
   id: 'add-to-collection',
@@ -31,6 +46,8 @@ function CollectionsEnabledProvider({ children }: { children: ReactNode }) {
   const [storyId, setStoryId] = useState<string | null>(null);
   const canAdd = collections.status === 'ready';
   const state = useMemo(() => ({ canAdd, open: setStoryId }), [canAdd]);
+
+  useEffect(() => (canAdd ? preloadWhenIdle() : undefined), [canAdd]);
 
   function close() {
     setStoryId(null);
