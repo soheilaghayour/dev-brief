@@ -124,6 +124,21 @@ The API refuses to start with `FEATURE_SUMMARIES=true`, `FEATURE_CLUSTERS=true` 
 
 The caps and the per-token prices can be overridden with the `LLM_CAP_*` and `LLM_PRICE_*` variables listed in [`.env.example`](../.env.example); leave them unset in production unless the PRD changes them. Changing `LLM_MODEL` to a model without a price in `apps/api/src/modules/llm/budget.ts` also needs both price variables, or the API refuses to start.
 
+## Example briefings (Phase 3)
+
+The landing's three example briefings, and the copilot's fallback when the daily budget is spent, are generated once by hand: run it after the Phase 3 launch and whenever the examples look stale. It runs the real copilot pipeline for each question in `EXAMPLE_QUESTIONS`, so it needs `ANTHROPIC_API_KEY` and costs about $0.005 in total (three calls billed to the `copilot` ledger feature, [§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)).
+
+In the API container (the image has no `pnpm`, so run the compiled CLI):
+
+```
+node dist/cli/generateExampleBriefings.js --confirm-database <database name from DATABASE_URL>
+```
+
+- Without the flag, or with a name that differs from `DATABASE_URL`, it refuses to start.
+- It prints each question's retrieved story count first. A question with fewer than 3 stories, or a failed generation, stops it with a non-zero exit and the old examples stay; pick a replacement question in `packages/shared/src/a2ui/exampleQuestions.ts` and deploy before running it again.
+- It prints each call's cost and the total.
+- The landing shows the new examples after its next ISR revalidation (at most 15 minutes).
+
 ## GitHub source token
 
 The GitHub source calls the Search API with a token (30 searches per minute instead of 10). It is a separate credential from the OAuth app below and needs no permissions, because it only searches public repositories ([§8.6](prd.md#86-security-basics)).
