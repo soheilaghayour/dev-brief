@@ -1,7 +1,9 @@
 import { PHASE_PRODUCTION_BUILD } from 'next/constants';
 import type { Stats, StoryCard } from '@devbrief/shared';
 import fixture from '@/content/landing-fixture.json';
-import { getFeed, getStats } from '@/lib/api/endpoints';
+import { FEATURES, type Features } from '@/config/features';
+import { getExampleBriefings, getFeed, getStats } from '@/lib/api/endpoints';
+import { sampleExampleBriefings, type ExampleBriefing } from './exampleBriefingData';
 import { PREVIEW_VISIBLE } from './previewLogic';
 import { fixtureStories, selectRecentStories, type FixtureStory } from './landingStories';
 
@@ -12,9 +14,14 @@ export type LandingData = {
   isSample: boolean;
   /** When this page was generated; ISR keeps it fixed until the next revalidation. */
   renderedAt: string;
+  /** The stored example briefings; empty while the copilot flag is off. */
+  examples: ExampleBriefing[];
+  examplesAreSample: boolean;
 };
 
-function sampleData(now: Date): LandingData {
+type PreviewData = Omit<LandingData, 'examples' | 'examplesAreSample'>;
+
+function sampleData(now: Date): PreviewData {
   const { storiesToday, sourceCount } = fixture;
   return {
     stories: fixtureStories(fixture.items as FixtureStory[], now),
@@ -25,28 +32,46 @@ function sampleData(now: Date): LandingData {
 }
 
 // The sample only fills a build or dev page; a failed revalidation throws so ISR keeps serving the last good page.
+function isBuildOrDev() {
+  return process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD || process.env.NODE_ENV !== 'production';
+}
+
 function fallbackData(now: Date) {
-  const isBuildOrDev =
-    process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD || process.env.NODE_ENV !== 'production';
-  if (!isBuildOrDev)
+  if (!isBuildOrDev())
     throw new Error('The API returned too few recent stories for the landing page.');
   return sampleData(now);
 }
 
+type ExamplesResult = Awaited<ReturnType<typeof getExampleBriefings>>;
+
+// An answer of "none" fills the sample at any time; an unreachable API does so only at build, so a failed revalidation keeps the last good page.
+function resolveExamples(result: PromiseSettledResult<ExamplesResult | null>, features: Features) {
+  if (!features.copilot) return { examples: [], examplesAreSample: false };
+  if (result.status === 'fulfilled' && result.value && result.value.items.length > 0)
+    return { examples: result.value.items, examplesAreSample: false };
+  if (result.status === 'rejected' && !isBuildOrDev())
+    throw new Error('The API did not return the example briefings for the landing page.');
+  return { examples: sampleExampleBriefings(), examplesAreSample: true };
+}
+
 /** Fetches the preview's stories and the hero counts at build or revalidate time. */
-export async function loadLandingData(): Promise<LandingData> {
+export async function loadLandingData(features: Features = FEATURES): Promise<LandingData> {
   const now = new Date();
   // Top covers 7 days, so a wide page is fetched and cut to the last 24 h here.
-  const [feed, stats] = await Promise.allSettled([
+  const [feed, stats, examples] = await Promise.allSettled([
     getFeed({ sort: 'top', limit: 50 }, { isPerRequest: false }),
     getStats(),
+    features.copilot ? getExampleBriefings() : Promise.resolve(null),
   ]);
   const stories = feed.status === 'fulfilled' ? selectRecentStories(feed.value.items, now) : [];
-  if (stories.length < PREVIEW_VISIBLE) return fallbackData(now);
-  return {
-    stories,
-    stats: stats.status === 'fulfilled' ? stats.value : null,
-    isSample: false,
-    renderedAt: now.toISOString(),
-  };
+  const preview: PreviewData =
+    stories.length < PREVIEW_VISIBLE
+      ? fallbackData(now)
+      : {
+          stories,
+          stats: stats.status === 'fulfilled' ? stats.value : null,
+          isSample: false,
+          renderedAt: now.toISOString(),
+        };
+  return { ...preview, ...resolveExamples(examples, features) };
 }
