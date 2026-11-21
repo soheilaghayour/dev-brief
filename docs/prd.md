@@ -407,11 +407,11 @@ Default UI (the orchestrator's choice while the owner was away; reversible): a c
   - Each UTC day allows up to `AUTO_SUMMARIES_PER_DAY = 500` auto summaries under the `summary_auto` cap (§8.1). 500 is above the §5.3 volume of new stories so that the launch backlog can drain; the cap, not the count, bounds the spend. A run keeps its limits of 25 attempts and 25 HN Algolia requests (§8.3), which an hourly run of about 8–17 new stories fits.
   - A story left over by a cap or a run limit stays a candidate while it is in the 7-day Top window. Candidates are taken in `rankScore` order, not newest first. At launch the window holds about 2,800 unsummarised stories; the step works through them highest-ranked first, alongside the new stories, and a story that leaves the window before its turn gets no auto summary.
   - Each run logs its attempts, the summaries created and its duration.
-- On-demand: a "Summarize" button on a story without a summary calls `POST /api/v1/stories/:id/summary`. It shows only when `StoryDetail.canSummarize` is true.
-- **Summary input:** one server predicate, `hasSummaryInput(story)`, decides whether a story has enough text to summarise. The auto step, `POST /stories/:id/summary` and `StoryDetail.canSummarize` (§6.1) all use it, so they never disagree.
+- On-demand: a "Summarize" button on a story without a summary calls `POST /api/v1/stories/:id/summary`. It shows only when `canSummarize` is true.
+- **Summary input:** one server predicate, `hasSummaryInput(story)`, decides whether a story has enough text to summarise. The auto step, `POST /stories/:id/summary` and `StoryCard.canSummarize` (§6.1, which `StoryDetail` inherits) all use it, so they never disagree.
   - It is true when the story has a Dev.to article body, or at least 3 comments in total across its HN and Dev.to items (summed over cluster members, as for auto eligibility). Below that, three points would be invented from a title, an excerpt or a comment or two, so a GitHub-only story, for example, is never summarised.
   - The auto step evaluates it before any upstream fetch, from the stored items and comment counts.
-  - When it is false, the card shows no summary line, the story page shows no Summarize button, and `POST` answers 404 `NOT_FOUND` with a message that says the story has too little to summarise.
+  - When it is false and the story has no summary, the card shows no summary line, `u` on its feed card does nothing (§7.6), the story page shows no Summarize button, and `POST` answers 404 `NOT_FOUND` with a message that says the story has too little to summarise. A summary stored earlier is still served: the card shows its line (AC-2.3.9), `u` opens it, and `POST` answers 200.
 - **Card line:** a feed card whose story or cluster has a summary shows that summary's first TL;DR point (`tldr[0]`, ≤ 220 chars) under the title, as plain text clamped to 2 lines. A story without a summary yet shows no line: there is no excerpt fallback. A cluster card's line comes from the cluster's summary (Clusters, below). The API sends it as `summaryLine` on every `StoryCard` (§6.1). The line shows in both densities, the landing preview included (§2.3). The story page keeps the full panel (3 points and the consensus).
   - Cost: at most 220 chars more per card, about 4.4 KB per 20-card feed page before gzip. It is data, not script: the card adds a few lines of markup, and the `/feed` first-load JS budget (§8.5) is unchanged.
 - **Cached forever:** a Story never gets a second Summary row (unique `storyId`). The summary is deleted only when the Story is purged.
@@ -429,7 +429,7 @@ Acceptance criteria:
 - **AC-2.3.9** Given a story or its cluster has a summary, then every `StoryCard` the API returns for it carries `summaryLine` equal to that summary's `tldr[0]`, and the card renders it under the title as plain text clamped to 2 lines. Given no summary, `summaryLine` is `null` and the card shows no line.
 - **AC-2.3.10** Summaries use prompt `storySummary.v2` (`promptVersion = 2`), which tells the model to paraphrase and never quote (§8.8). A TL;DR point, pro or con that repeats 8 or more consecutive words of the model's input text and comment blocks, compared without case and punctuation, fails validation and so gets the one retry of AC-2.3.5. The title is left out of the comparison, because a first TL;DR point often restates a long title. v2's recorded replies are new fixture files (§8.2), so the AC-2.3.7 recording is made for v2.
 - **AC-2.3.11** Every rendered summary shows its story's source names and a prominent link to the original: on the story page, "Read the original on <domain> ↗" beside the panel's label; on a feed card, the summary line sits under the title, which links to the original (AC-1.3.7).
-- **AC-2.3.12** `hasSummaryInput` is true exactly when the story has a Dev.to article body or at least 3 comments across its HN and Dev.to items (summed over cluster members). When it is false, the story is no auto candidate, `POST /stories/:id/summary` answers 404 `NOT_FOUND` and makes no LLM call, and `StoryDetail.canSummarize` is false, so the story page shows no Summarize button.
+- **AC-2.3.12** `hasSummaryInput` is true exactly when the story has a Dev.to article body or at least 3 comments across its HN and Dev.to items (summed over cluster members). When it is false, the story is no auto candidate, `POST /stories/:id/summary` answers 404 `NOT_FOUND` and makes no LLM call, and `canSummarize` is false on its `StoryCard` and `StoryDetail`, so the story page shows no Summarize button and, while the story has no summary, `u` on its feed card does nothing.
 
 #### F2.4 GitHub source
 - Call: `GET /search/repositories?q=created:>{today-7d} stars:>50&sort=stars&order=desc&per_page=30` with `GITHUB_TOKEN`, making at most 2 calls per run.
@@ -1245,6 +1245,7 @@ export const StoryCardSchema = z.object({
   }).nullable().optional(),
   hasSummary: z.boolean().optional(),      // P2 (additive)
   summaryLine: z.string().max(220).nullable().optional(), // P2 (additive): the summary's tldr[0] (F2.3 card line), null without one
+  canSummarize: z.boolean().optional(),    // P2 (additive): hasSummaryInput (F2.3), read by the feed's u; omitted with summaries off
 });
 
 export const StoryDetailSchema = StoryCardSchema.extend({
@@ -1252,7 +1253,6 @@ export const StoryDetailSchema = StoryCardSchema.extend({
   items: z.array(SourceRefSchema.extend({ title: z.string(), author: z.string().nullable(), publishedAt: z.string().datetime() })),
   clusterMembers: z.array(StoryCardSchema).optional(),   // P2
   summary: StorySummarySchema.nullable().optional(),     // P2
-  canSummarize: z.boolean().optional(),                  // P2: hasSummaryInput (F2.3); omitted with summaries off
 });
 
 // packages/shared/src/contracts/feed.ts
@@ -1301,7 +1301,7 @@ Test-only route: `POST /api/auth/test/sign-in` creates a session for a fixture u
 ### 6.3 REST endpoints — Phase 2 (additive)
 | # | Method | Path | Auth | Query / Body | 2xx response | Notes |
 |---|---|---|---|---|---|---|
-| 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster`, `hasSummary` and `summaryLine` | |
+| 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster`, `hasSummary`, `summaryLine` and `canSummarize` | |
 | 16 | GET | `/api/v1/clusters/:id` | public | none | 200 `ClusterDetailSchema` `{ id, representative: StoryCard, members: StoryCard[], sourceKinds, summary: StorySummary \| null }` | `members` excludes the representative. `summary` is the cluster's (F2.3 Clusters). 404 `NOT_FOUND`, or `FEATURE_DISABLED` with the flag off |
 | 17 | GET | `/api/v1/stories/:id/summary` | public | none | 200 `StorySummarySchema` | 404 `NOT_FOUND` if none yet |
 | 18 | POST | `/api/v1/stories/:id/summary` | optional | `{ deviceId: uuid }` (guests) | 200 (cached) or 201 (generated) `StorySummarySchema` | 404 `NOT_FOUND` when there is no summary and `hasSummaryInput` is false (F2.3), 429 `QUOTA_EXCEEDED`, 503 `SPEND_CAP_REACHED`, 502 `GENERATION_FAILED` |
@@ -1805,7 +1805,7 @@ Shared visual components (`StoryCard`, `TagBadge`, `SourceBadge`, `ConsensusCall
 | `g` then `f` / `s` / `r` / `c` | Go to Feed / Saved / Radar / Collections | App | P1 (`r`, `c` in P3) |
 | `?` | Shortcuts help dialog | App | P1 |
 | `Esc` | Blur input or close dialog | Global | P1 |
-| `u` | Summarize active story | Active card | P2 |
+| `u` | Summarize active story; bound only while the card has a summary or `canSummarize` is true | Active card (Feed) | P2 |
 | `a` | Add to collection | Active card | P3 |
 | `n` | Edit note | Active saved item | P3 |
 | `⌘K` / `Ctrl+K` | Open the Ask the News command bar | Global | P3 |
@@ -1894,10 +1894,10 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 | Landing LCP / CLS / TBT (Lighthouse mobile) | ≤ 1.8 s / ≤ 0.05 / ≤ 150 ms | Lighthouse CI assertions |
 | Landing first-load JS | ≤ 165 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
 | `/feed` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
-| `/saved` first-load JS | ≤ 195 KB gzip (shell included) | `pnpm --filter web size` |
-| `/story/[id]` first-load JS | ≤ 195 KB gzip (shell included) | `pnpm --filter web size` |
-| `/radar` first-load JS (P3) | ≤ 190 KB gzip (shell included): its measured size rounded up to the next 5 KB. | `pnpm --filter web size` |
-| `/collections/[slug]` first-load JS (P3) | ≤ 190 KB gzip (shell included). A ceiling: the measured size rounded up to the next 5 KB, confirmed when the route is first measured. | `pnpm --filter web size` |
+| `/saved` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
+| `/story/[id]` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
+| `/radar` first-load JS (P3) | ≤ 195 KB gzip (shell included): its measured size plus 3 KB, rounded up to the next 5 KB. | `pnpm --filter web size` |
+| `/collections/[slug]` first-load JS (P3) | ≤ 190 KB gzip (shell included). A ceiling: the measured size plus 3 KB, rounded up to the next 5 KB, confirmed when the route is first measured. | `pnpm --filter web size` |
 | Lazy chunks | Recharts, A2UI renderer and Markdown editor are never in landing or feed first-load | `pnpm --filter web size` plus a bundle-analyzer report on PRs |
 | Feed API p95 server time | ≤ 150 ms at 40k stories | Integration benchmark on seeded data (non-blocking, reported) |
 | `/feed` SSR TTFB (prod) | ≤ 400 ms | Post-deploy smoke |
