@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   canonicalizeUrl,
   clusterProfile,
@@ -16,6 +17,7 @@ import { GithubAdapter } from '../src/modules/ingestion/adapters/github.adapter.
 import { HnAdapter } from '../src/modules/ingestion/adapters/hn.adapter.js';
 import { RssAdapter } from '../src/modules/ingestion/adapters/rss.adapter.js';
 import { TITLE_DEDUP_WINDOW_MS } from '../src/modules/ingestion/ingestionRules.js';
+import type { RawItem } from '../src/modules/ingestion/sourceAdapter.js';
 import { devtoFixtureFetch } from './devtoFixtureFetch.js';
 import { GITHUB_FIXTURE_NOW, githubFixtureFetch } from './githubFixtureFetch.js';
 import { hnFixtureFetch } from './hnFixtureFetch.js';
@@ -74,59 +76,108 @@ async function itemsOf(kind: SourceKind) {
   }
 }
 
-/** Every recorded HN, Dev.to, RSS and GitHub item through its adapter, merged by canonical URL and by equal normalised titles within 72 h, as ingestion merges them. */
-export async function readSnapshotStories() {
+/** Merges items by canonical URL and by equal normalised titles within 72 h, as ingestion merges them. */
+function asStories(items: readonly { kind: SourceKind; item: RawItem }[]) {
   const stories: SnapshotStory[] = [];
-  for (const kind of ['hn', 'devto', 'rss', 'github'] as const) {
-    for (const item of await itemsOf(kind)) {
-      const canonicalUrl = canonicalizeUrl(item.url);
-      const normalizedTitle = normalizeTitle(item.title);
-      const merged = stories.some(
-        (story) =>
-          story.canonicalUrl === canonicalUrl ||
-          (story.normalizedTitle === normalizedTitle &&
-            Math.abs(story.publishedAt.getTime() - item.publishedAt.getTime()) <=
-              TITLE_DEDUP_WINDOW_MS),
-      );
-      if (merged) continue;
-      stories.push({
-        title: item.title,
-        url: item.url,
-        canonicalUrl,
-        normalizedTitle,
-        excerpt: item.excerpt,
-        publishedAt: item.publishedAt,
-        sourceKind: kind,
-      });
-    }
+  for (const { kind, item } of items) {
+    const canonicalUrl = canonicalizeUrl(item.url);
+    const normalizedTitle = normalizeTitle(item.title);
+    const merged = stories.some(
+      (story) =>
+        story.canonicalUrl === canonicalUrl ||
+        (story.normalizedTitle === normalizedTitle &&
+          Math.abs(story.publishedAt.getTime() - item.publishedAt.getTime()) <=
+            TITLE_DEDUP_WINDOW_MS),
+    );
+    if (merged) continue;
+    stories.push({
+      title: item.title,
+      url: item.url,
+      canonicalUrl,
+      normalizedTitle,
+      excerpt: item.excerpt,
+      publishedAt: item.publishedAt,
+      sourceKind: kind,
+    });
   }
   return stories;
 }
 
-/** The stories that would get a model call if one run created them all: each is decided in `publishedAt` order against the decided stories within ±72 h, as `ClusteringStep` does, and every reply is `none`. */
-export function storiesWithCandidates(stories: readonly SnapshotStory[]) {
-  const rows: ClusterWindowRow[] = stories
+/** Every recorded HN, Dev.to, RSS and GitHub item through its adapter, as ingestion would store it. */
+export async function readSnapshotStories() {
+  const items: { kind: SourceKind; item: RawItem }[] = [];
+  for (const kind of ['hn', 'devto', 'rss', 'github'] as const) {
+    for (const item of await itemsOf(kind)) items.push({ kind, item });
+  }
+  return asStories(items);
+}
+
+/** The day of `fixtures/hn-window` whose stories are new; the three days before it are their window. */
+export const HN_WINDOW_NEW_DAY = {
+  from: new Date('2025-11-18T00:00:00Z'),
+  to: new Date('2025-11-19T00:00:00Z'),
+};
+
+/** The four days of HN stories in `fixtures/hn-window`, through `HnAdapter`, as ingestion would store them. */
+export async function readHnWindowStories() {
+  const recorded = JSON.parse(
+    readFileSync(new URL('./fixtures/hn-window/items.json', import.meta.url), 'utf8'),
+  ) as { id: number }[];
+  const byId = new Map(recorded.map((item) => [item.id, item]));
+  const items: { kind: SourceKind; item: RawItem }[] = [];
+  // The adapter reads the first 100 ids of `topstories`, so the file is served 100 ids at a time.
+  for (let start = 0; start < recorded.length; start += 100) {
+    const ids = recorded.slice(start, start + 100).map(({ id }) => id);
+    const fetchStub: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith('/topstories.json')) return Response.json(ids);
+      return Response.json(byId.get(Number(/\/item\/(\d+)\.json$/.exec(url)?.[1])) ?? null);
+    };
+    const fetched = await new HnAdapter(httpWith(fetchStub)).fetch(
+      { slug: 'hn', kind: 'hn' } as Source,
+      { signal },
+    );
+    for (const item of fetched) items.push({ kind: 'hn', item });
+  }
+  return asStories(items);
+}
+
+/** The model calls of one run that creates the stories `isNew` picks: each new story is decided in `publishedAt` order against the decided stories within ±72 h, as `ClusteringStep` does, and every reply is `none`. */
+export function modelCalls(
+  stories: readonly SnapshotStory[],
+  isNew: (story: SnapshotStory) => boolean = () => true,
+) {
+  const rows = stories
     .map((story, index) => ({
-      id: String(index).padStart(4, '0'),
-      title: story.title,
-      url: story.url,
-      domain: new URL(story.canonicalUrl).hostname,
-      excerpt: story.excerpt,
-      normalizedTitle: story.normalizedTitle,
-      publishedAt: story.publishedAt,
-      profile: clusterProfile(story),
-      clusterId: null,
-      clusterMemberCount: null,
+      story,
+      row: {
+        id: String(index).padStart(5, '0'),
+        title: story.title,
+        url: story.url,
+        domain: new URL(story.canonicalUrl).hostname,
+        excerpt: story.excerpt,
+        normalizedTitle: story.normalizedTitle,
+        publishedAt: story.publishedAt,
+        profile: clusterProfile(story),
+        clusterId: null,
+        clusterMemberCount: null,
+      } satisfies ClusterWindowRow,
     }))
-    .sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime() || a.id.localeCompare(b.id));
+    .sort(
+      (a, b) =>
+        a.row.publishedAt.getTime() - b.row.publishedAt.getTime() ||
+        a.row.id.localeCompare(b.row.id),
+    );
+  const created = rows.filter(({ story }) => isNew(story)).map(({ row }) => row);
   const pool = new ClusterPool(
-    rows,
-    rows.map(({ id }) => id),
+    rows.map(({ row }) => row),
+    created.map(({ id }) => id),
   );
-  const called: ClusterWindowRow[] = [];
-  for (const story of rows) {
-    if (rankClusterCandidates(story, pool.windowOf(story)).length > 0) called.push(story);
+  const calls: { story: ClusterWindowRow; candidates: ClusterWindowRow[] }[] = [];
+  for (const story of created) {
+    const candidates = rankClusterCandidates(story, pool.windowOf(story));
+    if (candidates.length > 0) calls.push({ story, candidates });
     pool.markDecided(story.id);
   }
-  return called;
+  return { created: created.length, calls };
 }

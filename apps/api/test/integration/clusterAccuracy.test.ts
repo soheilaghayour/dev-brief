@@ -7,13 +7,6 @@ import {
   sameLink,
 } from '@devbrief/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  LLM_CAP_CLUSTER_USD_DAY,
-  LLM_PRICES_PER_MTOK,
-  worstCaseCostUsd,
-} from '../../src/modules/llm/budget.js';
-import { INPUT_BUDGET, MAX_OUTPUT_TOKENS } from '../../src/modules/llm/prompts/clusterMatch.v1.js';
-import { readSnapshotStories, storiesWithCandidates } from '../clusterSnapshots.js';
 import { modelReply } from '../mockLanguageModel.js';
 import {
   type ClusterPair,
@@ -93,32 +86,6 @@ describe('cluster pair fixtures', () => {
     );
     expect(reaching.length).toBeGreaterThanOrEqual(8);
     expect(injected.length).toBeGreaterThanOrEqual(1);
-  });
-});
-
-describe('pre-filter on the recorded snapshots', () => {
-  // PRD §8.1: the top of the 200–400 new stories a day the cluster cap is sized for.
-  const NEW_STORIES_PER_DAY = 400;
-  const CAP_HEADROOM = 0.3;
-
-  it('sends few enough stories to the model that a 400-story day stays 30% under the cluster cap', async () => {
-    const stories = await readSnapshotStories();
-    const called = storiesWithCandidates(stories);
-    const worstCasePerCall = worstCaseCostUsd(
-      {
-        inputTokens: INPUT_BUDGET.systemAndSchema + INPUT_BUDGET.block * INPUT_BUDGET.blocks,
-        maxOutputTokens: MAX_OUTPUT_TOKENS,
-        model: 'claude-haiku-5-5',
-      },
-      LLM_PRICES_PER_MTOK,
-    );
-    // A snapshot story's window holds far fewer stories than production's 1,200, so this rate is a lower bound.
-    const callRate = called.length / stories.length;
-    const dailyUsd = callRate * NEW_STORIES_PER_DAY * worstCasePerCall;
-    process.stderr.write(
-      `\nrecorded snapshots: ${called.length} of ${stories.length} stories reach the model, $${dailyUsd.toFixed(4)} on a 400-story day against the $${LLM_CAP_CLUSTER_USD_DAY} cap\n`,
-    );
-    expect(dailyUsd).toBeLessThanOrEqual(LLM_CAP_CLUSTER_USD_DAY * (1 - CAP_HEADROOM));
   });
 });
 
