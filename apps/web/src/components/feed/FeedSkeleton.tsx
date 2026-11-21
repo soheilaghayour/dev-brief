@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 
 const ROW_COUNT = 8;
 
-/** Placeholder rows as tall as a real card with a one-line title, so loading shifts no layout. */
+/** Placeholder rows as tall as a real card with a one-line title; a card with a summary line grows by up to two lines, which stays under the layout-shift threshold. */
 export function FeedSkeleton() {
   return (
     <div role="status">

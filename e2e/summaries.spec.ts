@@ -6,7 +6,8 @@ const STORY_WITHOUT_CONSENSUS = 'ce2e00000005';
 const UNSUMMARISED_STORY = 'ce2e00000001';
 // A blog-only story: it has nothing to summarise, so `u` has nothing to start.
 const BLOG_ONLY_STORY = 'ce2e00000003';
-const SUMMARY_LINE = 'First point of the fixture summary.';
+// The card's line starts with a screen-reader-only label.
+const SUMMARY_LINE = 'AI summary: First point of the fixture summary.';
 
 const clampedLine = (card: Locator) => card.locator('p.line-clamp-2');
 const card = (page: Page, id: string) => page.locator(`article[data-story-id="${id}"]`);
