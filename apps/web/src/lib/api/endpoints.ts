@@ -1,4 +1,5 @@
 import {
+  ClusterDetailSchema,
   FeedPageSchema,
   HealthSchema,
   MeSchema,
@@ -49,6 +50,10 @@ export function getStory(id: string) {
     { path: `/stories/${encodeURIComponent(id)}`, cache: 'no-store' },
     StoryDetailSchema,
   );
+}
+
+export function getCluster(id: string) {
+  return apiClient.request({ path: `/clusters/${encodeURIComponent(id)}` }, ClusterDetailSchema);
 }
 
 export function lookupStories(body: StoryLookupRequest) {

@@ -70,6 +70,8 @@ jobs:
           # The e2e run reaches the Phase 2 UI and routes; Lighthouse builds with every flag off.
           FEATURE_SUMMARIES: 'true'
           FEATURE_PREFERENCES: 'true'
+          # AUTO_CLUSTERING stays unset, so no clustering model call is made.
+          FEATURE_CLUSTERS: 'true'
           FEATURE_COPILOT: 'true'
           FEATURE_RADAR: 'true'
           FEATURE_COLLECTIONS: 'true'
@@ -81,6 +83,7 @@ jobs:
           API_PROXY_URL: http://localhost:3001
           NEXT_PUBLIC_FEATURE_SUMMARIES: 'true'
           NEXT_PUBLIC_FEATURE_PREFERENCES: 'true'
+          NEXT_PUBLIC_FEATURE_CLUSTERS: 'true'
           NEXT_PUBLIC_FEATURE_COPILOT: 'true'
           # Radar's web flag turns on with #86, which also updates the AC-L7 spec (no /radar page yet).
           NEXT_PUBLIC_FEATURE_RADAR: 'false'

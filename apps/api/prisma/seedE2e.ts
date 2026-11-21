@@ -40,6 +40,13 @@ const SUMMARY_TLDR = [
   'Third point of the fixture summary.',
 ];
 
+/** The fixed 3-member cluster (HN representative, Dev.to, one blog); the clusters specs open it by these ids. */
+export const CLUSTER_ID = 'cc2e00000001';
+export const CLUSTER_REPRESENTATIVE_ID = e2eStoryId(47);
+const CLUSTER_DEVTO_ID = e2eStoryId(48);
+const CLUSTER_BLOG_ID = e2eStoryId(49);
+export const CLUSTER_MEMBER_IDS = [CLUSTER_DEVTO_ID, CLUSTER_BLOG_ID];
+
 type StorySeed = {
   id: string;
   title: string;
@@ -48,7 +55,42 @@ type StorySeed = {
   sourceSlugs: string[];
   publishedAt: Date;
   rankScore: number;
+  clusterId?: string;
 };
+
+/** The cluster's stories: below every other story in Top and newer than the 20-day archive story in Latest, so no other spec's order or counts shift by more than the one card. */
+export function buildClusterSeeds(now: Date): StorySeed[] {
+  const publishedAt = new Date(now.getTime() - 3 * 24 * HOUR);
+  const common = {
+    excerpt: 'Part of the fixture cluster.',
+    tags: [],
+    publishedAt,
+    clusterId: CLUSTER_ID,
+  };
+  return [
+    {
+      ...common,
+      id: CLUSTER_REPRESENTATIVE_ID,
+      title: 'Zephyr runtime lands in stable',
+      sourceSlugs: ['hn'],
+      rankScore: -1,
+    },
+    {
+      ...common,
+      id: CLUSTER_DEVTO_ID,
+      title: 'Hands-on with the Zephyr runtime',
+      sourceSlugs: ['devto'],
+      rankScore: -2,
+    },
+    {
+      ...common,
+      id: CLUSTER_BLOG_ID,
+      title: 'Why we moved to Zephyr',
+      sourceSlugs: ['rss-react-blog'],
+      rankScore: -3,
+    },
+  ];
+}
 
 /** The deterministic stories: 45 inside the Top window and one 20 days old, which only Latest shows. */
 export function buildStorySeeds(now: Date): StorySeed[] {
@@ -96,6 +138,8 @@ async function seedStory(prisma: PrismaClient, seed: StorySeed) {
     tags: seed.tags,
     taggerVersion: 1,
     rankScore: seed.rankScore,
+    clusterId: seed.clusterId ?? null,
+    isPrimary: !CLUSTER_MEMBER_IDS.includes(seed.id),
   };
   const story = await prisma.story.upsert({
     where: { canonicalUrl: url },
@@ -164,8 +208,24 @@ export async function seedE2e(prisma: PrismaClient, now = new Date()) {
   await seedSources(prisma);
   // Leftovers (e.g. from integration tests sharing the CI database) would break the exact counts specs rely on.
   // Saves go first: they restrict deleting their story.
-  await prisma.$transaction([prisma.save.deleteMany(), prisma.story.deleteMany()]);
-  for (const seed of buildStorySeeds(now)) await seedStory(prisma, seed);
+  await prisma.$transaction([
+    prisma.save.deleteMany(),
+    prisma.story.deleteMany(),
+    prisma.cluster.deleteMany(),
+  ]);
+  // The cluster row goes first: its stories point at it.
+  await prisma.cluster.create({
+    data: {
+      id: CLUSTER_ID,
+      representativeStoryId: CLUSTER_REPRESENTATIVE_ID,
+      memberCount: 3,
+      sourceKinds: ['hn', 'devto', 'rss'],
+      rankScore: -1,
+    },
+  });
+  for (const seed of [...buildStorySeeds(now), ...buildClusterSeeds(now)]) {
+    await seedStory(prisma, seed);
+  }
   await seedSummary(
     prisma,
     SUMMARISED_STORY_ID,
