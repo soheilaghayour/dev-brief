@@ -1,1 +1,80 @@
-[{"type_of":"comment","id_code":"3lkld","created_at":"2026-11-19T18:41:04Z","ai_disclosure_level":"not_disclosed","ai_disclosure_label":"Not Disclosed","body_html":"\u003cp\u003eThe 3 KB search result versus a 16,000-tool catalogue is a compelling boundary. The third-party region near miss is also a good negative test: before \u003ccode\u003eaction_invoke\u003c/code\u003e, I would check provider identity and schema, not just the similarity score. Likewise, \u003ccode\u003eretriable: true\u003c/code\u003e on the OAuth error means retry \u003cem\u003eafter\u003c/em\u003e the human connection is refreshed, not loop on the same unauthorized call. Have you tried a deliberately ambiguous search where a wrong-provider tool ranks first?\u003c/p\u003e\n\n","user":{"name":"Raju Dandigam","username":"raju_dandigam","twitter_username":null,"github_username":null,"user_id":1726463,"website_url":"https://rajudandigam.com/","profile_image":"https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F1726463%2F38d1e46f-d122-4fa3-b130-772169c24466.png","profile_image_90":"https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F1726463%2F38d1e46f-d122-4fa3-b130-772169c24466.png"},"children":[{"type_of":"comment","id_code":"3lkpe","created_at":"2026-11-19T20:00:53Z","ai_disclosure_level":"not_disclosed","ai_disclosure_label":"Not Disclosed","body_html":"\u003cp\u003ehadn't, so I just tried it. \"List available regions\" with no provider named: the top five were Lambda, CompanyEnrich, Make, Railway and SingleStore, all between 0.68 and 0.71, and DigitalOcean's region-list wasn't in the five at all. same thing with the provider named (\"List DigitalOcean regions and their availability\") puts digitalocean_region-list first at 0.83, with the next hit at 0.58.\u003c/p\u003e\n\n\u003cp\u003eso I'd add one thing to your check: look at the gap, not just the top score. 0.83 with a 0.25 gap is a confident match. 0.71 with five tools within 0.03 of each other means the query was ambiguous, and the agent should narrow it (name the provider) instead of calling the top hit. one odd detail too, the list isn't strictly sorted by score, a Daytona tool at 0.58 came back below one at 0.54, so sort it yourself before trusting the order.\u003c/p\u003e\n\n\u003cp\u003eand agreed on retriable, the recovery_hint was refresh_auth, so the right move is stop and ask the human, not retry.\u003c/p\u003e\n\n","user":{"name":"Alex Georgiev","username":"alexgeorgiev17","twitter_username":"AlexGeorgiev17","github_username":"GeorgievAlex","user_id":374570,"website_url":"https://alexgeorgiev.net","profile_image":"https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png","profile_image_90":"https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png"},"children":[]}]},{"type_of":"comment","id_code":"3lko4","created_at":"2026-11-19T19:35:35Z","ai_disclosure_level":"not_disclosed","ai_disclosure_label":"Not Disclosed","body_html":"\u003cp\u003eMeasuring tool search through a gateway is the kind of number people skip. A gateway in front of the agent's tools is also a natural place to log and hold risky actions, not just route them.\u003c/p\u003e\n\n","user":{"name":"Gautam K","username":"gautamtalksdev","twitter_username":null,"github_username":null,"user_id":3868814,"website_url":null,"profile_image":"https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3868814%2F162b0c1d-a0db-4fc9-81ae-c61eb85c0664.jpg","profile_image_90":"https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3868814%2F162b0c1d-a0db-4fc9-81ae-c61eb85c0664.jpg"},"children":[{"type_of":"comment","id_code":"3lkp8","created_at":"2026-11-19T19:59:55Z","ai_disclosure_level":"not_disclosed","ai_disclosure_label":"Not Disclosed","body_html":"\u003cp\u003eagreed, and that's the part I didn't test. the closest I got was the OAuth step, the gateway refused the DigitalOcean call until I approved the connection myself, so the agent never held the keys. but that's a one-time gate per provider, not a per-action hold. something like \"pause anything that deletes or spends and ask first\" would be the more interesting thing to look for next.\u003c/p\u003e\n\n","user":{"name":"Alex Georgiev","username":"alexgeorgiev17","twitter_username":"AlexGeorgiev17","github_username":"GeorgievAlex","user_id":374570,"website_url":"https://alexgeorgiev.net","profile_image":"https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png","profile_image_90":"https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png"},"children":[]}]}]
+[
+  {
+    "type_of": "comment",
+    "id_code": "3lkld",
+    "created_at": "2026-11-19T18:41:04Z",
+    "ai_disclosure_level": "not_disclosed",
+    "ai_disclosure_label": "Not Disclosed",
+    "body_html": "\u003cp\u003eThe 3 KB search result versus a 16,000-tool catalogue is a compelling boundary. The third-party region near miss is also a good negative test: before \u003ccode\u003eaction_invoke\u003c/code\u003e, I would check provider identity and schema, not just the similarity score. Likewise, \u003ccode\u003eretriable: true\u003c/code\u003e on the OAuth error means retry \u003cem\u003eafter\u003c/em\u003e the human connection is refreshed, not loop on the same unauthorized call. Have you tried a deliberately ambiguous search where a wrong-provider tool ranks first?\u003c/p\u003e\n\n",
+    "user": {
+      "name": "Raju Dandigam",
+      "username": "raju_dandigam",
+      "twitter_username": null,
+      "github_username": null,
+      "user_id": 1726463,
+      "website_url": "https://rajudandigam.com/",
+      "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F1726463%2F38d1e46f-d122-4fa3-b130-772169c24466.png",
+      "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F1726463%2F38d1e46f-d122-4fa3-b130-772169c24466.png"
+    },
+    "children": [
+      {
+        "type_of": "comment",
+        "id_code": "3lkpe",
+        "created_at": "2026-11-19T20:00:53Z",
+        "ai_disclosure_level": "not_disclosed",
+        "ai_disclosure_label": "Not Disclosed",
+        "body_html": "\u003cp\u003ehadn't, so I just tried it. \"List available regions\" with no provider named: the top five were Lambda, CompanyEnrich, Make, Railway and SingleStore, all between 0.68 and 0.71, and DigitalOcean's region-list wasn't in the five at all. same thing with the provider named (\"List DigitalOcean regions and their availability\") puts digitalocean_region-list first at 0.83, with the next hit at 0.58.\u003c/p\u003e\n\n\u003cp\u003eso I'd add one thing to your check: look at the gap, not just the top score. 0.83 with a 0.25 gap is a confident match. 0.71 with five tools within 0.03 of each other means the query was ambiguous, and the agent should narrow it (name the provider) instead of calling the top hit. one odd detail too, the list isn't strictly sorted by score, a Daytona tool at 0.58 came back below one at 0.54, so sort it yourself before trusting the order.\u003c/p\u003e\n\n\u003cp\u003eand agreed on retriable, the recovery_hint was refresh_auth, so the right move is stop and ask the human, not retry.\u003c/p\u003e\n\n",
+        "user": {
+          "name": "Alex Georgiev",
+          "username": "alexgeorgiev17",
+          "twitter_username": "AlexGeorgiev17",
+          "github_username": "GeorgievAlex",
+          "user_id": 374570,
+          "website_url": "https://alexgeorgiev.net",
+          "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png",
+          "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "type_of": "comment",
+    "id_code": "3lko4",
+    "created_at": "2026-11-19T19:35:35Z",
+    "ai_disclosure_level": "not_disclosed",
+    "ai_disclosure_label": "Not Disclosed",
+    "body_html": "\u003cp\u003eMeasuring tool search through a gateway is the kind of number people skip. A gateway in front of the agent's tools is also a natural place to log and hold risky actions, not just route them.\u003c/p\u003e\n\n",
+    "user": {
+      "name": "Gautam K",
+      "username": "gautamtalksdev",
+      "twitter_username": null,
+      "github_username": null,
+      "user_id": 3868814,
+      "website_url": null,
+      "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3868814%2F162b0c1d-a0db-4fc9-81ae-c61eb85c0664.jpg",
+      "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F3868814%2F162b0c1d-a0db-4fc9-81ae-c61eb85c0664.jpg"
+    },
+    "children": [
+      {
+        "type_of": "comment",
+        "id_code": "3lkp8",
+        "created_at": "2026-11-19T19:59:55Z",
+        "ai_disclosure_level": "not_disclosed",
+        "ai_disclosure_label": "Not Disclosed",
+        "body_html": "\u003cp\u003eagreed, and that's the part I didn't test. the closest I got was the OAuth step, the gateway refused the DigitalOcean call until I approved the connection myself, so the agent never held the keys. but that's a one-time gate per provider, not a per-action hold. something like \"pause anything that deletes or spends and ask first\" would be the more interesting thing to look for next.\u003c/p\u003e\n\n",
+        "user": {
+          "name": "Alex Georgiev",
+          "username": "alexgeorgiev17",
+          "twitter_username": "AlexGeorgiev17",
+          "github_username": "GeorgievAlex",
+          "user_id": 374570,
+          "website_url": "https://alexgeorgiev.net",
+          "profile_image": "https://media2.dev.to/dynamic/image/width=640,height=640,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png",
+          "profile_image_90": "https://media2.dev.to/dynamic/image/width=90,height=90,fit=cover,gravity=auto,format=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Fuser%2Fprofile_image%2F374570%2Ffd187417-a674-43c9-951a-81c6fb965471.png"
+        },
+        "children": []
+      }
+    ]
+  }
+]
