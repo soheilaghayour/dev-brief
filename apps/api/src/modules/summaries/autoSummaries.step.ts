@@ -17,7 +17,7 @@ import {
   fitsRunBudget,
 } from './summaryRules.js';
 
-/** After each ingestion run, summarises the most-discussed Top stories until the day's auto summaries are used up. */
+/** After each ingestion run, summarises the Top stories that have something to summarise, highest-ranked first, until the day's auto summaries are used up. */
 @Injectable()
 export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
   readonly name = 'auto-summaries';
@@ -38,6 +38,22 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
     // CI's e2e API runs with summaries on and a placeholder key, so the live calls need a switch of their own.
     if (!this.env.FEATURE_SUMMARIES || !this.env.AUTO_SUMMARIES) return;
 
+    const startedAt = Date.now();
+    const outcome = { attempts: 0, created: 0 };
+    try {
+      await this.summarise(now, signal, outcome);
+    } finally {
+      this.logger.log(
+        `Auto summaries: ${outcome.attempts} attempts, ${outcome.created} created, ${Date.now() - startedAt} ms`,
+      );
+    }
+  }
+
+  private async summarise(
+    now: Date,
+    signal: AbortSignal,
+    outcome: { attempts: number; created: number },
+  ) {
     let remaining = AUTO_SUMMARIES_PER_DAY - (await this.countToday(now));
     if (remaining <= 0) return;
     const used = { attempts: 0, hnRequests: 0 };
@@ -49,10 +65,14 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
       }
       const storyId = candidate.id;
       used.attempts += 1;
+      outcome.attempts += 1;
       used.hnRequests += candidate.hnRequests;
       try {
         const { kind } = await this.summaries.generate(storyId, 'auto', { signal });
-        if (kind === 'created') remaining -= 1;
+        if (kind === 'created') {
+          remaining -= 1;
+          outcome.created += 1;
+        }
         // A summary found stored made no HN request, so its share goes back to the run.
         if (kind === 'cached') used.hnRequests -= candidate.hnRequests;
       } catch (error) {
@@ -78,7 +98,7 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
       this.loadStories(now),
       this.loadFailedToday(now),
     ]);
-    return autoCandidates(stories, failedToday);
+    return autoCandidates(stories, failedToday, now);
   }
 
   // With clusters on a candidate is a primary story, judged by its whole cluster; off, every story is its own.
@@ -101,6 +121,7 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
       select: {
         id: true,
         clusterId: true,
+        firstSeenAt: true,
         items: { select: itemSelect },
         // Loaded only for clustered stories, and read only with the flag on.
         cluster: { select: { stories: { select: { items: { select: itemSelect } } } } },
@@ -110,6 +131,7 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
     return rows.map((row) => ({
       id: row.id,
       clusterId: clusters ? row.clusterId : null,
+      firstSeenAt: row.firstSeenAt,
       items:
         clusters && row.cluster ? row.cluster.stories.flatMap((member) => member.items) : row.items,
     }));

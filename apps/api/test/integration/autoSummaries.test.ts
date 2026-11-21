@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { APICallError } from 'ai';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +7,10 @@ import { utcDay } from '../../src/common/time/utcDay.js';
 import { LLM_CAP_SUMMARY_AUTO_USD_DAY } from '../../src/modules/llm/budget.js';
 import { AutoSummariesStep } from '../../src/modules/summaries/autoSummaries.step.js';
 import { SummariesService } from '../../src/modules/summaries/summaries.service.js';
-import { AUTO_ATTEMPTS_PER_RUN } from '../../src/modules/summaries/summaryRules.js';
+import {
+  AUTO_ATTEMPTS_PER_RUN,
+  AUTO_SUMMARIES_PER_DAY,
+} from '../../src/modules/summaries/summaryRules.js';
 import { modelReply } from '../mockLanguageModel.js';
 import { createSource } from './seedStories.js';
 import {
@@ -109,48 +113,178 @@ describe('auto summaries', () => {
     );
   });
 
-  it('F2.3 Auto stops at 20 auto summaries for the UTC day, and a second run makes no LLM call', async () => {
-    await createStories(23);
+  // Stories that already hold a summary, so they fill the day's count without being candidates.
+  async function seedSummarisedStories(
+    count: number,
+    {
+      trigger = 'auto',
+      createdAt = new Date(),
+    }: { trigger?: 'auto' | 'on_demand'; createdAt?: Date } = {},
+  ) {
+    const prefix = `https://example.com/seeded-${trigger}-${createdAt.getTime()}-${count}`;
+    await prisma.story.createMany({
+      data: Array.from({ length: count }, (_, index) => ({
+        canonicalUrl: `${prefix}-${index}`,
+        url: `${prefix}-${index}`,
+        domain: 'example.com',
+        title: `Seeded ${index}`,
+        normalizedTitle: `seeded ${index}`,
+        publishedAt: new Date(),
+        tags: [],
+        taggerVersion: 1,
+      })),
+    });
+    const seeded = await prisma.story.findMany({
+      where: { canonicalUrl: { startsWith: prefix } },
+      select: { id: true },
+    });
+    await prisma.summary.createMany({
+      data: seeded.map(({ id }) => ({
+        storyId: id,
+        tldr: ['a', 'b', 'c'],
+        basedOnComments: 46,
+        trigger,
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: '0.000001',
+        createdAt,
+      })),
+    });
+  }
+
+  it('AC-2.3.8 a run with 30 eligible new stories summarises 25, and the next run the other 5', async () => {
+    await createStories(30);
     const first = await createIngestion();
 
     await first.ingestion.run();
 
-    expect(first.model.doGenerateCalls).toHaveLength(20);
-    expect(await prisma.summary.count({ where: { trigger: 'auto' } })).toBe(20);
+    expect(first.model.doGenerateCalls).toHaveLength(AUTO_ATTEMPTS_PER_RUN);
+    expect(storiesSummarised(first.model)).toEqual(
+      Array.from({ length: AUTO_ATTEMPTS_PER_RUN }, (_, index) => `s${index}`),
+    );
+    await first.moduleRef.close();
+
+    const second = await createIngestion();
+    await second.ingestion.run();
+
+    expect(storiesSummarised(second.model)).toEqual(['s25', 's26', 's27', 's28', 's29']);
+    expect(await prisma.summary.count({ where: { trigger: 'auto' } })).toBe(30);
+  });
+
+  it(`AC-2.3.8 stops at ${AUTO_SUMMARIES_PER_DAY} auto summaries for the UTC day, and a second run makes no LLM call`, async () => {
+    await createStories(3);
+    await seedSummarisedStories(AUTO_SUMMARIES_PER_DAY - 1);
+    const first = await createIngestion();
+
+    await first.ingestion.run();
+
+    expect(first.model.doGenerateCalls).toHaveLength(1);
+    expect(await prisma.summary.count({ where: { trigger: 'auto' } })).toBe(AUTO_SUMMARIES_PER_DAY);
     await first.moduleRef.close();
 
     const second = await createIngestion();
     await second.ingestion.run();
 
     expect(second.model.doGenerateCalls).toHaveLength(0);
-    expect(await prisma.summary.count()).toBe(20);
+    expect(await prisma.summary.count()).toBe(AUTO_SUMMARIES_PER_DAY);
   });
 
-  it("F2.3 Auto counts only today's auto summaries toward the 20", async () => {
-    await createStories(25);
-    // 19 auto summaries from today, one from yesterday and one on-demand one today.
-    const stories = await prisma.story.findMany({ orderBy: { rankScore: 'asc' }, take: 21 });
-    for (const [index, story] of stories.entries()) {
-      await prisma.summary.create({
-        data: {
-          storyId: story.id,
-          tldr: ['a', 'b', 'c'],
-          basedOnComments: 46,
-          trigger: index === 20 ? 'on_demand' : 'auto',
-          model: 'claude-haiku-5-5',
-          promptVersion: 1,
-          inputTokens: 1,
-          outputTokens: 1,
-          costUsd: '0.000001',
-          createdAt: index === 19 ? new Date(utcDay(new Date()).getTime() - 1) : new Date(),
-        },
-      });
-    }
+  it("AC-2.3.8 counts only today's auto summaries toward the daily limit", async () => {
+    await createStories(3);
+    // Today's count is the limit minus 2: yesterday's auto summary and today's on-demand one don't count.
+    await seedSummarisedStories(AUTO_SUMMARIES_PER_DAY - 2);
+    await seedSummarisedStories(1, { createdAt: new Date(utcDay(new Date()).getTime() - 1) });
+    await seedSummarisedStories(1, { trigger: 'on_demand' });
     const { ingestion, model } = await createIngestion();
 
     await ingestion.run();
 
-    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(model.doGenerateCalls).toHaveLength(2);
+  });
+
+  it('AC-2.3.8 holds back a story with 9 comments until it was first seen 2 h ago, and takes 10 comments at once', async () => {
+    const story = (title: string, rankScore: number, commentsCount: number, ageHours: number) =>
+      createDiscussedStory(prisma, {
+        title,
+        sourceId,
+        rankScore,
+        commentsCount,
+        externalId: String(rankScore),
+        firstSeenAt: new Date(Date.now() - ageHours * 3_600_000),
+      });
+    await story('Story fresh', 4, 9, 0.5);
+    await story('Story justUnder', 3, 9, 1.9);
+    await story('Story aged', 2, 9, 2.1);
+    await story('Story hot', 1, 10, 0);
+    const { ingestion, model } = await createIngestion();
+
+    await ingestion.run();
+
+    expect(storiesSummarised(model)).toEqual(['aged', 'hot']);
+  });
+
+  it('AC-2.3.8 AC-2.3.12 never fetches or sends a story without summary input, however old', async () => {
+    const old = new Date(Date.now() - 5 * 3_600_000);
+    const repoSourceId = (await createSource(prisma, 'repo-auto', 'github')).id;
+    const thin = { firstSeenAt: old };
+    await createDiscussedStory(prisma, {
+      ...thin,
+      title: 'Story repo',
+      sourceId: repoSourceId,
+      commentsCount: 0,
+      rankScore: 4,
+      externalId: 'repo-1',
+    });
+    await createDiscussedStory(prisma, {
+      ...thin,
+      title: 'Story quiet',
+      sourceId,
+      commentsCount: 0,
+      rankScore: 3,
+      externalId: '2001',
+    });
+    await createDiscussedStory(prisma, {
+      ...thin,
+      title: 'Story two',
+      sourceId,
+      commentsCount: 2,
+      rankScore: 2,
+      externalId: '2002',
+    });
+    await createDiscussedStory(prisma, {
+      ...thin,
+      title: 'Story three',
+      sourceId,
+      commentsCount: 3,
+      rankScore: 1,
+      externalId: '2003',
+    });
+    const { ingestion, model, upstreamRequests } = await createIngestion();
+
+    await ingestion.run();
+
+    expect(storiesSummarised(model)).toEqual(['three']);
+    expect(upstreamRequests).toEqual(['https://hn.algolia.com/api/v1/items/2003']);
+  });
+
+  it('logs one line per run with its attempts, the summaries created and its duration', async () => {
+    await createStories(3);
+    const log = vi.spyOn(Logger.prototype, 'log');
+    // s0 (rank 3) answers 404: an attempt that creates nothing.
+    const { ingestion } = await createIngestion({
+      fixtures: { hnFallbackId: '50544168', missing: ['/items/1000'] },
+    });
+
+    await ingestion.run();
+
+    const lines = log.mock.calls.flatMap(([line]) =>
+      String(line).startsWith('Auto summaries') ? [line] : [],
+    );
+    log.mockRestore();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^Auto summaries: 3 attempts, 2 created, \d+ ms$/);
   });
 
   it('F2.3 Auto makes no LLM call once the summary_auto cap is spent', async () => {
