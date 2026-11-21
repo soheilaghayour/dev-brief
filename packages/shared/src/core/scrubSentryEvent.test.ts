@@ -20,6 +20,13 @@ describe('scrubSentryEvent', () => {
     expect(event).toEqual({ request: { headers: { 'user-agent': 'ua' } }, user: { id: 'u' } });
   });
 
+  it('AC-1.7.6 drops the request body and query string', () => {
+    const event = scrubSentryEvent({
+      request: { data: { question: 'private' }, query_string: 'q=private', url: '/x' },
+    });
+    expect(event).toEqual({ request: { url: '/x' } });
+  });
+
   it('keeps an event with no request or user as it is', () => {
     expect(scrubSentryEvent({})).toEqual({});
   });

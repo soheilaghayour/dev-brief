@@ -1,3 +1,4 @@
+import { httpIntegration } from '@sentry/nestjs';
 import { scrubSentryBreadcrumb, scrubSentryEvent } from '@devbrief/shared';
 import type { loadEnv } from './env.js';
 
@@ -11,6 +12,8 @@ export function sentryOptions(
     release: env.APP_VERSION,
     environment: env.NODE_ENV,
     sendDefaultPii: false,
+    // The SDK attaches incoming request bodies by default, whatever sendDefaultPii says; the scrub is the second line of defence.
+    integrations: [httpIntegration({ maxIncomingRequestBodySize: 'none' })],
     beforeSend: scrubSentryEvent,
     beforeBreadcrumb: scrubSentryBreadcrumb,
   };

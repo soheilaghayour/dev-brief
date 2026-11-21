@@ -16,7 +16,11 @@ export async function register() {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (dsn && process.env.NEXT_RUNTIME === 'nodejs') {
     const Sentry = await import('@sentry/nextjs');
-    Sentry.init(sentryOptions(dsn));
+    Sentry.init({
+      ...sentryOptions(dsn),
+      // The SDK attaches incoming request bodies by default, whatever sendDefaultPii says.
+      integrations: [Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none' })],
+    });
   }
 }
 
