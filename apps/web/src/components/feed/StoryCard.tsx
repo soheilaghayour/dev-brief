@@ -1,7 +1,9 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
-import type { ComponentProps, ComponentType } from 'react';
+import type { ComponentProps, ComponentType, ReactNode } from 'react';
+import { FolderPlusIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { isFeatureEnabled } from '@/config/features';
 import { cn } from '@/lib/cn';
 import type { ClusterSourceLineProps } from './ClusterSourceLine';
@@ -27,6 +29,12 @@ type StoryCardProps = {
   relatedToggle?: ComponentType<RelatedToggleProps>;
   /** The combined source line of a cluster card, in place of the per-source badges; passed in for the same reason as `relatedToggle`. */
   sourceLine?: ComponentType<ClusterSourceLineProps>;
+  /** Opens "Add to collection"; absent where collections are off or unavailable, so the card shows no entry. */
+  onAddToCollection?: () => void;
+  /** Extra controls beside the save button, such as a board's "Remove from collection". */
+  actions?: ReactNode;
+  /** A slot under the card's content, such as a board's note preview. */
+  note?: ReactNode;
 };
 
 export function StoryCard({
@@ -38,6 +46,9 @@ export function StoryCard({
   preferenceMenu,
   relatedToggle: RelatedToggle,
   sourceLine: SourceLine,
+  onAddToCollection,
+  actions,
+  note,
 }: StoryCardProps) {
   const cluster = isFeatureEnabled('clusters') ? story.cluster : null;
   const visibleTags = story.tags.slice(0, MAX_VISIBLE_TAGS);
@@ -100,7 +111,20 @@ export function StoryCard({
             memberCount={cluster.memberCount}
           />
         )}
+        {note}
       </div>
+      {onAddToCollection && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Add to collection"
+          title="Add to collection (A)"
+          onClick={onAddToCollection}
+        >
+          <FolderPlusIcon aria-hidden="true" />
+        </Button>
+      )}
+      {actions}
       <SaveButton isSaved={isSaved} onToggleSave={onToggleSave} />
     </article>
   );

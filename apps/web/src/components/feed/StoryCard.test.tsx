@@ -109,6 +109,19 @@ describe('StoryCard', () => {
     expect(render(STORY, { isSaved: true })).toMatch(/<button[^>]*aria-pressed="true"/);
   });
 
+  it('AC-3.4.3 shows the Add to collection entry only where a handler is passed', () => {
+    expect(render(STORY)).not.toContain('Add to collection');
+    const html = renderToStaticMarkup(
+      <StoryCard
+        story={STORY}
+        isSaved={false}
+        onToggleSave={() => {}}
+        onAddToCollection={() => {}}
+      />,
+    );
+    expect(html).toMatch(/<button[^>]*aria-label="Add to collection"/);
+  });
+
   it('keeps the tags but drops the reading time in the compact density', () => {
     const html = render(STORY, { compact: true });
     expect(html).toContain('data-tag=');
