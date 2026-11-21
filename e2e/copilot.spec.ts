@@ -24,6 +24,8 @@ function watchBarChunks(page: Page) {
 async function openFeed(page: Page) {
   await page.goto('/feed');
   await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  // The launcher registers ⌘K once its own chunk has loaded, a moment after the bindings.
+  await expect(page.getByRole('button', { name: /^Ask/ })).toBeVisible();
 }
 
 const bar = (page: Page) => page.getByRole('dialog', { name: 'Ask the News' });

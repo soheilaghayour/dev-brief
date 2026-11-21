@@ -77,7 +77,8 @@ async function press(key: string, init: KeyboardEventInit, target: EventTarget =
 }
 
 async function whenBarIsOpen() {
-  await vi.waitFor(() => expect(bar()).not.toBeNull());
+  // The bar's module loads on first open, which is slow while the machine is busy.
+  await vi.waitFor(() => expect(bar()).not.toBeNull(), { timeout: 5000 });
 }
 
 describe('CopilotLauncher', () => {

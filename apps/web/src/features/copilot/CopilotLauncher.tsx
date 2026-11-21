@@ -9,8 +9,9 @@ import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 
 // The bar, the renderer and the stream parser are fetched the first time the bar opens.
-const CopilotCommandBar = dynamic(() =>
-  import('./CopilotCommandBar').then((module) => module.CopilotCommandBar),
+const CopilotCommandBar = dynamic(
+  () => import('./CopilotCommandBar').then((module) => module.CopilotCommandBar),
+  { ssr: false },
 );
 
 const OPEN_COMMAND_BAR = {

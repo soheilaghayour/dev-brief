@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { FEATURES, isFeatureEnabled, type Features } from '@/config/features';
-import { CopilotLauncher } from '@/features/copilot/CopilotLauncher';
+import { LazyCopilotLauncher } from '@/features/copilot/LazyCopilotLauncher';
 import { Logo } from './Logo';
 import { MenuIcon } from 'lucide-react';
 import { SheetLauncher } from './SheetLauncher';
@@ -42,7 +42,7 @@ export function AppHeader({
         </div>
         <div className="min-w-0 flex-1">{searchSlot}</div>
         {sortSlot}
-        {isFeatureEnabled('copilot', features) && <CopilotLauncher />}
+        {isFeatureEnabled('copilot', features) && <LazyCopilotLauncher />}
         <ThemeToggle />
         {accountSlot}
       </div>

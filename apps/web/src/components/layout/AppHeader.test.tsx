@@ -54,13 +54,24 @@ describe('AppHeader', () => {
     expect(document.body.textContent).not.toContain('Ask the News');
   });
 
-  it('flag on: the header carries the Ask button', () => {
-    const html = renderToStaticMarkup(
-      <HotkeysProvider>
-        <AppHeader features={on} />
-      </HotkeysProvider>,
+  it('flag on: the header gets the Ask button once its chunk arrives, and Ctrl+K has a help row', async () => {
+    const container = document.body.appendChild(document.createElement('div'));
+    await act(async () =>
+      createRoot(container).render(
+        <HotkeysProvider>
+          <AppHeader features={on} />
+          <OpenHelp />
+        </HotkeysProvider>,
+      ),
     );
 
-    expect(html).toContain('aria-keyshortcuts="Control+K Meta+K"');
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('button[aria-keyshortcuts="Control+K Meta+K"]'),
+      ).not.toBeNull(),
+    );
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Open the Ask the News command bar'),
+    );
   });
 });
