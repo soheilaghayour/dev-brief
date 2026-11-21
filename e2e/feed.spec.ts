@@ -11,6 +11,8 @@ async function openFeed(page: Page, search = '') {
   await page.goto(`/feed${search}`);
   // The sidebar fetches tags and sources after hydration, so an idle network means the page is interactive.
   await page.waitForLoadState('networkidle');
+  // The shortcuts bind after the lazy hotkeys chunk loads; keys pressed earlier are lost.
+  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
 }
 
 async function cardTitles(page: Page) {

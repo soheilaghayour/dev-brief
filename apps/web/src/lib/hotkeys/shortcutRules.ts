@@ -44,7 +44,7 @@ export function isSequenceLeader(key: string, shortcuts: readonly Shortcut[]) {
 export function shouldRunShortcut(keys: string, target: EventTarget | null, leaderPending = false) {
   if (!isSingleKey(keys)) return true;
   if (isEditableTarget(target) || isInsideMenu(target)) return false;
-  return isSequence(keys) || !leaderPending;
+  return isSequence(keys) === leaderPending;
 }
 
 /** Splits a shortcut into the key caps to show, e.g. `g>f` becomes `['g', 'f']`. */

@@ -21,10 +21,17 @@ function Probe({ onSave, onGoToSaved }: { onSave: () => void; onGoToSaved: () =>
   return null;
 }
 
-function press(key: string) {
+const LATE = { id: 'late', keys: 'l', description: 'Late', scope: 'Test' } satisfies Shortcut;
+
+function LateProbe() {
+  useShortcut(LATE, () => {});
+  return null;
+}
+
+function press(key: string, target: EventTarget = document) {
   act(() => {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-    document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
   });
 }
 
@@ -36,20 +43,24 @@ async function mount() {
   const onGoToSaved = vi.fn();
   const container = document.createElement('div');
   const root = createRoot(container);
-  act(() =>
-    root.render(
-      <HotkeysProvider>
-        <Probe onSave={onSave} onGoToSaved={onGoToSaved} />
-      </HotkeysProvider>,
-    ),
-  );
+  function render(withLateShortcut: boolean) {
+    act(() =>
+      root.render(
+        <HotkeysProvider>
+          <Probe onSave={onSave} onGoToSaved={onGoToSaved} />
+          {withLateShortcut && <LateProbe />}
+        </HotkeysProvider>,
+      ),
+    );
+  }
+  render(false);
   unmount = () => act(() => root.unmount());
   // The key bindings load lazily, after the first render.
   await act(async () => {
     await import('./ShortcutBindings');
   });
   await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
-  return { onSave, onGoToSaved };
+  return { onSave, onGoToSaved, render };
 }
 
 describe('HotkeysProvider', () => {
@@ -64,6 +75,44 @@ describe('HotkeysProvider', () => {
   it('AC-1.3.8 the plain handler still runs when no leader came first', async () => {
     const { onSave, onGoToSaved } = await mount();
     press('s');
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onGoToSaved).not.toHaveBeenCalled();
+  });
+
+  it('AC-1.3.8 a shortcut registering between the leader and the second key does not lose the leader', async () => {
+    const { onSave, onGoToSaved, render } = await mount();
+    press('g');
+    render(true);
+    press('s');
+    expect(onGoToSaved).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('AC-1.3.8 a modifier pressed between the leader and the second key keeps the sequence', async () => {
+    const { onSave, onGoToSaved } = await mount();
+    press('g');
+    press('Shift');
+    press('s');
+    expect(onGoToSaved).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('AC-1.3.8 a repeated leader cancels the sequence, as in the hook, so no navigation happens', async () => {
+    const { onSave, onGoToSaved } = await mount();
+    press('g');
+    press('g');
+    press('s');
+    expect(onGoToSaved).not.toHaveBeenCalled();
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-1.3.8 a leader typed in an editable field does not arm the sequence', async () => {
+    const { onSave, onGoToSaved } = await mount();
+    const input = document.createElement('input');
+    document.body.append(input);
+    press('g', input);
+    press('s');
+    input.remove();
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onGoToSaved).not.toHaveBeenCalled();
   });

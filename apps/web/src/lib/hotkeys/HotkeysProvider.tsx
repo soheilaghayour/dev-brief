@@ -12,7 +12,12 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { GlobalShortcuts } from './GlobalShortcuts';
-import { isSequenceLeader, SEQUENCE_TIMEOUT_MS, type Shortcut } from './shortcutRules';
+import {
+  isEditableTarget,
+  isSequenceLeader,
+  SEQUENCE_TIMEOUT_MS,
+  type Shortcut,
+} from './shortcutRules';
 import type { ShortcutBinding } from './ShortcutBindings';
 
 // react-hotkeys-hook is fetched after hydration: keys are only pressed once the page is up.
@@ -25,6 +30,8 @@ const ShortcutBindings = dynamic(
 const ShortcutsHelpDialog = dynamic(() =>
   import('./ShortcutsHelpDialog').then((module) => module.ShortcutsHelpDialog),
 );
+
+const MODIFIER_KEYS = ['Shift', 'Control', 'Alt', 'Meta'];
 
 type HelpState = { isOpen: boolean; setOpen: (open: boolean) => void };
 
@@ -58,13 +65,22 @@ export function HotkeysProvider({ children }: { children: ReactNode }) {
 
   const help = useMemo(() => ({ isOpen: isHelpOpen, setOpen }), [isHelpOpen, setOpen]);
   const leaderPending = useRef(false);
+  // A ref, not an effect-local: a shortcut registering between `g` and `s` re-runs the effect below.
+  const leaderAt = useRef<number | null>(null);
 
   useEffect(() => {
-    let leaderAt: number | null = null;
     // Capture phase: runs before the shortcut handlers, which read `leaderPending` for this event.
     function trackLeader(event: KeyboardEvent) {
-      leaderPending.current = leaderAt !== null && event.timeStamp - leaderAt < SEQUENCE_TIMEOUT_MS;
-      leaderAt = isSequenceLeader(event.key, shortcuts) ? event.timeStamp : null;
+      // Like the hook, a bare modifier press between the two keys does not break the sequence.
+      if (MODIFIER_KEYS.includes(event.key)) return;
+      const pending =
+        leaderAt.current !== null && event.timeStamp - leaderAt.current < SEQUENCE_TIMEOUT_MS;
+      leaderPending.current = pending;
+      // A repeated leader cancels, as in the hook (`g g s` runs no sequence); a `g` typed into a field never arms one.
+      leaderAt.current =
+        !pending && !isEditableTarget(event.target) && isSequenceLeader(event.key, shortcuts)
+          ? event.timeStamp
+          : null;
     }
     document.addEventListener('keydown', trackLeader, true);
     return () => document.removeEventListener('keydown', trackLeader, true);

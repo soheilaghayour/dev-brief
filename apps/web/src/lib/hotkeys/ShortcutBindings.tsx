@@ -36,9 +36,12 @@ export function ShortcutBindings({
   bindings: readonly ShortcutBinding[];
   leaderPending: RefObject<boolean>;
 }) {
-  // Lets e2e tests wait for the lazily loaded bindings before pressing keys.
+  // Lets e2e tests wait for the lazily loaded bindings before pressing keys; removed on unmount so a shared <html> doesn't leak it.
   useEffect(() => {
     document.documentElement.dataset.hotkeysReady = '';
+    return () => {
+      delete document.documentElement.dataset.hotkeysReady;
+    };
   }, []);
 
   return bindings.map(({ shortcut, handlerRef }) => (
