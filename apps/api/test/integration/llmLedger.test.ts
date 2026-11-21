@@ -5,6 +5,7 @@ import { ENV, EnvModule } from '../../src/common/env/env.module.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import { loadEnv } from '../../src/env.js';
 import { utcDay } from '../../src/common/time/utcDay.js';
+import { LLM_CAP_SUMMARY_AUTO_USD_DAY } from '../../src/modules/llm/budget.js';
 import { GenerationFailedError, SpendCapReachedError } from '../../src/modules/llm/llm.errors.js';
 import { LlmModule } from '../../src/modules/llm/llm.module.js';
 import { LANGUAGE_MODEL, LlmService } from '../../src/modules/llm/llm.service.js';
@@ -107,14 +108,14 @@ describe('LLM spend ledger', () => {
   });
 
   it('AC-2.6.1 refuses a call the per-feature cap has no room for, without calling the model', async () => {
-    // $0.015 auto cap minus $0.01450 committed leaves less than one $0.00075 worst case.
+    // The $0.225 auto cap minus $0.2245 committed leaves less than one $0.00075 worst case.
     await addUsage({
       feature: 'summary_auto',
       status: 'settled',
-      reservedUsd: '0.0075',
-      costUsd: '0.01',
+      reservedUsd: '0.1',
+      costUsd: '0.1',
     });
-    await addUsage({ feature: 'summary_auto', status: 'reserved', reservedUsd: '0.0045' });
+    await addUsage({ feature: 'summary_auto', status: 'reserved', reservedUsd: '0.1245' });
     const { llm, model } = await createLlm(async () => modelReply(VALID));
 
     const failure = llm.generateStructured(SUMMARY_CALL);
@@ -126,20 +127,20 @@ describe('LLM spend ledger', () => {
   });
 
   it('AC-2.6.1 refuses a call the global cap has no room for, without calling the model', async () => {
-    // Other features hold $0.0635 of the $0.064 global cap; summary_auto itself has spent nothing.
+    // Other features hold $0.3195 of the $0.32 global cap; summary_auto itself has spent nothing.
     await addUsage({
       feature: 'copilot',
       status: 'settled',
-      reservedUsd: '0.028',
-      costUsd: '0.028',
+      reservedUsd: '0.1',
+      costUsd: '0.1',
     });
     await addUsage({
       feature: 'summary_on_demand',
       status: 'failed',
-      reservedUsd: '0.012',
-      costUsd: '0.012',
+      reservedUsd: '0.1',
+      costUsd: '0.1',
     });
-    await addUsage({ feature: 'copilot', status: 'reserved', reservedUsd: '0.0235' });
+    await addUsage({ feature: 'copilot', status: 'reserved', reservedUsd: '0.1195' });
     const { llm, model } = await createLlm(async () => modelReply(VALID));
 
     await expect(llm.generateStructured(SUMMARY_CALL)).rejects.toMatchObject({
@@ -153,8 +154,8 @@ describe('LLM spend ledger', () => {
     await addUsage({
       feature: 'summary_auto',
       status: 'settled',
-      reservedUsd: '0.015',
-      costUsd: '0.015',
+      reservedUsd: LLM_CAP_SUMMARY_AUTO_USD_DAY.toFixed(6),
+      costUsd: LLM_CAP_SUMMARY_AUTO_USD_DAY.toFixed(6),
       day: yesterday,
     });
     const { llm } = await createLlm(async () => modelReply(VALID));

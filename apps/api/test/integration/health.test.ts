@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { utcDay } from '../../src/common/time/utcDay.js';
+import { LLM_CAP_GLOBAL_USD_DAY } from '../../src/modules/llm/budget.js';
 import { createTestApp } from './createTestApp.js';
 import { createSource } from './seedStories.js';
 import { useTestDatabase } from './testDatabase.js';
@@ -28,7 +29,7 @@ describe('GET /api/v1/health', () => {
     expect(health.sources).toEqual([
       { slug: 'fresh', kind: 'hn', status: 'healthy', lastSuccessAt: expect.any(String) },
     ]);
-    expect(health.llm).toEqual({ spentTodayUsd: 0, capUsd: 0.064 });
+    expect(health.llm).toEqual({ spentTodayUsd: 0, capUsd: LLM_CAP_GLOBAL_USD_DAY });
   });
 
   it('AC-1.7.1 reports degraded when an enabled source is stale or has an open circuit', async () => {
@@ -59,7 +60,7 @@ describe('GET /api/v1/health', () => {
     // The settled row at its cost plus the open reservation at its worst case.
     expect(HealthSchema.parse(response.body).llm).toEqual({
       spentTodayUsd: 0.00105,
-      capUsd: 0.064,
+      capUsd: LLM_CAP_GLOBAL_USD_DAY,
     });
   });
 
