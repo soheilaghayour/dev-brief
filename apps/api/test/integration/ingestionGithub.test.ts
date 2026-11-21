@@ -22,13 +22,17 @@ import { useTestDatabase } from './testDatabase.js';
 
 // The two recorded search pages hold 60 distinct repositories.
 const GITHUB_ITEMS = 60;
-const HN_ITEMS = 95;
+// These tests need HN only as a second kind (ranking among itself, a shared URL), so they take the first 20 top stories (19 valid).
+const HN_SAMPLE_STORIES = 20;
+const HN_SAMPLE_ITEMS = 19;
+// Every item costs several sequential queries; at a load average above 600 the run took 14.5 s with all 155 items.
+const SLOW_INGEST_TIMEOUT_MS = 30_000;
 
 function githubAdapter(fetchStub: typeof fetch = githubFixtureFetch(), token = 'test-token') {
   return new GithubAdapter(new HttpClient(fetchStub, () => 0), token, () => GITHUB_FIXTURE_NOW);
 }
 
-describe('ingestion of GitHub', () => {
+describe('ingestion of GitHub', { timeout: SLOW_INGEST_TIMEOUT_MS }, () => {
   const prisma = useTestDatabase();
   let close: () => Promise<void>;
 
@@ -68,7 +72,7 @@ describe('ingestion of GitHub', () => {
   it('AC-2.4.1 stores the recorded repos with stars as engagement and ranks them by percentile within the github kind', async () => {
     await createSources('hn', 'github');
     const { service, ranking } = await createApp([
-      new HnAdapter(new HttpClient(hnFixtureFetch(), () => 0)),
+      new HnAdapter(new HttpClient(hnFixtureFetch({ topStories: HN_SAMPLE_STORIES }), () => 0)),
       githubAdapter(),
     ]);
 
@@ -78,7 +82,9 @@ describe('ingestion of GitHub', () => {
     expect(status).toBe('success');
     const githubItems = await prisma.sourceItem.findMany({ where: { source: { kind: 'github' } } });
     expect(githubItems).toHaveLength(GITHUB_ITEMS);
-    expect(await prisma.sourceItem.count({ where: { source: { kind: 'hn' } } })).toBe(HN_ITEMS);
+    expect(await prisma.sourceItem.count({ where: { source: { kind: 'hn' } } })).toBe(
+      HN_SAMPLE_ITEMS,
+    );
     const engagements = githubItems.map(({ engagement }) => engagement);
     for (const item of githubItems) {
       expect(item.stars).toBeGreaterThan(50);
@@ -135,15 +141,15 @@ describe('ingestion of GitHub', () => {
   it('joins a repo that is also on HN into the HN Story by canonical URL (exact dedup)', async () => {
     await createSources('hn', 'github');
     const { service } = await createApp([
-      new HnAdapter(new HttpClient(hnFixtureFetch(), () => 0)),
+      new HnAdapter(new HttpClient(hnFixtureFetch({ topStories: HN_SAMPLE_STORIES }), () => 0)),
       githubAdapter(githubFixtureFetch({ pages: ['search-short'] })),
     ]);
 
     await service.run();
 
     // search-short has 3 valid repos; one is the onlook repo HN links with a trailing slash.
-    expect(await prisma.sourceItem.count()).toBe(HN_ITEMS + 3);
-    expect(await prisma.story.count()).toBe(HN_ITEMS + 2);
+    expect(await prisma.sourceItem.count()).toBe(HN_SAMPLE_ITEMS + 3);
+    expect(await prisma.story.count()).toBe(HN_SAMPLE_ITEMS + 2);
     const story = await prisma.story.findUniqueOrThrow({
       where: { canonicalUrl: 'https://github.com/onlook-dev/onlook' },
       include: { items: { include: { source: true } } },
