@@ -5,6 +5,7 @@ const POST_RUN_ORDER = [
   'clustering',
   'rank-recompute',
   'auto-summaries',
+  'tag-stats',
   'feed-cache-clear',
 ] as const;
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { computeTagVelocity, radarStartDay, type TagDayStat } from './tagVelocity.js';
 
-// 2026-06-30 is the last day of the current 7d window (06-24..06-30); 06-17..06-23 is the previous one.
-const NOW = new Date('2026-06-30T12:00:00Z');
+// Both windows end on yesterday, 2026-06-30: the current 7d window is 06-24..06-30, the previous one 06-17..06-23.
+const NOW = new Date('2026-07-01T12:00:00Z');
 
 const stat = (day: string, tag: string, storyCount: number, engagementSum = 0): TagDayStat => ({
   day: new Date(`${day}T00:00:00Z`),
@@ -38,14 +38,14 @@ describe('computeTagVelocity', () => {
     expect(empty.movers).toEqual([]);
   });
 
-  it('AC-3.3.2 counts the 7 UTC days ending today, today included, and the 7 before as previous', () => {
+  it('AC-3.3.2 counts the 7 UTC days ending yesterday, today excluded, and the 7 before as previous', () => {
     const radar = compute([
-      stat('2026-06-30', 'rust', 1), // today: current
+      stat('2026-06-30', 'rust', 1), // yesterday: newest current day
       stat('2026-06-24', 'rust', 2), // oldest current day
       stat('2026-06-23', 'rust', 4), // newest previous day
       stat('2026-06-17', 'rust', 8), // oldest previous day
       stat('2026-06-16', 'rust', 100), // outside both windows
-      stat('2026-07-01', 'rust', 100), // after today
+      stat('2026-07-01', 'rust', 100), // today: partial, counts for neither window
     ]);
     expect(radar.movers).toEqual([
       { tag: 'rust', label: 'Rust', current: 3, previous: 12, deltaPct: -75 },
@@ -57,7 +57,7 @@ describe('computeTagVelocity', () => {
     process.env.TZ = 'Europe/Berlin';
     try {
       // 23:30 UTC is already 01:30 the next day in Berlin; the UTC day must win.
-      const lateNow = new Date('2026-06-30T23:30:00Z');
+      const lateNow = new Date('2026-07-01T23:30:00Z');
       expect(radarStartDay('7d', lateNow).toISOString()).toBe('2026-06-17T00:00:00.000Z');
       const radar = computeTagVelocity({
         stats: [stat('2026-06-30', 'rust', 5), stat('2026-06-23', 'rust', 2)],
@@ -75,7 +75,7 @@ describe('computeTagVelocity', () => {
     }
   });
 
-  it('AC-3.3.2 sets deltaPct to null when the previous window is 0, even if the current is 0 too', () => {
+  it('AC-3.3.2 sets deltaPct to null when the previous window is 0 and to -100 when the current is', () => {
     const radar = compute([stat('2026-06-30', 'rust', 3), stat('2026-06-20', 'vue', 2)]);
     expect(radar.movers.find((mover) => mover.tag === 'rust')?.deltaPct).toBeNull();
     expect(radar.movers.find((mover) => mover.tag === 'vue')).toMatchObject({
@@ -83,6 +83,36 @@ describe('computeTagVelocity', () => {
       previous: 2,
       deltaPct: -100,
     });
+  });
+
+  it('AC-3.3.2 leaves a tag that is 0 in both windows out of the movers', () => {
+    const radar = compute([stat('2026-06-30', 'rust', 3), stat('2026-06-16', 'vue', 5)]);
+    expect(radar.movers.map(({ tag }) => tag)).toEqual(['rust']);
+  });
+
+  it('AC-3.3.2 rounds a .5 percentage away from zero, symmetrically', () => {
+    const delta = (current: number, previous: number) =>
+      compute([stat('2026-06-30', 'rust', current), stat('2026-06-20', 'rust', previous)]).movers[0]
+        ?.deltaPct;
+    expect(delta(63, 40)).toBe(58); // 57.5
+    expect(delta(41, 40)).toBe(3); // +2.5
+    expect(delta(39, 40)).toBe(-3); // -2.5
+  });
+
+  it('AC-3.3.2 shows a steady 10 stories a day as Δ = 0 at 01:00 and at 12:00 UTC', () => {
+    const steady = Array.from({ length: 14 }, (_, index) =>
+      stat(new Date(Date.UTC(2026, 5, 17 + index)).toISOString().slice(0, 10), 'rust', 10),
+    );
+    for (const now of ['2026-07-01T01:00:00Z', '2026-07-01T12:00:00Z']) {
+      const radar = compute(
+        // Today's row is partial at any hour and must not count.
+        [...steady, stat('2026-07-01', 'rust', 1)],
+        { now: new Date(now) },
+      );
+      expect(radar.movers).toEqual([
+        { tag: 'rust', label: 'Rust', current: 70, previous: 70, deltaPct: 0 },
+      ]);
+    }
   });
 
   it('AC-3.3.2 rounds deltaPct to an integer and never returns -0', () => {

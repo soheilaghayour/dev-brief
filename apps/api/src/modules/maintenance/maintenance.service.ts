@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
-  aggregateTagStats,
   clusterNeedsUpkeep,
   copilotQueryCutoff,
   ingestionRunCutoff,
@@ -13,13 +13,18 @@ import {
   storyCutoff,
   tagStatWindowStart,
 } from './dailyRules.js';
+import { TagStatsService } from './tagStats.service.js';
 
 /** The daily job: tag rollup first, then retention and the cluster upkeep it needs. */
 @Injectable()
 export class MaintenanceService {
   private readonly logger = new Logger(MaintenanceService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tagStats: TagStatsService,
+    private readonly cache: LruCache,
+  ) {}
 
   @Cron('15 3 * * *', { timeZone: 'UTC' })
   async runScheduled() {
@@ -33,7 +38,7 @@ export class MaintenanceService {
   /** Runs the steps in order; a failing step is logged and does not skip the ones after it. */
   async runDaily(now: Date) {
     const steps = [
-      ['tag rollup', () => this.recomputeTagDailyStats(now)],
+      ['tag rollup', () => this.tagStats.recompute(tagStatWindowStart(now), now)],
       ['story purge', () => this.purgeStories(now)],
       ['cluster upkeep', () => this.upkeepClusters()],
       [
@@ -77,30 +82,8 @@ export class MaintenanceService {
         this.logger.error(`Daily step "${name}" failed: ${String(error)}`);
       }
     }
-  }
-
-  private async recomputeTagDailyStats(now: Date) {
-    const windowStart = tagStatWindowStart(now);
-    const stories = await this.prisma.story.findMany({
-      where: { publishedAt: { gte: windowStart, lte: now } },
-      select: {
-        publishedAt: true,
-        tags: true,
-        engagementPercentile: true,
-        items: { select: { engagement: true } },
-      },
-    });
-    const rows = aggregateTagStats(
-      stories.map(({ items, ...story }) => ({
-        ...story,
-        itemEngagements: items.map((item) => item.engagement),
-      })),
-    );
-    // Replaced, not upserted: a (day, tag) whose stories moved day or lost the tag must disappear.
-    await this.prisma.$transaction([
-      this.prisma.tagDailyStat.deleteMany({ where: { day: { gte: windowStart } } }),
-      this.prisma.tagDailyStat.createMany({ data: rows }),
-    ]);
+    // The rollup changes what the radar shows, and a radar response stays cached for an hour.
+    this.cache.clear();
   }
 
   // Stories with a Save are skipped: Save.storyId is onDelete Restrict, and saved stories outlive retention.

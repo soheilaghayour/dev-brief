@@ -10,11 +10,12 @@ export type RadarWindow = z.infer<typeof RadarWindowSchema>;
 export const RadarMetricSchema = z.enum(RADAR_METRICS);
 export type RadarMetric = z.infer<typeof RadarMetricSchema>;
 
-/** A comma-separated query value, parsed to a list of at most `RADAR_TAGS_MAX` tag slugs. */
+/** A comma-separated query value, parsed to at most `RADAR_TAGS_MAX` distinct tag slugs; an empty list means no `tags` at all. */
 const tagsCsv = z
   .string()
-  .transform((value) => value.split(',').filter(Boolean))
+  .transform((value) => [...new Set(value.split(',').filter(Boolean))])
   .pipe(z.array(TagSlugSchema).max(RADAR_TAGS_MAX))
+  .transform((tags) => (tags.length > 0 ? tags : undefined))
   .describe('Comma-separated list');
 
 export const RadarQuerySchema = z.object({

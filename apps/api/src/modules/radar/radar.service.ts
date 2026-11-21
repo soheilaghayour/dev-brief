@@ -15,16 +15,16 @@ export class RadarService {
   ) {}
 
   async get({ window, metric, tags }: RadarQuery): Promise<Radar> {
-    const uniqueTags = tags && [...new Set(tags)];
-    const cacheKey = `radar:${window}:${metric}:${uniqueTags?.join(',') ?? ''}`;
+    const now = new Date();
+    // The day is in the key so a response never outlives the day rollover.
+    const cacheKey = `radar:${now.toISOString().slice(0, 10)}:${window}:${metric}:${tags?.join(',') ?? ''}`;
     const cached = this.cache.get<Radar>(cacheKey);
     if (cached) return cached;
 
-    const now = new Date();
     const stats = await this.prisma.tagDailyStat.findMany({
       where: { day: { gte: radarStartDay(window, now) } },
     });
-    const radar = computeTagVelocity({ stats, window, metric, now, tags: uniqueTags });
+    const radar = computeTagVelocity({ stats, window, metric, now, tags });
     this.cache.set(cacheKey, radar, RADAR_CACHE_TTL_MS);
     return radar;
   }

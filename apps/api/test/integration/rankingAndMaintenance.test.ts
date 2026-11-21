@@ -9,6 +9,7 @@ import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
 import { IngestionModule } from '../../src/modules/ingestion/ingestion.module.js';
+import { IngestionPostRunSteps } from '../../src/modules/ingestion/postRunStep.js';
 import { SOURCE_ADAPTERS } from '../../src/modules/ingestion/sourceAdapter.js';
 import { MaintenanceModule } from '../../src/modules/maintenance/maintenance.module.js';
 import { MaintenanceService } from '../../src/modules/maintenance/maintenance.service.js';
@@ -603,6 +604,56 @@ describe('rank recompute and daily job', () => {
     expect(rows.map(({ tag, storyCount }) => ({ tag, storyCount }))).toEqual([
       { tag: 'rust', storyCount: 1 },
     ]);
+    await app.close();
+  });
+
+  it('AC-3.3.2 makes yesterday complete after an ingestion run, before the cache clear', async () => {
+    await prisma.save.deleteMany();
+    await prisma.story.deleteMany();
+    await prisma.tagDailyStat.deleteMany();
+    const source = await createSource(prisma, 'post-run-hn', 'hn');
+    await addStory('late', new Date('2026-03-09T23:30:00Z'), [{ sourceId: source.id }], ['rust']);
+    await addStory('early', new Date('2026-03-09T00:30:00Z'), [{ sourceId: source.id }], ['rust']);
+    // A row written before 'late' was ingested is short.
+    await prisma.tagDailyStat.create({
+      data: {
+        day: new Date('2026-03-09T00:00:00Z'),
+        tag: 'rust',
+        storyCount: 1,
+        engagementSum: 0,
+        avgPercentile: 0.5,
+      },
+    });
+    const app = await createApp();
+
+    const steps = app.get(IngestionPostRunSteps).list();
+    const names = steps.map((step) => step.name);
+    expect(names.indexOf('tag-stats')).toBeGreaterThan(names.indexOf('auto-summaries'));
+    expect(names.indexOf('tag-stats')).toBeLessThan(names.indexOf('feed-cache-clear'));
+    await steps
+      .find((step) => step.name === 'tag-stats')
+      ?.run({
+        runId: 'run',
+        startedAt: NOW,
+        now: new Date('2026-03-10T01:00:00Z'),
+        signal: new AbortController().signal,
+      });
+
+    const rows = await prisma.tagDailyStat.findMany();
+    expect(rows.map(({ day, storyCount }) => [day.toISOString(), storyCount])).toEqual([
+      ['2026-03-09T00:00:00.000Z', 2],
+    ]);
+    await app.close();
+  });
+
+  it('AC-3.3.2 clears the cache at the end of the daily job', async () => {
+    const cache = new LruCache();
+    cache.set('radar:2026-03-10:7d:stories:', { stale: true }, 60_000);
+    const app = await createApp(cache);
+
+    await app.get(MaintenanceService).runDaily(NOW);
+
+    expect(cache.get('radar:2026-03-10:7d:stories:')).toBeUndefined();
     await app.close();
   });
 
