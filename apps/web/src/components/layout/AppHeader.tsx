@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { FEATURES, isFeatureEnabled, type Features } from '@/config/features';
+import { CopilotLauncher } from '@/features/copilot/CopilotLauncher';
 import { Logo } from './Logo';
 import { MenuIcon } from 'lucide-react';
 import { SheetLauncher } from './SheetLauncher';
@@ -9,9 +11,15 @@ type AppHeaderProps = {
   searchSlot?: ReactNode;
   sortSlot?: ReactNode;
   accountSlot?: ReactNode;
+  features?: Features;
 };
 
-export function AppHeader({ searchSlot, sortSlot, accountSlot }: AppHeaderProps) {
+export function AppHeader({
+  searchSlot,
+  sortSlot,
+  accountSlot,
+  features = FEATURES,
+}: AppHeaderProps) {
   return (
     <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
       <div className="flex h-14 items-center gap-2 px-3 md:px-4">
@@ -34,6 +42,7 @@ export function AppHeader({ searchSlot, sortSlot, accountSlot }: AppHeaderProps)
         </div>
         <div className="min-w-0 flex-1">{searchSlot}</div>
         {sortSlot}
+        {isFeatureEnabled('copilot', features) && <CopilotLauncher />}
         <ThemeToggle />
         {accountSlot}
       </div>
