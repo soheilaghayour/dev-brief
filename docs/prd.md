@@ -445,6 +445,8 @@ Acceptance criteria:
 - **AC-3.1.9** The SSE connection sends a heartbeat comment every 15 s. The server aborts generation after 30 s total, or after 10 s without a first token.
 - **AC-3.1.10** Story cards inside a briefing link to `/story/[id]`, and tag badges link to `/feed?tags=<slug>`.
 
+Retrieval: the tag path is `tagStory(question)`. The FTS path matches a story that contains **any** non-filler keyword of the question (OR, not the feed's AND), requires at least 2 matched keywords when the question has 2 or more, and ranks candidates by `ts_rank_cd`. Both paths are cut to the window, merged and ordered by `rankScore`, and the top 15 are kept.
+
 #### F3.2 Example briefings
 - **AC-3.2.1** `pnpm --filter api briefings:generate` runs the real copilot pipeline for 3 configured questions and stores the message arrays in `ExampleBriefing`. It is a manual, one-off command costing about $0.005 in total.
 - **AC-3.2.2** The landing page renders them through the same `@a2ui/react` surface (lazy, client-only) from ISR-embedded JSON, with no API call at view time. Client-only is required, not optional: `@a2ui/react` can't be imported on the server (§6.4.3), so the surface loads through `next/dynamic(…, { ssr: false })` inside a Client Component.
@@ -682,10 +684,11 @@ sequenceDiagram
     A-->>U: event meta {cached:true} · replay stored a2ui events · event done
   else not cached
     A->>P: quota check (RateLimitCounter) · spend reservation (LlmUsage)
-    A->>P: retrieve ≤15 stories: tagStory(question) tags ∪ FTS(question) ∩ window (default 7d) ORDER BY rankScore
+    A->>P: retrieve ≤15 stories: tagStory(question) tags ∪ FTS(question keywords, any non-filler one matches) ∩ window (default 7d) ORDER BY rankScore
     A-->>U: event meta {queryId, cached:false, quota}
-    A-->>U: event a2ui createSurface · updateComponents(root=Briefing, children=[])
     A->>L: stream structured BriefingPlan (maxOutputTokens 1500)
+    L-->>A: plan title complete (the first token proves the call is live)
+    A-->>U: event a2ui createSurface · updateComponents(root=Briefing, children=[]) · updateDataModel(subtitle)
     loop each completed plan section
       A->>A: compile section → A2UI components (inject trusted DB data) · validate vs catalog
       A-->>U: event a2ui updateComponents (new component + root with extended children)
@@ -695,7 +698,7 @@ sequenceDiagram
   end
   Note over U,A: ": ping" heartbeat every 15s; end of turn = done event + stream close
 ```
-The LLM never emits A2UI JSON directly. It emits a small, validated **BriefingPlan** (§6.4.4). The server compiles that plan into A2UI v1.0 messages, injecting trusted titles, URLs, numbers and chart series from Postgres. This removes hallucinated links, keeps output tokens low and guarantees catalog-valid messages.
+Nothing but `meta` is sent before the plan title is complete and valid, so a spend-cap refusal (the example-briefing fallback) or an early failure sends no briefing message. The LLM never emits A2UI JSON directly. It emits a small, validated **BriefingPlan** (§6.4.4). The server compiles that plan into A2UI v1.0 messages, injecting trusted titles, URLs, numbers and chart series from Postgres. This removes hallucinated links, keeps output tokens low and guarantees catalog-valid messages.
 
 ---
 
@@ -1503,7 +1506,10 @@ event: a2ui
 data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s2_consensus","component":"ConsensusCallout","topic":"Adopting the native compiler now","verdict":"mixed","pros":[{"point":"Dramatic speedups in CI and editor responsiveness","storyIds":["cbriefts0001"]}],"cons":[{"point":"Plugin/transformer APIs not yet at parity","storyIds":["cbriefts0001","cbriefts0005"]}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0","s2_consensus"]}]}}
 
 event: a2ui
-data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s3_velocity","component":"TechVelocityChart","title":"Story volume, last 7 days","window":"7d","metric":"stories","series":[{"tag":"typescript","label":"TypeScript","points":[{"date":"2026-11-13","value":9},{"date":"2026-11-14","value":21},{"date":"2026-11-15","value":17},{"date":"2026-11-16","value":11},{"date":"2026-11-17","value":10},{"date":"2026-11-18","value":12},{"date":"2026-11-19","value":8}]}]},{"id":"s4_tags","component":"TagBadgeList","title":"Explore related","tags":[{"slug":"javascript","label":"JavaScript","count":48,"deltaPct":12},{"slug":"performance","label":"Performance","count":19,"deltaPct":35},{"slug":"testing","label":"Testing","count":7}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0","s2_consensus","s3_velocity","s4_tags"]}]}}
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s3_velocity","component":"TechVelocityChart","title":"Story volume, last 7 days","window":"7d","metric":"stories","series":[{"tag":"typescript","label":"TypeScript","points":[{"date":"2026-11-13","value":9},{"date":"2026-11-14","value":21},{"date":"2026-11-15","value":17},{"date":"2026-11-16","value":11},{"date":"2026-11-17","value":10},{"date":"2026-11-18","value":12},{"date":"2026-11-19","value":8}]}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0","s2_consensus","s3_velocity"]}]}}
+
+event: a2ui
+data: {"version":"1.0","updateComponents":{"surfaceId":"briefing-cbriefq0ts001","components":[{"id":"s4_tags","component":"TagBadgeList","title":"Explore related","tags":[{"slug":"javascript","label":"JavaScript","count":48,"deltaPct":12},{"slug":"performance","label":"Performance","count":19,"deltaPct":35},{"slug":"testing","label":"Testing","count":7}]},{"id":"root","component":"Briefing","title":"TypeScript tooling: this week's debates","subtitle":{"@path":"/meta/subtitle"},"children":["s0_takeaways","s1_story_0","s2_consensus","s3_velocity","s4_tags"]}]}}
 
 event: done
 data: {"usage":{"inputTokens":5480,"outputTokens":912,"costUsd":0.001004}}
@@ -1746,7 +1752,7 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 | Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | 20/day | $0.0150 | $0.465 |
 | On-demand summaries (P2) | 4,000 | 700 | $0.00075 | 15 new/day globally (cache hits free) | $0.01125 | $0.349 |
 | Clustering decisions (P2) | 1,000 (system + schema 280 + 6 stories × 120) | 50 | 1,000×$0.10/1M + 50×$0.50/1M = **$0.000125** | ≤ 1 per new story with candidates; the cap allows 160/day at worst case, ≈ 265/day at the expected $0.000075 | $0.0200 | $0.620 |
-| Copilot (P3) | 6,000 (system + plan schema 1,500 + 15 stories × 300) | 1,500 | 6,000×$0.10/1M + 1,500×$0.50/1M = **$0.00135** | 20 fresh questions/day globally (cache/fallback free) | $0.0270 | $0.837 |
+| Copilot (P3) | 6,000 (fixed ≈ 1,728: system ≈ 375 + plan schema ≈ 1,353; plus ≈ 277 per story × 15 stories; total ≤ 6,000) | 1,500 | 6,000×$0.10/1M + 1,500×$0.50/1M = **$0.00135** | 20 fresh questions/day globally (cache/fallback free) | $0.0270 | $0.837 |
 | Example briefings (P3) | 6,000 | 1,500 | $0.00135 | 3, manual, rare | n/a | ≈ $0.004 |
 | **Total** | | | | | **$0.07325** | **≈ $2.27**, above $2.00, so the global cap below is the binding stop |
 
