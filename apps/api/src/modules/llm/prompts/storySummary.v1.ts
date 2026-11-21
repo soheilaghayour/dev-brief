@@ -1,6 +1,7 @@
 import { StorySummarySchema } from '@devbrief/shared';
 import { z } from 'zod';
 import { estimateTokens, truncateToTokens } from '../budget.js';
+import { modelText } from './modelText.js';
 import { sourceBlock } from './sourceBlock.js';
 
 /** Stored on every Summary; a changed prompt or output schema is a new file with the next version. */
@@ -20,22 +21,7 @@ export const INPUT_BUDGET = {
 const TITLE_MAX_TOKENS = 64;
 const TLDR_MAX_WORDS = 25;
 
-// PRD §8.2: no URLs (a scheme, `www.`, or a common-TLD domain with a path, so "Node.js/Deno" stays text) and no tags (`<` then a letter or `/`).
-const URL_PATTERNS = [
-  /https?:\/\//i,
-  /\bwww\./i,
-  /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|dev|app|ai|co|me|sh|ly|gg|xyz|info|so|tech|blog|site|page|us|uk|de|eu)\/\S/i,
-];
-const MARKUP_PATTERN = /<[a-z/]/i;
-
-const isPlainText = (text: string) =>
-  !URL_PATTERNS.some((pattern) => pattern.test(text)) && !MARKUP_PATTERN.test(text);
 const wordCount = (text: string) => text.split(/\s+/).filter(Boolean).length;
-
-/** One model-written string: within its contract length, with no URL and no markup. */
-function modelText(contractString: z.ZodString) {
-  return contractString.refine(isPlainText, 'must not contain a URL or markup');
-}
 
 const contractConsensus = StorySummarySchema.shape.consensus.unwrap().shape;
 
