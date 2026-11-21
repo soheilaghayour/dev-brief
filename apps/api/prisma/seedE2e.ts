@@ -210,24 +210,50 @@ const briefingStoryIds = BRIEFING_FIXTURE_STORY_IDS.map((_, index) => e2eStoryId
 /** The story the stored briefing's card links to. */
 export const BRIEFING_STORY_ID = briefingStoryIds[0]!;
 
-/** A stored, complete answer to the first suggested question, so the command bar's cached replay runs in e2e without a model call. */
-async function seedCopilotQuery(prisma: PrismaClient, now: Date) {
-  const { question } = EXAMPLE_QUESTIONS[0];
+/** The shared fixture briefing with its story ids pointed at seeded stories; one loader for both seeded tables. */
+function loadBriefingMessages() {
   const fixture = BRIEFING_FIXTURE_STORY_IDS.reduce(
     (json, fixtureId, index) => json.replaceAll(fixtureId, briefingStoryIds[index]!),
     JSON.stringify(tsToolingBriefing),
   );
-  const messages = A2uiServerMessageSchema.array().parse(JSON.parse(fixture));
+  return A2uiServerMessageSchema.array().parse(JSON.parse(fixture));
+}
+
+/** A stored, complete answer to the first suggested question, so the command bar's cached replay runs in e2e without a model call. */
+async function seedCopilotQuery(prisma: PrismaClient, now: Date) {
+  const { question } = EXAMPLE_QUESTIONS[0];
   await prisma.copilotQuery.create({
     data: {
       question,
       questionHash: questionHash(question),
       status: 'complete',
-      messages: messages as unknown as Prisma.InputJsonValue,
+      messages: loadBriefingMessages() as unknown as Prisma.InputJsonValue,
       storyIds: briefingStoryIds,
       // Inside the 24 h cache whenever the specs run right after seeding.
       createdAt: now,
     },
+  });
+}
+
+/** The fixture briefing under each example question, retitled so the landing's tabs differ. */
+function exampleBriefingMessages(title: string) {
+  const messages = loadBriefingMessages();
+  for (const message of messages)
+    if ('updateComponents' in message)
+      for (const component of message.updateComponents.components)
+        if (component.id === 'root') (component as { title?: string }).title = title;
+  return messages as unknown as Prisma.InputJsonValue;
+}
+
+async function seedExampleBriefings(prisma: PrismaClient) {
+  await prisma.exampleBriefing.deleteMany();
+  await prisma.exampleBriefing.createMany({
+    data: EXAMPLE_QUESTIONS.map(({ slug, question }, position) => ({
+      slug,
+      question,
+      position,
+      messages: exampleBriefingMessages(`Example ${position + 1}: ${question}`),
+    })),
   });
 }
 
@@ -299,6 +325,7 @@ export async function seedE2e(prisma: PrismaClient, now = new Date()) {
   );
   await seedSummary(prisma, SUMMARISED_NO_CONSENSUS_STORY_ID, Prisma.DbNull, 3);
   await seedCopilotQuery(prisma, now);
+  await seedExampleBriefings(prisma);
   await prisma.source.updateMany({
     data: { lastSuccessAt: now, consecutiveFailures: 0, circuitOpenUntil: null },
   });
