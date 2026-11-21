@@ -88,7 +88,7 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 
 ## 2. Landing Page & First-Impression Blueprint
 
-**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders, gradient hairlines and restrained motion. [Raycast](https://www.raycast.com) for keycap visuals, a keyboard-first story and a dark-mode-first aesthetic.
+**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders and restrained motion. [Raycast](https://www.raycast.com) for keycap visuals and a keyboard-first story. Colour comes from the warm palette of §7.1, with no glow or gradient behind the hero.
 
 **Rendering:** `app/(marketing)/page.tsx` is statically generated with ISR (`export const revalidate = 900`). Live preview data is fetched at build or revalidate time from `API_INTERNAL_URL`. If the API is unreachable on the very first build, the page renders from a committed fixture snapshot, `apps/web/src/content/landing-fixture.json`, and shows a small "Sample data" label. After that, ISR keeps serving the last good page.
 
@@ -97,7 +97,7 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 | # | Section | Layout and content | Interactivity | Phase |
 |---|---|---|---|---|
 | 0 | **Top nav** | Sticky, translucent background with backdrop blur and a 1 px bottom border. Left: logo and wordmark. Center: Feed, Radar (P3) and GitHub (repo link). Right: theme toggle, "Sign in" (ghost) and "Explore feed" (primary, small). | The nav collapses to a sheet below 768 px. | P1 |
-| 1 | **Hero** | An eyebrow pill with live counts, e.g. "Updated 14 min ago · 312 stories today · 12 sources". Then the H1, a one-sentence subhead and two CTAs: primary **"Explore the feed — no login required"** → `/feed`, and secondary "Sign in with GitHub". Below them sits the **live preview window** (§2.3). | See §2.3 | P1 |
+| 1 | **Hero** | Two columns from `md` (768 px) up, 45% for the text and 55% for the window. Left, left-aligned: an eyebrow pill with live counts, e.g. "Updated 14 min ago · 312 stories today · 12 sources", then the H1, two sentences on deduplication (§2.2) and two CTAs: primary **"Explore the feed — no login required"** → `/feed`, and secondary "Sign in with GitHub". Right: the **live preview window** (§2.3). Below `md` the columns stack, text first, with no horizontal scroll. No glow or gradient sits behind the hero. | See §2.3 | P1 |
 | 2 | **Source strip** | One line of monospace wordmarks (text only, no third-party logos): `Hacker News · Dev.to · React Blog · TypeScript Blog · Vercel · Cloudflare · Netflix Tech · Uber Eng · Simon Willison · Josh Comeau …`. GitHub is added in P2. | None | P1 |
 | 3 | **Problem** | Three bordered cards: "Same story, five tabs", "Rankings you can't trust", "Signal buried in comments". Each has a 1-line pain statement and a tiny illustrative mock. | Hover lifts the border colour. | P1 |
 | 4 | **How it works** | Three steps joined by a hairline connector: **Ingest hourly** → **Dedupe and tag** → **Rank fairly**. Each step has a 2-line explanation and a "See the formula" link to Appendix B of this PRD on GitHub. | None | P1 |
@@ -114,8 +114,8 @@ Copy should be confident, concrete and technical. Lead with verbs and avoid supe
 
 | Slot | Phase 1 sample | Phase 2/3 variant |
 |---|---|---|
-| H1 (pick one) | "Developer news, minus the noise." · "Every source. One feed. Ranked fairly." · "The five-minute scan for busy engineers." | P2: "Same story on HN and Dev.to? You'll see it once." · P3: "Ask the news. Get a briefing, not a wall of text." |
-| Subhead | "DevBrief pulls Hacker News, Dev.to and the best engineering blogs every hour, merges duplicates, tags by technology and ranks everything on one fair scale. No account needed." | P2 adds: "…with the pros and cons from every comment section." |
+| H1 | "Your morning tech scan in 5 minutes" (the owner's pick). The page title and the OG text reuse it as "DevBrief — Your morning tech scan in 5 minutes". | Unchanged |
+| Dedup sentences (under the H1) | "The same link on Hacker News, Dev.to, an engineering blog and GitHub becomes one card, with every source's points and comments side by side. DevBrief pulls them all every hour and ranks everything on one fair scale, no account needed." It claims only URL dedup (AC-1.2.4, AC-1.2.5), which is live without clustering (§1.5 principle 5). | Clusters on (F2.1): "The same story on Hacker News, Dev.to, engineering blogs and GitHub becomes one card, even when each links somewhere else. DevBrief pulls them all every hour and ranks everything on one fair scale, no account needed." |
 | Primary CTA | "Explore the feed — no login required" | Unchanged |
 | Secondary CTA | "Sign in with GitHub" | Unchanged |
 | Guest hint (in-app) | "You're browsing as a guest. Saves stay on this device. Sign in to sync anywhere." | P3 adds: "…including collections and notes." |
@@ -126,17 +126,19 @@ Copy should be confident, concrete and technical. Lead with verbs and avoid supe
 | Final CTA | "Your morning scan, in five minutes." | |
 
 ### 2.3 Interactive hero preview
-A product "window" framed like Linear's: rounded border, three window dots and a fake title bar reading `devbrief.dev/feed`. Inside is a slimmed-down version of the real feed.
+A product "window" framed like Linear's, in the hero's right column (below `md`, full width under the text): rounded border, three window dots and a fake title bar reading `<host>/feed`. Inside is a slimmed-down version of the real feed.
 
 | Element | Behaviour |
 |---|---|
-| Data | The top 30 stories from the last 24 h (`GET /api/v1/feed?sort=top&limit=30`) are embedded in the static HTML at build/ISR. The **first 6 render server-side**, so no spinner and no CLS. |
-| Tag chips | A row of 6 chips: All, React, TypeScript, AI/LLMs, System Design, Databases. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
-| Keyboard | When the preview is focused (click or Tab), `j`/`k` move the active card, `s` toggles a "Saved" demo state stored in the real guest store (so it carries over to `/feed`), and `Enter` opens `/feed?focus=<storyId>`. A muted hint line shows `J K to navigate · S to save · Enter to open`. |
-| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time and up to 3 tags. |
-| Footer of window | "Showing 6 of 312 stories today → Open full feed". |
+| Data | The top 30 stories from the last 24 h (`GET /api/v1/feed?sort=top&limit=30`) are embedded in the static HTML at build/ISR. **All of them render server-side**, so there is no spinner and no CLS. |
+| Frame | The window has a fixed height at each breakpoint, whatever the chip, the number of matching stories or the Phase 3 view, so nothing below it moves. Its list scrolls vertically inside the frame and the page never scrolls sideways. |
+| List | Every embedded story that matches the selected chip, in rank order, up to 30. With clustering on (F2.1), a cluster's card shows its combined source line and "+N related" control, as in the feed (F2.2). |
+| Tag chips | A row of 6 chips: All, React, Rust, AI/LLMs, TypeScript, Databases. The row wraps on narrow screens. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
+| Keyboard | When the preview is focused (click or Tab), `j`/`k` move the active card and scroll it into view inside the frame, `s` toggles a "Saved" demo state stored in the real guest store (so it carries over to `/feed`), and `Enter` opens the active story's page, `/story/<storyId>`. A muted hint line shows `J K to navigate · S to save · Enter to open`. |
+| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time and up to 3 tags. Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. |
+| Footer of window | "Showing 30 of 312 stories today → Open full feed", counting the stories the selected chip shows. |
 | Hydration budget | The preview is the only client island above the fold. It must be ≤ 25 KB gzip on top of the framework baseline. |
-| Phase 3 | The window gains a segmented control, **Feed \| Briefing**. "Briefing" lazy-loads the A2UI renderer and shows example briefing #1. |
+| Phase 3 | The window's title bar gains a segmented control, **Feed \| Briefing**. "Briefing" lazy-loads the A2UI renderer and shows example briefing #1 in the same fixed-height frame, scrolling inside it. |
 
 ### 2.4 Guest "Explore Feed — no login required" flow
 ```
@@ -164,13 +166,16 @@ Rules:
 - **AC-L2** Given the API is unreachable on the first build, when the site builds, then the build succeeds using `landing-fixture.json`, and the preview shows the "Sample data" label.
 - **AC-L3** Given CI runs Lighthouse (mobile preset) against the production build of `/`, then Performance, Accessibility, Best Practices and SEO are each ≥ 95. The PR fails otherwise.
 - **AC-L4** Given a guest clicks the primary CTA, then `/feed` (Top, default params omitted from the URL) loads with no authentication prompt.
-- **AC-L5** Given the preview has focus, when the user presses `j` three times and then `Enter`, then the browser navigates to `/feed?focus=<id of 4th card>`.
+- **AC-L5** Given the preview has focus, when the user presses `j` three times and then `Enter`, then the browser navigates to `/story/<id of 4th card>`. Clicking a card's title opens that card's `/story/<id>` in the same tab.
 - **AC-L6** Given the OS is in dark mode and no theme is stored, then the page renders dark on first paint with no light flash. The theme toggle choice persists across reloads.
 - **AC-L7** Given a feature's flag (§3) is off, then its bento tile, nav item and copy variant are absent from the HTML.
 - **AC-L8** `/impressum` and `/privacy` exist, are linked from the footer, and are statically rendered.
 - **AC-L9** The page has a `<title>`, a meta description, a canonical URL, Open Graph and Twitter tags, and a generated OG image (`opengraph-image.tsx`).
 - **AC-L10** With `prefers-reduced-motion: reduce`, no looping animations run.
 - **AC-L11** `/privacy` names Anthropic as a processor and says what it receives: for summaries and clustering, story titles, excerpts, Dev.to article text and public comments; for the copilot, the question as typed plus the retrieved stories' titles, excerpts and summaries. It says that no account data, IP address or device id is sent, and gives the basis for the transfer outside the EU. It ships before any AI flag is on in production (§8.8 launch gate).
+- **AC-L12** Given a viewport at least 768 px wide, then the hero shows two columns, 45% text and 55% preview window, with the text left-aligned. Given a narrower viewport, the text comes first and the window below it, and there is no horizontal scroll at 360 px. No radial gradient or glow is rendered behind the hero.
+- **AC-L13** Given the preview, then it lists every embedded story of the selected chip (up to 30) in the server-rendered HTML, inside a frame of fixed height that scrolls vertically. Changing the chip or, in Phase 3, the Feed | Briefing view leaves the frame's height unchanged (landing CLS ≤ 0.05, §8.5), and `j`/`k` keep the active card in view inside the frame without scrolling the page.
+- **AC-L14** Given clustering is on and an embedded story is a cluster's representative, then its preview card shows the combined source line and the "+N related" control (F2.2), and the hero's dedup sentences are the clusters-on variant (§2.2). Given clustering is off, they are the URL-dedup variant. The e2e seed holds one cluster, so the test is deterministic.
 
 ---
 
@@ -1591,27 +1596,44 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ ◆ DevBrief        Feed   Radar   GitHub              ◐  Sign in  [Explore ▸] │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│             ( ● Updated 14 min ago · 312 stories today · 12 sources )        │
-│                    Developer news, minus the noise.                          │
-│     DevBrief pulls HN, Dev.to and top engineering blogs every hour, merges   │
-│     duplicates and ranks everything on one fair scale. No account needed.    │
-│          [ Explore the feed — no login required ]   [  Sign in with GitHub ] │
-│  ┌──────────────────────────────────────────────────────────────────────┐    │
-│  │ ● ● ●   devbrief.dev/feed                                [Feed|Brief]│    │
-│  │ [All] [React] [TypeScript] [AI/LLMs] [System Design] [Databases]     │    │
-│  │ ▸ Native TS compiler preview ships          devblogs.microsoft.com   │    │
-│  │   HN ▲612 💬288 · TypeScript Blog · 3h · typescript performance       │    │
-│  │   Postgres 18 async I/O in practice         planetscale.com          │    │
-│  │   HN ▲301 💬97 · 5h · databases performance                          │    │
-│  │   …(6 rows)                                                          │    │
-│  │ J K navigate · S save · Enter open        Showing 6 of 312 → Open feed│   │
-│  └──────────────────────────────────────────────────────────────────────┘    │
-│  Hacker News · Dev.to · React Blog · TypeScript Blog · Vercel · Cloudflare … │
-│  ┌ Same story, five tabs ┐ ┌ Rankings you can't trust ┐ ┌ Signal in comments ┐│
-│  ① Ingest hourly ───── ② Dedupe & tag ───── ③ Rank fairly                     │
-│  ┌──────── bento ────────┬─────────────┐   [J] [K] [S] [/] [?]  keyboard row │
-│  Under the hood · FAQ · Final CTA · Footer (Impressum · Privacy · Status)    │
+│ ( ● Updated 14 min ago ·      │ ┌──────────────────────────────────────────┐ │
+│   312 today · 12 sources )    │ │ ● ● ●  devbrief.dev/feed    [Feed|Brief] │ │
+│                               │ │ [All] [React] [Rust] [AI/LLMs]           │ │
+│ Your morning tech scan        │ │ [TypeScript] [Databases]                 │ │
+│ in 5 minutes                  │ │▸Native TS compiler preview ships        ▲│ │
+│                               │ │ HN ▲612 · TS Blog · 3h · [ts][perf]     █│ │
+│ The same link on Hacker News, │ │ Postgres 18 async I/O in practice       ░│ │
+│ Dev.to, an engineering blog   │ │ HN ▲301 · Dev.to ♥95 · 5h · [databases] ░│ │
+│ and GitHub becomes one card,  │ │ Bun 2.0 ships a built-in test runner    ░│ │
+│ with every source's points…   │ │ HN ▲188 · 7h · [javascript][testing]    ▼│ │
+│                               │ │ J K · S · Enter    Showing 30 of 312 →   │ │
+│ [Explore the feed — no login] │ └──────────────────────────────────────────┘ │
+│ [ Sign in with GitHub ]       │   list of up to 30 scrolls inside the frame  │
+│ Hacker News · Dev.to · React Blog · TypeScript Blog · Vercel · Cloudflare …  │
+│ ┌ Same story, five tabs ┐ ┌ Rankings you can't trust ┐ ┌ Signal in comments ┐│
+│ ① Ingest hourly ───── ② Dedupe & tag ───── ③ Rank fairly                     │
+│ ┌──────── bento ────────┬─────────────┐   [J] [K] [S] [/] [?]  keyboard row  │
+│ Under the hood · FAQ · Final CTA · Footer (Impressum · Privacy · Status)     │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Landing (mobile < 768 px)**
+```
+┌──────────────────────────────┐
+│ ◆ DevBrief          ◐   ☰    │
+│ ( ● 14 min ago · 312 today ) │
+│ Your morning tech scan       │
+│ in 5 minutes                 │
+│ The same link on Hacker News,│
+│ Dev.to, a blog and GitHub …  │
+│ [ Explore the feed — no lo… ]│
+│ [ Sign in with GitHub      ] │
+│ ┌ ● ● ● devbrief.dev/feed ─┐ │
+│ │ [All] [React] [Rust] …   │ │
+│ │▸Native TS compiler prev… │ │
+│ │ … fixed height, scrolls  │ │
+│ └──────────────────────────┘ │
+└──────────────────────────────┘
 ```
 
 **Feed (desktop)**
@@ -1734,7 +1756,7 @@ Export digest ▾ → Download .md · Copy to clipboard   (week picker: 2026-W47
 RootLayout  (ThemeProvider · QueryProvider · Toaster · HotkeysProvider · Sentry)
 ├─ (marketing)/layout → SiteHeader, SiteFooter
 │  └─ LandingPage
-│     ├─ Hero → LiveCountsPill, HeroCtas, HeroPreview(client) → PreviewTagChips, StoryCard[compact]×6
+│     ├─ Hero (2 columns from md) → LiveCountsPill, HeroCtas | HeroPreview(client, fixed-height scroll frame) → PreviewTagChips, StoryCard[compact]×≤30
 │     ├─ SourceStrip · ProblemGrid · HowItWorks · FeatureBento(flags) · KeyboardShowcase
 │     ├─ ExampleBriefings (P3, lazy client) → BriefingView
 │     └─ UnderTheHood · Faq · CtaBand
