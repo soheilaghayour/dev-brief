@@ -269,8 +269,12 @@ test('AC-1.3.12 on mobile the filters sit in a bottom sheet and nothing scrolls 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Filters (1)' })).toBeVisible();
 
-  const hasHorizontalScroll = await page.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  );
-  expect(hasHorizontalScroll).toBe(false);
+  // 360 px leaves the header row only a few pixels to spare, so a wider font on another OS tips it over; 320 px has none to spare.
+  for (const width of [360, 320]) {
+    await page.setViewportSize({ width, height: 800 });
+    const hasHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(hasHorizontalScroll, `${width} px`).toBe(false);
+  }
 });

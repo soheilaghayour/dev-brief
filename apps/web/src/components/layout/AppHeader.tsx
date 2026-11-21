@@ -37,7 +37,8 @@ export function AppHeader({
         >
           <SidebarContent />
         </SheetLauncher>
-        <div className="md:w-48">
+        {/* On a phone the menu, logo, theme toggle, Ask and account buttons fill the row, so the wordmark gives way to the diamond and stays for screen readers. */}
+        <div className="shrink-0 md:w-48 max-sm:[&_a]:p-1 max-sm:[&_span]:sr-only">
           <Logo />
         </div>
         {/* Clipped, so a field squeezed narrower than its padding never paints over the buttons beside it. */}
