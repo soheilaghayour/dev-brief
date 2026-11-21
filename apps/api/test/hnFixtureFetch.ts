@@ -20,6 +20,8 @@ export const fixtureItems = JSON.parse(
 >;
 
 interface FixtureOptions {
+  /** Serve only the first N recorded top stories, for tests that need a few HN items rather than the whole sample. */
+  topStories?: number;
   /** Ids appended to `topstories` beyond the first 100; the adapter must ignore them. */
   extraIds?: number[];
   /** The first N item requests answer HTTP 500. */
@@ -30,6 +32,7 @@ interface FixtureOptions {
 
 /** A `fetch` stand-in that serves the recorded HN responses, so no test reaches the network. */
 export function hnFixtureFetch({
+  topStories = fixtureTopStories.length,
   extraIds = [],
   failingItems = 0,
   garbledItems = 0,
@@ -40,7 +43,7 @@ export function hnFixtureFetch({
   return async (input) => {
     const url = String(input);
     if (url.endsWith('/topstories.json')) {
-      return Response.json([...fixtureTopStories, ...extraIds]);
+      return Response.json([...fixtureTopStories.slice(0, topStories), ...extraIds]);
     }
     const id = Number(/\/item\/(\d+)\.json$/.exec(url)?.[1]);
     if (failing.has(id)) return new Response('', { status: 500 });
