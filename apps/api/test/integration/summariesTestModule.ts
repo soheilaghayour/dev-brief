@@ -66,6 +66,7 @@ export async function createDiscussedStory(
     commentsCount = 46,
     rankScore = 1,
     publishedAt = new Date(),
+    firstSeenAt = new Date(),
     externalId = '50544168',
     excerpt,
   }: {
@@ -74,6 +75,7 @@ export async function createDiscussedStory(
     commentsCount?: number;
     rankScore?: number;
     publishedAt?: Date;
+    firstSeenAt?: Date;
     externalId?: string;
     excerpt?: string;
   },
@@ -88,6 +90,7 @@ export async function createDiscussedStory(
       normalizedTitle: title.toLowerCase(),
       excerpt,
       publishedAt,
+      firstSeenAt,
       rankScore,
       tags: [],
       taggerVersion: 1,

@@ -8,11 +8,19 @@ import { type InputFailureScope, SummaryInputsUnavailableError } from './summari
 /** PRD F2.3: a summary based on fewer comments has no consensus, whatever the model returned. */
 export const MIN_CONSENSUS_COMMENTS = 5;
 
-/** PRD F2.3: auto summaries stop once this many exist for the UTC day. */
-export const AUTO_SUMMARIES_PER_DAY = 20;
+/** PRD F2.3: auto summaries stop once this many exist for the UTC day; the `summary_auto` cap binds first. */
+export const AUTO_SUMMARIES_PER_DAY = 500;
 
-/** PRD F2.3: only stories with at least this many comments, summed over their items, are summarised automatically. */
+/** PRD F2.3: a story with at least this many comments, summed over its items, is summarised without waiting for `AUTO_SUMMARY_MIN_AGE_HOURS`. */
 export const AUTO_MIN_COMMENTS = 10;
+
+/** PRD F2.3: a story is summarised once it was first seen this long ago, discussed or not; a summary is cached forever, so a fresh thread first gathers some discussion. */
+export const AUTO_SUMMARY_MIN_AGE_HOURS = 2;
+
+/** PRD F2.3: fewer HN and Dev.to comments than this, and no Dev.to article, leave too little to summarise. */
+export const SUMMARY_MIN_COMMENTS = 3;
+
+const MS_PER_HOUR = 3_600_000;
 
 /** One run tries at most this many stories, failed ones included, so a run of Dev.to-only stories stays bounded too. */
 export const AUTO_ATTEMPTS_PER_RUN = 25;
@@ -29,26 +37,42 @@ export function storedConsensus(
   return { ...consensus, basedOnComments };
 }
 
+type SummaryInputItem = { commentsCount: number | null; source: { kind: string } };
+
+/** Whether the story has something to summarise: a Dev.to article, whose body is fetched at summary time, or enough HN and Dev.to comments; `items` are every item of the story, or of all members of its cluster. */
+export function hasSummaryInput(story: { items: readonly SummaryInputItem[] }) {
+  if (story.items.some((item) => item.source.kind === 'devto')) return true;
+  const comments = story.items
+    .filter((item) => item.source.kind === 'hn')
+    .reduce((sum, item) => sum + (item.commentsCount ?? 0), 0);
+  return comments >= SUMMARY_MIN_COMMENTS;
+}
+
 type CandidateStory = {
   id: string;
   /** Set with clusters on: a failed try of any member's representative blocks the whole cluster. */
   clusterId?: string | null;
+  /** The story's own, which for a cluster is the representative's. */
+  firstSeenAt: Date;
   /** Every item of the story, or of all members of its cluster. */
-  items: readonly { commentsCount: number | null; source?: { kind: string } }[];
+  items: readonly SummaryInputItem[];
 };
 
 export type AutoCandidate = { id: string; hnRequests: number };
 
-/** The stories worth an auto summary, in the given order: discussed enough and not failed earlier today (`failedToday` holds cluster ids and the ids of single stories). */
+/** The stories worth an auto summary, in the given order: enough input, discussed or old enough, and not failed earlier today (`failedToday` holds cluster ids and the ids of single stories). */
 export function autoCandidates(
   stories: readonly CandidateStory[],
   failedToday: ReadonlySet<string>,
+  now: Date,
 ): AutoCandidate[] {
   return stories.flatMap((story) => {
     if (failedToday.has(story.clusterId ?? story.id)) return [];
+    if (!hasSummaryInput(story)) return [];
     const comments = story.items.reduce((sum, item) => sum + (item.commentsCount ?? 0), 0);
-    if (comments < AUTO_MIN_COMMENTS) return [];
-    const hnRequests = story.items.filter((item) => item.source?.kind === 'hn').length;
+    const ageHours = (now.getTime() - story.firstSeenAt.getTime()) / MS_PER_HOUR;
+    if (comments < AUTO_MIN_COMMENTS && ageHours < AUTO_SUMMARY_MIN_AGE_HOURS) return [];
+    const hnRequests = story.items.filter((item) => item.source.kind === 'hn').length;
     return [{ id: story.id, hnRequests }];
   });
 }
