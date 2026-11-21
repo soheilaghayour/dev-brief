@@ -8,6 +8,10 @@ Two apps and one shared package:
 - `apps/api`: NestJS on Express, global prefix `api/v1`.
 - `packages/shared`: Zod contracts and pure core functions used by both apps.
 
+## Feature flags
+
+A flag exists while its feature is unlaunched: `clusters`, `summaries`, `copilot` and `collections`. Each is one env variable, `FEATURE_<NAME>`. The API reads it at boot through `env.ts`, and `FeatureGuard` answers 404 `FEATURE_DISABLED` on a flagged route while it is off. The web build validates the same variables in `next.config.ts` and inlines them through its `env` option into `src/config/features.ts`, so a feature that is off is absent from the HTML. Radar and follow/mute have no flag.
+
 ## AI pipeline
 
 `apps/api/src/modules/llm/` is the only code that calls a model. Feature modules import `LlmModule` and call `LlmService.generateStructured({ feature, schema, system, prompt, maxOutputTokens })`, which returns the validated object with its token counts and cost, or throws `SpendCapReachedError` (callers answer 503 `SPEND_CAP_REACHED`) or `GenerationFailedError` (502 `GENERATION_FAILED`).
