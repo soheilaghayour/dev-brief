@@ -4,7 +4,8 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { toStoryCards } from '../../common/story-card/clusterCards.js';
-import { findSummary } from '../../common/story-card/clusterSummary.js';
+import { findSummary, loadSummaryInputItems } from '../../common/story-card/clusterSummary.js';
+import { hasSummaryInput } from '../summaries/summaryRules.js';
 import {
   type StoryFeatures,
   storyFeatures,
@@ -41,6 +42,11 @@ export class StoriesService {
     const [card] = await toStoryCards(this.prisma, [story], this.features, summarized);
     const clusterMembers =
       this.features.clusters && clusterId ? await this.otherMembers(clusterId, id, summarized) : [];
+    const canSummarize =
+      this.features.summaries &&
+      hasSummaryInput({
+        items: await loadSummaryInputItems(this.prisma, story, this.features.clusters),
+      });
     return {
       ...card!,
       firstSeenAt: story.firstSeenAt.toISOString(),
@@ -53,6 +59,7 @@ export class StoriesService {
       ...(clusterMembers.length > 0 && { clusterMembers }),
       ...(this.features.summaries && {
         summary: summary && toStorySummary(summary),
+        canSummarize,
       }),
     };
   }

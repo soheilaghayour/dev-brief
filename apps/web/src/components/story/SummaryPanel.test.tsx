@@ -20,7 +20,9 @@ const SUMMARY: StorySummary = {
 
 describe('SummaryPanel', () => {
   it('AC-2.3.6 renders summary text literally and labels it with the comment count', () => {
-    const html = renderToStaticMarkup(<SummaryPanel storyId="story-1" summary={SUMMARY} />);
+    const html = renderToStaticMarkup(
+      <SummaryPanel storyId="story-1" summary={SUMMARY} canSummarize />,
+    );
 
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(html).not.toContain('<img');
@@ -31,7 +33,9 @@ describe('SummaryPanel', () => {
   });
 
   it('shows the verdict with pros and cons', () => {
-    const html = renderToStaticMarkup(<SummaryPanel storyId="story-1" summary={SUMMARY} />);
+    const html = renderToStaticMarkup(
+      <SummaryPanel storyId="story-1" summary={SUMMARY} canSummarize />,
+    );
 
     expect(html).toContain('Mixed');
     expect(html).toContain('Fast');
@@ -40,17 +44,35 @@ describe('SummaryPanel', () => {
 
   it('says "Not enough discussion yet" when consensus is null', () => {
     const html = renderToStaticMarkup(
-      <SummaryPanel storyId="story-1" summary={{ ...SUMMARY, consensus: null }} />,
+      <SummaryPanel storyId="story-1" summary={{ ...SUMMARY, consensus: null }} canSummarize />,
     );
 
     expect(html).toContain('Not enough discussion yet');
     expect(html).not.toContain('based on');
   });
 
-  it('shows the Summarize button when the story has no summary', () => {
-    const html = renderToStaticMarkup(<SummaryPanel storyId="story-1" summary={null} />);
+  it('shows the Summarize button when the story has no summary and can be summarised', () => {
+    const html = renderToStaticMarkup(
+      <SummaryPanel storyId="story-1" summary={null} canSummarize />,
+    );
 
     expect(html).toContain('Summarize');
     expect(html).not.toContain('AI-generated');
+  });
+
+  it('AC-2.3.12 renders no button and no placeholder text when canSummarize is false', () => {
+    const html = renderToStaticMarkup(
+      <SummaryPanel storyId="story-1" summary={null} canSummarize={false} />,
+    );
+
+    expect(html).toBe('');
+  });
+
+  it('AC-2.3.12 still shows an existing summary when canSummarize is false', () => {
+    const html = renderToStaticMarkup(
+      <SummaryPanel storyId="story-1" summary={SUMMARY} canSummarize={false} />,
+    );
+
+    expect(html).toContain('AI-generated');
   });
 });

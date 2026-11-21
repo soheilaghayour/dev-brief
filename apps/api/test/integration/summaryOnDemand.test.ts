@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { ApiErrorSchema, StorySummarySchema } from '@devbrief/shared';
+import { ApiErrorSchema, StoryDetailSchema, StorySummarySchema } from '@devbrief/shared';
 import request from 'supertest';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadEnv } from '../../src/env.js';
@@ -30,11 +30,13 @@ const MODEL_OUTPUT = {
 describe('on-demand summaries', () => {
   const prisma = useTestDatabase();
   let hnSourceId = '';
+  let devtoSourceId = '';
   let app: INestApplication | undefined;
   let ipCounter = 0;
 
   beforeAll(async () => {
     hnSourceId = (await createSource(prisma, 'hn', 'hn')).id;
+    devtoSourceId = (await createSource(prisma, 'devto-od', 'devto')).id;
   });
 
   beforeEach(async () => {
@@ -299,6 +301,99 @@ describe('on-demand summaries', () => {
     expect(ApiErrorSchema.parse(response.body).error.code).toBe('FEATURE_DISABLED');
   });
 
+  const thinStory = (title: string) => {
+    storyCounter += 1;
+    return createDiscussedStory(prisma, {
+      title,
+      sourceId: hnSourceId,
+      externalId: String(9_100_000 + storyCounter),
+      commentsCount: 2,
+    });
+  };
+
+  const getDetail = (storyId: string) =>
+    request(app!.getHttpServer()).get(`/api/v1/stories/${storyId}`);
+
+  it('AC-2.3.12 answers 404 NOT_FOUND for a story with too little to summarise, with no model call, fetch, usage row or quota', async () => {
+    const thin = await thinStory('Thin');
+    const model = await boot();
+
+    const response = await post(thin.id);
+
+    expect(response.status).toBe(404);
+    const { error } = ApiErrorSchema.parse(response.body);
+    expect(error.code).toBe('NOT_FOUND');
+    expect(error.message).toMatch(/too little/);
+    expect(model.doGenerateCalls).toHaveLength(0);
+    expect(await prisma.llmUsage.count()).toBe(0);
+    expect(await prisma.summary.count()).toBe(0);
+    expect(await prisma.rateLimitCounter.count()).toBe(0);
+  });
+
+  it('AC-2.3.12 still returns a cached summary of a story with too little input', async () => {
+    const thin = await thinStory('Thin cached');
+    await boot();
+    await prisma.summary.create({
+      data: {
+        storyId: thin.id,
+        tldr: ['a', 'b', 'c'],
+        basedOnComments: 2,
+        trigger: 'auto',
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: '0.000001',
+      },
+    });
+
+    expect((await post(thin.id)).status).toBe(200);
+  });
+
+  it('AC-2.3.12 summarises a story with exactly 3 comments, and a Dev.to article with none', async () => {
+    storyCounter += 1;
+    const threeComments = await createDiscussedStory(prisma, {
+      title: 'Three comments',
+      sourceId: hnSourceId,
+      externalId: String(9_200_000 + storyCounter),
+      commentsCount: 3,
+    });
+    const article = await createDiscussedStory(prisma, {
+      title: 'Article only',
+      sourceId: devtoSourceId,
+      externalId: '5075072',
+      commentsCount: 0,
+    });
+    await boot();
+
+    expect((await post(threeComments.id)).status).toBe(201);
+    expect((await post(article.id)).status).toBe(201);
+  });
+
+  it('AC-2.3.12 carries canSummarize on the story detail, and leaves it out with the flag off', async () => {
+    const thin = await thinStory('Detail thin');
+    const talked = await story('Detail talked');
+    const article = await createDiscussedStory(prisma, {
+      title: 'Detail article',
+      sourceId: devtoSourceId,
+      externalId: '5075073',
+      commentsCount: 0,
+    });
+    await boot();
+
+    const canSummarize = async (id: string) =>
+      StoryDetailSchema.parse((await getDetail(id)).body).canSummarize;
+
+    expect(await canSummarize(thin.id)).toBe(false);
+    expect(await canSummarize(talked.id)).toBe(true);
+    expect(await canSummarize(article.id)).toBe(true);
+
+    await app!.close();
+    await boot({ envOverrides: { FEATURE_SUMMARIES: 'false' } });
+    const off = StoryDetailSchema.parse((await getDetail(talked.id)).body);
+    expect(off).not.toHaveProperty('canSummarize');
+  });
+
   it('answers 404 NOT_FOUND for an unknown story', async () => {
     await boot();
 
@@ -398,6 +493,51 @@ describe('on-demand cluster summaries', () => {
         };
       }),
     });
+
+  it('AC-2.3.12 F2.3 Clusters sums the comments of every member for canSummarize, and for the POST 404', async () => {
+    const enough = await createSummaryCluster(prisma, {
+      hnSourceId,
+      devtoSourceId,
+      members: [
+        {
+          title: 'OD sum rep',
+          rankScore: 3,
+          items: [{ kind: 'hn', externalId: '6001', commentsCount: 2 }],
+        },
+        {
+          title: 'OD sum member',
+          rankScore: 2,
+          items: [{ kind: 'hn', externalId: '6002', commentsCount: 1 }],
+        },
+      ],
+    });
+    const short = await createSummaryCluster(prisma, {
+      hnSourceId,
+      devtoSourceId,
+      members: [
+        {
+          title: 'OD short rep',
+          rankScore: 1,
+          items: [{ kind: 'hn', externalId: '6003', commentsCount: 1 }],
+        },
+        {
+          title: 'OD short member',
+          rankScore: 0,
+          items: [{ kind: 'hn', externalId: '6004', commentsCount: 1 }],
+        },
+      ],
+    });
+    const { model } = await boot();
+    const canSummarize = async (id: string) =>
+      StoryDetailSchema.parse(
+        (await request(app!.getHttpServer()).get(`/api/v1/stories/${id}`)).body,
+      ).canSummarize;
+
+    expect(await Promise.all(enough.ids.map(canSummarize))).toEqual([true, true]);
+    expect(await Promise.all(short.ids.map(canSummarize))).toEqual([false, false]);
+    for (const id of short.ids) expect((await post(id)).status).toBe(404);
+    expect(model.doGenerateCalls).toHaveLength(0);
+  });
 
   it("AC-2.3.1 F2.3 Clusters answers 200 with member B's summary, no LLM call and no fetch, when member A is asked", async () => {
     const { ids } = await seedCluster();

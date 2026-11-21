@@ -57,6 +57,7 @@ export const StoryDetailSchema = StoryCardSchema.extend({
   ),
   clusterMembers: z.array(StoryCardSchema).optional(),
   summary: StorySummarySchema.nullable().optional(),
+  canSummarize: z.boolean().optional(),
 });
 export type StoryDetail = z.infer<typeof StoryDetailSchema>;
 
