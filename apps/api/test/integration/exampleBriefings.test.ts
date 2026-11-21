@@ -8,15 +8,18 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import tsToolingBriefing from '@devbrief/shared/a2ui/fixtures/tsToolingBriefing.json';
 import request from 'supertest';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  describeCliFailure,
   ExampleGenerationError,
   generateExampleBriefings,
   GenerateExampleBriefingsModule,
 } from '../../src/cli/generateExampleBriefings.module.js';
-import { databaseName } from '../../src/cli/confirmDatabase.js';
+import { databaseTarget } from '../../src/cli/confirmDatabase.js';
 import { ENV } from '../../src/common/env/env.module.js';
 import { loadEnv } from '../../src/env.js';
+import { BriefingRetrievalService } from '../../src/modules/copilot/briefingRetrieval.service.js';
+import { SpendCapReachedError } from '../../src/modules/llm/llm.errors.js';
 import { LANGUAGE_MODEL } from '../../src/modules/llm/llm.service.js';
 import { mockStreamingModel, replayStream, streamParts } from '../mockLanguageModel.js';
 import { createTestApp } from './createTestApp.js';
@@ -36,6 +39,8 @@ const PLAN = {
     { kind: 'tags', tags: ['rust'] },
   ],
 };
+// An empty plan compiles no section, so the pipeline reports an invalid output.
+const EMPTY_PLAN = { title: 'Empty', sections: [] };
 
 describe('example briefings', () => {
   const prisma = useTestDatabase();
@@ -70,14 +75,21 @@ describe('example briefings', () => {
 
   describe('briefings:generate', () => {
     let closeModule: (() => Promise<void>) | undefined;
-    afterEach(() => closeModule?.());
+    afterEach(async () => {
+      await closeModule?.();
+      closeModule = undefined;
+    });
 
-    async function createCli(envOverrides: Record<string, string | undefined> = {}) {
+    /** `planFor` answers the nth model call (1-based); by default every call gets a valid plan titled "Briefing n". */
+    async function createCli(
+      envOverrides: Record<string, string | undefined> = {},
+      planFor: (call: number) => unknown = (call) => ({ ...PLAN, title: `Briefing ${call}` }),
+    ) {
       const env = loadEnv({ ...process.env, ANTHROPIC_API_KEY: 'test-key', ...envOverrides });
       let calls = 0;
       const model = mockStreamingModel(async (options) => {
         calls += 1;
-        return replayStream(streamParts({ ...PLAN, title: `Briefing ${calls}` }), options);
+        return replayStream(streamParts(planFor(calls)), options);
       });
       const moduleRef = await Test.createTestingModule({
         imports: [GenerateExampleBriefingsModule],
@@ -89,7 +101,11 @@ describe('example briefings', () => {
         .compile();
       await moduleRef.init();
       closeModule = () => moduleRef.close();
-      return { app: moduleRef, calls: () => calls, confirmed: databaseName(env.DATABASE_URL) };
+      return {
+        app: moduleRef,
+        calls: () => calls,
+        confirmed: databaseTarget(env.DATABASE_URL).name,
+      };
     }
 
     const silent = { log: () => {} };
@@ -161,31 +177,61 @@ describe('example briefings', () => {
       expect(lines.filter((line) => line.includes('stories retrieved'))).toHaveLength(3);
     });
 
-    it('AC-3.2.1 a generation that fails after the first question keeps the old rows', async () => {
+    it('AC-3.2.1 a generation that fails after the first question succeeded keeps the old rows', async () => {
       await seedAllCovered();
-      const { app, confirmed } = await createCli();
+      // Calls 1-3 are the first run; in the second run question 1 (call 4) succeeds and question 2 (call 5) fails.
+      const { app, confirmed } = await createCli({}, (call) =>
+        call === 5 ? EMPTY_PLAN : { ...PLAN, title: `Briefing ${call}` },
+      );
       await generateExampleBriefings(app, { confirmedDatabase: confirmed, ...silent });
       const before = await prisma.exampleBriefing.findMany({ orderBy: { position: 'asc' } });
-      // An empty plan compiles no section, so the pipeline reports an invalid output.
-      const emptyModel = mockStreamingModel(async (options) =>
-        replayStream(streamParts({ title: 'Empty', sections: [] }), options),
-      );
-      const failing = await Test.createTestingModule({ imports: [GenerateExampleBriefingsModule] })
-        .overrideProvider(ENV)
-        .useValue(loadEnv({ ...process.env, ANTHROPIC_API_KEY: 'test-key' }))
-        .overrideProvider(LANGUAGE_MODEL)
-        .useValue(emptyModel)
-        .compile();
-      await failing.init();
+      await prisma.llmUsage.deleteMany();
 
       await expect(
-        generateExampleBriefings(failing, { confirmedDatabase: confirmed, ...silent }),
+        generateExampleBriefings(app, { confirmedDatabase: confirmed, ...silent }),
       ).rejects.toThrow(/failed/);
-      await failing.close();
 
       expect(await prisma.exampleBriefing.findMany({ orderBy: { position: 'asc' } })).toEqual(
         before,
       );
+      const ledger = await prisma.llmUsage.findMany({ orderBy: { createdAt: 'asc' } });
+      expect(ledger.map(({ status }) => status)).toEqual(['settled', 'failed']);
+    });
+
+    it('AC-3.2.1 a question that loses its coverage after the preflight keeps the old rows and calls no model', async () => {
+      await seedAllCovered();
+      const { app, confirmed, calls } = await createCli();
+      const retrieval = app.get(BriefingRetrievalService);
+      const retrieve = retrieval.retrieve.bind(retrieval);
+      let retrievals = 0;
+      // The stories vanish right after the last preflight lookup, before the pipeline's own.
+      vi.spyOn(retrieval, 'retrieve').mockImplementation(async (question) => {
+        const result = await retrieve(question);
+        retrievals += 1;
+        if (retrievals === EXAMPLE_QUESTIONS.length) await prisma.story.deleteMany();
+        return result;
+      });
+
+      await expect(
+        generateExampleBriefings(app, { confirmedDatabase: confirmed, ...silent }),
+      ).rejects.toThrow(/has no coverage/);
+
+      expect(calls()).toBe(0);
+      expect(await prisma.exampleBriefing.count()).toBe(0);
+    });
+
+    it('stops with one line and changes nothing when the spend cap is reached', async () => {
+      await seedAllCovered();
+      const { app, confirmed } = await createCli({ LLM_CAP_COPILOT_USD_DAY: '0.0001' });
+
+      const error = await generateExampleBriefings(app, {
+        confirmedDatabase: confirmed,
+        ...silent,
+      }).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(SpendCapReachedError);
+      expect(describeCliFailure(error)).toBe('Spend cap reached. Nothing was changed.');
+      expect(await prisma.exampleBriefing.count()).toBe(0);
     });
 
     it('refuses to start without ANTHROPIC_API_KEY, and calls no model', async () => {
@@ -225,7 +271,22 @@ describe('example briefings', () => {
       for (const { slug } of EXAMPLE_QUESTIONS) {
         expect(lines.some((line) => line.startsWith(`${slug}: $`))).toBe(true);
       }
-      expect(lines.at(-1)).toMatch(/^Total: \$\d/);
+      const ledger = await prisma.llmUsage.findMany();
+      const ledgerTotal = ledger.reduce((sum, { costUsd }) => sum + Number(costUsd), 0);
+      expect(lines.at(-1)).toBe(`Total: $${ledgerTotal.toFixed(5)} for 3 briefings`);
+    });
+
+    it('prints the database and host before it spends anything', async () => {
+      await seedAllCovered();
+      const { app, confirmed } = await createCli();
+      const lines: string[] = [];
+
+      await generateExampleBriefings(app, {
+        confirmedDatabase: confirmed,
+        log: (line) => lines.push(line),
+      });
+
+      expect(lines[0]).toMatch(`Replacing the example briefings in "${confirmed}" on `);
     });
   });
 
@@ -252,6 +313,49 @@ describe('example briefings', () => {
       const { items } = ExampleBriefingListSchema.parse(response.body);
       expect(items.map(({ slug }) => slug)).toEqual(EXAMPLE_QUESTIONS.map(({ slug }) => slug));
       expect(items[0]?.messages).toHaveLength(tsToolingBriefing.length);
+    });
+
+    it('AC-3.2.1 answers only the current example questions: a row of a replaced question is left out', async () => {
+      for (const [position, { slug, question }] of EXAMPLE_QUESTIONS.entries()) {
+        await prisma.exampleBriefing.create({
+          data: { slug, question, position, messages: tsToolingBriefing },
+        });
+      }
+      await prisma.exampleBriefing.create({
+        data: {
+          slug: 'a-replaced-question',
+          question: 'An old question?',
+          position: 3,
+          messages: tsToolingBriefing,
+        },
+      });
+      app = await createTestApp([], COPILOT_ON);
+
+      const response = await request(app.getHttpServer()).get('/api/v1/copilot/examples');
+
+      expect(response.status).toBe(200);
+      const { items } = ExampleBriefingListSchema.parse(response.body);
+      expect(items.map(({ slug }) => slug)).toEqual(EXAMPLE_QUESTIONS.map(({ slug }) => slug));
+    });
+
+    it('AC-3.2.1 skips a row whose messages fail the current A2UI schema and answers the others', async () => {
+      for (const [position, { slug, question }] of EXAMPLE_QUESTIONS.entries()) {
+        await prisma.exampleBriefing.create({
+          data: {
+            slug,
+            question,
+            position,
+            messages: position === 1 ? [{ notAnA2uiMessage: true }] : tsToolingBriefing,
+          },
+        });
+      }
+      app = await createTestApp([], COPILOT_ON);
+
+      const response = await request(app.getHttpServer()).get('/api/v1/copilot/examples');
+
+      expect(response.status).toBe(200);
+      const { items } = ExampleBriefingListSchema.parse(response.body);
+      expect(items.map(({ slug }) => slug)).toEqual(['ts-tooling-debates', 'rust-vs-go']);
     });
 
     it('answers { items: [] } with no rows', async () => {

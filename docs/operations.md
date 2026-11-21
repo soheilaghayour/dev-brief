@@ -126,18 +126,22 @@ The caps and the per-token prices can be overridden with the `LLM_CAP_*` and `LL
 
 ## Example briefings (Phase 3)
 
-The landing's three example briefings, and the copilot's fallback when the daily budget is spent, are generated once by hand: run it after the Phase 3 launch and whenever the examples look stale. It runs the real copilot pipeline for each question in `EXAMPLE_QUESTIONS`, so it needs `ANTHROPIC_API_KEY` and costs about $0.005 in total (three calls billed to the `copilot` ledger feature, [§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)).
+The landing's three example briefings, and the copilot's fallback when the daily budget is spent, are generated once by hand: run it after the Phase 3 launch and whenever the examples look stale. It runs the real copilot pipeline for each question in `EXAMPLE_QUESTIONS`, so it needs `ANTHROPIC_API_KEY` and makes three calls billed to the `copilot` ledger feature (cost: [§8.1](prd.md#81-llm-cost-model-claude-haiku-55-010--1m-input-050--1m-output-for-prompts--100k-tokens)).
 
-In the API container (the image has no `pnpm`, so run the compiled CLI):
+Run it in the API application's Terminal in Coolify (the image has no `pnpm`, so run the compiled CLI):
 
 ```
 node dist/cli/generateExampleBriefings.js --confirm-database <database name from DATABASE_URL>
 ```
 
+The database name is the last part of `DATABASE_URL` (Coolify's default is `postgres`); running without the flag prints it, with its host.
+
 - Without the flag, or with a name that differs from `DATABASE_URL`, it refuses to start.
+- Run the preflight in production first (the story counts it prints before any model call, which is also what happens when a question is thin); replace an example question only if its count there is under 3. Replacing a question is the owner's call.
 - It prints each question's retrieved story count first. A question with fewer than 3 stories, or a failed generation, stops it with a non-zero exit and the old examples stay; pick a replacement question in `packages/shared/src/a2ui/exampleQuestions.ts` and deploy before running it again.
 - It prints each call's cost and the total.
-- The landing shows the new examples after its next ISR revalidation (at most 15 minutes).
+- Two concurrent runs can't mix sets (each swaps all rows in one transaction), but both are billed.
+- The landing picks the new examples up within 15 minutes (ISR); the endpoint itself caches for up to 60 s plus 300 s stale-while-revalidate.
 
 ## GitHub source token
 

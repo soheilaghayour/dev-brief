@@ -4,6 +4,7 @@ import {
   A2uiServerMessageSchema,
   EXAMPLE_QUESTIONS,
   type A2uiServerMessage,
+  type ExampleQuestion,
 } from '@devbrief/shared';
 import { CacheModule } from '../common/cache/cache.module.js';
 import { ENV, EnvModule, type Env } from '../common/env/env.module.js';
@@ -14,28 +15,37 @@ import { BriefingPipelineService } from '../modules/copilot/briefingPipeline.ser
 import { BriefingRetrievalService } from '../modules/copilot/briefingRetrieval.service.js';
 import { CopilotModule } from '../modules/copilot/copilot.module.js';
 import { MIN_COVERAGE_STORIES } from '../modules/copilot/noCoverageBriefing.js';
-import { confirmDatabase } from './confirmDatabase.js';
+import { SpendCapReachedError } from '../modules/llm/llm.errors.js';
+import { confirmDatabase, databaseTarget } from './confirmDatabase.js';
 
 // CopilotModule, not CopilotHttpModule: the CLI needs no routes and no Better Auth.
 @Module({ imports: [EnvModule, PrismaModule, CacheModule, CopilotModule] })
 export class GenerateExampleBriefingsModule {}
 
-type ExampleQuestion = { slug: string; question: string };
-
 /** Raised for every reason the run stops before it replaces anything. */
 export class ExampleGenerationError extends Error {}
+
+/** The one line the CLI prints for a failed run: no stack trace, and the rows are unchanged because the swap is the last step. */
+export function describeCliFailure(error: unknown) {
+  if (error instanceof ExampleGenerationError) return error.message;
+  const reason =
+    error instanceof SpendCapReachedError
+      ? 'Spend cap reached'
+      : error instanceof Error
+        ? error.message
+        : String(error);
+  return `${reason}. Nothing was changed.`;
+}
 
 /** Runs the copilot pipeline for each example question and replaces the stored rows in one transaction, or changes nothing. */
 export async function generateExampleBriefings(
   app: INestApplicationContext,
   {
     confirmedDatabase,
-    questions = EXAMPLE_QUESTIONS,
     log = console.log,
   }: {
     /** The `--confirm-database` value. */
     confirmedDatabase: string | undefined;
-    questions?: readonly ExampleQuestion[];
     log?: (line: string) => void;
   },
 ) {
@@ -46,13 +56,16 @@ export async function generateExampleBriefings(
     throw new ExampleGenerationError('ANTHROPIC_API_KEY is required to generate the examples.');
   }
 
-  await checkCoverage(app.get(BriefingRetrievalService), questions, log);
+  const { name, host } = databaseTarget(env.DATABASE_URL);
+  log(`Replacing the example briefings in "${name}" on ${host}`);
+  await checkCoverage(app.get(BriefingRetrievalService), EXAMPLE_QUESTIONS, log);
 
   const pipeline = app.get(BriefingPipelineService);
   const generated: { slug: string; question: string; messages: A2uiServerMessage[] }[] = [];
   let totalCostUsd = 0;
-  for (const { slug, question } of questions) {
-    const { messages, costUsd } = await generateOne(pipeline, { slug, question });
+  for (const example of EXAMPLE_QUESTIONS) {
+    const { slug, question } = example;
+    const { messages, costUsd } = await generateOne(pipeline, example);
     log(`${slug}: $${costUsd.toFixed(5)}, ${messages.length} messages`);
     generated.push({ slug, question, messages });
     totalCostUsd += costUsd;

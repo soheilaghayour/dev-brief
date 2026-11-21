@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   A2uiServerMessageSchema,
+  EXAMPLE_QUESTIONS,
   type A2uiServerMessage,
   type CopilotAskRequest,
 } from '@devbrief/shared';
@@ -86,14 +87,27 @@ export class CopilotService {
 
   /** The stored example briefings in landing order. */
   async examples() {
-    const rows = await this.prisma.exampleBriefing.findMany({ orderBy: { position: 'asc' } });
+    const examples = await this.storedExamples();
     return {
-      items: rows.map(({ slug, question, messages }) => ({
-        slug,
-        question,
-        messages: StoredMessagesSchema.parse(messages),
-      })),
+      items: examples.map(({ slug, question, messages }) => ({ slug, question, messages })),
     };
+  }
+
+  /** The stored rows for today's example questions whose messages still parse, in landing order: a stale or unparseable row is skipped, not a reason to fail the whole list. */
+  private async storedExamples() {
+    const currentSlugs = EXAMPLE_QUESTIONS.map(({ slug }) => slug);
+    const rows = await this.prisma.exampleBriefing.findMany({
+      where: { slug: { in: currentSlugs } },
+      orderBy: { position: 'asc' },
+    });
+    return rows.flatMap(({ slug, question, position, messages }) => {
+      const parsed = StoredMessagesSchema.safeParse(messages);
+      if (parsed.success) return [{ slug, question, position, messages: parsed.data }];
+      logger.warn(
+        `Example briefing "${slug}" no longer parses and is skipped: ${parsed.error.message}`,
+      );
+      return [];
+    });
   }
 
   /** What is left of the requester's daily questions; a guest must name its device. */
@@ -262,7 +276,7 @@ export class CopilotService {
     settle: (update: Prisma.CopilotQueryUpdateInput, refund: boolean) => Promise<void>,
     meta: (fallback?: 'SPEND_CAP') => Promise<CopilotSseEvent>,
   ): AsyncGenerator<CopilotSseEvent, void> {
-    const example = closestExample(question, await this.prisma.exampleBriefing.findMany());
+    const example = closestExample(question, await this.storedExamples());
     if (!example) {
       await settle({ status: 'failed', messages: [] }, true);
       yield await meta();
@@ -275,7 +289,7 @@ export class CopilotService {
       };
       return;
     }
-    const messages = StoredMessagesSchema.parse(example.messages);
+    const { messages } = example;
     await settle({ status: 'fallback', messages: json(messages) }, true);
     yield await meta('SPEND_CAP');
     for (const data of messages) yield { event: 'a2ui', data };

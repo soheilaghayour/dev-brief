@@ -2,19 +2,20 @@ import 'reflect-metadata';
 import { parseArgs } from 'node:util';
 import { NestFactory } from '@nestjs/core';
 import {
-  ExampleGenerationError,
+  describeCliFailure,
   generateExampleBriefings,
   GenerateExampleBriefingsModule,
 } from './generateExampleBriefings.module.js';
 
-const { values } = parseArgs({ options: { 'confirm-database': { type: 'string' } } });
-
-const app = await NestFactory.createApplicationContext(GenerateExampleBriefingsModule);
 try {
-  await generateExampleBriefings(app, { confirmedDatabase: values['confirm-database'] });
+  const { values } = parseArgs({ options: { 'confirm-database': { type: 'string' } } });
+  const app = await NestFactory.createApplicationContext(GenerateExampleBriefingsModule);
+  try {
+    await generateExampleBriefings(app, { confirmedDatabase: values['confirm-database'] });
+  } finally {
+    await app.close();
+  }
 } catch (error) {
-  console.error(error instanceof ExampleGenerationError ? error.message : error);
+  console.error(describeCliFailure(error));
   process.exitCode = 1;
-} finally {
-  await app.close();
 }

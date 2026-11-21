@@ -1,7 +1,9 @@
-/** The database name in a Postgres URL, or undefined when the URL has none. */
-export function databaseName(databaseUrl: string) {
-  const name = new URL(databaseUrl).pathname.replace(/^\//, '');
-  return name || undefined;
+import { parse } from 'pg-connection-string';
+
+/** The host and database a Postgres URL points at, read the way `pg` reads it (a `?host=` query overrides the host part). */
+export function databaseTarget(databaseUrl: string) {
+  const { host, database } = parse(databaseUrl);
+  return { host: host ?? 'unknown host', name: database || undefined };
 }
 
 export type DatabaseConfirmation = { kind: 'confirmed' } | { kind: 'refused'; reason: string };
@@ -11,18 +13,18 @@ export function confirmDatabase(
   databaseUrl: string,
   confirmed: string | undefined,
 ): DatabaseConfirmation {
-  const actual = databaseName(databaseUrl);
-  if (!actual) return { kind: 'refused', reason: 'DATABASE_URL names no database.' };
+  const { host, name } = databaseTarget(databaseUrl);
+  if (!name) return { kind: 'refused', reason: 'DATABASE_URL names no database.' };
   if (confirmed === undefined) {
     return {
       kind: 'refused',
-      reason: `Refusing to run without --confirm-database ${actual}: it replaces the example briefings in "${actual}" and calls the live model.`,
+      reason: `Refusing to run without --confirm-database ${name}: it replaces the example briefings in "${name}" on ${host} and calls the live model.`,
     };
   }
-  if (confirmed !== actual) {
+  if (confirmed !== name) {
     return {
       kind: 'refused',
-      reason: `--confirm-database ${confirmed} does not match the database in DATABASE_URL ("${actual}").`,
+      reason: `--confirm-database ${confirmed} does not match the database in DATABASE_URL ("${name}" on ${host}).`,
     };
   }
   return { kind: 'confirmed' };
