@@ -16,7 +16,8 @@ import { BOARD_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryLi
 import { AddToCollectionShortcut, useAddToCollection } from './AddToCollection';
 import { BoardSkeleton } from './BoardSkeleton';
 import { CollectionsSidebar } from './CollectionsSidebar';
-import { useCollectionItems, useCollections, type CollectionView } from './useCollections';
+import { useCollectionItems } from './useCollectionItems';
+import { useCollections, type CollectionView } from './useCollections';
 
 function BoardNotFound() {
   return (

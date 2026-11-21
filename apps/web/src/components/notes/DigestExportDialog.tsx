@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { StoryCard } from '@devbrief/shared';
 import { isoWeekRange, recentIsoWeeks, renderDigestMarkdown } from '@devbrief/shared';
 import { ChevronDownIcon } from 'lucide-react';
-import { useCollectionItems, useCollections } from '@/components/collections/useCollections';
+import { useCollectionItems } from '@/components/collections/useCollectionItems';
+import { useCollections } from '@/components/collections/useCollections';
 import { useReturnFocus } from '@/lib/useReturnFocus';
 import { Button } from '@/components/ui/Button';
 import {

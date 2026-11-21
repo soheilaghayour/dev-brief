@@ -1,14 +1,16 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
+import type { CollectionDetail } from '@devbrief/shared';
 import { useMe } from '@/lib/auth/useMe';
 import { itemsInOrder, sortCollections } from '@/lib/guest/collectionOrder';
 import type { AddItemOutcome, CreateOutcome } from '@/lib/guest/collectionsState';
 import { useGuestStore } from '@/lib/guest/guestStore';
 import { useGuestReady } from '@/lib/guest/hydrateGuestStore';
 import { notify } from '@/lib/toast/notify';
-import { collectionKey, COLLECTIONS_KEY, isPendingCollectionId } from './accountCollections';
+import { useQueryCacheVersion } from '@/lib/useQueryCacheVersion';
+import { collectionKey, COLLECTIONS_KEY } from './accountCollections';
 
 export type CollectionView = {
   id: string;
@@ -143,58 +145,37 @@ async function fetchCollections() {
   return (await import('@/lib/api/endpoints')).getCollections();
 }
 
-async function fetchCollection(id: string) {
-  return (await import('@/lib/api/endpoints')).getCollection(id);
+function isCollectionQueryKey(queryKey: QueryKey) {
+  return queryKey[0] === 'collections';
 }
 
 /** The account's collections: the list from the API, and the items of each board once something has loaded it. */
 function useAccountCollections(enabled: boolean) {
+  const queryClient = useQueryClient();
   const list = useQuery({ queryKey: COLLECTIONS_KEY, queryFn: fetchCollections, enabled });
+  // The boards are read from the cache, not observed: `useQueries` is too heavy for first-load JS.
+  const boardsVersion = useQueryCacheVersion(isCollectionQueryKey);
   const rows = list.data?.items;
-  // Observers that never fetch: they hand over a board another component loaded, and re-render when it changes.
-  const details = useQueries({
-    queries: (rows ?? []).map((row) => ({
-      queryKey: collectionKey(row.id),
-      queryFn: () => fetchCollection(row.id),
-      enabled: false,
-    })),
-    combine: (results) => results.map((result) => result.data),
-  });
   const collections = useMemo(
     () =>
-      (rows ?? []).map((row, index): CollectionView => ({
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
-        description: row.description,
-        itemCount: row.itemCount,
-        items: (details[index]?.items ?? []).map(({ story, addedAt }) => ({
-          storyId: story.id,
-          addedAt,
-        })),
-      })),
-    [rows, details],
+      (rows ?? []).map((row): CollectionView => {
+        const board = queryClient.getQueryData<CollectionDetail>(collectionKey(row.id));
+        return {
+          id: row.id,
+          slug: row.slug,
+          name: row.name,
+          description: row.description,
+          itemCount: row.itemCount,
+          items: (board?.items ?? []).map(({ story, addedAt }) => ({
+            storyId: story.id,
+            addedAt,
+          })),
+        };
+      }),
+    // `boardsVersion` signals that a board in the cache changed.
+    [rows, queryClient, boardsVersion],
   );
   return { isLoading: enabled && list.isPending, collections };
-}
-
-/**
- * Loads the items of these collections for an account (a guest's are on the device already), so their `items` and
- * `collectionsOf` are complete. `isLoading` is true until every one has arrived.
- */
-export function useCollectionItems(collectionIds: readonly string[]) {
-  const { data: user } = useMe();
-  const isAccount = Boolean(user);
-  return useQueries({
-    queries: collectionIds.map((id) => ({
-      queryKey: collectionKey(id),
-      queryFn: () => fetchCollection(id),
-      enabled: isAccount && !isPendingCollectionId(id),
-    })),
-    combine: (results) => ({
-      isLoading: results.some((result) => result.isPending && result.fetchStatus !== 'idle'),
-    }),
-  });
 }
 
 /** The one way components read and change collections: the account's when signed in, this device's otherwise. */

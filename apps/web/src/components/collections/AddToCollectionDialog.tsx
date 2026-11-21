@@ -10,12 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
-import {
-  preloadCollectionWriters,
-  useCollectionItems,
-  useCollections,
-  type CollectionView,
-} from './useCollections';
+import { useCollectionItems } from './useCollectionItems';
+import { preloadCollectionWriters, useCollections, type CollectionView } from './useCollections';
 import { useReturnFocus } from '@/lib/useReturnFocus';
 
 type AddToCollectionDialogProps = {

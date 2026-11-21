@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useQueryCacheVersion } from '@/lib/useQueryCacheVersion';
 import { findCachedNote, isNoteQueryKey } from './accountNoteCache';
 
 type NoteWriter = typeof import('./accountNotes');
@@ -20,24 +20,7 @@ function prepareNoteWrites() {
 export function useAccountNotes() {
   const queryClient = useQueryClient();
   // Reads go straight to the caches, so a change to one has to re-render the components that read.
-  const changes = useRef(0);
-  const subscribe = useCallback(
-    (onChange: () => void) =>
-      queryClient.getQueryCache().subscribe((event) => {
-        // Only a change to what a cache holds, not the bookkeeping of a fetch starting.
-        const isDataChange =
-          event.type === 'removed' || (event.type === 'updated' && event.action.type === 'success');
-        if (!isDataChange || !isNoteQueryKey(event.query.queryKey)) return;
-        changes.current += 1;
-        onChange();
-      }),
-    [queryClient],
-  );
-  useSyncExternalStore(
-    subscribe,
-    () => changes.current,
-    () => 0,
-  );
+  useQueryCacheVersion(isNoteQueryKey);
 
   function note(storyId: string) {
     return findCachedNote(queryClient, storyId)?.note ?? null;
