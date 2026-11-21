@@ -22,7 +22,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 8. **Secrets.** Generate `BETTER_AUTH_SECRET` and `INTERNAL_API_TOKEN` (the wizard does); `INTERNAL_API_TOKEN` must be identical in `api` and `web`.
 9. **OAuth apps and the GitHub source token.** Register the production apps with the callbacks in [OAuth apps](#oauth-apps), and create the token in [GitHub source token](#github-source-token).
 10. **Auto-deploy.** On both applications enable automatic deployment from `main` (Coolify's GitHub App, or the webhook URL added to the repository). CI must be green before merging, as ever; Coolify deploys the push.
-11. **Seed the sources** once, after the first deploy: in the API application's Terminal run `node dist/cli/seed.js`. It is idempotent. Set `INGEST_ON_BOOT=true` so the first start fills the feed; the hourly job takes over from there (it needs `INGEST_SCHEDULE=true`).
+11. **Sources.** The API seeds them itself at every start (see [Deploy and rollback](#deploy-and-rollback)), so there is nothing to run by hand. Set `INGEST_ON_BOOT=true` so the first start fills the feed; the hourly job takes over from there (it needs `INGEST_SCHEDULE=true`).
 12. **Check the deploy.** `SMOKE_BASE_URL=https://devbrief.example pnpm smoke:prod` (see [Post-deploy checks](#post-deploy-checks)).
 
 ## Environment variables
@@ -60,7 +60,9 @@ Production has two applications, `api` and `web`, and each flag must have the sa
 
 ## Deploy and rollback
 
-A push to `main` makes Coolify build both images from the Dockerfiles and replace the containers. The API image's start command is `prisma migrate deploy && node dist/main.js`: a failed migration exits non-zero, the new container never turns healthy, and Coolify leaves the old container serving (the deployment shows as failed in Coolify).
+A push to `main` makes Coolify build both images from the Dockerfiles and replace the containers. The API image's start command is `prisma migrate deploy && node dist/cli/seed.js && node dist/main.js`: a failed migration or seed exits non-zero, the new container never turns healthy, and Coolify leaves the old container serving (the deployment shows as failed in Coolify).
+
+The seed runs at every API start. It is idempotent and writes each source's `enabled` flag, so switching a source on or off is a change to `apps/api/prisma/seed/sources.json` plus a deploy. The RSS blog sources are off ([PRD §8.8](prd.md#88-content-rights)); their stories stay and age out under retention.
 
 A failed migration blocks every later deploy (Prisma P3009) until it is resolved, so a fixing commit alone does not recover. Resolve it from the running (old) API container's Terminal in Coolify:
 
