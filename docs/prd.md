@@ -550,7 +550,7 @@ dev-brief/
 │  │  ├─ src/components/ui/                  shadcn/ui primitives (generated)
 │  │  ├─ src/components/{feed,story,landing,layout,saves}/
 │  │  ├─ src/features/copilot/               A2UI catalog impl + command bar (P3)
-│  │  ├─ src/features/radar/                 Recharts views (P3)
+│  │  ├─ src/components/radar/               Recharts velocity chart (P3)
 │  │  ├─ src/lib/api/                        typed fetch client (parses with shared Zod)
 │  │  ├─ src/lib/guest/                      Zustand guest store (persist → localStorage)
 │  │  ├─ src/lib/hotkeys/                    shortcut registry + help dialog data
