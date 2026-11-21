@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   byRole,
   click,
@@ -10,6 +10,9 @@ import { answerSignOut, confirmSignOut } from '@/lib/auth/signOutConfirm';
 import { SignOutConfirm } from './SignOutConfirm';
 
 let unmount = () => {};
+
+// The dialog is a lazy chunk; load it here so the tests wait on the dialog, not on a cold import.
+beforeAll(() => import('./SignOutConfirmDialog'));
 
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', NoopResizeObserver);
