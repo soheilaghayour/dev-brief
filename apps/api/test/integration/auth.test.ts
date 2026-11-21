@@ -296,6 +296,38 @@ describe('authentication', () => {
     expect(await prisma.copilotQuery.count({ where: { guestKey: 'guest-digest' } })).toBe(1);
   });
 
+  it('DELETE /me keeps the LlmUsage ledger rows with userId cleared and cost intact', async () => {
+    const doomed = await signIn(app, { email: 'doomed-ledger@example.com' });
+    const bystander = await signIn(app, { email: 'bystander-ledger@example.com' });
+    const ledgerRow = {
+      day: new Date('2026-01-01'),
+      feature: 'summary_auto',
+      model: 'claude-haiku-5-5',
+      status: 'settled',
+      reservedUsd: '0.010000',
+      costUsd: '0.004200',
+    } as const;
+    const { id: doomedRowId } = await prisma.llmUsage.create({
+      data: { ...ledgerRow, userId: doomed.userId, refId: 'story-1' },
+    });
+    const { id: bystanderRowId } = await prisma.llmUsage.create({
+      data: { ...ledgerRow, userId: bystander.userId },
+    });
+
+    const response = await withApp(app)
+      .delete('/api/v1/me')
+      .set('Cookie', doomed.cookie)
+      .set('Origin', env.APP_URL);
+    expect(response.status).toBe(204);
+
+    const cleared = await prisma.llmUsage.findUniqueOrThrow({ where: { id: doomedRowId } });
+    expect(cleared.userId).toBeNull();
+    expect(cleared.refId).toBe('story-1');
+    expect(cleared.costUsd?.toFixed(6)).toBe('0.004200');
+    const untouched = await prisma.llmUsage.findUniqueOrThrow({ where: { id: bystanderRowId } });
+    expect(untouched.userId).toBe(bystander.userId);
+  });
+
   it('AC-1.5.8 after sign-out the session no longer authenticates', async () => {
     const clientIp = freshClientIp();
     const { cookie } = await signIn(app, { email: 'leaving@example.com' }, clientIp);
