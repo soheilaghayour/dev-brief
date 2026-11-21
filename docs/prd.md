@@ -451,7 +451,7 @@ Acceptance criteria:
 
 #### F3.3 Tech Radar
 - **AC-3.3.1** `/radar` has a window toggle (7d/30d), a metric toggle (stories/engagement), a "Top movers" table (tag, current window total, previous window total, Δ%), and a multi-line Recharts chart for up to 5 selected tags. The default is the top 5 movers.
-- **AC-3.3.2** Data comes only from `TagDailyStat` via `GET /api/v1/radar`. Days with no data render as 0.
+- **AC-3.3.2** Data comes only from `TagDailyStat` via `GET /api/v1/radar`. Days with no data render as 0. Both windows end on yesterday (UTC), the last complete day: the current window is the N days ending yesterday and the previous window the N days before it. Today's partial row is never read; an ingestion post-run step recomputes `TagDailyStat` for yesterday and today, so yesterday is complete soon after midnight.
 - **AC-3.3.3** Recharts loads only on `/radar` and in copilot briefings (code-split), never in the landing or feed bundles.
 - **AC-3.3.4** The chart has an accessible data-table fallback (a "View as table" toggle).
 
@@ -1295,7 +1295,7 @@ export const StorySummarySchema = z.object({
 | 22 | POST | `/api/v1/copilot/ask` | optional | `CopilotAskRequestSchema` `{ question: string(3..200), deviceId: uuid }` | `200 text/event-stream` (§6.4.2). Errors before the stream starts use JSON `ApiError` (400/429). |
 | 23 | GET | `/api/v1/copilot/quota` | optional | `deviceId` | `{ limit, remaining, resetsAt }` |
 | 24 | GET | `/api/v1/copilot/examples` | public | none | `{ items: [{ slug, question, messages: A2uiMessage[] }] }` |
-| 25 | GET | `/api/v1/radar` | public | `window=7d\|30d`, `metric=stories\|engagement`, `tags?` (≤ 5) | `RadarSchema` `{ window, metric, series: [{ tag, points: [{ date, value }] }], movers: [{ tag, current, previous, deltaPct }] }` |
+| 25 | GET | `/api/v1/radar` | public | `window=7d\|30d`, `metric=stories\|engagement`, `tags?` (≤ 5) | `RadarSchema` `{ window, metric, series: [{ tag, label, points: [{ date, value }] }], movers: [{ tag, label, current, previous, deltaPct }] }`; `deltaPct` is a nullable integer, `null` when the previous window is 0 |
 | 26 | GET / POST | `/api/v1/me/collections` | user | POST `{ name, description? }` | list / created `Collection` |
 | 27 | GET / PATCH / DELETE | `/api/v1/me/collections/:id` | user | PATCH `{ name?, description?, position? }` | GET `CollectionDetailSchema` `{ collection, items: [{ story: StoryCard, position, addedAt, note, noteUpdatedAt }] }` in `position` order, unpaginated (the board view) / `Collection` / 204 |
 | 28 | PUT / DELETE | `/api/v1/me/collections/:id/items/:storyId` | user | `{ position? }` | 200 / 204 (PUT also saves the story if needed) |
