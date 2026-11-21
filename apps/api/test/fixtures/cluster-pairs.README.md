@@ -18,4 +18,6 @@
 
 **Held-out set.** The pairs are real stories, labelled before the pre-filter was run on them. Some are taken from the recorded HN, Dev.to and RSS snapshots in `test/fixtures`, including older items of `rss/react-blog.xml`. The others are public HN items and Dev.to articles, each fetched once from the HN Firebase API or the Dev.to API and passed through its adapter, so each story is exactly what ingestion would store, with its recorded date. Each pair's second story was picked by the event it reports, before any score was seen. At least 75% of their positives must pass `CLUSTER_CANDIDATE_MIN_SCORE`: the pre-filter's constants were chosen on them (DECISIONS.md), so for the pre-filter they are a gate, not a blind set. The prompt and `CLUSTER_MIN_CONFIDENCE` are never tuned on them.
 
+**Confirmation set.** `cluster-pairs.confirm.json` has 11 positives and 12 negatives, labelled by the rule above before the pre-filter scored any of them, and committed with their labels first. The negatives are real HN stories, one pair of them sharing a CVE id. It needs no recording: it measures the pre-filter only. At least 75% of its positives must pass `CLUSTER_CANDIDATE_MIN_SCORE`. **Never tune a constant on this set; if it fails, report to the owner.**
+
 Changing a pair or a prompt makes the recording stale (see `llm/README.md`): the accuracy test names the stale pairs.

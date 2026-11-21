@@ -171,12 +171,22 @@ export function trigramsOf(normalizedTitle: string) {
   return trigrams;
 }
 
-const ADVISORY_ID = /\b(?:cve-\d{4}-\d{4,}|ghsa(?:-[a-z0-9]{4}){3})\b/gi;
+// `\b` treats `_` as a word character, which would hide `_cve-…` in a URL slug; headlines also carry Unicode hyphens.
+const UNICODE_HYPHENS = /[\u2010\u2011\u2013\u2014]/g;
+const HYPHEN = '[-\\u2010\\u2011\\u2013\\u2014]';
+const ADVISORY_ID = new RegExp(
+  `(?<![a-z0-9])(?:cve${HYPHEN}\\d{4}${HYPHEN}\\d{4,}|ghsa(?:${HYPHEN}[a-z0-9]{4}){3})(?![a-z0-9])`,
+  'gi',
+);
 
 /** The CVE and GHSA ids a story names in its title, excerpt or URL, lowercased. */
 export function advisoryIds(story: { title: string; url: string; excerpt: string | null }) {
   const text = `${story.title} ${story.excerpt ?? ''} ${story.url}`;
-  return new Set(Array.from(text.matchAll(ADVISORY_ID), ([id]) => id.toLowerCase()));
+  return new Set(
+    Array.from(text.matchAll(ADVISORY_ID), ([id]) =>
+      id.toLowerCase().replace(UNICODE_HYPHENS, '-'),
+    ),
+  );
 }
 
 /** What scoring a story against another needs, computed once per story. */

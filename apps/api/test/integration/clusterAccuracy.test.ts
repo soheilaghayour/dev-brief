@@ -12,6 +12,7 @@ import {
   type ClusterPair,
   pairRequest,
   readClusterPairs,
+  readConfirmPairs,
   readHeldOutPairs,
   readPairsRecording,
   requestHash,
@@ -22,6 +23,7 @@ import { useTestDatabase } from './testDatabase.js';
 
 const pairs = readClusterPairs();
 const heldOutPairs = readHeldOutPairs();
+const confirmPairs = readConfirmPairs();
 const recording = readPairsRecording();
 const positives = pairs.filter(({ label }) => label === 'same');
 const TITLE_DEDUP_WINDOW_MS = 72 * 60 * 60 * 1000;
@@ -39,14 +41,18 @@ describe('cluster pair fixtures', () => {
     expect(pairs.length - positives.length).toBeGreaterThanOrEqual(20);
     expect(heldOutPairs.length).toBeGreaterThanOrEqual(30);
     expect(heldOutPairs.filter(({ label }) => label === 'same').length).toBeGreaterThanOrEqual(12);
-    const ids = [...pairs, ...heldOutPairs].map(({ id }) => id);
+    const ids = [...pairs, ...heldOutPairs, ...confirmPairs].map(({ id }) => id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(expect.arrayContaining(['react-19-1-vs-19-2']));
+    expect(confirmPairs.filter(({ label }) => label === 'same').length).toBeGreaterThanOrEqual(11);
+    expect(confirmPairs.filter(({ label }) => label === 'different').length).toBeGreaterThanOrEqual(
+      11,
+    );
   });
 
   it("mirror what ingestion produces: no pair would be merged into one Story, and each source has its adapter's shape", () => {
     const problems: string[] = [];
-    for (const pair of [...pairs, ...heldOutPairs]) {
+    for (const pair of [...pairs, ...heldOutPairs, ...confirmPairs]) {
       const { a, b } = pair;
       if (canonicalizeUrl(a.url) === canonicalizeUrl(b.url)) problems.push(`${pair.id}: same URL`);
       const apart = Math.abs(Date.parse(a.publishedAt) - Date.parse(b.publishedAt));
@@ -86,6 +92,12 @@ describe('cluster pair fixtures', () => {
     );
     expect(reaching.length).toBeGreaterThanOrEqual(8);
     expect(injected.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('sends a negative that shares one CVE id to the model: the pre-filter has no way to cut it', () => {
+    const pair = pairs.find(({ id }) => id === 'react2shell-nvd-vs-vercel-upgrade');
+    expect(pair?.label).toBe('different');
+    expect(pair && reachesModel(pair)).toBe(true);
   });
 });
 
@@ -176,6 +188,18 @@ describe('cluster accuracy fixture', () => {
     const cut = positiveSet.filter((pair) => !reachesModel(pair)).map(({ id }) => id);
     process.stderr.write(
       `\nheld-out pairs: ${held.passed} of ${positiveSet.length} positives and ${all.passed} of ${heldOutPairs.length} pairs pass the pre-filter\n`,
+    );
+    expect(held.rate, `cut by the floor: ${cut.join(', ')}`).toBeGreaterThanOrEqual(0.75);
+  });
+
+  // Never tune a constant on this set: if it fails, report to the owner.
+  it('AC-2.1.1 passes at least 75% of the confirmation positives, which no constant was tuned on', () => {
+    const positiveSet = confirmPairs.filter(({ label }) => label === 'same');
+    const negativeSet = confirmPairs.filter(({ label }) => label === 'different');
+    const held = passRate(positiveSet);
+    const cut = positiveSet.filter((pair) => !reachesModel(pair)).map(({ id }) => id);
+    process.stderr.write(
+      `\nconfirmation pairs: ${held.passed} of ${positiveSet.length} positives and ${negativeSet.filter(reachesModel).length} of ${negativeSet.length} negatives reach the model\n`,
     );
     expect(held.rate, `cut by the floor: ${cut.join(', ')}`).toBeGreaterThanOrEqual(0.75);
   });

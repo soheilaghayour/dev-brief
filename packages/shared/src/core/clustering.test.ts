@@ -109,6 +109,26 @@ describe('advisoryIds', () => {
     );
   });
 
+  it('reads an id after an underscore or a slash, and reads Unicode hyphens as hyphens', () => {
+    expect(
+      advisoryIds({
+        title: 'CVE\u20112025\u201155182 and GHSA\u2013abcd\u2014efgh-ijkl',
+        url: 'https://example.com/advisories/_cve-2025-66478',
+        excerpt: null,
+      }),
+    ).toEqual(new Set(['cve-2025-55182', 'ghsa-abcd-efgh-ijkl', 'cve-2025-66478']));
+  });
+
+  it('reads no id glued to a longer word or number', () => {
+    expect(
+      advisoryIds({
+        title: 'xcve-2025-55182 and 9ghsa-abcd-efgh-ijkl and cve-2025-551823x',
+        url: 'https://example.com',
+        excerpt: null,
+      }),
+    ).toEqual(new Set());
+  });
+
   it('reads no id from a version, a year or a partial id', () => {
     expect(
       advisoryIds({

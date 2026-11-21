@@ -1,11 +1,13 @@
 import { Output } from 'ai';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { readPairsRecording } from '../clusterPairs.js';
 import {
   costFromUsage,
   estimateTokens,
   LLM_CAP_CLUSTER_USD_DAY,
   LLM_PRICES_PER_MTOK,
 } from '../../src/modules/llm/budget.js';
+import { CLUSTER_MAX_CALLS_PER_RUN } from '../../src/modules/clustering/clusteringRules.js';
 import {
   buildClusterMatchPrompt,
   candidateLabel,
@@ -23,10 +25,7 @@ import {
 const NEW_STORIES_PER_DAY = 400;
 const CAP_HEADROOM = 0.3;
 
-// The settled cost of an average call, which is what the cap limits: the ledger reserves the worst case but keeps the actual usage.
-// Input: the ledger's own estimate (2 UTF-8 bytes a token, an over-count) of system prompt, schema and story blocks averages
-// about 620 tokens on the snapshots and 440 on the HN window, so 650. Output: a reply like {"match":"none","confidence":0.95}
-// is under 20 tokens. 650 × $0.10/1M + 20 × $0.50/1M = $0.000065 + $0.00001 = $0.000075.
+// The expected settled cost of a call, derived in PRD §8.1.
 const EXPECTED_INPUT_TOKENS_PER_CALL = 650;
 const EXPECTED_OUTPUT_TOKENS_PER_CALL = 20;
 const EXPECTED_COST_PER_CALL_USD = costFromUsage(
@@ -80,4 +79,36 @@ describe('clustering pre-filter model calls', () => {
     expect(meanInput).toBeLessThanOrEqual(EXPECTED_INPUT_TOKENS_PER_CALL);
     expect(dailyUsd).toBeLessThanOrEqual(LLM_CAP_CLUSTER_USD_DAY * (1 - CAP_HEADROOM));
   });
+
+  it('CLUSTER_MAX_CALLS_PER_RUN is 100', () => {
+    expect(CLUSTER_MAX_CALLS_PER_RUN).toBe(100);
+  });
+
+  beforeAll(() => {
+    if (readPairsRecording().placeholder !== true) return;
+    // Straight to stderr: the default reporter hides console output of a passing file.
+    process.stderr.write(
+      '\nWARNING, 1 test SKIPPED: the cluster recording is still a placeholder, so the real per-call cost is unchecked (issue #82).\n\n',
+    );
+  });
+
+  // Hand-written usage proves nothing about the real cost.
+  it.skipIf(readPairsRecording().placeholder === true)(
+    'the recorded replies cost no more per call than the expected settled cost',
+    () => {
+      const { replies, model } = readPairsRecording();
+      const costs = Object.values(replies).map(({ usage }) =>
+        costFromUsage(
+          {
+            inputTokens: usage.inputTokens.total ?? 0,
+            outputTokens: usage.outputTokens.total ?? 0,
+            model,
+          },
+          LLM_PRICES_PER_MTOK,
+        ),
+      );
+      const mean = costs.reduce((sum, cost) => sum + cost, 0) / costs.length;
+      expect(mean).toBeLessThanOrEqual(EXPECTED_COST_PER_CALL_USD);
+    },
+  );
 });

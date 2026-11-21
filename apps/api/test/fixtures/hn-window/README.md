@@ -1,3 +1,5 @@
 `items.json` holds every HN story with at least 3 points submitted from 2025-11-15T00:00Z to 2025-11-19T00:00Z (1,663 items), so that each story of 2025-11-18 has its full ±72 h window behind it. That is about 490 stories a day, close to the volume behind the cluster cap ([PRD §8.1](../../../../../docs/prd.md)), and a window of about 1,200 stories. It was fetched once on 2026-11-21 from the live HN Algolia API, `GET https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=1000&numericFilters=created_at_i>=…,created_at_i<…,points>=3` in 6-hour slices. Each hit was kept in the shape of a Firebase `item` with only the fields `HnAdapter` reads: `id` (the hit's `objectID`), `type: "story"`, `time` (`created_at_i`), `title` and `url` (left out for a text post). The file has one item per line, ordered by `time`.
 
 The test that reads it measures the clustering pre-filter's model-call rate at a production-sized window; `../hn/items.json` stays the fixture of the HN adapter itself.
+
+The data is public Hacker News data from the Algolia API; only titles, URLs and ids are kept, and no usernames.
