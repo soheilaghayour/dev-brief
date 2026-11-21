@@ -1,6 +1,6 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import {
   A2uiServerMessageSchema,
   ApiErrorSchema,
@@ -13,8 +13,11 @@ import {
 import { APICallError } from 'ai';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PrismaService } from '../../src/common/prisma/prisma.service.js';
 import { loadEnv } from '../../src/env.js';
 import type { Prisma } from '../../src/generated/prisma/client.js';
+import { BriefingRetrievalService } from '../../src/modules/copilot/briefingRetrieval.service.js';
+import { CopilotService } from '../../src/modules/copilot/copilot.service.js';
 import { noCoverageBriefing } from '../../src/modules/copilot/noCoverageBriefing.js';
 import { copilotQuota } from '../../src/modules/copilot/copilotQuota.js';
 import {
@@ -161,13 +164,13 @@ describe('POST /copilot/ask', () => {
     await app?.close();
   });
 
-  async function seedStories(count: number) {
+  async function seedStories(count: number, tag = 'typescript') {
     for (let rank = 1; rank <= count; rank += 1) {
       await createStory(prisma, {
         title: `Compiler internals part ${rank}`,
         publishedAt: new Date(Date.now() - rank * HOUR_MS),
         rankScore: rank,
-        tags: ['typescript'],
+        tags: [tag],
         itemSourceIds: [sourceId],
       });
     }
@@ -312,8 +315,9 @@ describe('POST /copilot/ask', () => {
   it('stores a completed question with its messages, storyIds, tokens and cost', async () => {
     await seedStories(4);
     await boot();
+    const ip = freshIp();
 
-    const { text } = await ask(deviceBody()).complete();
+    const { text } = await ask(deviceBody(), { ip }).complete();
 
     const row = await prisma.copilotQuery.findFirstOrThrow();
     expect(row).toMatchObject({
@@ -326,8 +330,54 @@ describe('POST /copilot/ask', () => {
     expect(row.question).toBe(QUESTION.trim());
     expect(row.messages).toEqual(messagesOf(text));
     expect(Number(row.costUsd)).toBeGreaterThan(0);
-    expect(row.guestKey).toMatch(/^copilot:guest:[0-9a-f]{64}:/);
-    expect(row.guestKey).not.toContain('203.0.113');
+    expect(row.guestKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(row.guestKey).toBe(
+      copilotQuota(guestOf(ip), env.IP_HASH_SECRET ?? '', new Date()).guestKey,
+    );
+    expect(row.guestKey).not.toContain(DEVICE);
+  });
+
+  it('gives the slot back, and answers 500, when the question row cannot be created', async () => {
+    await seedStories(4);
+    await boot();
+    vi.spyOn(app!.get(PrismaService).copilotQuery, 'create').mockRejectedValueOnce(
+      new Error('database down'),
+    );
+    const ip = freshIp();
+
+    const { status } = await ask(deviceBody(), { ip }).complete();
+
+    expect(status).toBe(500);
+    expect((await counterFor(guestOf(ip)))?.count).toBe(0);
+  });
+
+  it('sends meta, then error INTERNAL, gives the slot back and logs once when something throws before the first event', async () => {
+    await seedStories(4);
+    await boot();
+    vi.spyOn(app!.get(BriefingRetrievalService), 'retrieve').mockRejectedValueOnce(
+      new Error('retrieval broke'),
+    );
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const ip = freshIp();
+
+    const { text } = await ask(deviceBody(), { ip }).complete();
+
+    expect(namesOf(text)).toEqual(['meta', 'error']);
+    expect(CopilotErrorEventSchema.parse(eventsOf(text)[1]?.data).code).toBe('INTERNAL');
+    expect((await counterFor(guestOf(ip)))?.count).toBe(0);
+    expect(await prisma.copilotQuery.findFirstOrThrow()).toMatchObject({ status: 'failed' });
+    expect(logged).toHaveBeenCalledTimes(1);
+  });
+
+  it('files the model call under the copilot query id in the spend ledger', async () => {
+    await seedStories(4);
+    await boot();
+
+    const { text } = await ask(deviceBody()).complete();
+
+    const rows = await prisma.llmUsage.findMany({ where: { feature: 'copilot' } });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every(({ refId }) => refId === metaOf(text).queryId)).toBe(true);
   });
 
   it('AC-3.1.3 replays a question that normalises identically for free, with the stored row id and no model call', async () => {
@@ -521,12 +571,15 @@ describe('POST /copilot/ask', () => {
     ])(
       'AC-3.1.5 replays the closest example with meta.fallback SPEND_CAP, no model call and the slot given back when %s is spent',
       async (_name, caps) => {
-        await seedStories(4);
+        await seedStories(4, 'rust');
         await seedExamples();
         await boot({ envOverrides: caps });
         const ip = freshIp();
 
-        const { status, text } = await ask(deviceBody(), { ip }).complete();
+        // The tag-matching example is the last one, so the pick is not simply position 0.
+        const { status, text } = await ask(deviceBody('Is Rust still worth learning?'), {
+          ip,
+        }).complete();
 
         expect(status).toBe(200);
         expect(model.doStreamCalls).toHaveLength(0);
@@ -536,7 +589,7 @@ describe('POST /copilot/ask', () => {
           quota: { remaining: 3 },
         });
         const closest = await prisma.exampleBriefing.findUniqueOrThrow({
-          where: { slug: 'ts-tooling-debates' },
+          where: { slug: 'rust-vs-go' },
         });
         expect(messagesOf(text)).toEqual(closest.messages);
         expect(namesOf(text).at(-1)).toBe('done');
@@ -729,6 +782,55 @@ describe('POST /copilot/ask', () => {
     });
   });
 
+  describe('a reader that leaves between two events', () => {
+    /** Reads the stream through the service as the controller does, and stops after `count` events. */
+    async function readAndLeave(count: number, ip: string) {
+      await boot({ listen: false });
+      const events = await app!
+        .get(CopilotService)
+        .ask({ ...deviceBody() }, { ip }, new AbortController().signal);
+      const read: string[] = [];
+      for await (const { event, data } of events) {
+        read.push(event === 'a2ui' ? Object.keys(data)[1]! : event);
+        if (read.length === count) break;
+      }
+      return read;
+    }
+
+    it('gives the slot back when it leaves after the opening root, which is no section', async () => {
+      await seedStories(4);
+      const ip = freshIp();
+
+      const read = await readAndLeave(4, ip);
+
+      expect(read).toEqual(['meta', 'createSurface', 'updateComponents', 'updateDataModel']);
+      await until(async () => (await counterFor(guestOf(ip)))?.count === 0);
+      expect(await prisma.copilotQuery.findFirstOrThrow()).toMatchObject({ status: 'failed' });
+    });
+
+    it('gives the slot back when it leaves with the first section in hand but never wrote it', async () => {
+      await seedStories(4);
+      const ip = freshIp();
+
+      // The fifth event is the first section; the reader stops before asking for the next one.
+      const read = await readAndLeave(5, ip);
+
+      expect(read.slice(-1)).toEqual(['updateComponents']);
+      await until(async () => (await prisma.copilotQuery.findFirst())?.status === 'failed');
+      await until(async () => (await counterFor(guestOf(ip)))?.count === 0);
+    });
+
+    it('keeps the slot once the first section was written and the reader asked for more', async () => {
+      await seedStories(4);
+      const ip = freshIp();
+
+      await readAndLeave(6, ip);
+
+      await until(async () => (await prisma.copilotQuery.findFirst())?.status === 'failed');
+      expect((await counterFor(guestOf(ip)))?.count).toBe(1);
+    });
+  });
+
   describe('guards', () => {
     it('answers a foreign Origin with 403 FORBIDDEN_ORIGIN, before anything is stored', async () => {
       await boot();
@@ -751,6 +853,31 @@ describe('POST /copilot/ask', () => {
       expect(headers['content-type']).toContain('application/json');
       expect(ApiErrorSchema.parse(JSON.parse(text)).error.code).toBe('VALIDATION_FAILED');
       expect(await prisma.rateLimitCounter.count()).toBe(0);
+    });
+
+    it('answers a question of only punctuation with a JSON 400 VALIDATION_FAILED, as it has no cache key, and takes no slot', async () => {
+      await boot();
+
+      const { status, text } = await ask(deviceBody('???')).complete();
+
+      expect(status).toBe(400);
+      expect(ApiErrorSchema.parse(JSON.parse(text)).error.code).toBe('VALIDATION_FAILED');
+      expect(await prisma.rateLimitCounter.count()).toBe(0);
+      expect(await prisma.copilotQuery.count()).toBe(0);
+    });
+
+    it('does not share a cached answer between "C#" and "C", or "F#" and "F"', async () => {
+      await seedStories(4);
+      await boot();
+      const ip = freshIp();
+      await ask(deviceBody("What's new in TypeScript tooling and C#?"), { ip }).complete();
+
+      const other = await ask(deviceBody("What's new in TypeScript tooling and C"), {
+        ip,
+      }).complete();
+
+      expect(metaOf(other.text).cached).toBe(false);
+      expect(model.doStreamCalls).toHaveLength(2);
     });
 
     it('answers 404 FEATURE_DISABLED before any other guard when the flag is off', async () => {

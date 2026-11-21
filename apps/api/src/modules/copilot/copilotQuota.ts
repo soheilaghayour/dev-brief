@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ipDigest } from '../../common/rate-limit/ipDigest.js';
 import { utcDay } from '../../common/time/utcDay.js';
 
@@ -17,11 +18,16 @@ export function copilotQuota(requester: Requester, secret: string, now: Date) {
     return {
       ...common,
       counters: [{ key: `copilot:user:${requester.userId}`, limit: USER_DAILY_LIMIT }],
+      guestKey: undefined,
     };
   }
   const digest = ipDigest(requester.ip, secret, now);
   return {
     ...common,
+    // What `CopilotQuery` stores: the daily-salted IP digest and the device id hashed together, so a device id that never rotates can't link a guest's questions across days.
+    guestKey: createHash('sha256')
+      .update(digest + requester.deviceId)
+      .digest('hex'),
     // A guest needs room in both: the device quota, and the IP backstop against rotating device ids.
     counters: [
       { key: `copilot:guest:${digest}:${requester.deviceId}`, limit: GUEST_DAILY_LIMIT },

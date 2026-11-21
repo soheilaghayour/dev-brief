@@ -27,7 +27,8 @@ import { noCoverageBriefing } from './noCoverageBriefing.js';
 export type PipelineEvent =
   /** Too few stories: the whole answer, with no model call. */
   | { kind: 'no_coverage'; messages: A2uiServerMessage[] }
-  | { kind: 'message'; message: A2uiServerMessage }
+  /** `section` marks a compiled section: something the reader can use, unlike the opening surface, root and subtitle. */
+  | { kind: 'message'; message: A2uiServerMessage; section: boolean }
   | {
       kind: 'complete';
       usage: TokenUsage;
@@ -35,8 +36,8 @@ export type PipelineEvent =
       /** The retrieved stories the briefing shows or cites. */
       storyIds: string[];
     }
-  /** The model call failed or its plan was unusable; `sectionSent` says whether a section already reached the client. */
-  | { kind: 'failed'; error: GenerationFailedError; sectionSent: boolean };
+  /** The model call failed or its plan was unusable. */
+  | { kind: 'failed'; error: GenerationFailedError };
 
 const logger = new Logger('BriefingPipeline');
 
@@ -53,11 +54,14 @@ export class BriefingPipelineService {
   async *run({
     question,
     surfaceId,
+    refId,
     signal,
     userId,
   }: {
     question: string;
     surfaceId: string;
+    /** The id the model call's ledger row is filed under. */
+    refId?: string;
     signal?: AbortSignal;
     userId?: string;
   }): AsyncGenerator<PipelineEvent, void> {
@@ -93,6 +97,7 @@ export class BriefingPipelineService {
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       userId,
+      refId,
       signal,
     });
 
@@ -109,9 +114,9 @@ export class BriefingPipelineService {
         if (event.kind === 'title') {
           // Nothing is sent before the title: the first token proves the call is live, so a spent cap or an early failure sends nothing.
           context.title = event.title;
-          yield { kind: 'message', message: createSurfaceMessage(surfaceId) };
-          yield { kind: 'message', message: rootMessage(surfaceId, event.title) };
-          yield { kind: 'message', message: subtitleMessage(surfaceId, stories) };
+          yield { kind: 'message', message: createSurfaceMessage(surfaceId), section: false };
+          yield { kind: 'message', message: rootMessage(surfaceId, event.title), section: false };
+          yield { kind: 'message', message: subtitleMessage(surfaceId, stories), section: false };
         } else if (event.kind === 'section') {
           const compiled = compileSection(event.section, event.index, childIds, context);
           if (compiled.kind === 'invalid') {
@@ -120,7 +125,7 @@ export class BriefingPipelineService {
           if (compiled.kind !== 'compiled') continue;
           childIds = compiled.childIds;
           for (const id of compiled.storyIds) storyIds.add(id);
-          yield { kind: 'message', message: compiled.message };
+          yield { kind: 'message', message: compiled.message, section: true };
         } else {
           if (childIds.length === 0) throw new GenerationFailedError('invalid_output');
           yield {
@@ -136,7 +141,7 @@ export class BriefingPipelineService {
       }
     } catch (error) {
       if (!(error instanceof GenerationFailedError)) throw error;
-      yield { kind: 'failed', error, sectionSent: childIds.length > 0 };
+      yield { kind: 'failed', error };
     }
   }
 }

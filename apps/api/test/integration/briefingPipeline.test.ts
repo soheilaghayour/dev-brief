@@ -436,7 +436,7 @@ describe('briefing retrieval and pipeline', () => {
       expect(await prisma.llmUsage.count()).toBe(0);
     });
 
-    it('AC-3.1.8 ends with failed and sectionSent true when the stream breaks after a section', async () => {
+    it('AC-3.1.8 ends with failed, after messages that mark the compiled sections, when the stream breaks after a section', async () => {
       const stories = await seedCoverage();
       const text = JSON.stringify(planOf(stories.map(({ id }) => id)));
       const throughSecondSection = text.slice(0, text.indexOf('{"kind":"consensus"') + 5);
@@ -467,14 +467,17 @@ describe('briefing retrieval and pipeline', () => {
 
       expect(events.at(-1)).toMatchObject({
         kind: 'failed',
-        sectionSent: true,
         error: { name: 'GenerationFailedError', reason: 'provider_error' },
       });
       expect(messagesOf(events).length).toBeGreaterThan(3);
+      const marks = events.flatMap((event) => (event.kind === 'message' ? [event.section] : []));
+      expect(marks.slice(0, 3)).toEqual([false, false, false]);
+      expect(marks.slice(3).length).toBeGreaterThan(0);
+      expect(marks.slice(3).every(Boolean)).toBe(true);
       expect(await prisma.llmUsage.findMany()).toMatchObject([{ status: 'failed' }]);
     });
 
-    it('AC-3.1.8 sends nothing when the model refuses before any token: sectionSent is false', async () => {
+    it('AC-3.1.8 sends nothing when the model refuses before any token', async () => {
       await seedCoverage();
       const { pipeline } = await createCopilot(async () => {
         throw new APICallError({
@@ -487,7 +490,7 @@ describe('briefing retrieval and pipeline', () => {
 
       const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
 
-      expect(events).toMatchObject([{ kind: 'failed', sectionSent: false }]);
+      expect(events).toMatchObject([{ kind: 'failed' }]);
     });
 
     it('fails with invalid_output when every section is dropped, rather than completing an empty briefing', async () => {
@@ -507,7 +510,6 @@ describe('briefing retrieval and pipeline', () => {
 
       expect(events.at(-1)).toMatchObject({
         kind: 'failed',
-        sectionSent: false,
         error: { reason: 'invalid_output' },
       });
     });
@@ -529,7 +531,7 @@ describe('briefing retrieval and pipeline', () => {
 
       expect(messagesOf(events)).toEqual([]);
       expect(events).toMatchObject([
-        { kind: 'failed', sectionSent: false, error: { reason: 'invalid_output' } },
+        { kind: 'failed', error: { reason: 'invalid_output' } },
       ]);
     });
 

@@ -9,7 +9,7 @@ import { remainingQuota, type CopilotQuotaPlan } from './copilotQuota.js';
 export class CopilotQuotaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Takes one slot in every counter or none, and answers 429 `QUOTA_EXCEEDED` when one is full. */
+  /** Takes one slot in every counter or none, and answers 429 `QUOTA_EXCEEDED` when one is full. The counters are taken one after the other, so a parallel request can be refused for a slot that is given back a moment later (a transient under-grant), but never granted past a limit. */
   async take(quota: CopilotQuotaPlan) {
     const taken: typeof quota.counters = [];
     for (const counter of quota.counters) {

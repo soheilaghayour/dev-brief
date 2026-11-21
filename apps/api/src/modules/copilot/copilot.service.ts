@@ -15,7 +15,7 @@ import { closestExample } from './closestExample.js';
 import { copilotQuota, type CopilotQuotaPlan } from './copilotQuota.js';
 import { CopilotQuotaService } from './copilotQuota.service.js';
 import type { CopilotSseEvent } from './copilotSse.js';
-import { questionHash } from './normalizeQuestion.js';
+import { normalizeQuestion, questionHash } from './normalizeQuestion.js';
 
 type Requester = { userId?: string; ip: string };
 
@@ -28,17 +28,14 @@ const GENERATION_FAILED = {
   data: { code: 'GENERATION_FAILED', message: 'The briefing could not be generated.' },
 } as const satisfies CopilotSseEvent;
 
+const INTERNAL = {
+  event: 'error',
+  data: { code: 'INTERNAL', message: 'Something went wrong.' },
+} as const satisfies CopilotSseEvent;
+
 // Zod's inferred message type has no index signature, so Prisma's JSON input type rejects it though it is plain JSON.
 const json = (messages: readonly A2uiServerMessage[]) =>
   messages as unknown as Prisma.InputJsonValue;
-
-/** Whether a message adds a component other than the `root`, i.e. something the reader can use: the opening root alone carries no answer. */
-function carriesSection(message: A2uiServerMessage) {
-  return (
-    'updateComponents' in message &&
-    message.updateComponents.components.some((component) => component.id !== 'root')
-  );
-}
 
 /** The flow of F3.1: cache, then a quota slot, then the pipeline, with the fallbacks and refunds around it. */
 @Injectable()
@@ -58,6 +55,12 @@ export class CopilotService {
   ): Promise<AsyncGenerator<CopilotSseEvent, void>> {
     const now = new Date();
     const quota = this.quotaOf(requester, request.deviceId, now);
+    // A question of only punctuation normalises to nothing, so every such question would share one cache key.
+    if (!normalizeQuestion(request.question)) {
+      throw new ApiException('VALIDATION_FAILED', 'The question must contain words.', {
+        details: [{ path: 'question', message: 'Must contain more than punctuation' }],
+      });
+    }
     const hash = questionHash(request.question);
     const cached = await this.prisma.copilotQuery.findFirst({
       where: {
@@ -70,9 +73,16 @@ export class CopilotService {
     if (cached) return this.replay(cached, quota);
     // Taken before the retrieval so the 429 can still be a JSON error; a thin-coverage answer gives it back.
     await this.slots.take(quota);
-    return this.generate({
+    // Created before the stream starts, so a database failure is still a JSON 500 and not an error inside an event stream.
+    const row = await this.createRow({
       question: request.question,
       hash,
+      userId: requester.userId,
+      quota,
+    });
+    return this.generate({
+      row,
+      question: request.question,
       userId: requester.userId,
       quota,
       signal,
@@ -110,30 +120,18 @@ export class CopilotService {
   }
 
   private async *generate({
+    row,
     question,
-    hash,
     userId,
     quota,
     signal,
   }: {
+    row: { id: string };
     question: string;
-    hash: string;
     userId: string | undefined;
     quota: CopilotQuotaPlan;
     signal: AbortSignal;
   }): AsyncGenerator<CopilotSseEvent, void> {
-    const row = await this.prisma.copilotQuery.create({
-      data: {
-        userId,
-        guestKey: userId ? undefined : quota.counters[0]?.key,
-        question,
-        questionHash: hash,
-        status: 'streaming',
-        messages: [],
-        storyIds: [],
-      },
-      select: { id: true },
-    });
     const sent: A2uiServerMessage[] = [];
     let sectionSent = false;
     let metaSent = false;
@@ -154,16 +152,18 @@ export class CopilotService {
         quota: await this.slots.status(quota),
       },
     });
-    const failure = async function* (refund: boolean) {
+    // The error event always follows a meta, so the client has the queryId and quota whichever way the stream broke.
+    const failure = async function* (refund: boolean, error: CopilotSseEvent = GENERATION_FAILED) {
       await settle({ status: 'failed', messages: json(sent) }, refund);
       if (!metaSent) yield await meta();
-      yield GENERATION_FAILED;
+      yield error;
     };
 
     try {
       const run = this.pipeline.run({
         question,
         surfaceId: `briefing-${row.id}`,
+        refId: row.id,
         signal,
         userId,
       });
@@ -181,8 +181,9 @@ export class CopilotService {
             yield await meta();
           }
           sent.push(event.message);
-          sectionSent ||= carriesSection(event.message);
           yield { event: 'a2ui', data: event.message };
+          // Set only once the reader asked for the next event, i.e. after the message was written: a reader that left before it holds no section.
+          sectionSent ||= event.section;
         } else if (event.kind === 'complete') {
           await settle(
             {
@@ -198,7 +199,7 @@ export class CopilotService {
           yield { event: 'done', data: { usage: { ...event.usage, costUsd: event.costUsd } } };
           return;
         } else {
-          yield* failure(!event.sectionSent);
+          yield* failure(!sectionSent);
           return;
         }
       }
@@ -209,11 +210,42 @@ export class CopilotService {
         yield* failure(!sectionSent);
       } else {
         logger.error(error);
-        throw error;
+        yield* failure(!sectionSent, INTERNAL);
       }
     } finally {
       // The reader went away (or something unexpected threw) before the stream ended: a stored `failed` row, refunded unless a section went out.
       await settle({ status: 'failed', messages: json(sent) }, !sectionSent);
+    }
+  }
+
+  /** The `streaming` row of the question; the slot is given back when it can't be written, since no stream follows to settle it. */
+  private async createRow({
+    question,
+    hash,
+    userId,
+    quota,
+  }: {
+    question: string;
+    hash: string;
+    userId: string | undefined;
+    quota: CopilotQuotaPlan;
+  }) {
+    try {
+      return await this.prisma.copilotQuery.create({
+        data: {
+          userId,
+          guestKey: quota.guestKey,
+          question,
+          questionHash: hash,
+          status: 'streaming',
+          messages: [],
+          storyIds: [],
+        },
+        select: { id: true },
+      });
+    } catch (error) {
+      await this.slots.release(quota);
+      throw error;
     }
   }
 
