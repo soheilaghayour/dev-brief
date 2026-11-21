@@ -24,6 +24,11 @@ export function tagStatWindowStart(now: Date) {
   return utcDaysBefore(now, TAG_STAT_DAYS - 1);
 }
 
+/** Start of yesterday (UTC): the oldest day the post-run tag rollup recomputes, so yesterday's row is complete soon after midnight. */
+export function yesterdayStart(now: Date) {
+  return utcDaysBefore(now, 1);
+}
+
 /** Moment before which a Story is past retention. */
 export function storyCutoff(now: Date) {
   return new Date(now.getTime() - STORY_RETENTION_DAYS * MS_PER_DAY);
