@@ -3,13 +3,14 @@ import type { StorySummary } from '@devbrief/shared';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { findSummary } from '../../common/story-card/clusterSummary.js';
+import { findSummary, loadSummaryInputItems } from '../../common/story-card/clusterSummary.js';
 import { toStorySummary } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { SummariesService } from './summaries.service.js';
 import { summaryQuota } from './summaryQuota.js';
+import { hasSummaryInput } from '../../common/summary-input/hasSummaryInput.js';
 
 type Requester = { userId?: string; deviceId?: string; ip: string };
 
@@ -30,7 +31,7 @@ function toApiException(error: unknown) {
   return error;
 }
 
-/** The on-demand flow of F2.3: cache first, then a quota slot, then generation; a generation that fails or finds a stored summary without a model call returns its slot. */
+/** The on-demand flow of F2.3: cache first, then the summary-input check, then a quota slot, then generation; a generation that fails or finds a stored summary without a model call returns its slot. */
 @Injectable()
 export class OnDemandSummaryService {
   constructor(
@@ -52,6 +53,12 @@ export class OnDemandSummaryService {
     // For a cluster member this is the cluster's summary, wherever it is stored.
     const stored = await findSummary(this.prisma, story, this.env.FEATURE_CLUSTERS);
     if (stored) return { kind: 'cached', summary: toStorySummary(stored) };
+
+    // Before the quota slot: a request that can never be summarised costs nobody a slot.
+    const items = await loadSummaryInputItems(this.prisma, story, this.env.FEATURE_CLUSTERS);
+    if (!hasSummaryInput({ items })) {
+      throw new ApiException('NOT_FOUND', 'This story has too little discussion to summarise.');
+    }
 
     const quota = this.quotaOf(requester, now);
     await this.takeSlot(quota);

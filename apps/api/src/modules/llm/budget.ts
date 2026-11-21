@@ -1,11 +1,11 @@
 import type { LlmFeature } from '../../generated/prisma/client.js';
 
 /** Daily spend caps in USD (PRD §8.1); `budgetFromEnv` applies their env overrides. */
-export const LLM_CAP_SUMMARY_AUTO_USD_DAY = 0.015;
+export const LLM_CAP_SUMMARY_AUTO_USD_DAY = 0.225;
 export const LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY = 0.012;
 export const LLM_CAP_CLUSTER_USD_DAY = 0.02;
 export const LLM_CAP_COPILOT_USD_DAY = 0.028;
-export const LLM_CAP_GLOBAL_USD_DAY = 0.064;
+export const LLM_CAP_GLOBAL_USD_DAY = 0.32;
 
 type ModelPrice = { inputPerMTok: number; outputPerMTok: number };
 
@@ -147,7 +147,7 @@ export function committedUsd(
   return microUsd / MICRO_USD_PER_USD;
 }
 
-// Integer micro-dollars, so 20 × $0.00075 lands exactly on a $0.015 cap.
+// Integer micro-dollars, so 300 × $0.00075 lands exactly on the $0.225 auto cap.
 function toMicroUsd(usd: number) {
   return Math.round(usd * MICRO_USD_PER_USD);
 }

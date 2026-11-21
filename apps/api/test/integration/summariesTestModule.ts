@@ -66,6 +66,7 @@ export async function createDiscussedStory(
     commentsCount = 46,
     rankScore = 1,
     publishedAt = new Date(),
+    firstSeenAt = new Date(),
     externalId = '50544168',
     excerpt,
   }: {
@@ -74,6 +75,7 @@ export async function createDiscussedStory(
     commentsCount?: number;
     rankScore?: number;
     publishedAt?: Date;
+    firstSeenAt?: Date;
     externalId?: string;
     excerpt?: string;
   },
@@ -88,6 +90,7 @@ export async function createDiscussedStory(
       normalizedTitle: title.toLowerCase(),
       excerpt,
       publishedAt,
+      firstSeenAt,
       rankScore,
       tags: [],
       taggerVersion: 1,
@@ -110,6 +113,7 @@ type ClusterMemberSeed = {
   title: string;
   rankScore: number;
   excerpt?: string;
+  firstSeenAt?: Date;
   /** One SourceItem each; an HN id without a recording is served the fallback thread, a Dev.to id needs a recorded one. */
   items: { kind: 'hn' | 'devto'; externalId: string; commentsCount?: number }[];
 };
@@ -136,6 +140,7 @@ export async function createSummaryCluster(
         normalizedTitle: member.title.toLowerCase(),
         excerpt: member.excerpt,
         publishedAt: new Date(),
+        firstSeenAt: member.firstSeenAt,
         rankScore: member.rankScore,
         tags: [],
         taggerVersion: 1,

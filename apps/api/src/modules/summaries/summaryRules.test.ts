@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { ApiException } from '../../common/errors/api.exception.js';
 import { HttpError } from '../../common/http/httpClient.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
 import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
@@ -7,6 +8,8 @@ import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import {
   AUTO_ATTEMPTS_PER_RUN,
   AUTO_HN_REQUESTS_PER_RUN,
+  AUTO_SUMMARIES_PER_DAY,
+  AUTO_SUMMARY_MIN_AGE_HOURS,
   autoCandidates,
   fitsRunBudget,
   autoFailureAction,
@@ -32,41 +35,84 @@ describe('storedConsensus', () => {
   });
 });
 
+const NOW = new Date('2026-11-21T12:00:00.000Z');
+const hoursAgo = (hours: number, minutes = 0) =>
+  new Date(NOW.getTime() - (hours * 60 + minutes) * 60_000);
+const hn = (commentsCount: number | null) => ({ commentsCount, source: { kind: 'hn' } });
+const devto = (commentsCount: number | null) => ({ commentsCount, source: { kind: 'devto' } });
+const repo = { commentsCount: null, source: { kind: 'github' } };
+
 describe('autoCandidates', () => {
-  it('keeps stories with at least 10 comments summed over their items, in the given order', () => {
+  type Story = Parameters<typeof autoCandidates>[0][number];
+  const story = (id: string, overrides: Partial<Story> = {}): Story => ({
+    id,
+    firstSeenAt: hoursAgo(5),
+    items: [hn(10)],
+    ...overrides,
+  });
+  const ids = (stories: Story[], failedToday = new Set<string>()) =>
+    autoCandidates(stories, failedToday, NOW).map(({ id }) => id);
+
+  it('AC-2.3.8 holds back 9 comments at 1 h 59 min and takes them at 2 h', () => {
+    const items = [hn(9)];
+
+    expect(ids([story('s', { items, firstSeenAt: hoursAgo(1, 59) })])).toEqual([]);
+    expect(ids([story('s', { items, firstSeenAt: hoursAgo(AUTO_SUMMARY_MIN_AGE_HOURS) })])).toEqual(
+      ['s'],
+    );
+  });
+
+  it('AC-2.3.8 takes 10 comments at 5 minutes old', () => {
+    expect(ids([story('s', { items: [hn(10)], firstSeenAt: hoursAgo(0, 5) })])).toEqual(['s']);
+  });
+
+  it('AC-2.3.8 never takes a repo-only story or an HN story with fewer than 3 comments, however old', () => {
     const stories = [
-      { id: 'nine', items: [{ commentsCount: 5 }, { commentsCount: 4 }] },
-      { id: 'ten', items: [{ commentsCount: 6 }, { commentsCount: 4 }, { commentsCount: null }] },
-      { id: 'none', items: [{ commentsCount: null }] },
-      { id: 'many', items: [{ commentsCount: 300 }] },
+      story('repo', { items: [repo], firstSeenAt: hoursAgo(72) }),
+      story('hnQuiet', { items: [hn(0)], firstSeenAt: hoursAgo(3) }),
+      story('hnTwo', { items: [hn(2)], firstSeenAt: hoursAgo(3) }),
     ];
 
-    expect(autoCandidates(stories, new Set()).map(({ id }) => id)).toEqual(['ten', 'many']);
+    expect(ids(stories)).toEqual([]);
+  });
+
+  it('AC-2.3.8 takes a Dev.to article with no comments once it is 2 h old, not before', () => {
+    const items = [devto(0)];
+
+    expect(ids([story('d', { items, firstSeenAt: hoursAgo(1) })])).toEqual([]);
+    expect(ids([story('d', { items, firstSeenAt: hoursAgo(2) })])).toEqual(['d']);
+  });
+
+  it('AC-2.3.8 counts the comments of every cluster member', () => {
+    const items = [hn(6), hn(4), devto(null)];
+
+    expect(ids([story('c', { items, firstSeenAt: hoursAgo(0, 1) })])).toEqual(['c']);
+  });
+
+  it('keeps the given order', () => {
+    expect(ids([story('b'), story('a'), story('c')])).toEqual(['b', 'a', 'c']);
   });
 
   it('leaves out the stories that failed today', () => {
-    const stories = ['s0', 's1', 's2'].map((id) => ({ id, items: [{ commentsCount: 10 }] }));
+    const stories = ['s0', 's1', 's2'].map((id) => story(id));
 
-    expect(autoCandidates(stories, new Set(['s0', 's2'])).map(({ id }) => id)).toEqual(['s1']);
+    expect(ids(stories, new Set(['s0', 's2']))).toEqual(['s1']);
   });
 
   it('keys a failure by the cluster, so a representative that moved does not retry its cluster', () => {
-    const items = [{ commentsCount: 10 }];
-    const stories = [
-      { id: 'newRep', clusterId: 'c1', items },
-      { id: 'single', clusterId: null, items },
-    ];
+    const stories = [story('newRep', { clusterId: 'c1' }), story('single', { clusterId: null })];
 
-    expect(autoCandidates(stories, new Set(['c1'])).map(({ id }) => id)).toEqual(['single']);
+    expect(ids(stories, new Set(['c1']))).toEqual(['single']);
   });
 
   it('counts the HN items of each candidate', () => {
-    const hnItem = { commentsCount: 10, source: { kind: 'hn' } };
-    const devtoItem = { commentsCount: 10, source: { kind: 'devto' } };
+    expect(
+      autoCandidates([story('a', { items: [hn(10), devto(10), hn(10)] })], new Set(), NOW),
+    ).toEqual([{ id: 'a', hnRequests: 2 }]);
+  });
 
-    expect(autoCandidates([{ id: 'a', items: [hnItem, devtoItem, hnItem] }], new Set())).toEqual([
-      { id: 'a', hnRequests: 2 },
-    ]);
+  it('AC-2.3.8 allows 500 auto summaries a day', () => {
+    expect(AUTO_SUMMARIES_PER_DAY).toBe(500);
   });
 });
 
@@ -123,6 +169,10 @@ describe('autoFailureAction', () => {
     expect(autoFailureAction(new GenerationFailedError('invalid_output'))).toBe('skip');
     expect(autoFailureAction(new GenerationFailedError('refused'))).toBe('skip');
     expect(autoFailureAction(new SummaryInputsUnavailableError('s', 'story'))).toBe('skip');
+  });
+
+  it('AC-2.3.12 skips a story whose fetched inputs were too thin (NOT_FOUND)', () => {
+    expect(autoFailureAction(new ApiException('NOT_FOUND', 'too thin'))).toBe('skip');
   });
 
   it('stops the step on a spent cap, a provider error or a failing upstream', () => {

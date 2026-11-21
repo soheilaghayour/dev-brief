@@ -1,1 +1,3 @@
 Recorded once from the live Dev.to API on 2026-11-20 with `curl -A 'DevBriefBot/1.0 (+https://devbrief.dev)' -H 'Accept: application/vnd.forem.api-v1+json' https://dev.to/api/articles/<id>`, byte for byte: `5071647.json` (a Markdown body with images and a Liquid embed) and `5075072.json`. Their comments are in `../devto-comments/`.
+
+`9100001.json` is hand-written, not recorded: an article whose Markdown body is only a Liquid embed, with no comments (`../devto-comments/9100001.json` is `[]`).

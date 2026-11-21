@@ -168,6 +168,7 @@ describe('SummarizeButton', () => {
     ['GENERATION_FAILED', 502, "Couldn't generate a summary. Try again."],
     ['RATE_LIMITED', 429, 'Too many requests. Wait a minute and try again.'],
     ['UPSTREAM_UNAVAILABLE', 503, "Couldn't load the discussion. Try again later."],
+    ['NOT_FOUND', 404, "This story doesn't have enough discussion to summarise."],
   ] as const)('shows the copy for %s', async (code, status, copy) => {
     api.summarizeStory.mockRejectedValue(new ApiError(code, 'x', 'r1', status, undefined));
     await render();
