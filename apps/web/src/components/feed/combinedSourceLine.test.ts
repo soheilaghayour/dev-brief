@@ -20,7 +20,10 @@ function source(kind: SourceKind, numbers: Partial<SourceRef> = {}): SourceRef {
 
 const line = (sources: SourceRef[]) =>
   combinedSourceLine(sources)
-    .map(({ joiner, text }) => joiner + text)
+    .map(
+      ({ joiner, name, metric }) =>
+        joiner + name + (metric ? ` (${metric.glyph} ${metric.value})` : ''),
+    )
     .join('');
 
 describe('combinedSourceLine', () => {

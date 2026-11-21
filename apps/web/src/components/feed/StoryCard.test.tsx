@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
+import { ClusterSourceLine } from './ClusterSourceLine';
 import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
 
@@ -62,6 +63,7 @@ function render(
     compact?: boolean;
     preferenceMenu?: typeof PreferenceMenu;
     relatedToggle?: typeof RelatedToggle;
+    sourceLine?: typeof ClusterSourceLine;
   } = {},
 ) {
   return renderToStaticMarkup(
@@ -177,12 +179,14 @@ describe('StoryCard', () => {
 
   it('AC-2.2.1 shows the combined source line and the "+N related" control on a cluster card', () => {
     features.clusters = true;
-    const html = render(CLUSTERED, { relatedToggle: RelatedToggle });
+    const html = render(CLUSTERED, { relatedToggle: RelatedToggle, sourceLine: ClusterSourceLine });
     features.clusters = false;
     expect(html).toContain('Trending on ');
-    expect(html).toContain('HN (▲ 320)');
+    expect(html).toContain(
+      'HN (<span aria-hidden="true">▲ </span>320<span class="sr-only"> points</span>)',
+    );
     expect(html).toContain(' &amp; ');
-    expect(html).toContain('Dev.to (♥ 95)');
+    expect(html).toContain('Dev.to (<span aria-hidden="true">♥ </span>95');
     expect(html).toContain('1 blog');
     expect(html).toContain('+2 related');
     expect(html).toMatch(/<button[^>]*aria-expanded="false"/);
@@ -203,11 +207,10 @@ describe('StoryCard', () => {
     expect(html).toBe(render(STORY));
   });
 
-  it('shows the line but no toggle where the page passes none, as on /saved', () => {
+  it('AC-2.2.1 renders a plain card where the page passes no line or toggle, as on /saved', () => {
     features.clusters = true;
     const html = render(CLUSTERED);
     features.clusters = false;
-    expect(html).toContain('Trending on ');
-    expect(html).not.toContain('related');
+    expect(html).toBe(render(STORY));
   });
 });

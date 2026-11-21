@@ -23,6 +23,7 @@ import { feedQueryOptions, personalisedPlaceholder } from './feedQueries';
 import { hideMuted } from './hideMuted';
 import { InfiniteSentinel } from './InfiniteSentinel';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
+import { ClusterSourceLine } from './ClusterSourceLine';
 import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
 import { SummarizeShortcut } from './SummarizeShortcut';
@@ -162,6 +163,7 @@ export function FeedList() {
           isActive={story.id === activeId}
           preferenceMenu={PreferenceMenu}
           relatedToggle={RelatedToggle}
+          sourceLine={ClusterSourceLine}
         />
       ))}
       {isFetchNextPageError && (

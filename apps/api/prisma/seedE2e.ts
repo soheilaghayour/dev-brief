@@ -58,7 +58,7 @@ type StorySeed = {
   clusterId?: string;
 };
 
-/** The cluster's stories: below every other story in Top and older than all in Latest, so no other spec's order or counts shift by more than the one card. */
+/** The cluster's stories: below every other story in Top and newer than the 20-day archive story in Latest, so no other spec's order or counts shift by more than the one card. */
 export function buildClusterSeeds(now: Date): StorySeed[] {
   const publishedAt = new Date(now.getTime() - 3 * 24 * HOUR);
   const common = {

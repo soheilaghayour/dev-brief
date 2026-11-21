@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// Needs the API's FEATURE_CLUSTERS on, as in CI's e2e run: with it off the cluster shows as 3 cards, so the count is 48.
 // The data comes from `pnpm --filter api db:seed:e2e`: 45 stories and the fixture cluster's one card in the Top window, plus one archive story.
 const TOP_STORY_COUNT = 46;
 

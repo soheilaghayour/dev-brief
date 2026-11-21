@@ -1,11 +1,10 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
-import { Fragment } from 'react';
 import type { ComponentProps, ComponentType } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { isFeatureEnabled } from '@/config/features';
 import { cn } from '@/lib/cn';
-import { combinedSourceLine } from './combinedSourceLine';
+import type { ClusterSourceLineProps } from './ClusterSourceLine';
 import { RelativeTime } from './RelativeTime';
 import type { RelatedToggleProps } from './RelatedToggle';
 import { SaveButton } from '@/components/saves/SaveButton';
@@ -26,6 +25,8 @@ type StoryCardProps = {
   preferenceMenu?: ComponentProps<typeof TagBadge>['menu'];
   /** The "+N related" control of a cluster card; passed in, so pages without clusters (the landing preview, /saved) don't load it. */
   relatedToggle?: ComponentType<RelatedToggleProps>;
+  /** The combined source line of a cluster card, in place of the per-source badges; passed in for the same reason as `relatedToggle`. */
+  sourceLine?: ComponentType<ClusterSourceLineProps>;
 };
 
 export function StoryCard({
@@ -36,6 +37,7 @@ export function StoryCard({
   isActive = false,
   preferenceMenu,
   relatedToggle: RelatedToggle,
+  sourceLine: SourceLine,
 }: StoryCardProps) {
   const cluster = isFeatureEnabled('clusters') ? story.cluster : null;
   const visibleTags = story.tags.slice(0, MAX_VISIBLE_TAGS);
@@ -66,15 +68,8 @@ export function StoryCard({
           </span>
         </h2>
         <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {cluster ? (
-            <span>
-              {combinedSourceLine(cluster.sources).map(({ kind, joiner, text }) => (
-                <Fragment key={kind}>
-                  {joiner}
-                  <span data-source-kind={kind}>{text}</span>
-                </Fragment>
-              ))}
-            </span>
+          {cluster && SourceLine ? (
+            <SourceLine sources={cluster.sources} />
           ) : (
             story.sources.map((source) => (
               <SourceBadge
@@ -99,7 +94,11 @@ export function StoryCard({
           )}
         </div>
         {cluster && RelatedToggle && (
-          <RelatedToggle clusterId={cluster.id} memberCount={cluster.memberCount} />
+          <RelatedToggle
+            storyId={story.id}
+            clusterId={cluster.id}
+            memberCount={cluster.memberCount}
+          />
         )}
       </div>
       <SaveButton isSaved={isSaved} onToggleSave={onToggleSave} />

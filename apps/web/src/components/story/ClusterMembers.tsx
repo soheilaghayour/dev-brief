@@ -19,7 +19,7 @@ function MemberRow({ story, isCurrent }: { story: StoryCard; isCurrent: boolean 
       )}
       {isCurrent && <Badge variant="secondary">This story</Badge>}
       {story.sources.map((source) => (
-        <SourceBadge key={source.itemUrl} source={source} />
+        <SourceBadge key={`${source.slug}:${source.itemUrl}`} source={source} />
       ))}
     </li>
   );
