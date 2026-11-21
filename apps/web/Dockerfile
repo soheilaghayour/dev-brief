@@ -20,6 +20,8 @@ ENV NEXT_PUBLIC_APP_VERSION=$SOURCE_COMMIT
 # APP_URL becomes metadataBase, the canonical URL and the OG tags, so the build needs the real origin.
 ARG APP_URL
 ENV APP_URL=$APP_URL
+# The landing page fetches its stories and example briefings at build time; without the API URL the build ships the sample until the first revalidation.
+ARG API_INTERNAL_URL
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_FEATURE_SUMMARIES
 ARG NEXT_PUBLIC_FEATURE_PREFERENCES

@@ -8,3 +8,6 @@ export const PANEL_CLASS =
   'bg-background mt-4 isolate h-[36rem] overflow-y-auto rounded-lg border p-4 text-left md:px-6';
 // The panel scrolls on its own, so the briefing's sticky title sticks to the panel's top, not under the site header.
 export const PANEL_STYLE = { '--briefing-sticky-top': '0px' } as CSSProperties;
+
+/** The id of the "Sample data" label, which both tab panels name as their description. */
+export const SAMPLE_LABEL_ID = 'examples-sample-label';

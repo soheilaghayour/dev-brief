@@ -90,6 +90,24 @@ describe('HeroPreview', () => {
     expect(container.querySelector('article[data-story-id]')).not.toBeNull();
   });
 
+  it('AC-3.2.2 the Briefing view drops the feed-only shortcuts and the story count', async () => {
+    const container = mount();
+    const window = container.querySelector('[aria-label="Live feed preview"]')!;
+    expect(window.getAttribute('aria-keyshortcuts')).toBe('J K S Enter');
+    expect(container.textContent).toContain('Showing 6 of 300 stories today');
+    await showBriefing(container);
+    expect(window.hasAttribute('aria-keyshortcuts')).toBe(false);
+    expect(container.textContent).not.toContain('Showing');
+  });
+
+  it('AC-L2 announces a sample briefing through a live region', async () => {
+    const container = mount(true);
+    const status = container.querySelector('[role="status"]')!;
+    expect(status.textContent).toBe('');
+    await showBriefing(container);
+    expect(status.textContent).toBe('Sample data');
+  });
+
   it('AC-L2 labels a sample briefing in the window', async () => {
     const container = mount(true);
     expect(container.textContent).not.toContain('Sample data');

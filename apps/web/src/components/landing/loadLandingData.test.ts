@@ -8,6 +8,7 @@ const endpoints = vi.hoisted(() => ({
 vi.mock('@/lib/api/endpoints', () => endpoints);
 
 import fixture from '@/content/landing-fixture.json';
+import { ApiError } from '@/lib/api/apiError';
 import { FEATURES } from '@/config/features';
 import { sampleExampleBriefings } from './exampleBriefingData';
 import { fixtureStories, type FixtureStory } from './landingStories';
@@ -90,6 +91,19 @@ describe('loadLandingData', () => {
       vi.stubEnv('NODE_ENV', 'production');
       vi.stubEnv('NEXT_PHASE', 'phase-production-server');
       await expect(loadLandingData(COPILOT_ON)).rejects.toThrow(/example briefings/);
+    });
+
+    it('AC-3.2.2 treats a 404 FEATURE_DISABLED answer as none, so a revalidation keeps the stories and shows the sample', async () => {
+      liveApi();
+      endpoints.getExampleBriefings.mockRejectedValue(
+        new ApiError('FEATURE_DISABLED', 'Feature disabled', 'req-1', 404, undefined),
+      );
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('NEXT_PHASE', 'phase-production-server');
+      const data = await loadLandingData(COPILOT_ON);
+      expect(data.isSample).toBe(false);
+      expect(data.examplesAreSample).toBe(true);
+      expect(data.examples).toEqual(sampleExampleBriefings());
     });
 
     it('AC-L7 neither fetches nor embeds examples while the copilot flag is off', async () => {

@@ -126,6 +126,42 @@ describe('ExampleBriefings', () => {
   });
 });
 
+describe('ExampleBriefings before the live tabs arrive', () => {
+  it('AC-3.2.2 carries the focused tab and an arrowed-to tab over to the live tabs', async () => {
+    const container = mount();
+    const staticTabs = container.querySelectorAll<HTMLElement>('[role="tab"]');
+    act(() => {
+      staticTabs[0]!.focus();
+      staticTabs[0]!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+      );
+    });
+
+    await vi.waitFor(
+      async () => {
+        await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+        expect(container.querySelector('[role="tab"][id]')).not.toBeNull();
+      },
+      { timeout: 5000 },
+    );
+    const liveTabs = container.querySelectorAll<HTMLElement>('[role="tab"]');
+    expect(liveTabs[1]?.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(liveTabs[1]);
+  });
+
+  it('AC-L2 ties the sample label to the tabpanel', async () => {
+    const container = mount(true);
+    const labelId = container.querySelector('span[id]')?.id;
+    expect(container.querySelector('[role="tabpanel"]')?.getAttribute('aria-describedby')).toBe(
+      labelId,
+    );
+    await scrollIntoView(container);
+    expect(container.querySelector('[role="tabpanel"]')?.getAttribute('aria-describedby')).toBe(
+      labelId,
+    );
+  });
+});
+
 describe('nextTabIndex', () => {
   it('wraps the arrows, jumps with Home and End, and ignores other keys', () => {
     expect(nextTabIndex('ArrowRight', 2, 3)).toBe(0);

@@ -1,6 +1,7 @@
 import { ExampleBriefingsLoader } from './ExampleBriefingsLoader';
 import { ExampleBriefingTabsStatic } from './ExampleBriefingTabsStatic';
 import type { ExampleBriefing } from './exampleBriefingData';
+import { SAMPLE_LABEL_ID } from './exampleTabStyles';
 import { SectionHeading } from './SectionHeading';
 
 type ExampleBriefingsProps = { examples: readonly ExampleBriefing[]; isSample: boolean };
@@ -19,11 +20,13 @@ export function ExampleBriefings({ examples, isSample }: ExampleBriefingsProps) 
       </SectionHeading>
       {isSample && (
         <p className="text-muted-foreground mb-3 text-right text-[11px]">
-          <span className="rounded-sm border px-1.5 leading-5">Sample data</span>
+          <span id={SAMPLE_LABEL_ID} className="rounded-sm border px-1.5 leading-5">
+            Sample data
+          </span>
         </p>
       )}
-      <ExampleBriefingsLoader examples={examples}>
-        <ExampleBriefingTabsStatic examples={examples} />
+      <ExampleBriefingsLoader examples={examples} isSample={isSample}>
+        <ExampleBriefingTabsStatic examples={examples} isSample={isSample} />
       </ExampleBriefingsLoader>
     </section>
   );

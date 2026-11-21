@@ -241,7 +241,7 @@ function exampleBriefingMessages(title: string) {
   for (const message of messages)
     if ('updateComponents' in message)
       for (const component of message.updateComponents.components)
-        if (component.id === 'root') (component as { title?: string }).title = title;
+        if (component.id === 'root') Object.assign(component, { title });
   return messages as unknown as Prisma.InputJsonValue;
 }
 

@@ -5,7 +5,13 @@ import { isFeatureEnabled, type Features } from '@/config/features';
 import { cn } from '@/lib/cn';
 import { isEditableTarget } from '@/lib/hotkeys/shortcutRules';
 
-type Keycap = { key: string; label: string; display?: string; isChord?: boolean };
+type Keycap = {
+  key: string;
+  label: string;
+  display?: string;
+  /** The modifier that makes this keycap a chord; a bare keycap is pressed with none. */
+  modifier?: 'metaKey' | 'ctrlKey';
+};
 
 const KEYCAPS: readonly Keycap[] = [
   { key: 'j', label: 'Next' },
@@ -15,32 +21,47 @@ const KEYCAPS: readonly Keycap[] = [
   { key: '?', label: 'Help' },
 ];
 
-const COMMAND_KEYCAP: Keycap = { key: 'k', display: '⌘K', label: 'Ask', isChord: true };
+// Module constants, so the row's key listener keeps one subscription across renders.
+const KEYCAPS_WITH_MAC_COMMAND: readonly Keycap[] = [
+  ...KEYCAPS,
+  { key: 'k', display: '⌘K', label: 'Ask', modifier: 'metaKey' },
+];
+const KEYCAPS_WITH_CTRL_COMMAND: readonly Keycap[] = [
+  ...KEYCAPS,
+  { key: 'k', display: 'Ctrl K', label: 'Ask', modifier: 'ctrlKey' },
+];
 
-/** The keycaps shown while the flags allow: the copilot adds ⌘K. */
-export function visibleKeycaps(features?: Features) {
-  return isFeatureEnabled('copilot', features) ? [...KEYCAPS, COMMAND_KEYCAP] : KEYCAPS;
+/** The keycaps shown while the flags allow: the copilot adds the command-bar chord of the platform. */
+export function visibleKeycaps(features?: Features, isMac = true) {
+  if (!isFeatureEnabled('copilot', features)) return KEYCAPS;
+  return isMac ? KEYCAPS_WITH_MAC_COMMAND : KEYCAPS_WITH_CTRL_COMMAND;
 }
 
-/** The keycap a key event presses: ⌘K or Ctrl+K lights the chord, a bare key lights its letter. */
+/** The keycap a key event presses: the platform's chord lights the command keycap, a bare key its letter. */
 export function pressedKeycap(
   event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey'>,
   keycaps: readonly Keycap[],
 ) {
   if (event.altKey) return undefined;
   const key = event.key.toLowerCase();
-  const isChord = event.ctrlKey || event.metaKey;
-  return keycaps.find((keycap) => keycap.key === key && Boolean(keycap.isChord) === isChord);
+  const modifier = event.metaKey ? 'metaKey' : event.ctrlKey ? 'ctrlKey' : undefined;
+  return keycaps.find((keycap) => keycap.key === key && keycap.modifier === modifier);
 }
 
 const PRESS_MS = 220;
 
 /** The keycap row: it idles while in view and a pressed key lights its keycap. */
 export function KeycapRow({ features }: { features?: Features }) {
-  const keycaps = visibleKeycaps(features);
+  // The server and the first client render assume macOS; the effect below corrects it, so hydration matches.
+  const [isMac, setIsMac] = useState(true);
+  const keycaps = visibleKeycaps(features, isMac);
   const listRef = useRef<HTMLUListElement>(null);
   const [isInView, setIsInView] = useState(false);
   const [pressedKey, setPressedKey] = useState<Keycap | null>(null);
+
+  useEffect(() => {
+    setIsMac(navigator.userAgent.includes('Mac'));
+  }, []);
 
   useEffect(() => {
     const list = listRef.current;
@@ -57,7 +78,7 @@ export function KeycapRow({ features }: { features?: Features }) {
     let timer: ReturnType<typeof setTimeout>;
     function press(event: KeyboardEvent) {
       const keycap = pressedKeycap(event, keycaps);
-      if (!keycap || (!keycap.isChord && isEditableTarget(event.target))) return;
+      if (!keycap || (!keycap.modifier && isEditableTarget(event.target))) return;
       clearTimeout(timer);
       setPressedKey(keycap);
       timer = setTimeout(() => setPressedKey(null), PRESS_MS);

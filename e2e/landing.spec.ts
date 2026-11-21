@@ -200,8 +200,42 @@ test('AC-3.2.2 the initial HTML holds the three question tabs; the renderer load
       name: `Example 1: ${EXAMPLE_QUESTIONS[0]}`,
     }),
   ).toBeVisible();
-  expect(seen.renderer).toBe(true);
+  // The response handler is async, so the flag lands a moment after the heading shows.
+  await expect.poll(() => seen.renderer).toBe(true);
   expect(seen.copilotCalls).toEqual([]);
+});
+
+test('AC-3.2.2 focus stays on a tab and the arrows work when the live tabs replace the server-rendered ones', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  // Every script requested from here on is the lazy chunk or its dependencies: hold them until released.
+  let release = () => {};
+  const released = new Promise<void>((resolve) => (release = resolve));
+  let heldCount = 0;
+  await page.route(/\/_next\/static\/.*\.js/, async (route) => {
+    heldCount += 1;
+    await released;
+    await route.continue();
+  });
+  await exampleSection(page).scrollIntoViewIfNeeded();
+  const tabs = exampleSection(page).getByRole('tab');
+  await tabs.first().focus();
+  await expect.poll(() => heldCount).toBeGreaterThan(0);
+  await expect(tabs.first()).toBeFocused();
+
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.nth(1)).toBeFocused();
+
+  release();
+  await expect(
+    exampleSection(page).getByRole('tabpanel').getByRole('heading', { level: 2 }),
+  ).toContainText('Example 2:');
+  await expect(tabs.nth(1)).toBeFocused();
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.nth(2)).toBeFocused();
 });
 
 test('AC-3.2.2 the example section shows briefing #1 with a story card and switches tabs', async ({
@@ -239,11 +273,14 @@ test("AC-3.2.2 the hero's Briefing control shows example #1 and Feed brings the 
   await page.waitForLoadState('networkidle');
   expect(seen.renderer).toBe(false);
 
+  const feedHeight = (await preview(page).boundingBox())!.height;
   await preview(page).getByRole('button', { name: 'Briefing' }).click();
   await expect(
     preview(page).getByRole('heading', { level: 2, name: `Example 1: ${EXAMPLE_QUESTIONS[0]}` }),
   ).toBeVisible();
   expect(seen.copilotCalls).toEqual([]);
+  // The window keeps its height, so the page below doesn't jump.
+  expect((await preview(page).boundingBox())!.height).toBeCloseTo(feedHeight, 0);
 
   await preview(page).getByRole('button', { name: 'Feed' }).click();
   await expect(previewCards(page).first()).toBeVisible();
