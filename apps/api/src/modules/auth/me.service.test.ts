@@ -7,6 +7,7 @@ describe('MeService.deleteMe', () => {
   it('keeps the session when deleting the user fails, so the user is never half signed out', async () => {
     const prisma = {
       copilotQuery: { deleteMany: vi.fn() },
+      llmUsage: { updateMany: vi.fn() },
       user: { delete: vi.fn() },
       $transaction: vi.fn().mockRejectedValue(new Error('db down')),
     };

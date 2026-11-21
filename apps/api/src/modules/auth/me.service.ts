@@ -35,8 +35,10 @@ export class MeService {
   async deleteMe(userId: string, requestHeaders: IncomingHttpHeaders) {
     // Deleting first, so a failed delete leaves the user signed in; signOut tolerates the session the cascade removed.
     // CopilotQuery has no relation to User, so the cascade can't reach it.
+    // LlmUsage keeps its rows (the spend ledger) but must not link a deleted account to the stories it summarised.
     await this.prisma.$transaction([
       this.prisma.copilotQuery.deleteMany({ where: { userId } }),
+      this.prisma.llmUsage.updateMany({ where: { userId }, data: { userId: null } }),
       this.prisma.user.delete({ where: { id: userId } }),
     ]);
     const { headers } = await this.auth.api.signOut({
