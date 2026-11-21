@@ -76,7 +76,7 @@ function sourceFiles(directory: string): string[] {
         ? []
         : sourceFiles(full);
     }
-    return /\.(ts|tsx|js|mjs|cjs)$/.test(entry.name) ? [full] : [];
+    return /\.(ts|tsx|js|mjs|cjs|ya?ml)$|^Dockerfile/.test(entry.name) ? [full] : [];
   });
 }
 
@@ -91,8 +91,11 @@ describe('feature flag variables', () => {
     expect(lines.filter((line) => /FEATURE_(RADAR|PREFERENCES)/.test(line))).toEqual([]);
   });
 
-  it('AC-1.7.8 no source file under apps/ reads a twin variable', () => {
-    const readers = sourceFiles(path.join(REPO_ROOT, 'apps')).filter(
+  it('AC-1.7.8 no source, Dockerfile or workflow file in the repo mentions a twin variable', () => {
+    const files = ['.github', 'apps', 'e2e', 'packages'].flatMap((directory) =>
+      sourceFiles(path.join(REPO_ROOT, directory)),
+    );
+    const readers = files.filter(
       (file) => file !== __filename && readFileSync(file, 'utf8').includes(TWIN_PREFIX),
     );
     expect(readers.map((file) => path.relative(REPO_ROOT, file))).toEqual([]);

@@ -13,7 +13,6 @@ const api = vi.hoisted(() => ({ getPreferences: vi.fn(), putPreferences: vi.fn()
 const notify = vi.hoisted(() => vi.fn());
 const setGuestPreference = vi.hoisted(() => vi.fn(async () => 'changed'));
 
-vi.mock('@/config/features', () => ({ isFeatureEnabled: () => true }));
 vi.mock('@/lib/auth/useMe', () => ({ useMe: () => me.current }));
 vi.mock('@/lib/api/endpoints', () => api);
 vi.mock('@/lib/toast/notify', () => ({ notify }));

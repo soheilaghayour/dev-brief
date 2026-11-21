@@ -12,12 +12,8 @@ type NavLink = {
   href: string;
 };
 
-const NAV_LINKS: readonly NavLink[] = [
+export const LANDING_NAV: readonly NavLink[] = [
   { label: 'Feed', href: '/feed' },
   { label: 'Radar', href: '/radar' },
   { label: 'GitHub', href: REPO_URL },
 ];
-
-export function getLandingNav() {
-  return NAV_LINKS;
-}

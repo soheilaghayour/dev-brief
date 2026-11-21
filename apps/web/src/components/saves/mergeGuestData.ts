@@ -30,7 +30,7 @@ function isRejected(error: unknown) {
 /** Sends the device's saves, preferences, collections and notes to the account, and lets go of each part once the server confirms the request that carried it. */
 export async function mergeGuestData(queryClient: QueryClient) {
   const { saves, prefs, collections, notes, pendingMerge } = await latestGuestData();
-  // The web sends only what its flags let a user create: collections and notes.
+  // Saves and prefs are always sent; only collections and notes depend on the collections flag.
   const plan = planGuestMerge({
     saves,
     prefs,

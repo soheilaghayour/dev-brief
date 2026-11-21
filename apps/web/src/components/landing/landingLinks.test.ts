@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getLandingNav } from './landingLinks';
+import { LANDING_NAV } from './landingLinks';
 
-describe('getLandingNav', () => {
+describe('LANDING_NAV', () => {
   it('AC-L7 always lists the Radar link', () => {
-    expect(getLandingNav().map((link) => link.label)).toEqual(['Feed', 'Radar', 'GitHub']);
+    expect(LANDING_NAV.map((link) => link.label)).toEqual(['Feed', 'Radar', 'GitHub']);
   });
 });

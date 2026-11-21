@@ -3,13 +3,12 @@ import { MenuIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/layout/Logo';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { SIGN_IN_PATH, getLandingNav } from './landingLinks';
+import { SIGN_IN_PATH, LANDING_NAV } from './landingLinks';
 
 const NAV_LINK_CLASS =
   'text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm font-medium transition-colors';
 
 export function SiteHeader() {
-  const links = getLandingNav();
   return (
     <header className="bg-background/70 sticky top-0 z-40 border-b backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
@@ -25,7 +24,7 @@ export function SiteHeader() {
             aria-label="Mobile"
             className="bg-popover absolute top-10 left-0 grid w-56 gap-1 rounded-lg border p-2 text-base shadow-lg"
           >
-            {links.map((link) => (
+            {LANDING_NAV.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -41,7 +40,7 @@ export function SiteHeader() {
         </details>
         <Logo />
         <nav aria-label="Main" className="mx-auto hidden items-center gap-1 md:flex">
-          {links.map((link) => (
+          {LANDING_NAV.map((link) => (
             <Link key={link.href} href={link.href} className={NAV_LINK_CLASS}>
               {link.label}
             </Link>

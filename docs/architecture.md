@@ -10,7 +10,7 @@ Two apps and one shared package:
 
 ## Feature flags
 
-A flag exists while its feature is unlaunched: `clusters`, `summaries`, `copilot` and `collections`. Each is one env variable, `FEATURE_<NAME>`. The API reads it at boot through `env.ts`, and `FeatureGuard` answers 404 `FEATURE_DISABLED` on a flagged route while it is off. The web build validates the same variables in `next.config.ts` and inlines them through its `env` option into `src/config/features.ts`, so a feature that is off is absent from the HTML. Radar and follow/mute have no flag.
+One env variable per unlaunched feature; see PRD §3.
 
 ## AI pipeline
 

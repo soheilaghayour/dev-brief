@@ -52,7 +52,7 @@ describe('GET /api/v1/radar', () => {
       tags: ['python'],
       itemSourceIds: [hn.id],
     });
-    // No FEATURE_* variable: the radar is always on.
+    // Radar has no flag.
     on = await createTestApp();
   });
 
@@ -135,7 +135,7 @@ describe('GET /api/v1/radar', () => {
     expect((await get('?tags=react,vue,rust,go,python')).status).toBe(200);
   });
 
-  it('AC-1.7.8 answers GET /radar without any FEATURE_* variable set', async () => {
+  it('AC-1.7.8 answers GET /radar (radar has no flag)', async () => {
     const response = await get('');
     expect(response.status).toBe(200);
     expect(RadarSchema.parse(response.body)).toMatchObject({ window: '7d' });

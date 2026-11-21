@@ -8,7 +8,6 @@ import { feedQueryOptions } from './feedQueries';
 
 const api = vi.hoisted(() => ({ getMe: vi.fn(), getPreferences: vi.fn(), getFeed: vi.fn() }));
 vi.mock('@/lib/api/endpoints', () => api);
-vi.mock('@/config/features', () => ({ isFeatureEnabled: () => true }));
 
 const { prefetchFeed } = await import('./prefetchFeed');
 

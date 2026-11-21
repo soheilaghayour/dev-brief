@@ -56,7 +56,7 @@ Production deploy, backups and the restore runbook, plus OAuth app setup. Produc
 
 ### Feature flags in Coolify
 
-Production has two applications, `api` and `web`, and each flag must have the same value in both: the API answers the routes, the web build decides what the HTML shows, so a flag set on one app only leaves the feature half on. Set each flag once as a Coolify shared variable (the environment's **Shared Variables**, one per flag: `FEATURE_SUMMARIES`, `FEATURE_CLUSTERS`, `FEATURE_COPILOT`, `FEATURE_COLLECTIONS`) and reference it from both apps as `{{environment.FEATURE_COPILOT}}`. On `web`, tick **Available at Buildtime** for each reference: the flags are inlined by `next build`, so after a change redeploy `web` as well as `api`. Radar and follow/mute have no flag and need no variable.
+Production has two applications, `api` and `web`, and each flag must have the same value in both: the API answers the routes, the web build decides what the HTML shows, so a flag set on one app only leaves the feature half on. Set each flag once as a Coolify shared variable (the environment's **Shared Variables**, one per flag: `FEATURE_SUMMARIES`, `FEATURE_CLUSTERS`, `FEATURE_COPILOT`, `FEATURE_COLLECTIONS`) and reference it from both apps as `{{environment.FEATURE_COPILOT}}`. On `web`, leave each reference's **Build time** dropdown on "Available during build" (the default): the flags are inlined by `next build`, so after a change redeploy `web` as well as `api`. Keep Build secrets on build arguments (not Docker BuildKit secrets), or the Dockerfile `ARG`s receive nothing and every flag builds off. Radar and follow/mute have no flag and need no variable.
 
 ## Deploy and rollback
 
@@ -144,7 +144,7 @@ The database name is the last part of `DATABASE_URL` (Coolify's default is `post
 - It prints each question's retrieved story count first. A question with fewer than 3 stories, or a failed generation, stops it with a non-zero exit and the old examples stay; pick a replacement question in `packages/shared/src/a2ui/exampleQuestions.ts` and deploy before running it again.
 - It prints each call's cost and the total.
 - Two concurrent runs can't mix sets (each swaps all rows in one transaction), but both are billed.
-- Turn `FEATURE_COPILOT` on only after the API is live and the examples are generated (this runbook): the landing otherwise shows the one-tab sample with its "Sample data" label. A web build made while the API is unreachable also ships the sample, and the landing swaps in the real examples on the next 15-minute revalidation.
+- Turn the copilot on only after the API is live and the examples are generated (this runbook): set the shared `FEATURE_COPILOT`, redeploy `api`, then redeploy `web` once the new `api` is healthy. the landing otherwise shows the one-tab sample with its "Sample data" label. A web build made while the API is unreachable also ships the sample, and the landing swaps in the real examples on the next 15-minute revalidation.
 - The landing picks the new examples up within 15 minutes (ISR); the endpoint itself caches for up to 60 s plus 300 s stale-while-revalidate.
 
 ## GitHub source token

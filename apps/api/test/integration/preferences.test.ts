@@ -44,7 +44,7 @@ describe('preferences', () => {
   }
 
   beforeAll(async () => {
-    // No FEATURE_* variable: preferences are always on.
+    // Preferences have no flag.
     app = await createTestApp([], { AUTH_TEST_MODE: 'true' });
   });
   afterAll(async () => {
@@ -145,7 +145,7 @@ describe('preferences', () => {
     expect(ApiErrorSchema.parse(response.body).error.code).toBe('FORBIDDEN_ORIGIN');
   });
 
-  it('AC-1.7.8 GET and PUT answer without any FEATURE_* variable set', async () => {
+  it('AC-1.7.8 GET and PUT answer (preferences have no flag)', async () => {
     const user = await signIn();
     expect((await user.get()).status).toBe(200);
     expect((await user.put(EMPTY)).status).toBe(200);

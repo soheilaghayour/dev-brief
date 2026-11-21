@@ -10,7 +10,7 @@ type NavItem = {
   shortcut: Shortcut;
 };
 
-const NAV_ITEMS: readonly NavItem[] = [
+export const NAV_ITEMS: readonly NavItem[] = [
   {
     label: 'Feed',
     href: '/feed',
@@ -31,10 +31,6 @@ const NAV_ITEMS: readonly NavItem[] = [
   },
 ];
 
-export function getNavItems() {
-  return NAV_ITEMS;
-}
-
 /** `g` then `c`: Collections has no route of its own (§7.2), so it opens the collections overview on /saved, and no sidebar item. */
 const GO_TO_COLLECTIONS = {
   href: '/saved',
@@ -48,6 +44,6 @@ const GO_TO_COLLECTIONS = {
 
 /** Every `g` shortcut that applies: the sidebar items' and, with the collections flag on, Collections. */
 export function getGoToTargets(features?: Features) {
-  const targets: { href: string; shortcut: Shortcut }[] = [...getNavItems()];
+  const targets: { href: string; shortcut: Shortcut }[] = [...NAV_ITEMS];
   return isFeatureEnabled('collections', features) ? [...targets, GO_TO_COLLECTIONS] : targets;
 }
