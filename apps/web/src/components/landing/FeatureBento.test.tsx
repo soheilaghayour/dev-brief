@@ -30,4 +30,11 @@ describe('FeatureBento', () => {
     expect(titles(false)).not.toContain('Collections & notes');
     expect(titles(true)).toContain('Collections & notes');
   });
+
+  it('AC-L7 shows the Ask the News tile only while the copilot flag is on', () => {
+    const titles = (copilot: boolean) =>
+      visibleTiles({ ...FEATURES, copilot }).map((tile) => tile.title);
+    expect(titles(false)).not.toContain('Ask the News');
+    expect(titles(true)).toContain('Ask the News');
+  });
 });

@@ -1,6 +1,7 @@
 import {
   ClusterDetailSchema,
   CopilotQuotaSchema,
+  ExampleBriefingListSchema,
   FeedPageSchema,
   HealthSchema,
   MeSchema,
@@ -87,6 +88,11 @@ export function getTags() {
 
 export function getStats() {
   return apiClient.request({ path: '/stats' }, StatsSchema);
+}
+
+/** The stored example briefings; cacheable, since only the landing's build and revalidation read them. */
+export function getExampleBriefings() {
+  return apiClient.request({ path: '/copilot/examples' }, ExampleBriefingListSchema);
 }
 
 export function getRadar({ window, metric, tags }: RadarParams) {

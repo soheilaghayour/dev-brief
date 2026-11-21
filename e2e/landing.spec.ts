@@ -158,3 +158,130 @@ test('AC-L10 no looping animation runs with prefers-reduced-motion', async ({ pa
   );
   expect(loopingCount).toBe(0);
 });
+
+const EXAMPLE_QUESTIONS = [
+  "What were this week's TypeScript tooling debates?",
+  'What were the biggest AI tooling launches this week?',
+  'Rust vs Go: what are teams choosing this week?',
+];
+const exampleSection = (page: Page) =>
+  page.getByRole('region', { name: 'Ask a question, get a briefing' });
+
+// The renderer is the only chunk that holds @a2ui/react (the size gate's marker).
+function watchRequests(page: Page) {
+  const seen = { renderer: false, copilotCalls: [] as string[] };
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/v1/copilot/'))
+      seen.copilotCalls.push(request.url());
+  });
+  page.on('response', async (response) => {
+    if (!response.url().includes('/_next/static/') || !response.url().endsWith('.js')) return;
+    const body = await response.text().catch(() => '');
+    if (/a2ui-react-/.test(body)) seen.renderer = true;
+  });
+  return seen;
+}
+
+test('AC-3.2.2 the initial HTML holds the three question tabs; the renderer loads and no copilot call happens only once the section scrolls into view', async ({
+  page,
+}) => {
+  const html = await (await page.request.get('/')).text();
+  for (const question of EXAMPLE_QUESTIONS) expect(html).toContain(question.replace("'", '&#x27;'));
+
+  const seen = watchRequests(page);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  expect(seen.renderer).toBe(false);
+
+  await exampleSection(page).scrollIntoViewIfNeeded();
+  await expect(
+    exampleSection(page).getByRole('heading', {
+      level: 2,
+      name: `Example 1: ${EXAMPLE_QUESTIONS[0]}`,
+    }),
+  ).toBeVisible();
+  // The response handler is async, so the flag lands a moment after the heading shows.
+  await expect.poll(() => seen.renderer).toBe(true);
+  expect(seen.copilotCalls).toEqual([]);
+});
+
+test('AC-3.2.2 focus stays on a tab and the arrows work when the live tabs replace the server-rendered ones', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  // Every script requested from here on is the lazy chunk or its dependencies: hold them until released.
+  let release = () => {};
+  const released = new Promise<void>((resolve) => (release = resolve));
+  let heldCount = 0;
+  await page.route(/\/_next\/static\/.*\.js/, async (route) => {
+    heldCount += 1;
+    await released;
+    await route.continue();
+  });
+  await exampleSection(page).scrollIntoViewIfNeeded();
+  const tabs = exampleSection(page).getByRole('tab');
+  await tabs.first().focus();
+  await expect.poll(() => heldCount).toBeGreaterThan(0);
+  await expect(tabs.first()).toBeFocused();
+
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.nth(1)).toBeFocused();
+
+  release();
+  await expect(
+    exampleSection(page).getByRole('tabpanel').getByRole('heading', { level: 2 }),
+  ).toContainText('Example 2:');
+  await expect(tabs.nth(1)).toBeFocused();
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.nth(2)).toBeFocused();
+});
+
+test('AC-3.2.2 the example section shows briefing #1 with a story card and switches tabs', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await exampleSection(page).scrollIntoViewIfNeeded();
+  const panel = exampleSection(page).getByRole('tabpanel');
+  await expect(panel.getByRole('heading', { level: 2, name: /^Example 1:/ })).toBeVisible();
+  await expect(panel.locator('article').first()).toBeVisible();
+
+  await exampleSection(page).getByRole('tab', { name: EXAMPLE_QUESTIONS[1] }).click();
+  await expect(panel.getByRole('heading', { level: 2, name: /^Example 2:/ })).toBeVisible();
+});
+
+test('the example tabs move with the arrow keys', async ({ page }) => {
+  await page.goto('/');
+  await exampleSection(page).scrollIntoViewIfNeeded();
+  const tabs = exampleSection(page).getByRole('tab');
+  // The live tabs replace the server-rendered ones; only they react to keys.
+  await expect(
+    exampleSection(page).getByRole('tabpanel').getByRole('heading', { level: 2 }),
+  ).toBeVisible();
+  await tabs.first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs.nth(1)).toBeFocused();
+});
+
+test("AC-3.2.2 the hero's Briefing control shows example #1 and Feed brings the stories back", async ({
+  page,
+}) => {
+  const seen = watchRequests(page);
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  expect(seen.renderer).toBe(false);
+
+  const feedHeight = (await preview(page).boundingBox())!.height;
+  await preview(page).getByRole('button', { name: 'Briefing' }).click();
+  await expect(
+    preview(page).getByRole('heading', { level: 2, name: `Example 1: ${EXAMPLE_QUESTIONS[0]}` }),
+  ).toBeVisible();
+  expect(seen.copilotCalls).toEqual([]);
+  // The window keeps its height, so the page below doesn't jump.
+  expect((await preview(page).boundingBox())!.height).toBeCloseTo(feedHeight, 0);
+
+  await preview(page).getByRole('button', { name: 'Feed' }).click();
+  await expect(previewCards(page).first()).toBeVisible();
+});

@@ -9,6 +9,11 @@ export type Shortcut = {
 const MODIFIERS = ['mod', 'ctrl', 'meta', 'alt'];
 const ESCAPE_KEYS = ['esc', 'escape'];
 
+/** True on Apple platforms, where the command chord is ⌘K; elsewhere it is Ctrl K. Reads `navigator`, so call it on the client. */
+export function isApplePlatform() {
+  return /Mac|iP(hone|ad|od)/.test(navigator.userAgent);
+}
+
 /** True for an input, textarea, select or contenteditable element. */
 export function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;

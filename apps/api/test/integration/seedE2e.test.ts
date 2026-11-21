@@ -119,6 +119,15 @@ describe('end-to-end seed', () => {
     expect(radar.movers.length).toBeGreaterThanOrEqual(6);
   });
 
+  it('seeds the three example briefings under their questions, and reseeding keeps three rows', async () => {
+    await seedE2e(prisma, now);
+    await seedE2e(prisma, now);
+
+    const rows = await prisma.exampleBriefing.findMany({ orderBy: { position: 'asc' } });
+    expect(rows.map(({ slug }) => slug)).toEqual(EXAMPLE_QUESTIONS.map(({ slug }) => slug));
+    expect(JSON.stringify(rows[1]?.messages)).toContain(`Example 2: ${rows[1]?.question}`);
+  });
+
   it('is idempotent: a second run adds no rows', async () => {
     await seedE2e(prisma, now);
     const counts = async () => [await prisma.story.count(), await prisma.sourceItem.count()];
