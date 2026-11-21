@@ -380,18 +380,26 @@ describe('the PRD example sequence', () => {
       stars: source.stars,
     })),
   });
-  const others = ['cbriefts0002', 'cbriefts0003', 'cbriefts0004', 'cbriefts0005'].map((id, index) =>
-    retrievedStory(index + 2, { id }),
-  );
-  const fixtureRadar = (messageIndex: number) =>
-    componentsOf(tsToolingBriefing[messageIndex] as A2uiServerMessage);
+  // 13 more stories make the subtitle's 14 stories from Nov 12 to 19 on HN, Dev.to and 3 blogs.
+  const others = Array.from({ length: 13 }, (_, index) => {
+    const kind = (['hn', 'devto', 'rss'] as const)[index % 3] ?? 'hn';
+    const slug = kind === 'rss' ? `blog-${index % 2}` : kind;
+    return retrievedStory(index + 2, {
+      id: `cbriefts${String(index + 2).padStart(4, '0')}`,
+      publishedAt: `2026-11-${index === 0 ? 12 : index === 1 ? 19 : 13 + (index % 6)}T10:00:00Z`,
+      sources: [{ ...retrievedStory(1).sources[0]!, kind, slug }],
+    });
+  });
 
-  it('compiles the fixture plan to the fixture messages', () => {
-    const fixtureTakeaways = fixtureRadar(3)[0];
-    if (fixtureTakeaways?.component !== 'KeyTakeaways') throw new Error('fixture shape changed');
-    const chart = fixtureRadar(6)[0];
-    const badges = fixtureRadar(6)[1];
-    if (chart?.component !== 'TechVelocityChart' || badges?.component !== 'TagBadgeList') {
+  it('AC-3.1.6 compiles the fixture plan to exactly the fixture messages, subtitle included', () => {
+    const fixtureTakeaways = componentsOf(tsToolingBriefing[3] as A2uiServerMessage)[0];
+    const chart = componentsOf(tsToolingBriefing[6] as A2uiServerMessage)[0];
+    const badges = componentsOf(tsToolingBriefing[7] as A2uiServerMessage)[0];
+    if (
+      fixtureTakeaways?.component !== 'KeyTakeaways' ||
+      chart?.component !== 'TechVelocityChart' ||
+      badges?.component !== 'TagBadgeList'
+    ) {
       throw new Error('fixture shape changed');
     }
     const radar: RadarLookup = ({ window, metric, tags }): Radar => ({
@@ -409,14 +417,8 @@ describe('the PRD example sequence', () => {
     const plan: BriefingPlan = {
       title: "TypeScript tooling: this week's debates",
       sections: [
-        {
-          kind: 'takeaways',
-          items: fixtureTakeaways.items,
-        },
-        {
-          kind: 'stories',
-          picks: [{ storyId: fixtureStory.id, note: fixtureCard.note ?? '' }],
-        },
+        { kind: 'takeaways', items: fixtureTakeaways.items },
+        { kind: 'stories', picks: [{ storyId: fixtureStory.id, note: fixtureCard.note ?? '' }] },
         {
           kind: 'consensus',
           topic: 'Adopting the native compiler now',
@@ -438,23 +440,18 @@ describe('the PRD example sequence', () => {
         { kind: 'tags', tags: ['javascript', 'performance', 'testing'] },
       ],
     };
-    const context = contextOf({
-      title: plan.title,
-      stories: [fixtureStory, ...others],
-      radar,
-    });
+    const retrieved = [fixtureStory, ...others];
 
-    const { messages } = compileAll(plan.sections, context);
+    const { messages } = compileAll(
+      plan.sections,
+      contextOf({ title: plan.title, stories: retrieved, radar }),
+    );
 
-    // The fixture's velocity and tags components share one message; the pipeline sends one per section.
-    expect(messages.slice(0, 3)).toEqual(tsToolingBriefing.slice(3, 6));
-    expect(componentsOf(messages[3])[0]).toEqual(
-      componentsOf(tsToolingBriefing[6] as A2uiServerMessage)[0],
-    );
-    expect(componentsOf(messages[4])[0]).toEqual(
-      componentsOf(tsToolingBriefing[6] as A2uiServerMessage)[1],
-    );
-    const lastRoot = componentsOf(messages[4]).at(-1);
-    expect(lastRoot).toEqual(componentsOf(tsToolingBriefing[6] as A2uiServerMessage).at(-1));
+    expect([
+      createSurfaceMessage(SURFACE_ID),
+      rootMessage(SURFACE_ID, plan.title),
+      subtitleMessage(SURFACE_ID, retrieved),
+      ...messages,
+    ]).toEqual(tsToolingBriefing);
   });
 });

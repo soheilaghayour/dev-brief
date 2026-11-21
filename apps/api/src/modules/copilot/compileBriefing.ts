@@ -12,6 +12,7 @@ import {
   TAG_LABELS,
   type TagSlug,
 } from '@devbrief/shared';
+import { WINDOW_DAYS } from '../../common/tag-velocity/tagVelocity.js';
 import type { RetrievedStory } from './retrievedStory.js';
 
 type PlanSection = BriefingPlan['sections'][number];
@@ -170,7 +171,6 @@ function storyCard(story: RetrievedStory, id: string, note: string): ComponentDr
   };
 }
 
-const WINDOW_DAYS = { '7d': 7, '30d': 30 } as const satisfies Record<RadarWindow, number>;
 const METRIC_TITLES = {
   stories: 'Story volume',
   engagement: 'Engagement',
@@ -269,17 +269,14 @@ function issuesOf(error: { issues: readonly { path: (string | number)[]; message
   return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
 }
 
-/**
- * Compiles one plan section to its `updateComponents` message, which also re-sends `root` with the
- * extended children. `childIds` are the root's children so far; the entry ids use the plan index, so a
- * skipped section leaves a gap in the numbering instead of renaming later components.
- */
+/** Compiles one plan section to its `updateComponents` message, which re-sends `root` with `childIds` extended. */
 export function compileSection(
   section: PlanSection,
   index: number,
   childIds: readonly string[],
   context: CompileContext,
 ): CompiledSection {
+  // Entry ids use the plan index, so a skipped section leaves a gap instead of renaming later components.
   const { components, storyIds } = sectionComponents(section, index, context);
   if (components.length === 0) return { kind: 'dropped' };
 
