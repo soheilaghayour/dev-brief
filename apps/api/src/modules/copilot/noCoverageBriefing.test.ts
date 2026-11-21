@@ -1,4 +1,5 @@
 import { A2uiServerMessageSchema } from '@devbrief/shared';
+import noCoverageFixture from '@devbrief/shared/a2ui/fixtures/noCoverageBriefing.json';
 import { describe, expect, it } from 'vitest';
 import { noCoverageBriefing, suggestedTags } from './noCoverageBriefing.js';
 
@@ -63,5 +64,15 @@ describe('suggestedTags', () => {
 
   it('gives only the popular tags when the question has none', () => {
     expect(suggestedTags([], ['go', 'rust'])).toEqual(['go', 'rust']);
+  });
+
+  it('AC-3.1.7 builds exactly the shared fixture the web renderer is tested with', () => {
+    expect(
+      noCoverageBriefing({
+        question: 'COBOL on the blockchain',
+        suggestedTags: ['rust', 'typescript'],
+        surfaceId: 'briefing-cnocover0001',
+      }),
+    ).toEqual(noCoverageFixture);
   });
 });

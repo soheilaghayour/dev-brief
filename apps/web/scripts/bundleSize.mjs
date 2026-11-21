@@ -81,7 +81,7 @@ const ROUTE_SOURCES = {
 export const FORBIDDEN_MODULES = [
   { name: 'Recharts', marker: /recharts-[a-z]/ },
   { name: '@a2ui/react', marker: /a2ui-react-/ },
-  { name: '@a2ui/web_core', marker: /updateDataModel/ },
+  { name: '@a2ui/web_core', marker: /ValidationConfig\.allowedMessages/ },
   { name: 'lit', marker: /litHtmlVersions/ },
 ];
 

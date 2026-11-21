@@ -101,7 +101,7 @@ describe('findForbiddenModules', () => {
 
   it('reports the A2UI renderer and lit found in a first-load script', () => {
     const nextDir = writeSavedBuild(
-      'x="a2ui-react-markdown";y="updateDataModel";z=litHtmlVersions;',
+      'x="a2ui-react-markdown";y="ValidationConfig.allowedMessages";z=litHtmlVersions;',
     );
     expect(findForbiddenModules(nextDir, ['/saved']).map(({ module }) => module)).toEqual([
       '@a2ui/react',
