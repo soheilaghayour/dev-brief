@@ -189,6 +189,21 @@ describe('StoryCard', () => {
     expect(html).toContain('TL;DR');
   });
 
+  it('AC-2.3.11 puts the line after the title heading, which still links to the original in a new tab', () => {
+    features.summaries = true;
+    const html = render({ ...STORY, hasSummary: true, summaryLine: 'The gist' });
+    features.summaries = false;
+    const headingEnd = html.indexOf('</h2>');
+    expect(headingEnd).toBeGreaterThan(-1);
+    expect(html.indexOf('The gist')).toBeGreaterThan(headingEnd);
+    expect(html.slice(0, headingEnd)).toMatch(
+      new RegExp(
+        `<a[^>]*href="${STORY.url}"[^>]*target="_blank"|<a[^>]*target="_blank"[^>]*href="${STORY.url}"`,
+      ),
+    );
+    expect(html).toContain('AI summary: </span>The gist');
+  });
+
   it('AC-2.3.9 shows no line and no placeholder without a summary line or while the flag is off', () => {
     features.summaries = true;
     const none = render({ ...STORY, summaryLine: null });

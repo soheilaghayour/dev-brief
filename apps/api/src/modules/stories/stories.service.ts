@@ -41,14 +41,19 @@ export class StoriesService {
     // The cluster's summary on any member's page; a single story's own otherwise.
     const clusterSummarised = this.features.summaries && this.features.clusters && clusterId;
     const summary = clusterSummarised ? await findSummary(this.prisma, story, true) : story.summary;
-    const canSummarize =
-      this.features.summaries &&
-      hasSummaryInput({
-        items: await loadSummaryInputItems(this.prisma, story, this.features.clusters),
-      });
-    // The one answer for the cluster serves the detail's card and its members' cards.
+    // The one answer for the cluster serves the detail's card and its members' cards; a single story's card reads its own row.
     const summaries = clusterSummarised
-      ? new Map([[clusterId, { line: summary?.tldr[0] ?? null, canSummarize }]])
+      ? new Map([
+          [
+            clusterId,
+            {
+              line: summary?.tldr[0] ?? null,
+              canSummarize: hasSummaryInput({
+                items: await loadSummaryInputItems(this.prisma, story, true),
+              }),
+            },
+          ],
+        ])
       : undefined;
     const [card] = await toStoryCards(this.prisma, [story], this.features, summaries);
     const clusterMembers =

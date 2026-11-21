@@ -24,6 +24,7 @@ const UNKNOWN_COLLECTION_ID = 'cunknowncollectionxxxxx';
 describe('collections', () => {
   let app: INestApplication;
   let flagOff: INestApplication;
+  let withSummaries: INestApplication;
   let storyIds: string[];
   const prisma = useTestDatabase();
   const story = (index: number) => storyIds[index] ?? '';
@@ -46,6 +47,13 @@ describe('collections', () => {
   beforeAll(async () => {
     app = await createTestApp([], { AUTH_TEST_MODE: 'true', FEATURE_COLLECTIONS: 'true' });
     flagOff = await createTestApp([], { AUTH_TEST_MODE: 'true', FEATURE_COLLECTIONS: 'false' });
+    withSummaries = await createTestApp([], {
+      AUTH_TEST_MODE: 'true',
+      FEATURE_COLLECTIONS: 'true',
+      FEATURE_SUMMARIES: 'true',
+      ANTHROPIC_API_KEY: 'test-key',
+      IP_HASH_SECRET: 'test-ip-hash-secret-0123456789abcdef',
+    });
     const source = await createSource(prisma, 'collections-blog', 'rss');
     const stories = [];
     for (const [index, title] of ['Alpha', 'Bravo', 'Charlie', 'Delta'].entries()) {
@@ -62,6 +70,7 @@ describe('collections', () => {
   afterAll(async () => {
     await app.close();
     await flagOff.close();
+    await withSummaries.close();
   });
 
   it('every collections route answers 401 UNAUTHENTICATED without a session', async () => {
@@ -103,6 +112,31 @@ describe('collections', () => {
       expect(response.status).toBe(404);
       expect(ApiErrorSchema.parse(response.body).error.code).toBe('FEATURE_DISABLED');
     }
+  });
+
+  it('AC-2.3.9 a board card carries the first point of its story summary', async () => {
+    const user = await signInUser(withSummaries, 'summary-collector');
+    const collection = await createCollection(user, 'Summaries');
+    await prisma.summary.create({
+      data: {
+        storyId: story(0),
+        tldr: ['Board line.', 'Second point.'],
+        basedOnComments: 0,
+        trigger: 'auto',
+        model: 'claude-haiku-5-5',
+        promptVersion: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: '0',
+      },
+    });
+    await user.put(`${BASE}/${collection.id}/items/${story(0)}`);
+    await user.put(`${BASE}/${collection.id}/items/${story(1)}`);
+
+    const response = await user.get(`${BASE}/${collection.id}`);
+    const cards = CollectionDetailSchema.parse(response.body).items.map((item) => item.story);
+    expect(cards.map((card) => card.summaryLine)).toEqual(['Board line.', null]);
+    expect(cards.map((card) => card.hasSummary)).toEqual([true, false]);
   });
 
   it('AC-1.5.9 every collections mutation answers 403 FORBIDDEN_ORIGIN for a foreign Origin', async () => {

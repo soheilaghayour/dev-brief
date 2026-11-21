@@ -1,5 +1,4 @@
 import type { Prisma, Summary } from '../../generated/prisma/client.js';
-import { hasSummaryInput } from '../summary-input/hasSummaryInput.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 type StoryRef = { id: string; clusterId: string | null };
@@ -32,33 +31,25 @@ export function findSummary(
 /** What a card says of its cluster's summary: the first TL;DR point of the newest one, and whether the members hold enough to summarise. */
 export type ClusterSummaryInfo = { line: string | null; canSummarize: boolean };
 
-/** The summary info of each cluster in `clusterIds`; two queries for the whole page. */
+/** The summary info of each cluster in `canSummarize`, whose entries the caller judged from the members it already loaded; one query for the whole page. */
 export async function loadClusterSummaryInfo(
-  prisma: Pick<PrismaService, 'summary' | 'sourceItem'>,
-  clusterIds: readonly string[],
+  prisma: Pick<PrismaService, 'summary'>,
+  canSummarize: ReadonlyMap<string, boolean>,
 ) {
   const infos = new Map<string, ClusterSummaryInfo>();
-  if (clusterIds.length === 0) return infos;
-  const inCluster = { clusterId: { in: [...clusterIds] } };
-  const [summaries, items] = await Promise.all([
-    prisma.summary.findMany({
-      where: { story: inCluster },
-      orderBy: NEWEST_FIRST,
-      select: { tldr: true, story: { select: { clusterId: true } } },
-    }),
-    prisma.sourceItem.findMany({
-      where: { story: inCluster },
-      select: {
-        commentsCount: true,
-        source: { select: { kind: true } },
-        story: { select: { clusterId: true } },
-      },
-    }),
-  ]);
-  for (const clusterId of clusterIds) {
-    const line = summaries.find((row) => row.story.clusterId === clusterId)?.tldr[0] ?? null;
-    const members = items.filter((item) => item.story.clusterId === clusterId);
-    infos.set(clusterId, { line, canSummarize: hasSummaryInput({ items: members }) });
+  if (canSummarize.size === 0) return infos;
+  const summaries = await prisma.summary.findMany({
+    where: { story: { clusterId: { in: [...canSummarize.keys()] } } },
+    orderBy: NEWEST_FIRST,
+    select: { tldr: true, story: { select: { clusterId: true } } },
+  });
+  // Newest first, so the first summary seen of a cluster is its newest.
+  const lines = new Map<string, string | undefined>();
+  for (const { story, tldr } of summaries) {
+    if (story.clusterId && !lines.has(story.clusterId)) lines.set(story.clusterId, tldr[0]);
+  }
+  for (const [clusterId, can] of canSummarize) {
+    infos.set(clusterId, { line: lines.get(clusterId) ?? null, canSummarize: can });
   }
   return infos;
 }

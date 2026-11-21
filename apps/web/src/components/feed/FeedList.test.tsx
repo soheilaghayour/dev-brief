@@ -94,7 +94,7 @@ beforeEach(() => {
 });
 
 describe('FeedList', () => {
-  it('AC-2.3.9 binds the `u` shortcut only while the active story can be summarised', () => {
+  it('AC-2.3.12 binds the `u` shortcut while the active story can be summarised or has a summary', () => {
     features.summaries = true;
     features.focus = 'a';
     const withInput = { ...story('a'), canSummarize: true };
@@ -103,7 +103,13 @@ describe('FeedList', () => {
     });
     expect(renderToStaticMarkup(<FeedList />)).toContain('data-summarize-shortcut="a"');
 
-    const withoutInput = { ...story('a'), canSummarize: false };
+    const summarisedButThin = { ...story('a'), canSummarize: false, hasSummary: true };
+    mockQuery({
+      data: { pages: [{ items: [summarisedButThin], nextCursor: null }], pageParams: [undefined] },
+    });
+    expect(renderToStaticMarkup(<FeedList />)).toContain('data-summarize-shortcut="a"');
+
+    const withoutInput = { ...story('a'), canSummarize: false, hasSummary: false };
     mockQuery({
       data: { pages: [{ items: [withoutInput], nextCursor: null }], pageParams: [undefined] },
     });

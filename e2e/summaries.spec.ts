@@ -79,16 +79,42 @@ test('AC-2.3.9 the landing preview shows the line of a summarised story', async 
   await expect(clampedLine(card(page, STORY_WITH_CONSENSUS))).toHaveText(SUMMARY_LINE);
 });
 
-test('AC-2.3.12 u opens the story page to summarise, and does nothing on a story with no input', async ({
+const SUMMARY_ROUTE = '**/api/v1/stories/*/summary';
+// Generation is never live in e2e: the stubbed POST answers a contract-valid summary.
+const STUBBED_SUMMARY = {
+  storyId: UNSUMMARISED_STORY,
+  tldr: ['Stubbed first point.', 'Stubbed second point.', 'Stubbed third point.'],
+  consensus: null,
+  model: 'stub',
+  createdAt: '2026-01-01T00:00:00.000Z',
+};
+
+test('AC-2.3.12 u opens the story page and starts the summary request, and does nothing on a story with no input', async ({
   page,
 }) => {
+  const posts: string[] = [];
+  await page.route(SUMMARY_ROUTE, async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    posts.push(route.request().url());
+    return route.fulfill({ status: 201, json: STUBBED_SUMMARY });
+  });
+
+  // `j` after `u` is handled after it, so once the active card moves, a no-op `u` has had its chance to navigate.
   await openFeedWithHotkeys(page, `?sort=latest&focus=${BLOG_ONLY_STORY}`);
   await page.keyboard.press('u');
-  // A no-op has no event to wait for, so give a navigation time to start.
-  await page.waitForTimeout(500);
+  await page.keyboard.press('j');
+  await expect(card(page, BLOG_ONLY_STORY)).not.toHaveAttribute('data-active', 'true');
   await expect(page).toHaveURL(new RegExp(`/feed\\?sort=latest&focus=${BLOG_ONLY_STORY}$`));
+  expect(posts).toHaveLength(0);
 
   await openFeedWithHotkeys(page, `?sort=latest&focus=${UNSUMMARISED_STORY}`);
+  const requested = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' &&
+      request.url().includes(`/stories/${UNSUMMARISED_STORY}/summary`),
+  );
   await page.keyboard.press('u');
-  await expect(page).toHaveURL(new RegExp(`/story/${UNSUMMARISED_STORY}\\?summarize=1`));
+  await requested;
+  await expect(page).toHaveURL(new RegExp(`/story/${UNSUMMARISED_STORY}`));
+  expect(posts).toHaveLength(1);
 });
