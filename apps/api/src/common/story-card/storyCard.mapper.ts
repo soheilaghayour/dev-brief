@@ -34,11 +34,16 @@ export function toSourceRef(item: ItemWithSource): SourceRef {
 }
 
 /** The phase flags the mappers read; a field behind an off flag is left out, so flag-off responses match Phase 1. */
-export type StoryFeatures = { summaries: boolean };
+export type StoryFeatures = { summaries: boolean; clusters: boolean };
+
+/** What a card shows of its story's cluster. */
+export type CardCluster = NonNullable<StoryCard['cluster']>;
 
 /** The phase flags the story mappers read, from the validated env. */
-export function storyFeatures(env: Pick<Env, 'FEATURE_SUMMARIES'>): StoryFeatures {
-  return { summaries: env.FEATURE_SUMMARIES };
+export function storyFeatures(
+  env: Pick<Env, 'FEATURE_SUMMARIES' | 'FEATURE_CLUSTERS'>,
+): StoryFeatures {
+  return { summaries: env.FEATURE_SUMMARIES, clusters: env.FEATURE_CLUSTERS };
 }
 
 export function toStorySummary(summary: Summary): StorySummary {
@@ -52,7 +57,13 @@ export function toStorySummary(summary: Summary): StorySummary {
   };
 }
 
-export function toStoryCard(story: StoryWithItems, features: StoryFeatures): StoryCard {
+/** `clusters` holds the cluster info of the page's cards by cluster id; it is read only while the clusters flag is on. */
+export function toStoryCard(
+  story: StoryWithItems,
+  features: StoryFeatures,
+  clusters?: ReadonlyMap<string, CardCluster>,
+): StoryCard {
+  const cluster = features.clusters && story.clusterId ? clusters?.get(story.clusterId) : undefined;
   return {
     id: story.id,
     title: story.title,
@@ -66,6 +77,7 @@ export function toStoryCard(story: StoryWithItems, features: StoryFeatures): Sto
     readingTimeMinutes: story.readingTimeMinutes,
     sources: story.items.map(toSourceRef),
     rankScore: story.rankScore,
+    ...(cluster && { cluster }),
     ...(features.summaries && { hasSummary: story.summary !== null }),
   };
 }

@@ -3,6 +3,7 @@ import type { StoryDetail, StoryLookupResponse } from '@devbrief/shared';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { toStoryCards } from '../../common/story-card/clusterCards.js';
 import {
   type StoryFeatures,
   storyFeatures,
@@ -30,8 +31,11 @@ export class StoriesService {
       include: { ...storyWithItems, summary: true },
     });
     if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
+    const [card] = await toStoryCards(this.prisma, [story], this.features);
+    const clusterMembers =
+      this.features.clusters && story.clusterId ? await this.otherMembers(story.clusterId, id) : [];
     return {
-      ...toStoryCard(story, this.features),
+      ...card!,
       firstSeenAt: story.firstSeenAt.toISOString(),
       items: story.items.map((item) => ({
         ...toSourceRef(item),
@@ -39,10 +43,20 @@ export class StoriesService {
         author: item.author,
         publishedAt: item.publishedAt.toISOString(),
       })),
+      ...(clusterMembers.length > 0 && { clusterMembers }),
       ...(this.features.summaries && {
         summary: story.summary && toStorySummary(story.summary),
       }),
     };
+  }
+
+  private async otherMembers(clusterId: string, storyId: string) {
+    const members = await this.prisma.story.findMany({
+      where: { clusterId, id: { not: storyId } },
+      include: storyWithItems,
+      orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
+    });
+    return members.map((member) => toStoryCard(member, this.features));
   }
 
   async lookup(ids: string[]): Promise<StoryLookupResponse> {
@@ -51,9 +65,8 @@ export class StoriesService {
       where: { id: { in: uniqueIds } },
       include: storyWithItems,
     });
-    const cardsById = new Map(
-      stories.map((story) => [story.id, toStoryCard(story, this.features)]),
-    );
+    const cards = await toStoryCards(this.prisma, stories, this.features);
+    const cardsById = new Map(cards.map((card) => [card.id, card]));
     return {
       items: uniqueIds.flatMap((id) => cardsById.get(id) ?? []),
       missingIds: uniqueIds.filter((id) => !cardsById.has(id)),

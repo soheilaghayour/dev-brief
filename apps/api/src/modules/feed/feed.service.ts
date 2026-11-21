@@ -9,11 +9,11 @@ import {
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { toStoryCards } from '../../common/story-card/clusterCards.js';
 import {
   type StoryFeatures,
   storyFeatures,
   storyWithItems,
-  toStoryCard,
 } from '../../common/story-card/storyCard.mapper.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { effectiveFeedQuery, feedCacheKey, parseKeyset, type Keyset } from './feedQuery.js';
@@ -71,6 +71,8 @@ export class FeedService {
       ? await this.smallSourceStoryIds(query.sources)
       : undefined;
     const filters = [
+      // A cluster is its representative's one card: members never list on their own.
+      ...(this.features.clusters ? [Prisma.sql`s."isPrimary" = true`] : []),
       ...(query.sort === 'top'
         ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
         : []),
@@ -118,10 +120,8 @@ export class FeedService {
       include: storyWithItems,
     });
     const storyById = new Map(stories.map((story) => [story.id, story]));
-    return ids.flatMap((id) => {
-      const story = storyById.get(id);
-      return story ? [toStoryCard(story, this.features)] : [];
-    });
+    const ordered = ids.flatMap((id) => storyById.get(id) ?? []);
+    return toStoryCards(this.prisma, ordered, this.features);
   }
 }
 
@@ -135,7 +135,7 @@ function sourceExists(sourceCondition: Prisma.Sql) {
     WHERE si."storyId" = s."id" AND ${sourceCondition})`;
 }
 
-/** Mutes and follows, applied per story: the one place a cluster-level rule would replace. */
+/** Mutes and follows, applied per story: with clusters on that is the representative's. */
 function personalisation(query: FeedQuery) {
   const { excludeTags, excludeSources, boostTags, boostSources } = query;
   const exclusions = [

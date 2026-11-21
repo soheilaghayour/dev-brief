@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateTagStats,
+  clusterNeedsUpkeep,
   ingestionRunCutoff,
   llmUsageCutoff,
+  planClusterUpkeep,
   rateLimitCounterCutoff,
   storyCutoff,
   tagStatWindowStart,
@@ -52,5 +54,53 @@ describe('dailyRules', () => {
     expect(rust).toMatchObject({ storyCount: 2, engagementSum: 45 });
     expect(rust?.avgPercentile).toBeCloseTo(0.6);
     expect(rows).toHaveLength(3);
+  });
+
+  it('§5.3 re-picks the representative among the remaining members and recounts their kinds', () => {
+    const upkeep = planClusterUpkeep('c1', [
+      { id: 'a', rankScore: 3, kinds: ['hn', 'rss'] },
+      { id: 'b', rankScore: 5, kinds: ['rss'] },
+      { id: 'c', rankScore: 5, kinds: ['devto'] },
+    ]);
+    expect(upkeep).toEqual({
+      action: 'update',
+      clusterId: 'c1',
+      memberCount: 3,
+      sourceKinds: ['devto', 'hn', 'rss'],
+      representativeStoryId: 'c',
+      rankScore: 5,
+    });
+  });
+
+  it('§5.3 dissolves a cluster left with one member or none', () => {
+    expect(planClusterUpkeep('c1', [{ id: 'a', rankScore: 3, kinds: ['hn'] }])).toEqual({
+      action: 'dissolve',
+      clusterId: 'c1',
+    });
+    expect(planClusterUpkeep('c1', [])).toEqual({
+      action: 'dissolve',
+      clusterId: 'c1',
+    });
+  });
+
+  it('§5.3 flags a cluster that is short of members, miscounted, or without exactly the representative as primary', () => {
+    const ok = {
+      representativeStoryId: 'a',
+      memberCount: 2,
+      members: [
+        { id: 'a', isPrimary: true },
+        { id: 'b', isPrimary: false },
+      ],
+    };
+    expect(clusterNeedsUpkeep(ok)).toBe(false);
+    expect(clusterNeedsUpkeep({ ...ok, representativeStoryId: 'gone' })).toBe(true);
+    expect(clusterNeedsUpkeep({ ...ok, memberCount: 3 })).toBe(true);
+    expect(clusterNeedsUpkeep({ ...ok, members: [{ id: 'a', isPrimary: true }] })).toBe(true);
+    expect(
+      clusterNeedsUpkeep({ ...ok, members: ok.members.map((m) => ({ ...m, isPrimary: false })) }),
+    ).toBe(true);
+    expect(
+      clusterNeedsUpkeep({ ...ok, members: ok.members.map((m) => ({ ...m, isPrimary: true })) }),
+    ).toBe(true);
   });
 });

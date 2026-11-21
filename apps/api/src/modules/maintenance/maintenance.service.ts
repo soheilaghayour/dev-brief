@@ -3,7 +3,9 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import {
   aggregateTagStats,
+  clusterNeedsUpkeep,
   ingestionRunCutoff,
+  planClusterUpkeep,
   llmUsageCutoff,
   PURGE_BATCH_SIZE,
   rateLimitCounterCutoff,
@@ -11,7 +13,7 @@ import {
   tagStatWindowStart,
 } from './dailyRules.js';
 
-/** The daily job: tag rollup first, then retention. */
+/** The daily job: tag rollup first, then retention and the cluster upkeep it needs. */
 @Injectable()
 export class MaintenanceService {
   private readonly logger = new Logger(MaintenanceService.name);
@@ -32,6 +34,7 @@ export class MaintenanceService {
     const steps = [
       ['tag rollup', () => this.recomputeTagDailyStats(now)],
       ['story purge', () => this.purgeStories(now)],
+      ['cluster upkeep', () => this.upkeepClusters()],
       [
         'ingestion run purge',
         () =>
@@ -100,11 +103,70 @@ export class MaintenanceService {
         select: { id: true },
         take: PURGE_BATCH_SIZE,
       });
-      if (batch.length === 0) return;
+      if (batch.length === 0) break;
       await this.prisma.story.deleteMany({
         // Repeats the Save guard: a Save may land between the lookup and the delete.
         where: { id: { in: batch.map(({ id }) => id) }, saves: { none: {} } },
       });
+    }
+  }
+
+  /** Repairs every broken cluster found in the database, so an interrupted purge is repaired by the next run. */
+  private async upkeepClusters() {
+    const clusters = await this.prisma.cluster.findMany({
+      select: {
+        id: true,
+        representativeStoryId: true,
+        memberCount: true,
+        stories: { select: { id: true, isPrimary: true } },
+      },
+    });
+    const broken = clusters.filter(({ stories, ...cluster }) =>
+      clusterNeedsUpkeep({ ...cluster, members: stories }),
+    );
+    for (const { id: clusterId } of broken) {
+      const members = await this.prisma.story.findMany({
+        where: { clusterId },
+        select: {
+          id: true,
+          rankScore: true,
+          items: { select: { source: { select: { kind: true } } } },
+        },
+      });
+      const upkeep = planClusterUpkeep(
+        clusterId,
+        members.map(({ items, ...member }) => ({
+          ...member,
+          kinds: items.map((item) => item.source.kind),
+        })),
+      );
+      if (upkeep.action === 'dissolve') {
+        // clusterScore stays: it records the clustering decision, not membership (AC-2.1.3).
+        await this.prisma.$transaction([
+          this.prisma.story.updateMany({
+            where: { clusterId },
+            data: { clusterId: null, isPrimary: true },
+          }),
+          this.prisma.cluster.deleteMany({ where: { id: clusterId } }),
+        ]);
+        continue;
+      }
+      await this.prisma.$transaction([
+        this.prisma.cluster.update({
+          where: { id: clusterId },
+          data: {
+            memberCount: upkeep.memberCount,
+            sourceKinds: upkeep.sourceKinds,
+            representativeStoryId: upkeep.representativeStoryId,
+            rankScore: upkeep.rankScore,
+          },
+        }),
+        this.prisma.story.updateMany({ where: { clusterId }, data: { isPrimary: false } }),
+        this.prisma.story.update({
+          where: { id: upkeep.representativeStoryId },
+          data: { isPrimary: true },
+        }),
+      ]);
     }
   }
 }

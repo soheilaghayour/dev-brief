@@ -33,6 +33,15 @@ export const StoryCardSchema = z.object({
   readingTimeMinutes: z.number().int().nullable(),
   sources: z.array(SourceRefSchema).min(1),
   rankScore: z.number(),
+  // Absent while FEATURE_CLUSTERS is off, so flag-off responses match Phase 1.
+  cluster: z
+    .object({
+      id: z.string(),
+      memberCount: z.number().int().min(2),
+      sources: z.array(SourceRefSchema),
+    })
+    .nullable()
+    .optional(),
   hasSummary: z.boolean().optional(),
 });
 export type StoryCard = z.infer<typeof StoryCardSchema>;
@@ -46,6 +55,7 @@ export const StoryDetailSchema = StoryCardSchema.extend({
       publishedAt: z.string().datetime(),
     }),
   ),
+  clusterMembers: z.array(StoryCardSchema).optional(),
   summary: StorySummarySchema.nullable().optional(),
 });
 export type StoryDetail = z.infer<typeof StoryDetailSchema>;
