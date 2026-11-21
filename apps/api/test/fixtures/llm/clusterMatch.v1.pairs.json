@@ -648,6 +648,29 @@
       },
       "warnings": []
     },
+    "deno-3-vs-deploy-pricing": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
     "postgres-19-vs-18-4": {
       "content": [
         {
@@ -671,7 +694,122 @@
       },
       "warnings": []
     },
+    "vite-8-vs-vite-plus": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "tailwind-5-vs-ui-redesign": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
     "docker-podman-vs-acquisition": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "linux-7-1-vs-foundation-members": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "fourier-primer-vs-fourier-rust": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "go-1-26-vs-error-proposal": {
       "content": [
         {
           "type": "text",
@@ -786,7 +924,53 @@
       },
       "warnings": []
     },
+    "ruby-advisory-vs-patch-post": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
     "gemini-neon-vs-take": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "java4shell-vs-september-report": {
       "content": [
         {
           "type": "text",
@@ -856,6 +1040,52 @@
       "warnings": []
     },
     "gemini-carbon-vs-neon": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "xz-disclosure-vs-everything-i-know": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "regresshion-advisory-vs-openssh-9-8": {
       "content": [
         {
           "type": "text",
@@ -993,6 +1223,75 @@
       },
       "warnings": []
     },
+    "polyfill-disclosure-vs-namecheap-takedown": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "cloudflare-outage-status-vs-postmortem": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "cloudflare-outage-status-vs-dont-use-cloudflare": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
     "copilot-free-vs-vscode-blog": {
       "content": [
         {
@@ -1086,6 +1385,29 @@
       "warnings": []
     },
     "react2shell-blog-vs-snyk": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"match\":\"none\",\"confidence\":0.9}"
+        }
+      ],
+      "finishReason": {
+        "unified": "stop",
+        "raw": "end_turn"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 520,
+          "noCache": 520
+        },
+        "outputTokens": {
+          "total": 14,
+          "text": 14
+        }
+      },
+      "warnings": []
+    },
+    "react-dos-blog-vs-vercel-bulletin": {
       "content": [
         {
           "type": "text",
@@ -1207,26 +1529,40 @@
     "rust-1-92-vs-1-93": "4d953d903539d5eb",
     "node-26-5-0-vs-26-5-1": "676160b8dbd547d3",
     "typescript-6-1-rc-vs-final": "cddd1e343f55186c",
+    "deno-3-vs-deploy-pricing": "1030cf8c3260219c",
     "postgres-19-vs-18-4": "9a1793bf50ebcf3d",
+    "vite-8-vs-vite-plus": "94992353497dfe3c",
+    "tailwind-5-vs-ui-redesign": "10c088a57caf757c",
     "docker-podman-vs-acquisition": "38d46978b9bc0643",
+    "linux-7-1-vs-foundation-members": "02ca89dee88f6646",
+    "fourier-primer-vs-fourier-rust": "623a1af610cf7249",
+    "go-1-26-vs-error-proposal": "dcfa547e5d516ed0",
     "astro-6-vs-astro-conf": "d02fd27e8bef4f2e",
     "react-19-2-hands-on": "e1d610318f427640",
     "react-19-2-opinion-wider": "9601460a3bb447a6",
     "injection-react-conf": "33ccf620038b5fcd",
+    "ruby-advisory-vs-patch-post": "d394534548230a5a",
     "gemini-neon-vs-take": "0e96345e323daa2c",
+    "java4shell-vs-september-report": "0e44a48ca56abc66",
     "datasette-two-releases": "3a5efc50329959a5",
     "llm-vs-llm-gemini": "4b1dfcaf15b3cfab",
     "gemini-carbon-vs-neon": "0d88ab0626a99695",
+    "xz-disclosure-vs-everything-i-know": "d66dd2141085c9de",
+    "regresshion-advisory-vs-openssh-9-8": "17fe7980d247cc08",
     "regresshion-advisory-vs-fix-guide": "1238a2d096ef35ec",
     "crowdstrike-bsod-vs-devto": "aadfa250d78cc30a",
     "llama-3-launch-vs-less-censored": "29dc2ab102d46161",
     "llama-3-launch-vs-meta-ai-assistant": "a8687b69110623a7",
     "polyfill-disclosure-vs-snyk": "604751b6f812f53a",
+    "polyfill-disclosure-vs-namecheap-takedown": "e2fce3f433166254",
+    "cloudflare-outage-status-vs-postmortem": "2ed755dae8ca11ba",
+    "cloudflare-outage-status-vs-dont-use-cloudflare": "b27c2d84120e3f44",
     "copilot-free-vs-vscode-blog": "cf31c0d3f531a087",
     "node-22-blog-vs-openjsf": "a91671d90a7a8c72",
     "claude-3-5-sonnet-vs-verge": "23536b7aa8132a4a",
     "react2shell-blog-vs-nextjs-advisory": "0419c70740870798",
     "react2shell-blog-vs-snyk": "652c1bee26f31fc4",
+    "react-dos-blog-vs-vercel-bulletin": "5469aafcb7411871",
     "react-foundation-blog-vs-register": "520f6602a6280ce4",
     "react-19-blog-vs-changelog": "9430ca14ad62a641",
     "react-19-2-blog-vs-github-release": "b64edc0a489ae78e"

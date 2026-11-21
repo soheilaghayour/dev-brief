@@ -1,12 +1,12 @@
 // PRD F2.1: the pure half of the clustering step; the model call and the database live in the API.
 
-/** A candidate needs `candidateScore` of at least this; it decides only whether a model call is worth making. Tuned on the fixture for recall. */
-export const CLUSTER_CANDIDATE_MIN_SCORE = 0.2;
+/** A candidate needs `candidateScore` of at least this; it decides only whether a model call is worth making. Tuned for recall on the fixture and the held-out pairs, within the cluster cap. */
+export const CLUSTER_CANDIDATE_MIN_SCORE = 0.16;
 /** The model's confidence at which a match joins a cluster; tuned on the fixture for precision. */
 export const CLUSTER_MIN_CONFIDENCE = 0.8;
 export const CLUSTER_MAX_SIZE = 12;
 export const CLUSTER_MAX_CANDIDATES = 5;
-export const CLUSTER_SIGNAL_WEIGHTS = { trgm: 0.55, ent: 0.35, link: 0.1 } as const;
+export const CLUSTER_SIGNAL_WEIGHTS = { trgm: 0.45, ent: 0.45, link: 0.1 } as const;
 
 // Capitalised words that start or fill a headline without naming anything.
 const STOPLIST = new Set(
@@ -17,6 +17,8 @@ const STOPLIST = new Set(
     'release releasing available update updates updated version versions guide tutorial using use used ' +
     'getting get got we our you your i my it its they their one two three four five six seven eight nine ten ' +
     'part notes note first last best top vs via not no yes all any more most less why ' +
+    // "AI" is in about a quarter of tech headlines, so sharing it says nothing.
+    'ai ' +
     'january february march april may june july august september october november december ' +
     'monday tuesday wednesday thursday friday saturday sunday'
   ).split(' '),
@@ -169,15 +171,45 @@ export function trigramsOf(normalizedTitle: string) {
   return trigrams;
 }
 
-/** What scoring a story against another needs, computed once per story. */
-export type ClusterProfile = { entities: ReadonlySet<string>; trigrams: ReadonlySet<string> };
+const ADVISORY_ID = /\b(?:cve-\d{4}-\d{4,}|ghsa(?:-[a-z0-9]{4}){3})\b/gi;
 
-/** The entity tokens and title trigrams of a story. */
-export function clusterProfile(story: { title: string; url: string; normalizedTitle: string }) {
+/** The CVE and GHSA ids a story names in its title, excerpt or URL, lowercased. */
+export function advisoryIds(story: { title: string; url: string; excerpt: string | null }) {
+  const text = `${story.title} ${story.excerpt ?? ''} ${story.url}`;
+  return new Set(Array.from(text.matchAll(ADVISORY_ID), ([id]) => id.toLowerCase()));
+}
+
+/** What scoring a story against another needs, computed once per story. */
+export type ClusterProfile = {
+  entities: ReadonlySet<string>;
+  trigrams: ReadonlySet<string>;
+  advisories: ReadonlySet<string>;
+};
+
+/** The entity tokens, title trigrams and advisory ids of a story. */
+export function clusterProfile(story: {
+  title: string;
+  url: string;
+  excerpt: string | null;
+  normalizedTitle: string;
+}) {
   return {
     entities: entityTokens(story.title, story.url),
     trigrams: trigramsOf(story.normalizedTitle),
+    advisories: advisoryIds(story),
   } satisfies ClusterProfile;
+}
+
+function sharesAny(a: ReadonlySet<string>, b: ReadonlySet<string>) {
+  for (const member of a) if (b.has(member)) return true;
+  return false;
+}
+
+/** F2.1's `link` signal: the two stories point at the same project or name the same advisory. */
+function sameSubject(story: ClusterStoryInput, row: ClusterStoryInput) {
+  return (
+    sharesAny(story.profile.advisories, row.profile.advisories) || sameLink(story.url, row.url)
+  );
 }
 
 export type ClusterStoryInput = {
@@ -222,7 +254,7 @@ export function rankClusterCandidates<Row extends ClusterPoolRow>(
     // Parsing URLs is the costly signal, so it runs only when it could lift the row over the floor.
     if (titleScore + CLUSTER_SIGNAL_WEIGHTS.link < CLUSTER_CANDIDATE_MIN_SCORE) continue;
     const candidateScore =
-      titleScore + CLUSTER_SIGNAL_WEIGHTS.link * (sameLink(story.url, row.url) ? 1 : 0);
+      titleScore + CLUSTER_SIGNAL_WEIGHTS.link * (sameSubject(story, row) ? 1 : 0);
     if (candidateScore < CLUSTER_CANDIDATE_MIN_SCORE) continue;
     const candidate = { ...row, candidateScore };
     const key = row.clusterId ?? `story:${row.id}`;

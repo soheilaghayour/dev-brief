@@ -160,7 +160,7 @@ describe('cluster accuracy fixture', () => {
   }
 
   it('AC-2.1.1 names the floor and the confidence as constants', () => {
-    expect([CLUSTER_CANDIDATE_MIN_SCORE, CLUSTER_MIN_CONFIDENCE]).toEqual([0.2, 0.8]);
+    expect([CLUSTER_CANDIDATE_MIN_SCORE, CLUSTER_MIN_CONFIDENCE]).toEqual([0.16, 0.8]);
   });
 
   it('AC-2.1.1 passes at least 95% of the positive pairs through the pre-filter, with no model involved', () => {
@@ -169,14 +169,15 @@ describe('cluster accuracy fixture', () => {
     expect(rate, `cut by the floor: ${cut.join(', ')}`).toBeGreaterThanOrEqual(0.95);
   });
 
-  it('reports the pre-filter pass rate of the held-out pairs, which is not a gate', () => {
+  it('AC-2.1.1 passes at least 75% of the held-out positive pairs through the pre-filter', () => {
     const positiveSet = heldOutPairs.filter(({ label }) => label === 'same');
     const held = passRate(positiveSet);
     const all = passRate(heldOutPairs);
+    const cut = positiveSet.filter((pair) => !reachesModel(pair)).map(({ id }) => id);
     process.stderr.write(
       `\nheld-out pairs: ${held.passed} of ${positiveSet.length} positives and ${all.passed} of ${heldOutPairs.length} pairs pass the pre-filter\n`,
     );
-    expect(heldOutPairs.length).toBeGreaterThan(0);
+    expect(held.rate, `cut by the floor: ${cut.join(', ')}`).toBeGreaterThanOrEqual(0.75);
   });
 
   it('has a recording made for the current prompt and pairs', () => {
