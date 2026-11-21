@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   dynamicRouteScripts,
+  findForbiddenModules,
   findOverBudget,
   manifestMatchesHtml,
   measureRoute,
@@ -75,6 +76,31 @@ describe('measureRoute', () => {
     writeFileSync(join(nextDir, 'server/app/saved.html'), '<html></html>');
 
     expect(() => measureRoute(nextDir, '/saved')).toThrow(/no scripts found/);
+  });
+});
+
+describe('findForbiddenModules', () => {
+  function writeSavedBuild(code) {
+    const nextDir = mkdtempSync(join(tmpdir(), 'next-'));
+    mkdirSync(join(nextDir, 'static/chunks'), { recursive: true });
+    mkdirSync(join(nextDir, 'server/app'), { recursive: true });
+    writeFileSync(join(nextDir, 'static/chunks/a.js'), code);
+    writeFileSync(
+      join(nextDir, 'server/app/saved.html'),
+      '<script src="/_next/static/chunks/a.js" async=""></script>',
+    );
+    return nextDir;
+  }
+
+  it('AC-3.3.3 reports Recharts found in a first-load script', () => {
+    const nextDir = writeSavedBuild('x="recharts-wrapper";');
+    expect(findForbiddenModules(nextDir, ['/saved'])).toEqual([
+      { route: '/saved', module: 'Recharts', script: 'static/chunks/a.js' },
+    ]);
+  });
+
+  it('AC-3.3.3 passes first-load scripts without Recharts', () => {
+    expect(findForbiddenModules(writeSavedBuild('x=1;'), ['/saved'])).toEqual([]);
   });
 });
 

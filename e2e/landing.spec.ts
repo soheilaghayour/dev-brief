@@ -93,12 +93,17 @@ test('AC-L6 renders dark on first paint for a dark OS and keeps a chosen theme a
   expect(await firstPaintClass()).not.toContain('dark');
 });
 
-test('AC-L7 the nav has no Radar link while its phase flag is off', async ({ page }) => {
+test('AC-L7 the nav and the bento tile show Radar while its phase flag is on', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveText([
     'Feed',
+    'Radar',
     'GitHub',
   ]);
+  await expect(page.getByRole('heading', { name: 'Tech Radar' })).toBeVisible();
+
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Radar' }).click();
+  await expect(page).toHaveURL('/radar');
 });
 
 test('AC-L8 the footer links to the statically rendered Impressum and Privacy pages', async ({

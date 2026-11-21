@@ -1,9 +1,6 @@
 import { z } from 'zod';
+import { RADAR_METRICS, RADAR_TAGS_MAX, RADAR_WINDOWS } from './radarLimits.js';
 import { TagSlugSchema } from './story.js';
-
-export const RADAR_WINDOWS = ['7d', '30d'] as const;
-export const RADAR_METRICS = ['stories', 'engagement'] as const;
-export const RADAR_TAGS_MAX = 5;
 
 export const RadarWindowSchema = z.enum(RADAR_WINDOWS);
 export type RadarWindow = z.infer<typeof RadarWindowSchema>;

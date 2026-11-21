@@ -1,8 +1,9 @@
-// Fails when a gated route's first-load JS exceeds its budget in bundle-budgets.json, or a first-load chunk lacks the compile hint.
+// Fails when a gated route's first-load JS exceeds its budget in bundle-budgets.json, contains a forbidden module (Recharts), or a first-load chunk lacks the compile hint.
 // Run after `next build`: pnpm --filter web size
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  findForbiddenModules,
   findOverBudget,
   MANIFEST_CHECK,
   manifestMatchesHtml,
@@ -40,4 +41,9 @@ const failures = findOverBudget(sizes, budgets);
 for (const { route, kb, budget } of failures) {
   console.error(`OVER BUDGET ${route}: ${kb.toFixed(1)} KB > ${budget} KB`);
 }
-process.exit(failures.length > 0 ? 1 : 0);
+
+const forbidden = findForbiddenModules(nextDir);
+for (const { route, module, script } of forbidden) {
+  console.error(`FORBIDDEN MODULE ${module} in the first load of ${route}: ${script}`);
+}
+process.exit(failures.length > 0 || forbidden.length > 0 ? 1 : 0);

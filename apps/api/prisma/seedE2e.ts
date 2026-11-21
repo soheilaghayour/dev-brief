@@ -169,6 +169,32 @@ async function seedStory(prisma: PrismaClient, seed: StorySeed) {
   }
 }
 
+/** Tags with radar history, and the one day (counting back from yesterday) on which no tag has a row. */
+const RADAR_TAGS = ['react', 'typescript', 'rust', 'ai-llms', 'databases', 'go'];
+const RADAR_DAYS = 60;
+const RADAR_GAP_DAYS_AGO = 3;
+
+/** 60 days of `TagDailyStat` ending yesterday (UTC) for six tags, with a gap day the radar must show as 0. */
+export function buildTagDailyStats(now: Date) {
+  const todayMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Array.from({ length: RADAR_DAYS }, (_, index) => index + 1)
+    .filter((daysAgo) => daysAgo !== RADAR_GAP_DAYS_AGO)
+    .flatMap((daysAgo) =>
+      RADAR_TAGS.map((tag, tagIndex) => {
+        // Recent days weigh more for the lower-numbered tags, so the movers have distinct deltas; `go`, the last tag, stays flat (25 → 25, 0%) over 7d.
+        const storyCount =
+          1 + ((daysAgo * 7 + tagIndex * 5) % 6) + (daysAgo <= 7 ? 6 - tagIndex : 0);
+        return {
+          day: new Date(todayMs - daysAgo * 86_400_000),
+          tag,
+          storyCount,
+          engagementSum: storyCount * 40,
+          avgPercentile: 0.5,
+        };
+      }),
+    );
+}
+
 async function seedSummary(
   prisma: PrismaClient,
   storyId: string,
@@ -212,7 +238,9 @@ export async function seedE2e(prisma: PrismaClient, now = new Date()) {
     prisma.save.deleteMany(),
     prisma.story.deleteMany(),
     prisma.cluster.deleteMany(),
+    prisma.tagDailyStat.deleteMany(),
   ]);
+  await prisma.tagDailyStat.createMany({ data: buildTagDailyStats(now) });
   // The cluster row goes first: its stories point at it.
   await prisma.cluster.create({
     data: {

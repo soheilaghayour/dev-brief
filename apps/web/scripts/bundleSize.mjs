@@ -74,7 +74,14 @@ const ROUTE_SOURCES = {
   '/feed': { dir: '(app)/feed' },
   '/saved': { html: 'saved.html' },
   '/story/[id]': { dir: '(app)/story/[id]' },
+  '/radar': { dir: '(app)/radar' },
 };
+
+/** Modules that must stay out of the listed routes' first load, each recognised by a string its minified code keeps. */
+export const FORBIDDEN_MODULES = [{ name: 'Recharts', marker: /recharts-[a-z]/ }];
+
+/** Routes the forbidden modules are checked on: every gated route, the lazy ones included. */
+export const FORBIDDEN_MODULE_ROUTES = ['/', '/feed', '/saved', '/story/[id]', '/radar'];
 
 /** `/saved` is prerendered in the (app) group, so its HTML shows what the manifest rule must reproduce for `/feed` and `/story/[id]`. */
 export const MANIFEST_CHECK = { routeDir: '(app)/saved', htmlFile: 'saved.html' };
@@ -94,6 +101,20 @@ export function measureRoute(nextDir, route) {
   if (scripts.length === 0)
     throw new Error(`${route}: no scripts found; the measurement is broken`);
   return gzipKb(nextDir, scripts);
+}
+
+/** `{ route, module, script }` for each first-load script of the routes that contains a forbidden module. */
+export function findForbiddenModules(nextDir, routes = FORBIDDEN_MODULE_ROUTES) {
+  return routes.flatMap((route) =>
+    scriptsOf(nextDir, route).flatMap((script) => {
+      const code = readFileSync(join(nextDir, script), 'utf8');
+      return FORBIDDEN_MODULES.filter(({ marker }) => marker.test(code)).map(({ name }) => ({
+        route,
+        module: name,
+        script,
+      }));
+    }),
+  );
 }
 
 /** Every script some route loads on its first page load: from each prerendered HTML and each page's build manifests. */
