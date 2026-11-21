@@ -2,10 +2,10 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { RADAR_TAGS_MAX } from '@devbrief/shared';
-import type { TagSlug } from '@devbrief/shared';
+import type { Radar, TagSlug } from '@devbrief/shared';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { MoversTable } from './MoversTable';
+import { MoversTable, type MoverRow } from './MoversTable';
 import { RadarControls } from './RadarControls';
 import { radarQueryOptions } from './radarQueries';
 import { TechVelocityChart } from './TechVelocityChart';
@@ -20,15 +20,30 @@ function RadarSkeleton() {
   );
 }
 
+/** The movers, plus a row for each charted tag that is not among them, so it can still be unticked. */
+function moverRows({ movers, series }: Radar, selected: readonly TagSlug[]): MoverRow[] {
+  const missing = series
+    .filter(({ tag }) => selected.includes(tag) && !movers.some((mover) => mover.tag === tag))
+    .map(({ tag, label, points }) => ({
+      tag,
+      label,
+      current: points.reduce((total, { value }) => total + value, 0),
+      previous: null,
+      deltaPct: null,
+    }));
+  return [...movers, ...missing];
+}
+
 /** The radar: controls, the movers table and the trend chart, all driven by the URL. */
 export function RadarPage() {
   const { filters, setTags } = useRadarFilters();
   // The previous data stays on screen while a toggle's data loads, so the table does not flash empty.
   const radar = useQuery({ ...radarQueryOptions(filters), placeholderData: keepPreviousData });
 
-  // Without `tags` in the URL the API charts the top movers, so those are the ticked rows.
-  const selected =
-    filters.tags.length > 0 ? filters.tags : (radar.data?.series.map(({ tag }) => tag) ?? []);
+  // Without `tags` in the URL the API charts the top movers, so those are the ticked rows; placeholder data would tick the previous query's.
+  const topMovers = radar.isPlaceholderData ? [] : (radar.data?.series.map(({ tag }) => tag) ?? []);
+  const selected = filters.tags.length > 0 ? filters.tags : topMovers;
+  const rows = radar.data ? moverRows(radar.data, selected) : [];
 
   function toggleTag(tag: TagSlug) {
     const next = selected.includes(tag)
@@ -49,10 +64,15 @@ export function RadarPage() {
             <h2 id="movers-title" className="mb-2 font-medium">
               Top movers
             </h2>
-            {radar.data.movers.length === 0 ? (
+            {rows.length === 0 ? (
               <p className="text-muted-foreground text-sm">No tag activity in this window yet.</p>
             ) : (
-              <MoversTable movers={radar.data.movers} selected={selected} onToggleTag={toggleTag} />
+              <MoversTable
+                movers={rows}
+                selected={selected}
+                onToggleTag={toggleTag}
+                isStale={radar.isPlaceholderData}
+              />
             )}
           </section>
           <div className="bg-card rounded-lg border p-4">

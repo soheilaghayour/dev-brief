@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Radar, TagSlug } from '@devbrief/shared';
-import { MoversTable } from './MoversTable';
+import { MoversTable, type MoverRow } from './MoversTable';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -19,14 +19,22 @@ const MOVERS = [
 let container: HTMLDivElement;
 afterEach(() => container.remove());
 
-async function renderTable(selected: TagSlug[], onToggleTag = vi.fn()) {
+let root: Root;
+const table = (
+  selected: TagSlug[],
+  onToggleTag = vi.fn(),
+  movers: readonly MoverRow[] = MOVERS,
+) => <MoversTable movers={movers} selected={selected} onToggleTag={onToggleTag} />;
+
+async function renderTable(
+  selected: TagSlug[],
+  onToggleTag = vi.fn(),
+  movers?: readonly MoverRow[],
+) {
   container = document.createElement('div');
   document.body.append(container);
-  await act(async () => {
-    createRoot(container).render(
-      <MoversTable movers={MOVERS} selected={selected} onToggleTag={onToggleTag} />,
-    );
-  });
+  root = createRoot(container);
+  await act(async () => root.render(table(selected, onToggleTag, movers)));
   return onToggleTag;
 }
 
@@ -55,7 +63,7 @@ describe('MoversTable', () => {
     await renderTable(['ai-llms', 'rust', 'vue', 'go', 'react']);
     expect(checkbox('TypeScript')?.disabled).toBe(true);
     expect(checkbox('Rust')?.disabled).toBe(false);
-    expect(container.textContent).toContain('at most 5 tags');
+    expect(container.textContent).toContain('5 of 5 tags charted');
   });
 
   it('AC-3.3.1 a checkbox reports its tag', async () => {
@@ -67,5 +75,36 @@ describe('MoversTable', () => {
   it('keeps the last charted tag on', async () => {
     await renderTable(['rust']);
     expect(checkbox('Rust')?.disabled).toBe(true);
+  });
+
+  it('AC-3.3.1 the live region reports how many tags are charted, and the disabled boxes point at it', async () => {
+    await renderTable(['ai-llms', 'rust', 'vue', 'go']);
+    const hint = container.querySelector('[aria-live="polite"]');
+    expect(hint?.textContent).toContain('4 of 5 tags charted');
+    expect(checkbox('TypeScript')?.hasAttribute('aria-describedby')).toBe(false);
+
+    await act(async () => root.render(table(['ai-llms', 'rust', 'vue', 'go', 'react'])));
+
+    expect(hint?.textContent).toContain('5 of 5 tags charted');
+    expect(checkbox('TypeScript')?.getAttribute('aria-describedby')).toBe(hint?.id);
+  });
+
+  it('AC-3.3.1 the last charted tag says why it cannot be unticked', async () => {
+    await renderTable(['rust']);
+    const reason = container.querySelector(
+      `#${CSS.escape(checkbox('Rust')?.getAttribute('aria-describedby') ?? '')}`,
+    );
+    expect(reason?.textContent).toBe('At least one tag stays in the chart');
+  });
+
+  it('AC-3.3.1 a charted tag without a previous total shows dashes and can be unticked', async () => {
+    await renderTable(['ai-llms', 'rust'], vi.fn(), [
+      ...MOVERS,
+      { tag: 'databases', label: 'Databases', current: 3, previous: null, deltaPct: null },
+    ]);
+    const row = [...container.querySelectorAll('tbody tr')].at(-1);
+    expect(
+      [...(row?.querySelectorAll('td') ?? [])].slice(1, 4).map((cell) => cell.textContent),
+    ).toEqual(['3', '–', '–']);
   });
 });

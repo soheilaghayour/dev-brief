@@ -78,7 +78,7 @@ const ROUTE_SOURCES = {
 };
 
 /** Modules that must stay out of the listed routes' first load, each recognised by a string its minified code keeps. */
-export const FORBIDDEN_MODULES = [{ name: 'Recharts', marker: /recharts-(wrapper|surface)/ }];
+export const FORBIDDEN_MODULES = [{ name: 'Recharts', marker: /recharts-[a-z]/ }];
 
 /** Routes the forbidden modules are checked on: every gated route, the lazy ones included. */
 export const FORBIDDEN_MODULE_ROUTES = ['/', '/feed', '/saved', '/story/[id]', '/radar'];

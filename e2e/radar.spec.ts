@@ -65,17 +65,14 @@ test('AC-3.3.4 the chart table shows the seeded gap day as 0', async ({ page }) 
   await openRadar(page, '?window=7d');
   await page.getByRole('button', { name: 'View as table' }).click();
 
-  const gapDay = new Date(Date.now() - 3 * 86_400_000).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-  const cells = await chartTable(page)
-    .getByRole('row', { name: new RegExp(`^${gapDay}`) })
-    .getByRole('cell')
-    .allTextContents();
-  expect(cells.length).toBeGreaterThan(0);
-  expect(cells.every((cell) => cell === '0')).toBe(true);
+  // Midnight-safe: no date arithmetic, the gap day is the one row of only zeros.
+  const rows = await chartTable(page)
+    .locator('tbody tr')
+    .evaluateAll((trs) =>
+      trs.map((tr) => [...tr.querySelectorAll('td')].map((cell) => cell.textContent)),
+    );
+  const gapRows = rows.filter((cells) => cells.every((cell) => cell === '0'));
+  expect(gapRows).toHaveLength(1);
 });
 
 test('AC-3.3.1 a mover tag opens the feed filtered by it', async ({ page }) => {

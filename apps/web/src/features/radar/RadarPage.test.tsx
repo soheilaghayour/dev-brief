@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Radar } from '@devbrief/shared';
+import type { Radar, TagSlug } from '@devbrief/shared';
 import { RadarPage } from './RadarPage';
 import { radarQueryOptions } from './radarQueries';
 
@@ -20,16 +20,25 @@ const movers = SLUGS.map((tag, index) => ({
   previous: 10,
   deltaPct: 100,
 }));
-const series = (tags: readonly (typeof SLUGS)[number][]) =>
+const series = (tags: readonly TagSlug[]) =>
   tags.map((tag) => ({ tag, label: tag, points: [{ date: '2026-11-20', value: 1 }] }));
 
 let container: HTMLDivElement;
 afterEach(() => container.remove());
 
-async function renderPage(searchParams: string, charted: readonly (typeof SLUGS)[number][]) {
+async function renderPage(
+  searchParams: string,
+  charted: readonly TagSlug[],
+  radarMovers: Radar['movers'] = movers,
+) {
   const updates: UrlUpdateEvent[] = [];
   const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
-  const data: Radar = { window: '7d', metric: 'stories', series: series(charted), movers };
+  const data: Radar = {
+    window: '7d',
+    metric: 'stories',
+    series: series(charted),
+    movers: radarMovers,
+  };
   queryClient.setQueryData(
     radarQueryOptions({ window: '7d', metric: 'stories', tags: [...charted] }).queryKey,
     data,
@@ -77,5 +86,13 @@ describe('RadarPage', () => {
     expect(box('vue')?.checked).toBe(true);
     expect(box('ai-llms')?.checked).toBe(false);
     expect(box('ai-llms')?.disabled).toBe(false);
+  });
+
+  it('AC-3.3.1 a charted tag that left the movers keeps a row and can be unticked', async () => {
+    const updates = await renderPage('?tags=rust,databases', ['rust', 'databases']);
+    expect(box('databases')?.checked).toBe(true);
+    await act(async () => box('databases')?.click());
+    const params = new URLSearchParams(updates.at(-1)?.queryString);
+    expect(params.get('tags')).toBe('rust');
   });
 });

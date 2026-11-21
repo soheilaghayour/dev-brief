@@ -92,4 +92,14 @@ describe('TechVelocityChart', () => {
     await renderChart([]);
     expect(container.textContent).toContain('No activity in this window yet.');
   });
+
+  it('AC-3.3.4 each legend swatch is a line with its series dash pattern', async () => {
+    await renderChart();
+    const lines = [...container.querySelectorAll('li svg line')];
+    expect(lines.map((line) => line.getAttribute('stroke-dasharray'))).toEqual([null, '6 3']);
+    expect(lines.map((line) => line.getAttribute('stroke'))).toEqual([
+      'var(--chart-1)',
+      'var(--chart-2)',
+    ]);
+  });
 });

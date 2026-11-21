@@ -181,7 +181,7 @@ export function buildTagDailyStats(now: Date) {
     .filter((daysAgo) => daysAgo !== RADAR_GAP_DAYS_AGO)
     .flatMap((daysAgo) =>
       RADAR_TAGS.map((tag, tagIndex) => {
-        // Recent days weigh more for the lower-numbered tags, so the movers have distinct, non-zero deltas.
+        // Recent days weigh more for the lower-numbered tags, so the movers have distinct deltas; `go`, the last tag, stays flat (25 → 25, 0%) over 7d.
         const storyCount =
           1 + ((daysAgo * 7 + tagIndex * 5) % 6) + (daysAgo <= 7 ? 6 - tagIndex : 0);
         return {

@@ -50,10 +50,17 @@ function Legend({ series }: { series: VelocitySeries }) {
     <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
       {series.map(({ tag, label }, index) => (
         <li key={tag} className="flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className={`size-2.5 rounded-full ${seriesStyle(index).swatch}`}
-          />
+          <svg aria-hidden="true" width="24" height="10" className="shrink-0">
+            <line
+              x1="0"
+              y1="5"
+              x2="24"
+              y2="5"
+              stroke={seriesStyle(index).stroke}
+              strokeDasharray={seriesStyle(index).dash}
+              strokeWidth={2}
+            />
+          </svg>
           {label}
         </li>
       ))}
@@ -122,17 +129,7 @@ export function TechVelocityChart({ title, window, metric, series }: TechVelocit
 
   return (
     <figure className="grid gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <figcaption className="font-medium">{title}</figcaption>
-        <Button
-          variant="toggleOutline"
-          size="sm"
-          aria-pressed={isTable}
-          onClick={() => setIsTable((current) => !current)}
-        >
-          View as table
-        </Button>
-      </div>
+      <figcaption className="font-medium">{title}</figcaption>
       {series.length === 0 ? (
         <p className={`${PLOT_HEIGHT} text-muted-foreground text-sm`}>
           No activity in this window yet.
@@ -143,6 +140,16 @@ export function TechVelocityChart({ title, window, metric, series }: TechVelocit
           {isTable ? <DataTable caption={caption} series={series} /> : <Plot series={series} />}
         </>
       )}
+      <div className="flex justify-end">
+        <Button
+          variant="toggleOutline"
+          size="sm"
+          aria-pressed={isTable}
+          onClick={() => setIsTable((current) => !current)}
+        >
+          View as table
+        </Button>
+      </div>
     </figure>
   );
 }
