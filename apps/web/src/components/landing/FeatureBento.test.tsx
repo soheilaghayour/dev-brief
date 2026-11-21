@@ -23,4 +23,11 @@ describe('FeatureBento', () => {
     expect(titles(false)).not.toContain('Tech Radar');
     expect(titles(true)).toContain('Tech Radar');
   });
+
+  it('AC-L7 shows the Collections & notes tile only while the collections flag is on', () => {
+    const titles = (collections: boolean) =>
+      visibleTiles({ ...FEATURES, collections }).map((tile) => tile.title);
+    expect(titles(false)).not.toContain('Collections & notes');
+    expect(titles(true)).toContain('Collections & notes');
+  });
 });

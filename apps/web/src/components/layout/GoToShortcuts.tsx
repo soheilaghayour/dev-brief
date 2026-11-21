@@ -2,22 +2,24 @@
 
 import { useRouter } from 'next/navigation';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
-import { getNavItems } from './navItems';
+import { getGoToTargets } from './navItems';
 
-type NavItem = ReturnType<typeof getNavItems>[number];
+type GoToTarget = ReturnType<typeof getGoToTargets>[number];
 
-function GoToShortcut({ item }: { item: NavItem }) {
+function GoToShortcut({ target }: { target: GoToTarget }) {
   const router = useRouter();
 
-  function goToItem() {
-    router.push(item.href);
+  function goToTarget() {
+    router.push(target.href);
   }
 
-  useShortcut(item.shortcut, goToItem);
+  useShortcut(target.shortcut, goToTarget);
   return null;
 }
 
-/** Binds `g` then a letter to every visible nav item; mounted once, apart from the link lists. */
+/** Binds `g` then a letter to every visible nav item and to Collections; mounted once, apart from the link lists. */
 export function GoToShortcuts() {
-  return getNavItems().map((item) => <GoToShortcut key={item.shortcut.id} item={item} />);
+  return getGoToTargets().map((target) => (
+    <GoToShortcut key={target.shortcut.id} target={target} />
+  ));
 }
