@@ -37,7 +37,15 @@ export type StreamPart =
 /** The provider parts of a text reply that arrives in chunks of `chunkSize` characters. */
 export function streamParts(
   body: unknown,
-  { usage = RECORDED_USAGE, chunkSize = 40, finishReason = 'stop' } = {},
+  {
+    usage = RECORDED_USAGE,
+    chunkSize = 40,
+    finishReason = 'stop',
+  }: {
+    usage?: typeof RECORDED_USAGE;
+    chunkSize?: number;
+    finishReason?: 'stop' | 'content-filter' | 'length';
+  } = {},
 ): StreamPart[] {
   const text = typeof body === 'string' ? body : JSON.stringify(body);
   const deltas = text.match(new RegExp(`[\\s\\S]{1,${chunkSize}}`, 'g')) ?? [];
