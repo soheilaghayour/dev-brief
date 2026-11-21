@@ -19,6 +19,7 @@
 | **SourceItem** | One appearance of a link on one source, such as HN item 4231 or Dev.to article 9981. It carries that source's engagement numbers. |
 | **Story** | One canonical link after exact dedup. It has 1..n SourceItems. It is the unit shown on a feed card in Phase 1. |
 | **Cluster** | Phase 2. A group of distinct Stories about the same event, such as a release post, its HN thread and a Dev.to write-up. |
+| **Summary line** | Phase 2. The first TL;DR point of a story's or cluster's summary, shown under the title on its feed card (F2.3). |
 | **Briefing** | Phase 3. A generated, interactive answer to a research question, rendered as an A2UI surface. |
 | **Guest** | A visitor without an account. Their state lives in `localStorage`. They can do everything except sync. |
 | **Feature flag** | The env variable `FEATURE_<NAME>` that hides a feature while it is unfinished or not yet launched. The launch deletes it (§3). |
@@ -1601,18 +1602,19 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ Saved      g s│ Filters: React × TypeScript ×  · HN ×        Clear all      │
 │ Radar (P3) g r│──────────────────────────────────────────────────────────────│
 │───────────────│▌Native TS compiler preview ships     devblogs.microsoft.com │
-│ TAGS     7d   │▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
-│ ☑ React   48  │ ─────────────────────────────────────────────────────────── │
-│ ☑ TypeScr 41  │  React Compiler 1.x in production: lessons      vercel.com  │
-│ ☐ AI/LLMs 77  │  HN ▲188 💬64 · Dev.to ♥95 💬12 · 7h       [react][perf] [★]│
-│ ☐ …           │ ─────────────────────────────────────────────────────────── │
-│ SOURCES       │  …                                                          │
-│ ☑ Hacker News●│                                                             │
-│ ☐ Dev.to     ●│                    (infinite scroll sentinel)               │
-│ ☐ Blogs (10) ●│                                                             │
+│ TAGS     7d   │▌Go port builds large codebases ~10x faster; watch mode lags │
+│ ☑ React   48  │▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
+│ ☑ TypeScr 41  │ ─────────────────────────────────────────────────────────── │
+│ ☐ AI/LLMs 77  │  React Compiler 1.x in production: lessons      vercel.com  │
+│ ☐ …           │  Teams report fewer memo bugs; build-time cost is debated   │
+│ SOURCES       │  HN ▲188 💬64 · Dev.to ♥95 💬12 · 7h       [react][perf] [★]│
+│ ☑ Hacker News●│ ─────────────────────────────────────────────────────────── │
+│ ☐ Dev.to     ●│  …                                                          │
+│ ☐ Blogs (10) ●│                    (infinite scroll sentinel)               │
 │ Status: all ok│                                       ? Keyboard shortcuts  │
 └───────────────┴──────────────────────────────────────────────────────────────┘
  ▌ = active card (j/k)    ☆/★ = save toggle (s)    ● = source health dot
+ P2: the muted line under a title is its summary line (F2.3); a story without a summary has none
  P2: a cluster card shows its combined source line and a "+N related ▾" control under it (F2.2)
 ```
 
@@ -1622,6 +1624,8 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ ◆ DevBrief        🔍  ◐  ☰   │
 │ [Top|Latest]   [Filters (3)] │ → bottom sheet: tags, sources
 │ Native TS compiler preview…  │
+│ Go port builds large code-   │
+│ bases ~10x faster; watch …   │
 │ HN ▲612 · 3h · ts perf    ☆  │
 │ ──────────────────────────── │
 │ React Compiler 1.x in prod…  │
@@ -1716,7 +1720,7 @@ RootLayout  (ThemeProvider · QueryProvider · Toaster · HotkeysProvider · Sen
 └─ (app)/layout → AppShell
    ├─ AppHeader → Logo, SearchInput(/), SortToggle(t), ThemeToggle, UserMenu | SignInButton
    ├─ Sidebar → NavLinks, TagFilterList, SourceFilterList, SourceStatus
-   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, RelatedToggle(P2)
+   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, SummaryLine(P2), RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
    ├─ StoryPage → StoryHeader, SourceItemList, SummaryPanel(P2) → TldrList, ConsensusCallout · ClusterMembers(P2) · NoteEditor(P3)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
