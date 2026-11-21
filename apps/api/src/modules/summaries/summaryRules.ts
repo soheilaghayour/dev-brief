@@ -1,6 +1,11 @@
 import type { StorySummary } from '@devbrief/shared';
 import { z } from 'zod';
+import { ApiException } from '../../common/errors/api.exception.js';
 import { HttpError } from '../../common/http/httpClient.js';
+import {
+  hasSummaryInput,
+  type SummaryInputItem,
+} from '../../common/summary-input/hasSummaryInput.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
 import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
 import { type InputFailureScope, SummaryInputsUnavailableError } from './summaries.errors.js';
@@ -17,9 +22,6 @@ export const AUTO_MIN_COMMENTS = 10;
 /** PRD F2.3: a story is summarised once it was first seen this long ago, discussed or not; a summary is cached forever, so a fresh thread first gathers some discussion. */
 export const AUTO_SUMMARY_MIN_AGE_HOURS = 2;
 
-/** PRD F2.3: fewer HN and Dev.to comments than this, and no Dev.to article, leave too little to summarise. */
-export const SUMMARY_MIN_COMMENTS = 3;
-
 const MS_PER_HOUR = 3_600_000;
 
 /** One run tries at most this many stories, failed ones included, so a run of Dev.to-only stories stays bounded too. */
@@ -35,17 +37,6 @@ export function storedConsensus(
 ): StorySummary['consensus'] {
   if (consensus === null || basedOnComments < MIN_CONSENSUS_COMMENTS) return null;
   return { ...consensus, basedOnComments };
-}
-
-type SummaryInputItem = { commentsCount: number | null; source: { kind: string } };
-
-/** Whether the story has something to summarise: a Dev.to article, whose body is fetched at summary time, or enough HN and Dev.to comments; `items` are every item of the story, or of all members of its cluster. */
-export function hasSummaryInput(story: { items: readonly SummaryInputItem[] }) {
-  if (story.items.some((item) => item.source.kind === 'devto')) return true;
-  const comments = story.items
-    .filter((item) => item.source.kind === 'hn')
-    .reduce((sum, item) => sum + (item.commentsCount ?? 0), 0);
-  return comments >= SUMMARY_MIN_COMMENTS;
 }
 
 type CandidateStory = {
@@ -99,8 +90,9 @@ export function inputFailureScope(error: unknown): InputFailureScope {
   return 'upstream';
 }
 
-/** After a failed auto summary: `skip` to the next story, `stop` the step for this run, or `unexpected` for an error no rule covers. */
+/** After a failed auto summary (`NOT_FOUND` means the fetched inputs were too thin): `skip` to the next story, `stop` the step for this run, or `unexpected` for an error no rule covers. */
 export function autoFailureAction(error: unknown): 'skip' | 'stop' | 'unexpected' {
+  if (error instanceof ApiException && error.code === 'NOT_FOUND') return 'skip';
   if (error instanceof SpendCapReachedError) return 'stop';
   // A provider error (revoked key, outage) would fail every following story too; bad output is this story's.
   if (error instanceof GenerationFailedError) {

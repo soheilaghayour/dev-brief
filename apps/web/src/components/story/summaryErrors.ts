@@ -8,6 +8,7 @@ const MESSAGES = {
   GENERATION_FAILED,
   RATE_LIMITED: 'Too many requests. Wait a minute and try again.',
   UPSTREAM_UNAVAILABLE: "Couldn't load the discussion. Try again later.",
+  NOT_FOUND: "This story doesn't have enough discussion to summarise.",
 } as const;
 
 function isFixedCode(code: string): code is keyof typeof MESSAGES {

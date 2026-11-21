@@ -5,8 +5,9 @@ import { ApiException } from '../../common/errors/api.exception.js';
 import { createLimiter } from '../../common/http/createLimiter.js';
 import { HttpClient } from '../../common/http/httpClient.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { SUMMARY_MIN_COMMENTS } from '../../common/summary-input/hasSummaryInput.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import type { CommentNode } from './flattenComments.js';
+import { type CommentNode, countComments } from './flattenComments.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { inputFailureScope } from './summaryRules.js';
 import {
@@ -17,7 +18,7 @@ import {
 } from './upstreamPayloads.js';
 
 const ALGOLIA_ITEMS = 'https://hn.algolia.com/api/v1/items';
-// PRD §8.3. The most-discussed threads, the ones auto summaries pick, run to several MB.
+// PRD §8.3. A busy thread runs to several MB.
 const ALGOLIA_REQUEST_OPTIONS = {
   timeoutMs: 8000,
   retryBackoffMs: [500, 1500],
@@ -58,7 +59,7 @@ export class SummaryInputsService {
     @Inject(ENV) private readonly env: Pick<Env, 'FEATURE_CLUSTERS'>,
   ) {}
 
-  /** Throws `NOT_FOUND` for an unknown story and `SummaryInputsUnavailableError` when any fetch fails or `signal` aborts. */
+  /** Throws `NOT_FOUND` for an unknown story or one with no text and fewer than `SUMMARY_MIN_COMMENTS` comments once fetched, and `SummaryInputsUnavailableError` when any fetch fails or `signal` aborts. */
   async collectSummaryInputs(
     storyId: string,
     { signal }: { signal?: AbortSignal } = {},
@@ -89,14 +90,16 @@ export class SummaryInputsService {
       ]);
       const threads = [...hnThreads, ...devtoThreads];
       this.logDropped(representative.id, threads);
-      return {
-        storyId: representative.id,
-        title: representative.title,
-        // The article's text; without one, the first excerpt in member order.
-        text: articleText || members.find((member) => member.excerpt)?.excerpt || null,
-        threads: threads.map(({ comments }) => comments),
-      };
+      // The article's text; without one, the first excerpt in member order.
+      const text = articleText || members.find((member) => member.excerpt)?.excerpt || null;
+      const comments = threads.map((thread) => thread.comments);
+      // A Dev.to article whose body is only an embed passes `hasSummaryInput` on stored data, but the model would invent a summary from the title alone.
+      if (!text && countComments(comments) < SUMMARY_MIN_COMMENTS) {
+        throw new ApiException('NOT_FOUND', 'This story has too little discussion to summarise.');
+      }
+      return { storyId: representative.id, title: representative.title, text, threads: comments };
     } catch (error) {
+      if (error instanceof ApiException) throw error;
       throw new SummaryInputsUnavailableError(representative.id, inputFailureScope(error), {
         cause: error,
       });

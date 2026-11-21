@@ -10,7 +10,7 @@ import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.j
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import { SummariesService } from './summaries.service.js';
 import { summaryQuota } from './summaryQuota.js';
-import { hasSummaryInput } from './summaryRules.js';
+import { hasSummaryInput } from '../../common/summary-input/hasSummaryInput.js';
 
 type Requester = { userId?: string; deviceId?: string; ip: string };
 

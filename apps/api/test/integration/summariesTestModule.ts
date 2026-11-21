@@ -113,6 +113,7 @@ type ClusterMemberSeed = {
   title: string;
   rankScore: number;
   excerpt?: string;
+  firstSeenAt?: Date;
   /** One SourceItem each; an HN id without a recording is served the fallback thread, a Dev.to id needs a recorded one. */
   items: { kind: 'hn' | 'devto'; externalId: string; commentsCount?: number }[];
 };
@@ -139,6 +140,7 @@ export async function createSummaryCluster(
         normalizedTitle: member.title.toLowerCase(),
         excerpt: member.excerpt,
         publishedAt: new Date(),
+        firstSeenAt: member.firstSeenAt,
         rankScore: member.rankScore,
         tags: [],
         taggerVersion: 1,

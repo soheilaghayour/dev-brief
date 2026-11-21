@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { ApiException } from '../../common/errors/api.exception.js';
 import { HttpError } from '../../common/http/httpClient.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
 import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
@@ -9,9 +10,7 @@ import {
   AUTO_HN_REQUESTS_PER_RUN,
   AUTO_SUMMARIES_PER_DAY,
   AUTO_SUMMARY_MIN_AGE_HOURS,
-  SUMMARY_MIN_COMMENTS,
   autoCandidates,
-  hasSummaryInput,
   fitsRunBudget,
   autoFailureAction,
   inputFailureScope,
@@ -41,32 +40,7 @@ const hoursAgo = (hours: number, minutes = 0) =>
   new Date(NOW.getTime() - (hours * 60 + minutes) * 60_000);
 const hn = (commentsCount: number | null) => ({ commentsCount, source: { kind: 'hn' } });
 const devto = (commentsCount: number | null) => ({ commentsCount, source: { kind: 'devto' } });
-const rss = { commentsCount: null, source: { kind: 'rss' } };
 const repo = { commentsCount: null, source: { kind: 'github' } };
-
-describe('hasSummaryInput', () => {
-  it('AC-2.3.12 is true for a Dev.to article with 0 comments', () => {
-    expect(hasSummaryInput({ items: [devto(0)] })).toBe(true);
-  });
-
-  it('AC-2.3.12 is false for HN with 2 comments and true with 3', () => {
-    expect(hasSummaryInput({ items: [hn(2)] })).toBe(false);
-    expect(hasSummaryInput({ items: [hn(SUMMARY_MIN_COMMENTS)] })).toBe(true);
-    expect(SUMMARY_MIN_COMMENTS).toBe(3);
-  });
-
-  it('AC-2.3.12 sums the comments over a cluster: 2 HN comments plus 1 more is true', () => {
-    expect(hasSummaryInput({ items: [hn(1), hn(1), devto(1)] })).toBe(true);
-    expect(hasSummaryInput({ items: [hn(1), hn(1)] })).toBe(false);
-    expect(hasSummaryInput({ items: [hn(2), hn(1)] })).toBe(true);
-  });
-
-  it('AC-2.3.12 is false for a repo-only story and an RSS-only story with an excerpt', () => {
-    expect(hasSummaryInput({ items: [repo] })).toBe(false);
-    expect(hasSummaryInput({ items: [rss] })).toBe(false);
-    expect(hasSummaryInput({ items: [rss, repo, hn(null)] })).toBe(false);
-  });
-});
 
 describe('autoCandidates', () => {
   type Story = Parameters<typeof autoCandidates>[0][number];
@@ -195,6 +169,10 @@ describe('autoFailureAction', () => {
     expect(autoFailureAction(new GenerationFailedError('invalid_output'))).toBe('skip');
     expect(autoFailureAction(new GenerationFailedError('refused'))).toBe('skip');
     expect(autoFailureAction(new SummaryInputsUnavailableError('s', 'story'))).toBe('skip');
+  });
+
+  it('AC-2.3.12 skips a story whose fetched inputs were too thin (NOT_FOUND)', () => {
+    expect(autoFailureAction(new ApiException('NOT_FOUND', 'too thin'))).toBe('skip');
   });
 
   it('stops the step on a spent cap, a provider error or a failing upstream', () => {

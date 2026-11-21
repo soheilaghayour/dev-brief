@@ -34,17 +34,18 @@ export class AutoSummariesStep implements IngestionPostRunStep, OnModuleInit {
     this.postRunSteps.register(this);
   }
 
-  async run({ now, signal }: PostRunContext) {
+  async run({ startedAt, signal }: PostRunContext) {
     // CI's e2e API runs with summaries on and a placeholder key, so the live calls need a switch of their own.
     if (!this.env.FEATURE_SUMMARIES || !this.env.AUTO_SUMMARIES) return;
 
-    const startedAt = Date.now();
+    const stepStart = Date.now();
     const outcome = { attempts: 0, created: 0 };
     try {
-      await this.summarise(now, signal, outcome);
+      // The run's start is on the database clock, like `firstSeenAt`, so the story's age is not skewed by the app server's clock.
+      await this.summarise(startedAt, signal, outcome);
     } finally {
       this.logger.log(
-        `Auto summaries: ${outcome.attempts} attempts, ${outcome.created} created, ${Date.now() - startedAt} ms`,
+        `Auto summaries: ${outcome.attempts} attempts, ${outcome.created} created, ${Date.now() - stepStart} ms`,
       );
     }
   }

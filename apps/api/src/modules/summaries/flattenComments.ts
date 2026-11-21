@@ -23,6 +23,11 @@ export function flattenComments(
   return kept;
 }
 
+/** How many comments of all trees have text, before any trimming to a budget. */
+export function countComments(trees: readonly (readonly CommentNode[])[]) {
+  return breadthFirst(trees).filter((node) => node.text?.trim()).length;
+}
+
 // Each depth alternates between the trees, so one long thread can't push every other source's comments out.
 function breadthFirst(trees: readonly (readonly CommentNode[])[]) {
   const ordered: CommentNode[] = [];

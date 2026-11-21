@@ -5,7 +5,7 @@ import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { toStoryCards } from '../../common/story-card/clusterCards.js';
 import { findSummary, loadSummaryInputItems } from '../../common/story-card/clusterSummary.js';
-import { hasSummaryInput } from '../summaries/summaryRules.js';
+import { hasSummaryInput } from '../../common/summary-input/hasSummaryInput.js';
 import {
   type StoryFeatures,
   storyFeatures,
