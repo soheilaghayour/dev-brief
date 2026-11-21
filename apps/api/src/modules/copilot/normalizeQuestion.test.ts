@@ -17,6 +17,19 @@ describe('normalizeQuestion', () => {
     expect(normalizeQuestion('Rust vs. Go: which one?!...')).toBe('rust vs. go: which one');
   });
 
+  it('keeps the characters that end real names, so C# and C, or F# and F, are different questions', () => {
+    expect(normalizeQuestion("What's new in C#?")).toBe("what's new in c#");
+    expect(normalizeQuestion('What is F#')).toBe('what is f#');
+    expect(normalizeQuestion('Rust (2024)?')).toBe('rust (2024)');
+    expect(questionHash("What's new in C#?")).not.toBe(questionHash("What's new in C"));
+    expect(questionHash('what is f#')).not.toBe(questionHash('what is f'));
+  });
+
+  it('turns a question of only punctuation into the empty string', () => {
+    expect(normalizeQuestion('???')).toBe('');
+    expect(normalizeQuestion(' ?!… ')).toBe('');
+  });
+
   it('hashes equal normalised questions equally and different questions differently', () => {
     expect(questionHash('  What is NEW in Rust?? ')).toBe(questionHash('what is new in rust'));
     expect(questionHash('what is new in rust')).not.toBe(questionHash('what is new in go'));
