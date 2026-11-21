@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ENV, EnvModule } from '../../src/common/env/env.module.js';
 import { PrismaModule } from '../../src/common/prisma/prisma.module.js';
 import { loadEnv } from '../../src/env.js';
-import { utcDay } from '../../src/modules/llm/budget.js';
+import { utcDay } from '../../src/common/time/utcDay.js';
 import { GenerationFailedError, SpendCapReachedError } from '../../src/modules/llm/llm.errors.js';
 import { LlmModule } from '../../src/modules/llm/llm.module.js';
 import { LANGUAGE_MODEL, LlmService } from '../../src/modules/llm/llm.service.js';

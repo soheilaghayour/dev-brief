@@ -1,5 +1,5 @@
 import { createHash, createHmac } from 'node:crypto';
-import { utcDay } from '../../modules/llm/budget.js';
+import { utcDay } from '../time/utcDay.js';
 
 /** The salt of one UTC day: `HMAC-SHA256(secret, utcDay)`, so it rotates daily and needs no storage. */
 function dailySalt(secret: string, now: Date) {

@@ -35,7 +35,6 @@ export type BudgetEnv = {
 };
 
 const MICRO_USD_PER_USD = 1_000_000;
-const MS_PER_DAY = 86_400_000;
 
 /** Builds the caps and the price table, with the env price overrides applied to `LLM_MODEL`; throws when that model has no price. */
 export function budgetFromEnv(env: BudgetEnv): Budget {
@@ -146,16 +145,6 @@ export function committedUsd(
     0,
   );
   return microUsd / MICRO_USD_PER_USD;
-}
-
-/** Days since the epoch of `now`'s UTC day, which keys the ledger's per-day lock. */
-export function utcDayNumber(now: Date) {
-  return Math.floor(now.getTime() / MS_PER_DAY);
-}
-
-/** Midnight UTC of `now`'s UTC day, the ledger's day bucket. */
-export function utcDay(now: Date) {
-  return new Date(utcDayNumber(now) * MS_PER_DAY);
 }
 
 // Integer micro-dollars, so 20 × $0.00075 lands exactly on a $0.015 cap.

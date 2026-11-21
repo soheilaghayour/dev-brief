@@ -3,7 +3,7 @@ import { ApiErrorSchema, HealthSchema } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../src/common/prisma/prisma.service.js';
-import { utcDay } from '../../src/modules/llm/budget.js';
+import { utcDay } from '../../src/common/time/utcDay.js';
 import { createTestApp } from './createTestApp.js';
 import { createSource } from './seedStories.js';
 import { useTestDatabase } from './testDatabase.js';

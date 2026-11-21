@@ -1,14 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { type LlmFeature, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { utcDay, utcDayNumber } from '../../common/time/utcDay.js';
 import {
   type Budget,
   capDecision,
   committedUsd,
   costFromUsage,
   type LedgerStatus,
-  utcDay,
-  utcDayNumber,
   worstCaseCostUsd,
 } from './budget.js';
 import { SpendCapReachedError } from './llm.errors.js';

@@ -5,7 +5,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { ClusterMembershipService } from '../../src/modules/clustering/clusterMembership.service.js';
 import { CLUSTER_MAX_CALLS_PER_RUN } from '../../src/modules/clustering/clusteringRules.js';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
-import { LLM_CAP_CLUSTER_USD_DAY, utcDay } from '../../src/modules/llm/budget.js';
+import { utcDay } from '../../src/common/time/utcDay.js';
+import { LLM_CAP_CLUSTER_USD_DAY } from '../../src/modules/llm/budget.js';
 import { modelReply } from '../mockLanguageModel.js';
 import {
   CLUSTERING_ON,

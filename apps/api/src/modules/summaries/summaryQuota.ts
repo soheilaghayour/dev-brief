@@ -1,5 +1,5 @@
 import { ipDigest } from '../../common/rate-limit/ipDigest.js';
-import { utcDay } from '../llm/budget.js';
+import { utcDay } from '../../common/time/utcDay.js';
 
 const MS_PER_DAY = 86_400_000;
 
