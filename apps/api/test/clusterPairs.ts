@@ -41,6 +41,10 @@ export const CLUSTER_PAIRS_HELD_OUT_FIXTURE = new URL(
   './fixtures/cluster-pairs.heldout.json',
   import.meta.url,
 );
+export const CLUSTER_PAIRS_CONFIRM_FIXTURE = new URL(
+  './fixtures/cluster-pairs.confirm.json',
+  import.meta.url,
+);
 export const CLUSTER_PAIRS_RECORDING = new URL(
   './fixtures/llm/clusterMatch.v1.pairs.json',
   import.meta.url,
@@ -50,8 +54,11 @@ const readPairs = (file: URL) => JSON.parse(readFileSync(file, 'utf8')) as Clust
 
 export const readClusterPairs = () => readPairs(CLUSTER_PAIRS_FIXTURE);
 
-/** Pairs labelled before the pre-filter ran on them, from the recorded snapshots; constants are never tuned on them. */
+/** Real pairs labelled before the pre-filter ran on them; the pre-filter's constants were tuned on them, the prompt and `CLUSTER_MIN_CONFIDENCE` never are. */
 export const readHeldOutPairs = () => readPairs(CLUSTER_PAIRS_HELD_OUT_FIXTURE);
+
+/** Pairs labelled by the DECISIONS rule before they were scored; never tune any constant on them. */
+export const readConfirmPairs = () => readPairs(CLUSTER_PAIRS_CONFIRM_FIXTURE);
 
 export const readPairsRecording = () =>
   JSON.parse(readFileSync(CLUSTER_PAIRS_RECORDING, 'utf8')) as PairsRecording;

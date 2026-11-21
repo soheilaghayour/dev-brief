@@ -1062,5 +1062,24 @@
       "publishedAt": "2026-11-04T12:00:00Z",
       "sourceKind": "devto"
     }
+  },
+  {
+    "id": "react2shell-nvd-vs-vercel-upgrade",
+    "label": "different",
+    "why": "The CVE entry of the disclosure and the framework vendor's upgrade notice both name CVE-2025-55182, but report the disclosure and the mitigation, two events.",
+    "a": {
+      "title": "CVE-2025-55182: pre-auth remote code execution in React Server Components",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-55182",
+      "excerpt": null,
+      "publishedAt": "2025-12-03T19:52:29Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Upgrade now: critical-severity vulnerability in Next/React Server Components",
+      "url": "https://vercel.com/changelog/cve-2025-55182",
+      "excerpt": null,
+      "publishedAt": "2025-12-05T08:54:07Z",
+      "sourceKind": "hn"
+    }
   }
 ]
