@@ -1,0 +1,439 @@
+[
+  {
+    "id": "deno-2-launch-vs-video",
+    "label": "same",
+    "why": "The Deno 2 release post and its launch video.",
+    "a": {
+      "title": "Deno 2",
+      "url": "https://deno.com/blog/v2.0",
+      "excerpt": null,
+      "publishedAt": "2024-10-09T16:11:14Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Deno 2 Launched [video]",
+      "url": "https://www.youtube.com/watch?v=d35SlRgVxT8",
+      "excerpt": null,
+      "publishedAt": "2024-10-10T06:06:58Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "python-3-13-whatsnew-vs-download",
+    "label": "same",
+    "why": "The Python 3.13.0 release notes and its download page.",
+    "a": {
+      "title": "Python 3.13.0 Is Released",
+      "url": "https://docs.python.org/3.13/whatsnew/3.13.html",
+      "excerpt": null,
+      "publishedAt": "2024-10-07T13:53:47Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Python 3.13.0",
+      "url": "https://www.python.org/downloads/release/python-3130/",
+      "excerpt": null,
+      "publishedAt": "2024-10-07T16:39:38Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "gpt-4o-launch-vs-hot-take",
+    "label": "same",
+    "why": "The GPT-4o launch and a take whose subject is that model.",
+    "a": {
+      "title": "GPT-4o",
+      "url": "https://openai.com/index/hello-gpt-4o/",
+      "excerpt": null,
+      "publishedAt": "2024-05-13T17:28:00Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Hot take on OpenAI’s new GPT-4o",
+      "url": "https://garymarcus.substack.com/p/hot-take-on-openais-new-gpt-4o",
+      "excerpt": null,
+      "publishedAt": "2024-05-15T08:55:22Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "deepseek-r1-release-vs-notes",
+    "label": "same",
+    "why": "The DeepSeek-R1 release and notes whose subject is that release.",
+    "a": {
+      "title": "DeepSeek-R1",
+      "url": "https://github.com/deepseek-ai/DeepSeek-R1",
+      "excerpt": null,
+      "publishedAt": "2025-01-20T12:37:58Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "DeepSeek-R1 and Exploring DeepSeek-R1-Distill-Llama-8B",
+      "url": "https://simonwillison.net/2025/Jan/20/deepseek-r1/",
+      "excerpt": null,
+      "publishedAt": "2025-01-21T13:12:30Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "redis-license-blog-vs-license-file",
+    "label": "same",
+    "why": "The Redis licence announcement and the changed licence file.",
+    "a": {
+      "title": "Redis adopts dual source-available licensing",
+      "url": "https://redis.com/blog/redis-adopts-dual-source-available-licensing/",
+      "excerpt": null,
+      "publishedAt": "2024-03-20T22:06:01Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Redis License Changed",
+      "url": "https://github.com/redis/redis/blob/unstable/LICENSE.txt",
+      "excerpt": null,
+      "publishedAt": "2024-03-21T06:12:04Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "ibm-hashicorp-reuters-vs-newsroom",
+    "label": "same",
+    "why": "A news report and the press release of IBM buying HashiCorp.",
+    "a": {
+      "title": "IBM to buy HashiCorp in $6.4B deal",
+      "url": "https://www.reuters.com/markets/deals/ibm-buy-hashicorp-64-billion-deal-expand-cloud-software-2024-04-24/",
+      "excerpt": null,
+      "publishedAt": "2024-04-24T20:21:32Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "IBM to Acquire HashiCorp, Inc for $6.4 billion",
+      "url": "https://newsroom.ibm.com/2024-04-24-IBM-to-Acquire-HashiCorp-Inc-Creating-a-Comprehensive-End-to-End-Hybrid-Cloud-Platform",
+      "excerpt": null,
+      "publishedAt": "2024-04-24T20:24:46Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "tj-actions-stepsecurity-vs-semgrep",
+    "label": "same",
+    "why": "Two reports of the tj-actions/changed-files compromise.",
+    "a": {
+      "title": "Tj-actions/changed-files GitHub Action Compromised – used by over 23K repos",
+      "url": "https://www.stepsecurity.io/blog/harden-runner-detection-tj-actions-changed-files-action-is-compromised",
+      "excerpt": null,
+      "publishedAt": "2025-03-14T22:29:46Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Popular GitHub Action tj-actions/changed-files is compromised",
+      "url": "https://semgrep.dev/blog/2025/popular-github-action-tj-actionschanged-files-is-compromised/",
+      "excerpt": null,
+      "publishedAt": "2025-03-15T00:43:02Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "nextjs-middleware-advisory-vs-writeup",
+    "label": "same",
+    "why": "The Next.js middleware advisory and the researcher's write-up of the same bypass.",
+    "a": {
+      "title": "Authorization Bypass in Next.js Middleware",
+      "url": "https://github.com/advisories/GHSA-f82v-jwr5-mffw",
+      "excerpt": null,
+      "publishedAt": "2025-03-22T15:14:13Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Next.js and the corrupt middleware: the authorizing artifact",
+      "url": "https://zhero-web-sec.github.io/research-and-things/nextjs-and-the-corrupt-middleware",
+      "excerpt": null,
+      "publishedAt": "2025-03-23T07:57:40Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "aws-outage-reddit-vs-status",
+    "label": "same",
+    "why": "Two reports of the October 20 us-east-1 outage.",
+    "a": {
+      "title": "Major AWS Outage Happening",
+      "url": "https://old.reddit.com/r/aws/comments/1obd3lx/dynamodb_down_useast1/",
+      "excerpt": null,
+      "publishedAt": "2025-10-20T07:11:06Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "AWS multiple services outage in us-east-1",
+      "url": "https://health.aws.amazon.com/health/status?ts=20251020",
+      "excerpt": null,
+      "publishedAt": "2025-10-20T07:22:28Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "gemini-2-launch-vs-notes",
+    "label": "same",
+    "why": "The Gemini 2.0 launch and notes whose subject is that model.",
+    "a": {
+      "title": "Gemini 2.0: our new AI model for the agentic era",
+      "url": "https://blog.google/technology/google-deepmind/google-gemini-ai-update-december-2024/",
+      "excerpt": null,
+      "publishedAt": "2024-12-11T15:33:54Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Gemini 2.0 Flash: An outstanding multi-modal LLM with a sci-fi streaming mode",
+      "url": "https://simonwillison.net/2024/Dec/11/gemini-2/",
+      "excerpt": null,
+      "publishedAt": "2024-12-11T20:28:26Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "bun-1-1-tweet-vs-blog",
+    "label": "same",
+    "why": "Two announcements of the Bun 1.1 release.",
+    "a": {
+      "title": "Introducing Bun v1.1",
+      "url": "https://twitter.com/bunjavascript/status/1774829016127873417",
+      "excerpt": null,
+      "publishedAt": "2024-04-01T16:07:28Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Bun 1.1",
+      "url": "https://bun.sh/blog/bun-v1.1",
+      "excerpt": null,
+      "publishedAt": "2024-04-01T16:11:21Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "cloudflare-replicate-vs-outage",
+    "label": "different",
+    "why": "Cloudflare's acquisition of Replicate and its network outage a day later are two events.",
+    "a": {
+      "title": "Replicate Is Joining Cloudflare",
+      "url": "https://blog.cloudflare.com/replicate-joins-cloudflare/",
+      "excerpt": null,
+      "publishedAt": "2025-11-17T14:54:30Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Cloudflare Global Network experiencing issues",
+      "url": "https://www.cloudflarestatus.com/incidents/8gmgl950y3h7",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T11:35:10Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "cloudflare-outage-vs-dont-use-cloudflare",
+    "label": "different",
+    "why": "A post arguing against using Cloudflare uses the outage as a hook; the post mortem reports the outage itself.",
+    "a": {
+      "title": "Do not put your site behind Cloudflare if you don't need to",
+      "url": "https://huijzer.xyz/posts/123/do-not-put-your-site-behind-cloudflare-if-you-dont",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T12:54:49Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Cloudflare outage on November 18, 2025 post mortem",
+      "url": "https://blog.cloudflare.com/18-november-2025-outage/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T23:31:22Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "gemini-data-vs-gemini-3-developers",
+    "label": "different",
+    "why": "One user's complaint about Gemini's use of personal data and the Gemini 3 developer launch are different events.",
+    "a": {
+      "title": "I caught Google Gemini using my data and then covering it up",
+      "url": "https://unbuffered.stream/gemini-personal-context/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T01:11:34Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Gemini 3 for developers: New reasoning, agentic capabilities",
+      "url": "https://blog.google/technology/developers/gemini-3-developers/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T16:04:12Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "lambda-rust-vs-cpython-rust",
+    "label": "different",
+    "why": "AWS Lambda's Rust support and the proposal to add Rust to CPython are unrelated events.",
+    "a": {
+      "title": "AWS Lambda adds support for Rust",
+      "url": "https://aws.amazon.com/about-aws/whats-new/2025/11/aws-lambda-rust/",
+      "excerpt": null,
+      "publishedAt": "2025-11-17T05:33:50Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Pre-PEP: Rust for CPython",
+      "url": "https://discuss.python.org/t/pre-pep-rust-for-cpython/104906",
+      "excerpt": null,
+      "publishedAt": "2025-11-17T16:45:20Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "apple-masimo-verdict-vs-cook-successor",
+    "label": "different",
+    "why": "A patent verdict against Apple and reports of Tim Cook's succession are different news.",
+    "a": {
+      "title": "Masimo wins $634M verdict against Apple in patent fight over Apple Watch",
+      "url": "https://www.dailyjournal.com/articles/388571-masimo-wins-634-million-verdict-against-apple-in-high-stakes-patent-fight-over-apple-watch",
+      "excerpt": null,
+      "publishedAt": "2025-11-15T19:31:14Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Tim Cook could step down as Apple CEO next year",
+      "url": "https://www.theverge.com/news/821691/tim-cook-step-down-apple-ceo-next-year",
+      "excerpt": null,
+      "publishedAt": "2025-11-15T19:53:07Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "microsoft-openai-payments-vs-anthropic-partnership",
+    "label": "different",
+    "why": "Leaked OpenAI payments to Microsoft and Microsoft's partnership with Anthropic are different news.",
+    "a": {
+      "title": "Leaked documents shed light into how much OpenAI pays Microsoft",
+      "url": "https://techcrunch.com/2025/11/14/leaked-documents-shed-light-into-how-much-openai-pays-microsoft/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T09:51:39Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Microsoft, Nvidia and Anthropic announce strategic partnerships",
+      "url": "https://www.anthropic.com/news/microsoft-nvidia-anthropic-announce-strategic-partnerships",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T15:13:52Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "meta-whatsapp-windows-vs-ftc-ruling",
+    "label": "different",
+    "why": "Meta's WhatsApp Windows app and its antitrust win are different events.",
+    "a": {
+      "title": "Meta Replaced the Native WhatsApp for Windows 11 with a Shitty Web App",
+      "url": "https://daringfireball.net/2025/11/meta_whatsapp_windows_shitty_web_app",
+      "excerpt": null,
+      "publishedAt": "2025-11-16T09:56:44Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Meta Defeats FTC's Antitrust Case Alleging Social-Media Monopoly",
+      "url": "https://www.wsj.com/us-news/law/meta-defeats-ftcs-antitrust-case-alleging-social-media-monopoly-504b2323",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T18:43:56Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "paypal-asahi-vs-redhat-kernel-engineer",
+    "label": "different",
+    "why": "PayPal blocking Asahi Linux users and a Red Hat engineer leaving are unrelated Linux news.",
+    "a": {
+      "title": "PayPal bans Linux users with a GPU name containing the string \"Apple M1\"",
+      "url": "https://vt.social/@lina/115568401302718163",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T07:49:20Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Red Hat losing another longtime and prominent Linux kernel engineer",
+      "url": "https://www.phoronix.com/news/Red-Hat-David-H-Leaving",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T19:57:23Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "sysmon-native-vs-windows-ai-agent",
+    "label": "different",
+    "why": "Native Sysmon and the Windows 11 background AI agent are different Windows announcements.",
+    "a": {
+      "title": "Windows 11 adds AI agent that runs in background with access to personal folders",
+      "url": "https://www.windowslatest.com/2025/11/18/windows-11-to-add-an-ai-agent-that-runs-in-background-with-access-to-personal-folders-warns-of-security-risk/",
+      "excerpt": null,
+      "publishedAt": "2025-11-17T23:47:27Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Microsoft Makes Sysmon Native to Windows",
+      "url": "https://pcper.com/2025/11/microsoft-finally-makes-sysmon-native-to-windows/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T18:28:29Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "servo-release-vs-rust-windows-tier4",
+    "label": "different",
+    "why": "The Servo release and an unofficial Rust target for old Windows are unrelated Rust projects.",
+    "a": {
+      "title": "Unofficial \"Tier 4\" Rust Target for older Windows versions",
+      "url": "https://github.com/rust9x/rust",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T02:46:50Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Latest Servo release hints at a real Rust alternative to Chromium",
+      "url": "https://www.theregister.com/2025/11/18/servo_002_arrives/",
+      "excerpt": null,
+      "publishedAt": "2025-11-18T14:35:21Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "thunderbird-exchange-vs-windows-ai-agent",
+    "label": "different",
+    "why": "Thunderbird's Exchange support and Windows 11's AI agent are unrelated news.",
+    "a": {
+      "title": "Thunderbird 145 Adds Microsoft Exchange Support",
+      "url": "https://www.omgubuntu.co.uk/2025/11/thunderbird-145-microsoft-exchange-support-ews",
+      "excerpt": null,
+      "publishedAt": "2025-11-15T12:56:23Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Windows 11 adds AI agent that runs in background with access to personal folders",
+      "url": "https://www.windowslatest.com/2025/11/18/windows-11-to-add-an-ai-agent-that-runs-in-background-with-access-to-personal-folders-warns-of-security-risk/",
+      "excerpt": null,
+      "publishedAt": "2025-11-17T23:47:27Z",
+      "sourceKind": "hn"
+    }
+  },
+  {
+    "id": "react2shell-detection-vs-vercel-upgrade",
+    "label": "different",
+    "why": "A scanner for the vulnerable servers and the framework vendor's upgrade notice both name CVE-2025-55182, but report different events.",
+    "a": {
+      "title": "High fidelity check for Next.js/RSC RCE (CVE-2025-55182 and CVE-2025-66478)",
+      "url": "https://slcyber.io/research-center/high-fidelity-detection-mechanism-for-rsc-next-js-rce-cve-2025-55182-cve-2025-66478/",
+      "excerpt": null,
+      "publishedAt": "2025-12-04T10:14:08Z",
+      "sourceKind": "hn"
+    },
+    "b": {
+      "title": "Upgrade now: critical-severity vulnerability in Next/React Server Components",
+      "url": "https://vercel.com/changelog/cve-2025-55182",
+      "excerpt": null,
+      "publishedAt": "2025-12-05T08:54:07Z",
+      "sourceKind": "hn"
+    }
+  }
+]

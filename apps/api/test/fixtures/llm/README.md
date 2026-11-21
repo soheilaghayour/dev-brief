@@ -22,4 +22,4 @@ pnpm --filter @devbrief/shared build
 pnpm --filter api exec dotenv -e ../../.env -e ../../.env.example -- tsx test/recordLlmFixtures.ts pairs
 ```
 
-About 40 calls cost under $0.01. The script prints each reply next to the pair's label; then run `pnpm exec vitest run --project api test/integration/clusterAccuracy.test.ts`, which prints precision and recall (and the held-out ones), and commit the file. **If a number misses its target (0.90 and 0.70), do not tune the constants, the prompt or the pairs and record again:** that fits the fixture instead of the model. Report the numbers to the orchestrator or the owner on #82, who decide.
+About 65 calls cost under $0.01. The script prints each reply next to the pair's label; then run `pnpm exec vitest run --project api test/integration/clusterAccuracy.test.ts`, which prints precision and recall (and the held-out ones), and commit the file. **If a number misses its target (0.90 and 0.70), do not tune the constants, the prompt or the pairs and record again:** that fits the fixture instead of the model. Report the numbers to the orchestrator or the owner on #82, who decide.

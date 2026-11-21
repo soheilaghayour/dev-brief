@@ -6,6 +6,7 @@ import {
   CLUSTER_MIN_CONFIDENCE,
   CLUSTER_SIGNAL_WEIGHTS,
   type ClusterPoolRow,
+  advisoryIds,
   clusterDecision,
   clusterProfile,
   entityTokens,
@@ -23,7 +24,7 @@ describe('constants', () => {
       CLUSTER_MAX_SIZE,
       CLUSTER_MAX_CANDIDATES,
       CLUSTER_SIGNAL_WEIGHTS,
-    ]).toEqual([0.2, 0.8, 12, 5, { trgm: 0.55, ent: 0.35, link: 0.1 }]);
+    ]).toEqual([0.16, 0.8, 12, 5, { trgm: 0.45, ent: 0.45, link: 0.1 }]);
   });
 });
 
@@ -73,10 +74,69 @@ describe('entityTokens', () => {
     expect(tokens.size).toBe(0);
   });
 
+  it('drops AI, which names nothing in a tech headline', () => {
+    const job = entityTokens("AI isn't replacing your job", 'https://example.com/a');
+    const agents = entityTokens(
+      'AI agents ask better questions than KPMG',
+      'https://example.com/b',
+    );
+    expect([...job].filter((token) => agents.has(token))).toEqual([]);
+  });
+
   it('takes nothing from the host, so two posts of one blog share no token for it', () => {
     expect(entityTokens('Bun is fast', 'https://www.bun.sh/blog/bun-v1.2')).toEqual(
       new Set(['bun']),
     );
+  });
+});
+
+describe('advisoryIds', () => {
+  it('reads CVE and GHSA ids from the title, the excerpt and the URL, whatever the case', () => {
+    expect(
+      advisoryIds({
+        title: 'Two New React 19 Vulnerabilities',
+        url: 'https://vercel.com/kb/bulletin/security-bulletin-cve-2025-55184-and-cve-2025-55183',
+        excerpt: 'See GHSA-9qr9-h5gf-34mp and CVE-2025-55182/CVE-2025-66478.',
+      }),
+    ).toEqual(
+      new Set([
+        'cve-2025-55184',
+        'cve-2025-55183',
+        'ghsa-9qr9-h5gf-34mp',
+        'cve-2025-55182',
+        'cve-2025-66478',
+      ]),
+    );
+  });
+
+  it('reads an id after an underscore or a slash, and reads Unicode hyphens as hyphens', () => {
+    expect(
+      advisoryIds({
+        title: 'CVE\u20112025\u201155182 and GHSA\u2013abcd\u2014efgh-ijkl',
+        url: 'https://example.com/advisories/_cve-2025-66478',
+        excerpt: null,
+      }),
+    ).toEqual(new Set(['cve-2025-55182', 'ghsa-abcd-efgh-ijkl', 'cve-2025-66478']));
+  });
+
+  it('reads no id glued to a longer word or number', () => {
+    expect(
+      advisoryIds({
+        title: 'xcve-2025-55182 and 9ghsa-abcd-efgh-ijkl and cve-2025-551823x',
+        url: 'https://example.com',
+        excerpt: null,
+      }),
+    ).toEqual(new Set());
+  });
+
+  it('reads no id from a version, a year or a partial id', () => {
+    expect(
+      advisoryIds({
+        title: 'Node.js 22.1 in 2026',
+        url: 'https://example.com/cve-2026',
+        excerpt: null,
+      }),
+    ).toEqual(new Set());
   });
 });
 
@@ -117,9 +177,15 @@ describe('sameLink', () => {
   });
 });
 
-const withProfile = <Fields extends { title: string; url: string }>(fields: Fields) => ({
+const withProfile = <Fields extends { title: string; url: string; excerpt?: string | null }>(
+  fields: Fields,
+) => ({
   ...fields,
-  profile: clusterProfile({ ...fields, normalizedTitle: fields.title.toLowerCase() }),
+  profile: clusterProfile({
+    excerpt: null,
+    ...fields,
+    normalizedTitle: fields.title.toLowerCase(),
+  }),
 });
 
 const story = withProfile({
@@ -141,7 +207,7 @@ function row(overrides: Partial<Omit<ClusterPoolRow, 'profile'>> & { id: string 
 }
 
 describe('rankClusterCandidates', () => {
-  it('scores 0.55 trigram + 0.35 entity + 0.10 link and drops candidates below the floor', () => {
+  it('scores 0.45 trigram + 0.45 entity + 0.10 link and drops candidates below the floor', () => {
     const [top, ...rest] = rankClusterCandidates(story, [
       row({ id: 'close', title: 'React 19.1 is out', url: 'https://react.dev/blog' }),
       row({ id: 'far', title: 'Cooking pasta', url: 'https://food.example/x' }),
@@ -150,7 +216,35 @@ describe('rankClusterCandidates', () => {
     expect(top?.id).toBe('close');
     const trigrams = jaccard(story.profile.trigrams, top?.profile.trigrams ?? new Set());
     const entities = jaccard(story.profile.entities, top?.profile.entities ?? new Set());
-    expect(top?.candidateScore).toBeCloseTo(0.55 * trigrams + 0.35 * entities + 0.1);
+    expect(top?.candidateScore).toBeCloseTo(0.45 * trigrams + 0.45 * entities + 0.1);
+  });
+
+  it('counts a shared CVE or GHSA id as link, which lifts a far-worded report over the floor', () => {
+    const advisory = withProfile({
+      id: 'advisory',
+      title: 'Denial of Service and Source Code Exposure in React Server Components',
+      url: 'https://react.dev/blog/2025/12/11/denial-of-service',
+      excerpt: 'High vulnerability Denial of Service (CVE-2025-55184)',
+      publishedAt: new Date('2025-12-11T00:00:00Z'),
+    });
+    const bulletin = (id: string, url: string) =>
+      row({
+        id,
+        title: 'Two New React 19 Vulnerabilities',
+        url,
+        publishedAt: advisory.publishedAt,
+      });
+    const [same, other] = [
+      bulletin('same', 'https://vercel.com/kb/bulletin/security-bulletin-cve-2025-55184'),
+      bulletin('other', 'https://vercel.com/kb/bulletin/security-bulletin-cve-2025-11111'),
+    ];
+    const titleScore =
+      0.45 * jaccard(advisory.profile.trigrams, same.profile.trigrams) +
+      0.45 * jaccard(advisory.profile.entities, same.profile.entities);
+    expect(titleScore).toBeLessThan(CLUSTER_CANDIDATE_MIN_SCORE);
+    const result = rankClusterCandidates(advisory, [same, other]);
+    expect(result.map(({ id }) => id)).toEqual(['same']);
+    expect(result[0]?.candidateScore).toBeCloseTo(titleScore + 0.1);
   });
 
   it('offers each cluster once, through its best member', () => {

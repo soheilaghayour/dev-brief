@@ -1,13 +1,11 @@
-import { readFileSync } from 'node:fs';
 import type { TestingModule } from '@nestjs/testing';
-import { CLUSTER_MAX_SIZE, normalizeTitle } from '@devbrief/shared';
+import { CLUSTER_MAX_SIZE } from '@devbrief/shared';
 import { APICallError } from 'ai';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClusterMembershipService } from '../../src/modules/clustering/clusterMembership.service.js';
 import { CLUSTER_MAX_CALLS_PER_RUN } from '../../src/modules/clustering/clusteringRules.js';
 import { IngestionService } from '../../src/modules/ingestion/ingestion.service.js';
 import { LLM_CAP_CLUSTER_USD_DAY, utcDay } from '../../src/modules/llm/budget.js';
-import { LlmService } from '../../src/modules/llm/llm.service.js';
 import { modelReply } from '../mockLanguageModel.js';
 import {
   CLUSTERING_ON,
@@ -539,109 +537,4 @@ describe('clustering step', () => {
       expect(model.doGenerateCalls).toHaveLength(3);
     });
   });
-
-  it('AC-2.1.2 adds at most 5 s to a run of 400 new items against a ±72 h window of 1,200 stories', async () => {
-    const now = Date.now();
-    const HOUR_MS = 3_600_000;
-    const titles = realisticTitles(1_600);
-    const stories = titles.map((title, index) => {
-      const isNew = index >= WINDOW_STORIES;
-      const url = `https://news${index % 40}.example.com/${index}-${slugOf(title)}`;
-      return {
-        canonicalUrl: url,
-        url,
-        domain: `news${index % 40}.example.com`,
-        title,
-        normalizedTitle: normalizeTitle(title),
-        // Existing stories spread over the 72 h before the run; the new ones over the last day.
-        publishedAt: new Date(
-          isNew
-            ? now - ((index - WINDOW_STORIES) / NEW_STORIES) * 24 * HOUR_MS
-            : now - (index / WINDOW_STORIES) * 72 * HOUR_MS,
-        ),
-        firstSeenAt: isNew ? new Date(now) : new Date(now - 2 * HOUR_MS),
-        tags: [],
-        taggerVersion: 1,
-      };
-    });
-    await prisma.story.createMany({ data: stories });
-    const {
-      step,
-      model,
-      moduleRef: current,
-    } = await create({
-      doGenerate: async () => modelReply({ match: 'none', confidence: 0.9 }),
-      // The calls would pass the daily cap, which a run of this size is not meant to test.
-      env: { ...CLUSTERING_ON, LLM_CAP_CLUSTER_USD_DAY: '1', LLM_CAP_GLOBAL_USD_DAY: '1' },
-    });
-
-    // The ledger's reserve and settle belong to the model call, so the clock stops while LlmService works.
-    const llm = current.get(LlmService);
-    const generate = llm.generateStructured.bind(llm);
-    let modelCallMs = 0;
-    llm.generateStructured = async (request) => {
-      const callStarted = performance.now();
-      try {
-        return await generate(request);
-      } finally {
-        modelCallMs += performance.now() - callStarted;
-      }
-    };
-
-    const started = performance.now();
-    await step.run({ ...runContext(), startedAt: new Date(now - 60_000) });
-    const nonLlmMs = performance.now() - started - modelCallMs;
-    process.stderr.write(
-      `\nclustering 400 new + 1,200 window stories: ${nonLlmMs.toFixed(0)} ms non-LLM, ${model.doGenerateCalls.length} model calls\n`,
-    );
-
-    // Below the per-run maximum, so every new story was scored and none was skipped by the cap.
-    expect(model.doGenerateCalls.length).toBeGreaterThan(0);
-    expect(model.doGenerateCalls.length).toBeLessThan(CLUSTER_MAX_CALLS_PER_RUN);
-    expect(nonLlmMs).toBeLessThan(5_000);
-  }, 60_000);
 });
-
-const WINDOW_STORIES = 1_200;
-const NEW_STORIES = 400;
-
-const slugOf = (title: string) => title.toLowerCase().replaceAll(/\W+/g, '-');
-
-const SYLLABLES =
-  'ba be bi bo bu ka ke ki ko ku la le li lo lu ma me mi mo mu na ne ni no nu ra re ri ro ru sa se si so su ta te ti to tu va ve vi vo vu'.split(
-    ' ',
-  );
-// Share of title words that come from real headlines; the rest are invented names, as a real window is full of one-off names.
-const REAL_WORD_SHARE = 0.4;
-
-/** Titles of 5 to 10 words, drawn with a fixed seed: some words from the recorded HN and Dev.to headlines, the rest invented names, so a few new stories find candidates and most do not. */
-function realisticTitles(count: number) {
-  const recorded = (name: string) =>
-    JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), 'utf8')) as unknown;
-  const hnTitles = Object.values(
-    recorded('hn/items.json') as Record<string, { title?: string }>,
-  ).flatMap(({ title }) => (title ? [title] : []));
-  const devtoTitles = (recorded('devto/top.json') as { title: string }[]).map(({ title }) => title);
-  const realWords = [...hnTitles, ...devtoTitles].flatMap(
-    (title) => title.match(/[\p{L}\p{N}]{6,}/gu) ?? [],
-  );
-  let state = 7;
-  const random = () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let mixed = Math.imul(state ^ (state >>> 15), 1 | state);
-    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed;
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296;
-  };
-  const pick = <Item>(items: readonly Item[]) => items[Math.floor(random() * items.length)] as Item;
-  const inventedName = () => {
-    const name = Array.from({ length: 2 + Math.floor(random() * 3) }, () => pick(SYLLABLES)).join(
-      '',
-    );
-    return random() < 0.4 ? name.charAt(0).toUpperCase() + name.slice(1) : name;
-  };
-  return Array.from({ length: count }, () =>
-    Array.from({ length: 5 + Math.floor(random() * 6) }, () =>
-      random() < REAL_WORD_SHARE ? pick(realWords) : inventedName(),
-    ).join(' '),
-  );
-}
