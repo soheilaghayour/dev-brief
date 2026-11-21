@@ -17,7 +17,7 @@ export const revalidate = 900;
 
 const TITLE = 'DevBrief — Your morning scan in 5 min';
 const DESCRIPTION =
-  'DevBrief pulls Hacker News, Dev.to and the best engineering blogs every hour, merges duplicates, tags by technology and ranks everything on one fair scale. No account needed.';
+  'DevBrief pulls Hacker News, Dev.to and GitHub every hour, merges duplicates, tags by technology and ranks everything on one fair scale. No account needed.';
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },

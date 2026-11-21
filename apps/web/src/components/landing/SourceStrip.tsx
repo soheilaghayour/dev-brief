@@ -1,15 +1,5 @@
-const SOURCES = [
-  'Hacker News',
-  'Dev.to',
-  'React Blog',
-  'TypeScript Blog',
-  'Vercel',
-  'Cloudflare',
-  'Netflix Tech',
-  'Shopify Engineering',
-  'Simon Willison',
-  'Josh Comeau',
-];
+// The enabled sources (PRD §2.1 row 2); the RSS blogs are off (§8.8).
+const SOURCES = ['Hacker News', 'Dev.to'];
 
 export function SourceStrip() {
   return (
@@ -21,7 +11,6 @@ export function SourceStrip() {
             {index < SOURCES.length - 1 && <span aria-hidden="true">·</span>}
           </span>
         ))}
-        <span aria-hidden="true">…</span>
       </p>
     </section>
   );

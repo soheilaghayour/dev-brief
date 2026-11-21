@@ -11,7 +11,7 @@ const FAQ = [
   {
     question: 'How are stories ranked?',
     answer:
-      'Engagement is compared within each source over the last 7 days, so Hacker News points, Dev.to reactions and blog posts land on one scale, then blended with how recent the story is. The formula is public.',
+      'Engagement is compared within each source over the last 7 days, so Hacker News points, Dev.to reactions and GitHub stars land on one scale, then blended with how recent the story is. The formula is public.',
   },
   {
     question: 'What data do you store?',

@@ -45,7 +45,7 @@ function GuestVisual() {
 }
 
 function RankingVisual() {
-  const labels = ['HN', 'Dev.to', 'Blogs'];
+  const labels = ['HN', 'Dev.to', 'GitHub'];
   return (
     <div aria-hidden="true" className="grid gap-3 text-xs">
       {labels.map((label, index) => (
@@ -136,7 +136,7 @@ const TILES: readonly BentoTile[] = [
   },
   {
     title: 'Fair cross-source ranking',
-    text: 'Engagement is scored within each source, so a blog post is not buried under Hacker News points.',
+    text: 'Engagement is scored within each source, so a Dev.to post is not buried under Hacker News points.',
     visual: <RankingVisual />,
     className: 'md:col-span-3',
   },
