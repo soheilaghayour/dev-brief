@@ -1,0 +1,68 @@
+{
+  "placeholder": true,
+  "recordedAt": "PLACEHOLDER: hand-written, not a model reply. Record the real one (README.md).",
+  "model": "claude-haiku-5-5",
+  "promptVersion": 1,
+  "requestHash": "33f42b94bc0b91df",
+  "parts": [
+    {
+      "type": "stream-start",
+      "warnings": []
+    },
+    {
+      "type": "text-start",
+      "id": "text-1"
+    },
+    {
+      "type": "text-delta",
+      "id": "text-1",
+      "delta": "{\"title\":\"TypeScript tooling this week\",\"sections\":[{\"kind\":"
+    },
+    {
+      "type": "text-delta",
+      "id": "text-1",
+      "delta": "\"takeaways\",\"items\":[{\"text\":\"Placeholder takeaway.\",\"storyI"
+    },
+    {
+      "type": "text-delta",
+      "id": "text-1",
+      "delta": "ds\":[\"cstory00000001\",\"cstory00000002\"]}]},{\"kind\":\"stories\""
+    },
+    {
+      "type": "text-delta",
+      "id": "text-1",
+      "delta": ",\"picks\":[{\"storyId\":\"cstory00000003\",\"note\":\"Read it at htt"
+    },
+    {
+      "type": "text-delta",
+      "id": "text-1",
+      "delta": "ps://example.org/placeholder\"}]},{\"kind\":\"tags\",\"tags\":[\"cob"
+    },
+    {
+      "type": "text-delta",
+      "id": "text-1",
+      "delta": "ol\"]}]}"
+    },
+    {
+      "type": "text-end",
+      "id": "text-1"
+    },
+    {
+      "type": "finish",
+      "finishReason": {
+        "unified": "stop",
+        "raw": "stop"
+      },
+      "usage": {
+        "inputTokens": {
+          "total": 1800,
+          "noCache": 1800
+        },
+        "outputTokens": {
+          "total": 240,
+          "text": 240
+        }
+      }
+    }
+  ]
+}

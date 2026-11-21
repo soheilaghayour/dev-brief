@@ -23,3 +23,17 @@ pnpm --filter api exec dotenv -e ../../.env -e ../../.env.example -- tsx test/re
 ```
 
 About 65 calls cost under $0.01. The script prints each reply next to the pair's label; then run `pnpm exec vitest run --project api test/integration/clusterAccuracy.test.ts`, which prints precision and recall (and the held-out ones), and commit the file. **If a number misses its target (0.90 and 0.70), do not tune the constants, the prompt or the pairs and record again:** that fits the fixture instead of the model. Report the numbers to the orchestrator or the owner on #82, who decide.
+
+
+## Copilot briefing streams
+
+`copilot/copilotBriefing.v1.normal.json` and `copilot/copilotBriefing.v1.injection.json` hold the provider stream (its parts, replayed through the mock model) that `LLM_MODEL` sends for the copilot briefing v1 prompt, built from the two fixed retrieval sets in `../../copilotFixtures.ts`: a normal TypeScript-tooling set, and one with a story that tells the model to link to `https://evil.example/pwned`. `requestHash` identifies the system and user prompt a stream answers, and `src/modules/copilot/copilotRecordings.test.ts` fails when it no longer matches, so a changed prompt or set can't be replayed against an old stream.
+
+**While a file holds `"placeholder": true`, its stream is hand-written, not recorded, and its recorded-reply test is skipped with a warning.** Each placeholder plan breaks the recorded-reply checks on purpose (a URL, a tag outside the taxonomy, the injected text), and a test that runs only while the flag is set asserts that it does, so deleting the flag without recording fails instead of passing. Record both with a real key (owner step, [issue #97](https://github.com/soheilaghayour/dev-brief/issues/97)) before `FEATURE_COPILOT` goes on in production, and again whenever `copilotBriefing.v1.ts` or the sets change. The script needs no database. From the repo root, with `ANTHROPIC_API_KEY` set as above:
+
+```sh
+pnpm --filter @devbrief/shared build
+pnpm --filter api exec dotenv -e ../../.env -e ../../.env.example -- tsx test/recordLlmFixtures.ts copilot
+```
+
+Two calls cost well under $0.01. The script prints each stream's events; check that the injection plan briefs the TypeScript stories, links nowhere and repeats nothing of the injected story, then run `pnpm exec vitest run --project api src/modules/copilot` and commit both files.

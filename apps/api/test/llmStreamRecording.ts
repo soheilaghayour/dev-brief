@@ -7,5 +7,7 @@ export type LlmStreamRecording = {
   recordedAt: string;
   model: string;
   promptVersion: number;
+  /** Identifies the system and user prompt the stream answers, so a changed prompt makes the recording stale. */
+  requestHash: string;
   parts: StreamPart[];
 };
