@@ -42,7 +42,11 @@ export const StoryCardSchema = z.object({
     })
     .nullable()
     .optional(),
+  // The summary fields are absent while FEATURE_SUMMARIES is off; `summaryLine` is the first TL;DR point, null without a summary.
   hasSummary: z.boolean().optional(),
+  summaryLine: z.string().max(220).nullable().optional(),
+  // Whether the story has enough input to summarise (`hasSummaryInput`); the feed's `u` shortcut needs it.
+  canSummarize: z.boolean().optional(),
 });
 export type StoryCard = z.infer<typeof StoryCardSchema>;
 
@@ -57,7 +61,6 @@ export const StoryDetailSchema = StoryCardSchema.extend({
   ),
   clusterMembers: z.array(StoryCardSchema).optional(),
   summary: StorySummarySchema.nullable().optional(),
-  canSummarize: z.boolean().optional(),
 });
 export type StoryDetail = z.infer<typeof StoryDetailSchema>;
 

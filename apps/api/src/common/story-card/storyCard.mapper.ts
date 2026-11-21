@@ -7,14 +7,16 @@ import {
 } from '@devbrief/shared';
 import type { Prisma, Summary } from '../../generated/prisma/client.js';
 import type { Env } from '../env/env.module.js';
+import { hasSummaryInput } from '../summary-input/hasSummaryInput.js';
+import type { ClusterSummaryInfo } from './clusterSummary.js';
 
-/** The Prisma include every story read uses, so the mapper below sees the same shape everywhere; a card needs only whether a summary exists. */
+/** The Prisma include every story read uses, so the mapper below sees the same shape everywhere; a card needs only the first point of a summary. */
 export const storyWithItems = {
   items: {
     include: { source: true },
     orderBy: [{ engagement: 'desc' }, { id: 'asc' }],
   },
-  summary: { select: { id: true } },
+  summary: { select: { tldr: true } },
 } satisfies Prisma.StoryInclude;
 
 export type StoryWithItems = Prisma.StoryGetPayload<{ include: typeof storyWithItems }>;
@@ -57,14 +59,23 @@ export function toStorySummary(summary: Summary): StorySummary {
   };
 }
 
-/** `clusters` holds the cluster info of the page's cards by cluster id; `summarizedClusters` the ids of clusters where some member has a summary. Both are read only while the clusters flag is on. */
+/** `clusters` holds the cluster info of the page's cards by cluster id; `clusterSummaries` the summary info of their clusters. Both are read only while the clusters flag is on. */
 export function toStoryCard(
   story: StoryWithItems,
   features: StoryFeatures,
   clusters?: ReadonlyMap<string, CardCluster>,
-  summarizedClusters?: ReadonlySet<string>,
+  clusterSummaries?: ReadonlyMap<string, ClusterSummaryInfo>,
 ): StoryCard {
   const cluster = features.clusters && story.clusterId ? clusters?.get(story.clusterId) : undefined;
+  // A clustered story shows its cluster's summary, whichever member holds it.
+  const summary =
+    features.summaries &&
+    ((features.clusters && story.clusterId
+      ? clusterSummaries?.get(story.clusterId)
+      : undefined) ?? {
+      line: story.summary?.tldr[0] ?? null,
+      canSummarize: hasSummaryInput(story),
+    });
   return {
     id: story.id,
     title: story.title,
@@ -79,12 +90,10 @@ export function toStoryCard(
     sources: story.items.map(toSourceRef),
     rankScore: story.rankScore,
     ...(cluster && { cluster }),
-    ...(features.summaries && {
-      hasSummary:
-        story.summary !== null ||
-        (features.clusters &&
-          story.clusterId !== null &&
-          !!summarizedClusters?.has(story.clusterId)),
+    ...(summary && {
+      hasSummary: summary.line !== null,
+      summaryLine: summary.line,
+      canSummarize: summary.canSummarize,
     }),
   };
 }

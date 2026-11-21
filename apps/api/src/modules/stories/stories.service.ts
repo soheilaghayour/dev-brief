@@ -4,7 +4,11 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { toStoryCards } from '../../common/story-card/clusterCards.js';
-import { findSummary, loadSummaryInputItems } from '../../common/story-card/clusterSummary.js';
+import {
+  findSummary,
+  loadSummaryInputItems,
+  type ClusterSummaryInfo,
+} from '../../common/story-card/clusterSummary.js';
 import { hasSummaryInput } from '../../common/summary-input/hasSummaryInput.js';
 import {
   type StoryFeatures,
@@ -29,7 +33,7 @@ export class StoriesService {
   async getDetail(id: string): Promise<StoryDetail> {
     const story = await this.prisma.story.findUnique({
       where: { id },
-      // The detail shows the summary itself; cards only say whether there is one.
+      // The detail shows the summary itself; cards carry only its first point.
       include: { ...storyWithItems, summary: true },
     });
     if (!story) throw new ApiException('NOT_FOUND', 'Story not found.');
@@ -37,16 +41,18 @@ export class StoriesService {
     // The cluster's summary on any member's page; a single story's own otherwise.
     const clusterSummarised = this.features.summaries && this.features.clusters && clusterId;
     const summary = clusterSummarised ? await findSummary(this.prisma, story, true) : story.summary;
-    // The one answer to "does the cluster have a summary" serves the detail's card and its members' cards.
-    const summarized = clusterSummarised ? new Set(summary ? [clusterId] : []) : undefined;
-    const [card] = await toStoryCards(this.prisma, [story], this.features, summarized);
-    const clusterMembers =
-      this.features.clusters && clusterId ? await this.otherMembers(clusterId, id, summarized) : [];
     const canSummarize =
       this.features.summaries &&
       hasSummaryInput({
         items: await loadSummaryInputItems(this.prisma, story, this.features.clusters),
       });
+    // The one answer for the cluster serves the detail's card and its members' cards.
+    const summaries = clusterSummarised
+      ? new Map([[clusterId, { line: summary?.tldr[0] ?? null, canSummarize }]])
+      : undefined;
+    const [card] = await toStoryCards(this.prisma, [story], this.features, summaries);
+    const clusterMembers =
+      this.features.clusters && clusterId ? await this.otherMembers(clusterId, id, summaries) : [];
     return {
       ...card!,
       firstSeenAt: story.firstSeenAt.toISOString(),
@@ -57,24 +63,21 @@ export class StoriesService {
         publishedAt: item.publishedAt.toISOString(),
       })),
       ...(clusterMembers.length > 0 && { clusterMembers }),
-      ...(this.features.summaries && {
-        summary: summary && toStorySummary(summary),
-        canSummarize,
-      }),
+      ...(this.features.summaries && { summary: summary && toStorySummary(summary) }),
     };
   }
 
   private async otherMembers(
     clusterId: string,
     storyId: string,
-    summarized: ReadonlySet<string> | undefined,
+    summaries: ReadonlyMap<string, ClusterSummaryInfo> | undefined,
   ) {
     const members = await this.prisma.story.findMany({
       where: { clusterId, id: { not: storyId } },
       include: storyWithItems,
       orderBy: [{ rankScore: 'desc' }, { id: 'desc' }],
     });
-    return members.map((member) => toStoryCard(member, this.features, undefined, summarized));
+    return members.map((member) => toStoryCard(member, this.features, undefined, summaries));
   }
 
   async lookup(ids: string[]): Promise<StoryLookupResponse> {
