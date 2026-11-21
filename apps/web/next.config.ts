@@ -3,10 +3,12 @@ import { withSentryConfig } from '@sentry/nextjs/config';
 import { securityHeaders } from './src/config/securityHeaders';
 import { validateFeatureFlagEnv } from './src/env';
 
-validateFeatureFlagEnv();
+const featureFlags = validateFeatureFlagEnv();
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Next inlines only NEXT_PUBLIC_* by itself; `env` inlines the FEATURE_* flags into server and client bundles, so a flag that is off leaves nothing in the HTML (DECISIONS.md).
+  env: featureFlags,
   // Next regenerates apps/web/AGENTS.md otherwise; agent rules live only in CLAUDE.md.
   agentRules: false,
   // Inlines the stylesheet into <head>: the external <link> blocks render and costs a second round trip (DECISIONS.md).

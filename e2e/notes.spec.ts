@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInThroughTestRoute } from './signIn';
 
-// Needs NEXT_PUBLIC_FEATURE_COLLECTIONS on (web), as in CI's e2e run.
+// Needs FEATURE_COLLECTIONS on for the API and the web build, as in CI's e2e run.
 
 const NOTE = 'Remember the **Zephyr** migration';
 
