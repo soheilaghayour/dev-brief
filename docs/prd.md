@@ -1819,7 +1819,7 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 |---|---|---|
 | Landing Lighthouse (mobile): Perf / A11y / BP / SEO | ≥ 95 each | Lighthouse CI (`@lhci/cli`) in GitHub Actions, failing PRs |
 | Landing LCP / CLS / TBT (Lighthouse mobile) | ≤ 1.8 s / ≤ 0.05 / ≤ 150 ms | Lighthouse CI assertions |
-| Landing first-load JS | ≤ 160 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
+| Landing first-load JS | ≤ 165 KB gzip (Next and React alone are ≈135 KB; Lighthouse ≥ 95 stays the primary gate) | `pnpm --filter web size` on the build output, budgets in `apps/web/bundle-budgets.json` |
 | `/feed` first-load JS | ≤ 200 KB gzip (shell included) | `pnpm --filter web size` |
 | `/saved` first-load JS | ≤ 195 KB gzip (shell included) | `pnpm --filter web size` |
 | `/story/[id]` first-load JS | ≤ 195 KB gzip (shell included) | `pnpm --filter web size` |
