@@ -21,6 +21,7 @@
 | **Cluster** | Phase 2. A group of distinct Stories about the same event, such as a release post, its HN thread and a Dev.to write-up. |
 | **Briefing** | Phase 3. A generated, interactive answer to a research question, rendered as an A2UI surface. |
 | **Guest** | A visitor without an account. Their state lives in `localStorage`. They can do everything except sync. |
+| **Feature flag** | The env variable `FEATURE_<NAME>` that hides a feature while it is unfinished or not yet launched. The launch deletes it (§3). |
 
 ---
 
@@ -63,7 +64,7 @@
 2. **Fast before clever.** Static landing, a server-rendered first feed page, no images on cards, code-split heavy features.
 3. **Deterministic first, LLM second.** Tagging, ranking and dedup are pure, tested functions. Clustering finds its candidates the same way. The LLM writes prose and briefing composition, and it makes one bounded same-story decision for each new story that has clustering candidates, always inside a schema and a budget. A failed call leaves the story unclustered.
 4. **One process per concern, not per feature.** A single API process (REST, SSE and cron). No queues, no workers, no microservices.
-5. **Show only what has shipped.** The landing page and navigation hide features behind phase flags, so there are no "coming soon" teasers.
+5. **Show only what has shipped.** A feature that is unfinished or not yet launched stays behind its feature flag (§3), absent from the landing page and the navigation, so there are no "coming soon" teasers. Copy claims only what is live in production.
 
 ### 1.6 Success metrics
 | Metric | Target | Phase |
@@ -163,7 +164,7 @@ Rules:
 - **AC-L4** Given a guest clicks the primary CTA, then `/feed` (Top, default params omitted from the URL) loads with no authentication prompt.
 - **AC-L5** Given the preview has focus, when the user presses `j` three times and then `Enter`, then the browser navigates to `/feed?focus=<id of 4th card>`.
 - **AC-L6** Given the OS is in dark mode and no theme is stored, then the page renders dark on first paint with no light flash. The theme toggle choice persists across reloads.
-- **AC-L7** Given a feature flag for a later phase is off, then its bento tile, nav item and copy variant are absent from the HTML.
+- **AC-L7** Given a feature's flag (§3) is off, then its bento tile, nav item and copy variant are absent from the HTML.
 - **AC-L8** `/impressum` and `/privacy` exist, are linked from the footer, and are statically rendered.
 - **AC-L9** The page has a `<title>`, a meta description, a canonical URL, Open Graph and Twitter tags, and a generated OG image (`opengraph-image.tsx`).
 - **AC-L10** With `prefers-reduced-motion: reduce`, no looping animations run.
@@ -178,7 +179,13 @@ Rules:
 | **2 — V2** | Clustering, AI TL;DR and consensus, GitHub source, follow/mute | After Phase 1 is live | Created when Phase 2 starts |
 | **3 — V3** | A2UI research copilot, Tech Radar, collections and notes | After Phase 2 | Created when Phase 3 starts |
 
-Phase flags live in `apps/web/src/config/features.ts` (`clusters`, `summaries`, `preferences`, `copilot`, `radar`, `collections`), and their API equivalents live in env (`FEATURE_*`). A flag that is off hides the UI entry points. The matching API routes then return 404.
+**Feature flags.** A flag exists only while its feature is unfinished or not yet launched. The launch deletes it, together with every branch on it, and the feature is then always on.
+- The flags are `clusters`, `summaries`, `copilot` and `collections`. The Tech Radar and follow/mute (`preferences`) have none: they are finished and cost nothing to run.
+- Each flag is **one** env variable, `FEATURE_<NAME>` (`FEATURE_CLUSTERS`, `FEATURE_SUMMARIES`, `FEATURE_COPILOT`, `FEATURE_COLLECTIONS`). The API reads it at boot. The web build inlines the same variable through `next.config.ts` into `apps/web/src/config/features.ts`, so the web app is rebuilt after a change. There are no `NEXT_PUBLIC_FEATURE_*` variables.
+- A flag that is off hides the UI entry points, and the matching API routes return 404 `FEATURE_DISABLED`.
+- Production ships each flag off until its launch. `.env.example` turns on every flag whose feature needs no key (`FEATURE_COLLECTIONS=true`) and leaves the AI flags (`summaries`, `clusters`, `copilot`) off until a key is set. `AUTO_SUMMARIES` and `AUTO_CLUSTERING` are separate switches for the ingestion run's live model calls; they default to off and stay after their flags are deleted.
+- Launches: summaries once their real recorded reply exists (AC-2.3.7) and the content-rights launch gate holds (§8.8); clusters once their real recorded replies exist (AC-2.1.1); the copilot and collections at the Phase 3 launch.
+- Once a flag is deleted, its feature's secrets (`ANTHROPIC_API_KEY`, `IP_HASH_SECRET`) are required at boot like any other. Dev and CI run with placeholder values and with the `AUTO_*` switches off, so no live model call is made.
 
 ### 3.1 Phase 1 — MVP
 
@@ -293,6 +300,7 @@ Acceptance criteria:
 - **AC-1.7.5** A push to `main` auto-deploys through Coolify. API containers run `prisma migrate deploy` before starting. A failed migration fails the deploy and the old container keeps serving.
 - **AC-1.7.6** Unhandled errors in web and api reach Sentry with the release version. Sentry is configured with `sendDefaultPii: false`.
 - **AC-1.7.7** Postgres is backed up daily to S3-compatible object storage with 14-day retention. A restore is rehearsed once and documented in `docs/operations.md`.
+- **AC-1.7.8** Each feature flag (§3) is the one env variable `FEATURE_<NAME>`, read by the API at boot and inlined by the web build. A value other than `true` or `false` fails the API's boot and `next build`. No `NEXT_PUBLIC_FEATURE_*` variable exists, `radar` and `preferences` have no flag, and `.env.example` sets `FEATURE_COLLECTIONS=true` and the AI flags to `false`.
 
 **Phase 1 definition of done:** all P1 work items (Appendix C) are merged, the production URL serves the landing page and feed with live data for 48 h, the 4 Playwright smoke tests pass against production, and `docs/changelog.md` has a `v0.1.0` entry.
 
@@ -356,7 +364,7 @@ The clustering step runs inside the ingestion run, after the sources settle and 
 - Cluster upkeep is derived from the database's current state, meaning a cluster's actual members. It doesn't depend on what an earlier step remembers, so a purge that stopped part-way repairs itself on the next pass (§5.3).
 - A cluster left with fewer than 2 members is dissolved. The remaining story gets `clusterId = null` and `isPrimary = true`, and it **keeps** its `clusterScore`, which AC-2.1.3 stores for every decided story. A card never carries a `cluster` with fewer than 2 members.
 
-**6. Flag:** `FEATURE_CLUSTERS` in the API and `NEXT_PUBLIC_FEATURE_CLUSTERS` in the web build ship off. While the flag is off, the clustering step doesn't run. The rank recompute ignores clusters entirely: each story's `k` counts only its own items, and no representative is picked. Feed and story responses match Phase 1 even after the flag was on: every story is listed, and no cluster fields are sent.
+**6. Flag:** `FEATURE_CLUSTERS` (§3) ships off until clustering launches. While the flag is off, the clustering step doesn't run. The rank recompute ignores clusters entirely: each story's `k` counts only its own items, and no representative is picked. Feed and story responses match Phase 1 even after the flag was on: every story is listed, and no cluster fields are sent.
 
 **7. Fixture**
 - `apps/api/test/fixtures/cluster-pairs.json` holds ~50 hand-labelled pairs: ≥ 20 positive and ≥ 20 negative, including hard negatives such as two different "React 19.x" posts, or two posts about the same project that report different events.
@@ -555,7 +563,7 @@ dev-brief/
 │  │  ├─ src/lib/guest/                      Zustand guest store (persist → localStorage)
 │  │  ├─ src/lib/hotkeys/                    shortcut registry + help dialog data
 │  │  ├─ src/content/landing-fixture.json    fallback snapshot for first build
-│  │  └─ src/config/features.ts              phase feature flags
+│  │  └─ src/config/features.ts              feature flags (§3)
 │  └─ api/                                   NestJS
 │     ├─ prisma/schema.prisma · migrations/ · seed.ts · seed/sources.json
 │     ├─ prisma.config.ts
@@ -1158,7 +1166,7 @@ export const ApiErrorCodeSchema = z.enum([
   'FORBIDDEN_ORIGIN',    // 403
   'NOT_FOUND',           // 404
   'CONFLICT',            // 409 (retryable: a per-user write lock was busy)
-  'FEATURE_DISABLED',    // 404 (phase flag off)
+  'FEATURE_DISABLED',    // 404 (feature flag off, §3)
   'RATE_LIMITED',        // 429 (short-window throttle)
   'QUOTA_EXCEEDED',      // 429 (daily quota)
   'GENERATION_FAILED',   // 502
