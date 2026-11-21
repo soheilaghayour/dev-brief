@@ -51,12 +51,14 @@ export function CopilotLauncher() {
       <Button
         variant="outline"
         size="sm"
+        className="max-md:w-8 max-md:px-0"
         aria-haspopup="dialog"
         aria-keyshortcuts="Control+K Meta+K"
         onClick={open}
       >
         <SparklesIcon aria-hidden="true" />
-        Ask
+        {/* Below md the header has room for an icon only; the name stays for screen readers. */}
+        <span className="max-md:sr-only">Ask</span>
         <Kbd size="sm" className="max-md:hidden">
           ⌘K
         </Kbd>
