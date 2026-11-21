@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
+import { ClusterMembers } from '@/components/story/ClusterMembers';
 import { SourceItemList } from '@/components/story/SourceItemList';
 import { StoryHeader } from '@/components/story/StoryHeader';
 import { SummaryPanel } from '@/components/story/SummaryPanel';
@@ -40,6 +41,7 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
         <SummaryPanel storyId={story.id} summary={story.summary ?? null} autoStart={autoStart} />
       )}
       <SourceItemList items={story.items} />
+      {isFeatureEnabled('clusters') && <ClusterMembers story={story} />}
     </article>
   );
 }

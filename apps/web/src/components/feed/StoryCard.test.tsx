@@ -2,11 +2,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
+import { ClusterSourceLine } from './ClusterSourceLine';
+import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
 
-const features = vi.hoisted(() => ({ preferences: false, summaries: false }));
+const features = vi.hoisted(() => ({ preferences: false, summaries: false, clusters: false }));
 vi.mock('@/config/features', () => ({
-  isFeatureEnabled: (flag: 'preferences' | 'summaries') => features[flag],
+  isFeatureEnabled: (flag: 'preferences' | 'summaries' | 'clusters') => features[flag],
 }));
 
 const STORY: StoryCardData = {
@@ -56,7 +58,13 @@ const STORY: StoryCardData = {
 
 function render(
   story: StoryCardData,
-  props: { isSaved?: boolean; compact?: boolean; preferenceMenu?: typeof PreferenceMenu } = {},
+  props: {
+    isSaved?: boolean;
+    compact?: boolean;
+    preferenceMenu?: typeof PreferenceMenu;
+    relatedToggle?: typeof RelatedToggle;
+    sourceLine?: typeof ClusterSourceLine;
+  } = {},
 ) {
   return renderToStaticMarkup(
     <StoryCard story={story} isSaved={props.isSaved ?? false} onToggleSave={() => {}} {...props} />,
@@ -162,5 +170,47 @@ describe('StoryCard', () => {
     expect(render({ ...STORY, hasSummary: false })).not.toContain('TL;DR');
     features.summaries = false;
     expect(render({ ...STORY, hasSummary: true })).not.toContain('TL;DR');
+  });
+
+  const CLUSTERED: StoryCardData = {
+    ...STORY,
+    cluster: { id: 'cluster-1', memberCount: 3, sources: STORY.sources },
+  };
+
+  it('AC-2.2.1 shows the combined source line and the "+N related" control on a cluster card', () => {
+    features.clusters = true;
+    const html = render(CLUSTERED, { relatedToggle: RelatedToggle, sourceLine: ClusterSourceLine });
+    features.clusters = false;
+    expect(html).toContain('Trending on ');
+    expect(html).toContain(
+      'HN (<span aria-hidden="true">▲ </span>320<span class="sr-only"> points</span>)',
+    );
+    expect(html).toContain(' &amp; ');
+    expect(html).toContain('Dev.to (<span aria-hidden="true">♥ </span>95');
+    expect(html).toContain('1 blog');
+    expect(html).toContain('+2 related');
+    expect(html).toMatch(/<button[^>]*aria-expanded="false"/);
+    // The per-source badges give way to the line.
+    expect(html).not.toContain('title="Points"');
+  });
+
+  it('AC-2.2.1 leaves a card without cluster as it is, with or without the toggle passed', () => {
+    features.clusters = true;
+    const html = render(STORY, { relatedToggle: RelatedToggle });
+    features.clusters = false;
+    expect(html).toBe(render(STORY));
+    expect(html).not.toContain('related');
+  });
+
+  it('AC-2.2.1 shows no line or toggle while the clusters flag is off', () => {
+    const html = render(CLUSTERED, { relatedToggle: RelatedToggle });
+    expect(html).toBe(render(STORY));
+  });
+
+  it('AC-2.2.1 renders a plain card where the page passes no line or toggle, as on /saved', () => {
+    features.clusters = true;
+    const html = render(CLUSTERED);
+    features.clusters = false;
+    expect(html).toBe(render(STORY));
   });
 });
