@@ -38,5 +38,5 @@ USER node
 EXPOSE 3001
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT + '/api/v1/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
-# A failed migration exits non-zero, so the container never turns healthy and Coolify keeps the old one serving.
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && exec node dist/main.js"]
+# A failed migration or seed exits non-zero, so the container never turns healthy and Coolify keeps the old one serving; the seed runs at every start so sources.json (enabled included) reaches production.
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/cli/seed.js && exec node dist/main.js"]
