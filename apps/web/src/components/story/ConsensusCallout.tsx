@@ -5,14 +5,23 @@ import { Badge } from '@/components/ui/Badge';
 
 type Verdict = NonNullable<StorySummary['consensus']>['verdict'];
 
-// Colour never carries the verdict alone: each one has an icon and a text label.
+// Colour never carries the verdict alone: each one has an icon and a text label. The text stays
+// `text-foreground` (a tint of the role colour behind it), so contrast holds in light and dark.
 const VERDICTS = {
-  mostly_positive: { label: 'Mostly positive', Icon: ThumbsUpIcon },
-  mixed: { label: 'Mixed', Icon: MinusIcon },
-  mostly_negative: { label: 'Mostly negative', Icon: ThumbsDownIcon },
+  mostly_positive: {
+    label: 'Mostly positive',
+    Icon: ThumbsUpIcon,
+    tone: 'border-success bg-success/15 text-foreground',
+  },
+  mixed: { label: 'Mixed', Icon: MinusIcon, tone: 'border-warning bg-warning/15 text-foreground' },
+  mostly_negative: {
+    label: 'Mostly negative',
+    Icon: ThumbsDownIcon,
+    tone: 'border-destructive bg-destructive/15 text-foreground',
+  },
 } as const satisfies Record<
   Verdict,
-  { label: string; Icon: ComponentType<{ className?: string }> }
+  { label: string; Icon: ComponentType<{ className?: string }>; tone: string }
 >;
 
 export type ConsensusCalloutProps = {
@@ -28,10 +37,11 @@ function PointList({ title, points }: { title: string; points: string[] }) {
   if (points.length === 0) return null;
   return (
     <div>
-      <h3 className="text-muted-foreground text-xs font-medium">{title}</h3>
+      <h4 className="text-muted-foreground text-xs font-medium">{title}</h4>
       <ul className="list-disc pl-5 text-sm">
-        {points.map((point) => (
-          <li key={point}>{point}</li>
+        {points.map((point, index) => (
+          // Points are model text and may repeat, so the position is part of the key.
+          <li key={`${index}:${point}`}>{point}</li>
         ))}
       </ul>
     </div>
@@ -46,16 +56,16 @@ export function ConsensusCallout({
   cons,
   openQuestions = [],
 }: ConsensusCalloutProps) {
-  const { label, Icon } = VERDICTS[verdict];
+  const { label, Icon, tone } = VERDICTS[verdict];
   return (
     <div className="bg-muted/50 flex flex-col gap-2 rounded-md border p-3">
-      <p className="text-sm font-medium">
-        {topic ?? 'Community consensus'}{' '}
-        <Badge variant="outline">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-sm font-medium">{topic ?? 'Community consensus'}</h3>
+        <Badge variant="outline" className={tone}>
           <Icon className="size-3" aria-hidden="true" />
           {label}
         </Badge>
-      </p>
+      </div>
       <PointList title="Pros" points={pros} />
       <PointList title="Cons" points={cons} />
       <PointList title="Open questions" points={openQuestions} />
