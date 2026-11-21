@@ -685,7 +685,7 @@ sequenceDiagram
   else not cached
     A->>P: quota check (RateLimitCounter) · spend reservation (LlmUsage)
     A->>P: retrieve ≤15 stories: tagStory(question) tags ∪ FTS(question keywords, any non-filler one matches) ∩ window (default 7d) ORDER BY rankScore
-    A-->>U: event meta {queryId, cached:false, quota}
+    Note over A,U: meta {queryId, cached:false, quota} is sent with the first pipeline event (below)
     A->>L: stream structured BriefingPlan (maxOutputTokens 1500)
     L-->>A: plan title complete (the first token proves the call is live)
     A-->>U: event a2ui createSurface · updateComponents(root=Briefing, children=[]) · updateDataModel(subtitle)
@@ -698,7 +698,7 @@ sequenceDiagram
   end
   Note over U,A: ": ping" heartbeat every 15s; end of turn = done event + stream close
 ```
-Nothing but `meta` is sent before the plan title is complete and valid, so a spend-cap refusal (the example-briefing fallback) or an early failure sends no briefing message. The LLM never emits A2UI JSON directly. It emits a small, validated **BriefingPlan** (§6.4.4). The server compiles that plan into A2UI v1.0 messages, injecting trusted titles, URLs, numbers and chart series from Postgres. This removes hallucinated links, keeps output tokens low and guarantees catalog-valid messages.
+`: ping` goes out at once, so the first byte arrives in under 100 ms. `meta` is sent with the pipeline's first event: after the plan title, or immediately on a spend-cap refusal or `no_coverage`. It cannot come before the model call, because the spend reservation happens inside the stream call. Nothing else is sent before the plan title is complete and valid, so a spend-cap refusal (the example-briefing fallback) or an early failure sends no briefing message. The LLM never emits A2UI JSON directly. It emits a small, validated **BriefingPlan** (§6.4.4). The server compiles that plan into A2UI v1.0 messages, injecting trusted titles, URLs, numbers and chart series from Postgres. This removes hallucinated links, keeps output tokens low and guarantees catalog-valid messages.
 
 ---
 
