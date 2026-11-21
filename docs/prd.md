@@ -96,8 +96,8 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 | # | Section | Layout and content | Interactivity | Phase |
 |---|---|---|---|---|
 | 0 | **Top nav** | Sticky, translucent background with backdrop blur and a 1 px bottom border. Left: logo and wordmark. Center: Feed, Radar (P3) and GitHub (repo link). Right: theme toggle, "Sign in" (ghost) and "Explore feed" (primary, small). | The nav collapses to a sheet below 768 px. | P1 |
-| 1 | **Hero** | Two columns from `md` (768 px) up, 45% for the text and 55% for the window. Left, left-aligned: an eyebrow pill with live counts, e.g. "Updated 14 min ago · 312 stories today · 12 sources", then the H1, two sentences on deduplication (§2.2) and two CTAs: primary **"Explore the feed — no login required"** → `/feed`, and secondary "Sign in with GitHub". Right: the **live preview window** (§2.3). Below `md` the columns stack, text first, with no horizontal scroll. No glow or gradient sits behind the hero. | See §2.3 | P1 |
-| 2 | **Source strip** | One line of monospace wordmarks (text only, no third-party logos) of the enabled sources: `Hacker News · Dev.to`. GitHub is added in P2. The RSS blog feeds are off (§8.8), so they aren't listed. | None | P1 |
+| 1 | **Hero** | Two columns from `md` (768 px) up, 45% for the text and 55% for the window. Left, left-aligned: an eyebrow pill with live counts, e.g. "Updated 14 min ago · 312 stories today · 3 sources", then the H1, two sentences on deduplication (§2.2) and two CTAs: primary **"Explore the feed — no login required"** → `/feed`, and secondary "Sign in with GitHub". Right: the **live preview window** (§2.3). Below `md` the columns stack, text first, with no horizontal scroll. No glow or gradient sits behind the hero. | See §2.3 | P1 |
+| 2 | **Source strip** | One line of monospace wordmarks (text only, no third-party logos) of the enabled sources: `Hacker News · Dev.to · GitHub`. The RSS blog feeds are off (§8.8), so they aren't listed. | None | P1 |
 | 3 | **Problem** | Three bordered cards: "Same story, five tabs", "Rankings you can't trust", "Signal buried in comments". Each has a 1-line pain statement and a tiny illustrative mock. | Hover lifts the border colour. | P1 |
 | 4 | **How it works** | Three steps joined by a hairline connector: **Ingest hourly** → **Dedupe and tag** → **Rank fairly**. Each step has a 2-line explanation and a "See the formula" link to Appendix B of this PRD on GitHub. | None | P1 |
 | 5 | **Feature bento** | A bento grid: 3 tiles in P1, up to 8 by P3. Tiles appear only when their feature flag is on. P1: "Keyboard-first feed", "Guest mode, real features", "Fair cross-source ranking". P2 adds "One card per story" and "TL;DR + Community Consensus". P3 adds "Ask the News", "Tech Radar" and "Collections & notes". | Each tile has a short looped CSS/SVG animation that respects `prefers-reduced-motion`. | P1+ |
@@ -118,7 +118,7 @@ Copy should be confident, concrete and technical. Lead with verbs and avoid supe
 | Primary CTA | "Explore the feed — no login required" | Unchanged |
 | Secondary CTA | "Sign in with GitHub" | Unchanged |
 | Guest hint (in-app) | "You're browsing as a guest. Saves stay on this device. Sign in to sync anywhere." | P3 adds: "…including collections and notes." |
-| Problem card 1 | "Same story, five tabs. A release lands on HN, Dev.to and three blogs. You read about it five times." | |
+| Problem card 1 | "Same story, three tabs. A release lands on HN, Dev.to and GitHub. You read about it three times." Mock: three chips, HN, Dev.to and GitHub. | |
 | Problem card 2 | "Rankings you can't trust. 300 HN points and 40 Dev.to reactions aren't comparable. We normalise them." | |
 | Problem card 3 | "Signal buried in comments. The real trade-offs live in thread #212." | P2: "We pull them out for you." |
 | Under the hood | "Next.js + NestJS + PostgreSQL on a single €5 VPS. Typed end to end. Read the PRD." | |
@@ -1603,7 +1603,7 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ ◆ DevBrief        Feed   Radar   GitHub              ◐  Sign in  [Explore ▸] │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ ( ● Updated 14 min ago ·      │ ┌──────────────────────────────────────────┐ │
-│   312 today · 12 sources )    │ │ ● ● ●  devbrief.dev/feed    [Feed|Brief] │ │
+│   312 today · 3 sources )     │ │ ● ● ●  devbrief.dev/feed    [Feed|Brief] │ │
 │                               │ │ [All] [React] [Rust] [AI/LLMs]           │ │
 │ Your morning tech scan        │ │ [TypeScript] [Databases]                 │ │
 │ in 5 minutes                  │ │▸Native TS compiler preview ships        ▲│ │
@@ -1957,7 +1957,9 @@ DevBrief links to what its sources publish and summarises the public discussion 
 The copilot also receives a story's summary, which is DevBrief's own text.
 
 - Summaries paraphrase, stay short (F2.3: ≤ 25 words a point) and always show their source and a prominent link to the original: AC-2.3.10 and AC-2.3.11.
-- **Takedown requests** are handled by hand: the owner disables the source or deletes the story, and logs the request in `docs/changelog.md`. There is no CLI for it.
+- **Takedown requests** are handled by hand, and the owner logs the request in `docs/changelog.md`. There is no CLI for it.
+  - A source is switched off by setting `enabled: false` in `apps/api/prisma/seed/sources.json` and deploying. A change made only in the database is reverted at the next start.
+  - A single story is deleted by hand. It can reappear while it is still in the upstream window (HN top stories, Dev.to's 7 days). Durable per-story blocking is not supported, by the owner's choice of simplicity.
 
 **Before the first AI feature goes on in production:** `/privacy` names Anthropic (AC-L11). Owner decision 2026-11-21: no legal review before launch; the owner accepts the residual risk (official APIs only, paraphrased summaries, attribution and links on every summary).
 
