@@ -1,6 +1,7 @@
 import type { StoryCard } from '@devbrief/shared';
+import { hasSummaryInput } from '../summary-input/hasSummaryInput.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { summarizedClusterIds } from './clusterSummary.js';
+import { loadClusterSummaryInfo, type ClusterSummaryInfo } from './clusterSummary.js';
 import {
   toSourceRef,
   toStoryCard,
@@ -9,50 +10,49 @@ import {
   type StoryWithItems,
 } from './storyCard.mapper.js';
 
-/** Loads the cluster info of every clustered story in one query; empty while the clusters flag is off. */
+/** Loads the cluster info of every clustered story in one query, and whether each cluster's members hold enough to summarise; empty while the clusters flag is off. */
 async function loadCardClusters(
   prisma: PrismaService,
   stories: readonly StoryWithItems[],
   features: StoryFeatures,
 ) {
   const clusters = new Map<string, CardCluster>();
+  const canSummarize = new Map<string, boolean>();
   const ids = [...new Set(stories.flatMap((story) => story.clusterId ?? []))];
-  if (!features.clusters || ids.length === 0) return clusters;
+  if (!features.clusters || ids.length === 0) return { clusters, canSummarize };
   const rows = await prisma.cluster.findMany({
     where: { id: { in: ids } },
     select: { id: true, stories: { select: { items: { include: { source: true } } } } },
   });
   for (const row of rows) {
+    const members = row.stories.flatMap((member) => member.items);
+    canSummarize.set(row.id, hasSummaryInput({ items: members }));
     // A cluster of one story is no cluster: such a card carries no `cluster`.
     if (row.stories.length < 2) continue;
     // The combined source line: every member's items, most engaged first.
-    const items = row.stories
-      .flatMap((member) => member.items)
-      .sort((a, b) => b.engagement - a.engagement || a.id.localeCompare(b.id));
+    const items = members.sort((a, b) => b.engagement - a.engagement || a.id.localeCompare(b.id));
     clusters.set(row.id, {
       id: row.id,
       memberCount: row.stories.length,
       sources: items.map(toSourceRef),
     });
   }
-  return clusters;
+  return { clusters, canSummarize };
 }
 
-/** Maps stories to cards, adding each clustered story's `cluster` when the flag is on; `knownSummarized` spares the summary query when the caller already asked it. */
+/** Maps stories to cards, adding each clustered story's `cluster` when the flag is on; `knownInfo` spares the summary query when the caller already asked it. */
 export async function toStoryCards(
   prisma: PrismaService,
   stories: readonly StoryWithItems[],
   features: StoryFeatures,
-  knownSummarized?: ReadonlySet<string>,
+  knownInfo?: ReadonlyMap<string, ClusterSummaryInfo>,
 ): Promise<StoryCard[]> {
-  const clusters = await loadCardClusters(prisma, stories, features);
-  // A card says it has a summary when any member of its cluster does.
-  const summarized =
-    knownSummarized ??
+  const { clusters, canSummarize } = await loadCardClusters(prisma, stories, features);
+  // A card shows the summary of its cluster, so the line comes from any member's.
+  const summaries =
+    knownInfo ??
     (features.summaries && features.clusters
-      ? await summarizedClusterIds(prisma, [
-          ...new Set(stories.flatMap((story) => story.clusterId ?? [])),
-        ])
+      ? await loadClusterSummaryInfo(prisma, canSummarize)
       : undefined);
-  return stories.map((story) => toStoryCard(story, features, clusters, summarized));
+  return stories.map((story) => toStoryCard(story, features, clusters, summaries));
 }

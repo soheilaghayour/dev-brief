@@ -4,6 +4,7 @@ import { ENV, type Env } from '../../common/env/env.module.js';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
 import { findSummary } from '../../common/story-card/clusterSummary.js';
+import { hasSummaryInput } from '../../common/summary-input/hasSummaryInput.js';
 import {
   type StoryFeatures,
   storyFeatures,
@@ -40,13 +41,21 @@ export class ClustersService {
     const summary = this.features.summaries
       ? await findSummary(this.prisma, representative, true)
       : null;
-    const summarized = new Set(summary ? [cluster.id] : []);
+    const summaries = new Map([
+      [
+        cluster.id,
+        {
+          line: summary?.tldr[0] ?? null,
+          canSummarize: hasSummaryInput({ items: cluster.stories.flatMap((story) => story.items) }),
+        },
+      ],
+    ]);
     return {
       id: cluster.id,
-      representative: toStoryCard(representative, this.features, undefined, summarized),
+      representative: toStoryCard(representative, this.features, undefined, summaries),
       members: cluster.stories
         .filter((story) => story.id !== representative.id)
-        .map((story) => toStoryCard(story, this.features, undefined, summarized)),
+        .map((story) => toStoryCard(story, this.features, undefined, summaries)),
       sourceKinds: cluster.sourceKinds,
       summary: summary && toStorySummary(summary),
     };

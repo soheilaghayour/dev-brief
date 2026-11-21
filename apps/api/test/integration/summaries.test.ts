@@ -292,13 +292,20 @@ describe('summary reads', () => {
     expect(ApiErrorSchema.parse(response.body).error.code).toBe('FEATURE_DISABLED');
   });
 
-  it('feed, lookup and story detail carry hasSummary and the detail its summary with the flag on', async () => {
+  it('AC-2.3.9 feed, lookup and story detail carry hasSummary and summaryLine and the detail its summary with the flag on', async () => {
     const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=latest')).body);
     const hasSummaryById = Object.fromEntries(feed.items.map((card) => [card.id, card.hasSummary]));
     expect(hasSummaryById).toEqual({ [summarisedId]: true, [plainId]: false });
+    expect(feed.items.map((card) => [card.id, card.summaryLine])).toEqual(
+      expect.arrayContaining([
+        [summarisedId, MODEL_OUTPUT.tldr[0]],
+        [plainId, null],
+      ]),
+    );
 
     const { items } = StoryLookupResponseSchema.parse((await lookup(flagOn)).body);
     expect(items.map((card) => card.hasSummary)).toEqual([true, false]);
+    expect(items.map((card) => card.summaryLine)).toEqual([MODEL_OUTPUT.tldr[0], null]);
 
     const detail = StoryDetailSchema.parse(
       (await get(flagOn, `/api/v1/stories/${summarisedId}`)).body,
@@ -308,7 +315,7 @@ describe('summary reads', () => {
     expect(plain).toMatchObject({ hasSummary: false, summary: null });
   });
 
-  it('the saves list carries hasSummary with the flag on', async () => {
+  it('AC-2.3.9 the saves list carries hasSummary and summaryLine with the flag on', async () => {
     const origin = process.env.APP_URL ?? '';
     const signIn = await request(flagOn.getHttpServer())
       .post('/api/auth/test/sign-in')
@@ -333,20 +340,28 @@ describe('summary reads', () => {
       ]),
     );
     expect(hasSummaryById).toEqual({ [summarisedId]: true, [plainId]: false });
+    expect(
+      SavedStoryPageSchema.parse(response.body).items.map(({ story }) => story.summaryLine),
+    ).toEqual(expect.arrayContaining([MODEL_OUTPUT.tldr[0], null]));
   });
 
-  it('feed, lookup and story detail leave both fields out with the flag off', async () => {
+  it('AC-2.3.9 feed, lookup and story detail leave the summary fields out with the flag off', async () => {
     const feed = await get(flagOff, '/api/v1/feed?sort=latest');
     FeedPageSchema.parse(feed.body);
-    expect(feed.body.items[0]).not.toHaveProperty('hasSummary');
+    for (const field of ['hasSummary', 'summaryLine', 'canSummarize']) {
+      expect(feed.body.items[0]).not.toHaveProperty(field);
+    }
 
     const lookupBody = (await lookup(flagOff)).body;
     StoryLookupResponseSchema.parse(lookupBody);
-    expect(lookupBody.items[0]).not.toHaveProperty('hasSummary');
+    for (const field of ['hasSummary', 'summaryLine', 'canSummarize']) {
+      expect(lookupBody.items[0]).not.toHaveProperty(field);
+    }
 
     const detail = (await get(flagOff, `/api/v1/stories/${summarisedId}`)).body;
     StoryDetailSchema.parse(detail);
     expect(detail).not.toHaveProperty('hasSummary');
+    expect(detail).not.toHaveProperty('summaryLine');
     expect(detail).not.toHaveProperty('summary');
   });
 });
@@ -501,9 +516,10 @@ describe('cluster summary reads', () => {
   let ids: string[] = [];
   let clusterId = '';
 
-  const summaryData = (storyId: string, createdAt: Date) => ({
+  const NEWEST_TLDR = ['Newest first point', 'Newest second', 'Newest third'];
+  const summaryData = (storyId: string, createdAt: Date, tldr = MODEL_OUTPUT.tldr) => ({
     storyId,
-    tldr: MODEL_OUTPUT.tldr,
+    tldr,
     basedOnComments: 12,
     trigger: 'auto' as const,
     model: 'claude-haiku-5-5',
@@ -528,7 +544,7 @@ describe('cluster summary reads', () => {
     }));
     // Two members hold a summary: the newer one is the cluster's.
     await prisma.summary.create({ data: summaryData(ids[0]!, new Date(Date.now() - DAY_MS)) });
-    await prisma.summary.create({ data: summaryData(ids[2]!, new Date()) });
+    await prisma.summary.create({ data: summaryData(ids[2]!, new Date(), NEWEST_TLDR) });
     flagOn = await createTestApp([], { ...CLUSTERS_ON, AUTH_TEST_MODE: 'true' });
     flagOff = await createTestApp([], { ...SUMMARIES_ON, AUTH_TEST_MODE: 'true' });
   });
@@ -559,13 +575,23 @@ describe('cluster summary reads', () => {
 
     const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=latest')).body);
     expect(feed.items.map((card) => [card.id, card.hasSummary])).toEqual([[ids[0], true]]);
+    // Every member shows the newest summary's first point, whichever member holds it.
+    expect(feed.items[0]!.summaryLine).toBe(NEWEST_TLDR[0]);
+    expect(cluster.members.map((member) => member.summaryLine)).toEqual([
+      NEWEST_TLDR[0],
+      NEWEST_TLDR[0],
+    ]);
   });
 
   it("F2.3 Clusters shows a member's hasSummary and summary from another member even when it has none of its own", async () => {
     await prisma.summary.deleteMany({ where: { storyId: ids[0]! } });
 
     const feed = FeedPageSchema.parse((await get(flagOn, '/api/v1/feed?sort=latest')).body);
-    expect(feed.items[0]).toMatchObject({ id: ids[0], hasSummary: true });
+    expect(feed.items[0]).toMatchObject({
+      id: ids[0],
+      hasSummary: true,
+      summaryLine: NEWEST_TLDR[0],
+    });
     const detail = StoryDetailSchema.parse((await get(flagOn, `/api/v1/stories/${ids[0]}`)).body);
     expect(detail.summary).toMatchObject({ storyId: ids[2] });
   });

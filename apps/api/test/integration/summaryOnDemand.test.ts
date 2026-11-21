@@ -1,5 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
-import { ApiErrorSchema, StoryDetailSchema, StorySummarySchema } from '@devbrief/shared';
+import {
+  ApiErrorSchema,
+  StoryDetailSchema,
+  StoryLookupResponseSchema,
+  StorySummarySchema,
+} from '@devbrief/shared';
 import request from 'supertest';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadEnv } from '../../src/env.js';
@@ -311,6 +316,16 @@ describe('on-demand summaries', () => {
     });
   };
 
+  const lookupCards = async (ids: string[]) =>
+    StoryLookupResponseSchema.parse(
+      (
+        await request(app!.getHttpServer())
+          .post('/api/v1/stories/lookup')
+          .set('Origin', process.env.APP_URL ?? '')
+          .send({ ids })
+      ).body,
+    ).items;
+
   const getDetail = (storyId: string) =>
     request(app!.getHttpServer()).get(`/api/v1/stories/${storyId}`);
 
@@ -388,10 +403,24 @@ describe('on-demand summaries', () => {
     expect(await canSummarize(talked.id)).toBe(true);
     expect(await canSummarize(article.id)).toBe(true);
 
+    const cards = await lookupCards([thin.id, talked.id, article.id]);
+    expect(cards.map((card) => [card.id, card.canSummarize])).toEqual([
+      [thin.id, false],
+      [talked.id, true],
+      [article.id, true],
+    ]);
+
     await app!.close();
     await boot({ envOverrides: { FEATURE_SUMMARIES: 'false' } });
     const off = StoryDetailSchema.parse((await getDetail(talked.id)).body);
     expect(off).not.toHaveProperty('canSummarize');
+    const [offCard] = (
+      await request(app!.getHttpServer())
+        .post('/api/v1/stories/lookup')
+        .set('Origin', process.env.APP_URL ?? '')
+        .send({ ids: [talked.id] })
+    ).body.items;
+    expect(offCard).not.toHaveProperty('canSummarize');
   });
 
   it('answers 404 NOT_FOUND for an unknown story', async () => {
@@ -535,6 +564,16 @@ describe('on-demand cluster summaries', () => {
 
     expect(await Promise.all(enough.ids.map(canSummarize))).toEqual([true, true]);
     expect(await Promise.all(short.ids.map(canSummarize))).toEqual([false, false]);
+    // The cards of a feed carry the cluster-wide answer too.
+    const cards = StoryLookupResponseSchema.parse(
+      (
+        await request(app!.getHttpServer())
+          .post('/api/v1/stories/lookup')
+          .set('Origin', process.env.APP_URL ?? '')
+          .send({ ids: [...enough.ids, ...short.ids] })
+      ).body,
+    ).items;
+    expect(cards.map((card) => card.canSummarize)).toEqual([true, true, false, false]);
     for (const id of short.ids) expect((await post(id)).status).toBe(404);
     expect(model.doGenerateCalls).toHaveLength(0);
   });
