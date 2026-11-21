@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { TAG_SLUGS } from '@devbrief/shared';
 import {
   assertDestructiveSeedAllowed,
+  CLUSTER_ID,
+  CLUSTER_MEMBER_IDS,
+  CLUSTER_REPRESENTATIVE_ID,
   seedE2e,
   SUMMARISED_NO_CONSENSUS_STORY_ID,
   SUMMARISED_STORY_ID,
@@ -39,6 +42,25 @@ describe('end-to-end seed', () => {
     expect(withConsensus.consensus).toMatchObject({ verdict: 'mixed', basedOnComments: 12 });
     expect(withoutConsensus.consensus).toBeNull();
     expect(await prisma.summary.count()).toBe(2);
+  });
+
+  it('seeds one 3-member cluster whose only primary is the representative, and reseeds it', async () => {
+    await seedE2e(prisma, now);
+    await seedE2e(prisma, now);
+
+    const cluster = await prisma.cluster.findUniqueOrThrow({
+      where: { id: CLUSTER_ID },
+      include: { stories: true },
+    });
+    expect(await prisma.cluster.count()).toBe(1);
+    expect(cluster.memberCount).toBe(3);
+    expect(cluster.representativeStoryId).toBe(CLUSTER_REPRESENTATIVE_ID);
+    expect(cluster.stories.map(({ id }) => id).sort()).toEqual(
+      [CLUSTER_REPRESENTATIVE_ID, ...CLUSTER_MEMBER_IDS].sort(),
+    );
+    expect(cluster.stories.filter(({ isPrimary }) => isPrimary).map(({ id }) => id)).toEqual([
+      CLUSTER_REPRESENTATIVE_ID,
+    ]);
   });
 
   it('removes stories that are not fixtures', async () => {

@@ -1,10 +1,12 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ComponentType } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { isFeatureEnabled } from '@/config/features';
 import { cn } from '@/lib/cn';
+import type { ClusterSourceLineProps } from './ClusterSourceLine';
 import { RelativeTime } from './RelativeTime';
+import type { RelatedToggleProps } from './RelatedToggle';
 import { SaveButton } from '@/components/saves/SaveButton';
 import { SourceBadge } from './SourceBadge';
 import { TagBadge } from './TagBadge';
@@ -21,6 +23,10 @@ type StoryCardProps = {
   isActive?: boolean;
   /** The Follow / Mute menu the tag and source badges open; absent where preferences don't apply, like the landing preview. */
   preferenceMenu?: ComponentProps<typeof TagBadge>['menu'];
+  /** The "+N related" control of a cluster card; passed in, so pages without clusters (the landing preview, /saved) don't load it. */
+  relatedToggle?: ComponentType<RelatedToggleProps>;
+  /** The combined source line of a cluster card, in place of the per-source badges; passed in for the same reason as `relatedToggle`. */
+  sourceLine?: ComponentType<ClusterSourceLineProps>;
 };
 
 export function StoryCard({
@@ -30,7 +36,10 @@ export function StoryCard({
   compact = false,
   isActive = false,
   preferenceMenu,
+  relatedToggle: RelatedToggle,
+  sourceLine: SourceLine,
 }: StoryCardProps) {
+  const cluster = isFeatureEnabled('clusters') ? story.cluster : null;
   const visibleTags = story.tags.slice(0, MAX_VISIBLE_TAGS);
   const hiddenTagCount = story.tags.length - visibleTags.length;
   return (
@@ -59,13 +68,17 @@ export function StoryCard({
           </span>
         </h2>
         <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {story.sources.map((source) => (
-            <SourceBadge
-              key={`${source.slug}:${source.itemUrl}`}
-              source={source}
-              menu={preferenceMenu}
-            />
-          ))}
+          {cluster && SourceLine ? (
+            <SourceLine sources={cluster.sources} />
+          ) : (
+            story.sources.map((source) => (
+              <SourceBadge
+                key={`${source.slug}:${source.itemUrl}`}
+                source={source}
+                menu={preferenceMenu}
+              />
+            ))
+          )}
           <RelativeTime iso={story.publishedAt} />
           {!compact && story.readingTimeMinutes !== null && (
             <span>{story.readingTimeMinutes} min read</span>
@@ -80,6 +93,13 @@ export function StoryCard({
             </Link>
           )}
         </div>
+        {cluster && RelatedToggle && (
+          <RelatedToggle
+            storyId={story.id}
+            clusterId={cluster.id}
+            memberCount={cluster.memberCount}
+          />
+        )}
       </div>
       <SaveButton isSaved={isSaved} onToggleSave={onToggleSave} />
     </article>
