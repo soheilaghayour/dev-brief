@@ -9,6 +9,7 @@ import {
   SUMMARISED_NO_CONSENSUS_STORY_ID,
   SUMMARISED_STORY_ID,
 } from '../../prisma/seedE2e.js';
+import { computeTagVelocity } from '../../src/modules/radar/tagVelocity.js';
 import { useTestDatabase } from './testDatabase.js';
 
 describe('end-to-end seed', () => {
@@ -80,6 +81,22 @@ describe('end-to-end seed', () => {
     await seedE2e(prisma, now);
 
     expect(await prisma.story.findFirst({ where: { title: 'Stray' } })).toBeNull();
+  });
+
+  it('AC-3.3.2 seeds 60 days of tag stats for six tags with a gap day, and reseeding adds no rows', async () => {
+    await seedE2e(prisma, now);
+    await seedE2e(prisma, now);
+
+    const stats = await prisma.tagDailyStat.findMany();
+    const days = new Set(stats.map(({ day }) => day.toISOString().slice(0, 10)));
+    expect(new Set(stats.map(({ tag }) => tag)).size).toBeGreaterThanOrEqual(6);
+    expect(days.size).toBe(59);
+    expect(days.has('2026-11-16')).toBe(false);
+    expect(days.has('2026-11-18')).toBe(true);
+    expect(days.has('2026-11-19')).toBe(false);
+    const radar = computeTagVelocity({ stats, window: '7d', metric: 'stories', now });
+    expect(radar.series).toHaveLength(5);
+    expect(radar.movers.length).toBeGreaterThanOrEqual(6);
   });
 
   it('is idempotent: a second run adds no rows', async () => {

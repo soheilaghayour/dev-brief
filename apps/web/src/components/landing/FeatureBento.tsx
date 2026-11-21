@@ -63,6 +63,30 @@ function RankingVisual() {
   );
 }
 
+function RadarVisual() {
+  const rows = [
+    { label: 'Rust', delta: '▲ +52%', width: 'w-4/5' },
+    { label: 'TypeScript', delta: '▲ +12%', width: 'w-3/5' },
+    { label: 'Vue', delta: '▼ −28%', width: 'w-2/5' },
+  ];
+  return (
+    <div aria-hidden="true" className="grid gap-3 text-xs">
+      {rows.map(({ label, delta, width }, index) => (
+        <div key={label} className="flex items-center gap-3">
+          <span className="text-muted-foreground w-20 font-mono">{label}</span>
+          <div className="bg-muted relative h-2 flex-1 overflow-hidden rounded-full">
+            <div
+              style={{ animationDelay: `${index * 0.4}s` }}
+              className={`bg-primary/70 absolute inset-y-0 left-0 ${width} origin-left rounded-full motion-safe:animate-[bento-grow_5s_ease-in-out_infinite]`}
+            />
+          </div>
+          <span className="text-muted-foreground w-16 text-right font-mono">{delta}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const TILES: readonly BentoTile[] = [
   {
     title: 'Keyboard-first feed',
@@ -80,6 +104,13 @@ const TILES: readonly BentoTile[] = [
     text: 'Engagement is scored within each source, so a blog post is not buried under Hacker News points.',
     visual: <RankingVisual />,
     className: 'md:col-span-3',
+  },
+  {
+    title: 'Tech Radar',
+    text: 'See which technologies are gaining or losing attention over 7 and 30 days, by stories or engagement.',
+    visual: <RadarVisual />,
+    className: 'md:col-span-3',
+    flag: 'radar',
   },
 ];
 
