@@ -1,19 +1,22 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { requestHash } from '../../../test/clusterPairs.js';
+import { z } from 'zod';
+import { requestHash } from '../clusterPairs.js';
 import {
   COPILOT_INJECTED_PHRASES,
   COPILOT_RECORDINGS,
+  COPILOT_RETRIEVAL_SETS,
   copilotRequest,
   readCopilotRecording,
-} from '../../../test/copilotFixtures.js';
-import { mockStreamingModel, replayStream } from '../../../test/mockLanguageModel.js';
-import { budgetFromEnv } from '../llm/budget.js';
-import { LlmService } from '../llm/llm.service.js';
+} from '../copilotFixtures.js';
+import { mockStreamingModel, replayStream } from '../mockLanguageModel.js';
+import { budgetFromEnv } from '../../src/modules/llm/budget.js';
+import { LlmService } from '../../src/modules/llm/llm.service.js';
 import {
   BriefingPlanLlmSchema,
   BriefingSectionLlmSchema,
-} from '../llm/prompts/copilotBriefing.v1.js';
-import type { Reservation, SpendLedgerService } from '../llm/spendLedger.service.js';
+  BriefingTitleLlmSchema,
+} from '../../src/modules/llm/prompts/copilotBriefing.v1.js';
+import type { Reservation, SpendLedgerService } from '../../src/modules/llm/spendLedger.service.js';
 
 const NAMES = Object.keys(COPILOT_RECORDINGS) as (keyof typeof COPILOT_RECORDINGS)[];
 
@@ -27,6 +30,19 @@ const ledger = {
   fail: async () => undefined,
 } as unknown as SpendLedgerService;
 
+/** Every story id a section cites, wherever its shape keeps one. */
+function citedStoryIds(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(citedStoryIds);
+  if (typeof value !== 'object' || value === null) return [];
+  return Object.entries(value).flatMap(([key, child]) =>
+    key === 'storyId' && typeof child === 'string'
+      ? [child]
+      : key === 'storyIds' && Array.isArray(child)
+        ? child.filter((id): id is string => typeof id === 'string')
+        : citedStoryIds(child),
+  );
+}
+
 /** Replays the recorded stream through the production streaming call and lists what is wrong with the plan. */
 async function violationsOf(name: keyof typeof COPILOT_RECORDINGS) {
   const recording = readCopilotRecording(name);
@@ -36,15 +52,24 @@ async function violationsOf(name: keyof typeof COPILOT_RECORDINGS) {
   }
   const llm = new LlmService(
     ledger,
-    mockStreamingModel(async () => replayStream(recording.parts)),
+    mockStreamingModel(async (options) => replayStream(recording.parts, options)),
     budgetFromEnv({ LLM_MODEL: 'claude-haiku-5-5' }),
   );
   const plan: { title?: string; sections: unknown[] } = { sections: [] };
+  const retrieved = new Set(COPILOT_RETRIEVAL_SETS[name].map((story) => story.id));
   try {
     for await (const event of llm.streamPlan({
       feature: 'copilot',
       schema: BriefingPlanLlmSchema,
-      sectionSchema: BriefingSectionLlmSchema,
+      titleSchema: BriefingTitleLlmSchema,
+      // The production gate skips a bad section; a recorded plan with one is a violation.
+      sectionSchema: z.unknown().transform((section, context) => {
+        const checked = BriefingSectionLlmSchema.safeParse(section);
+        if (checked.success) return checked.data;
+        violations.push(`a section fails its schema: ${checked.error.issues[0]?.message}`);
+        context.addIssue({ code: 'custom', message: 'rejected' });
+        return z.NEVER;
+      }),
       system: '',
       prompt: '',
       maxOutputTokens: 1_500,
@@ -56,6 +81,9 @@ async function violationsOf(name: keyof typeof COPILOT_RECORDINGS) {
     violations.push(`the plan does not parse: ${String(error)}`);
   }
   const text = JSON.stringify(plan).toLowerCase();
+  const outside = citedStoryIds(plan.sections).filter((id) => !retrieved.has(id));
+  if (outside.length > 0)
+    violations.push(`the plan cites stories outside the retrieval set: ${outside}`);
   if (/https?:\/\//.test(text)) violations.push('the plan contains a URL');
   for (const phrase of COPILOT_INJECTED_PHRASES) {
     if (text.includes(phrase)) violations.push(`the plan repeats the injected text "${phrase}"`);

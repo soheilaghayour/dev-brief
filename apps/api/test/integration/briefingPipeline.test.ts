@@ -43,8 +43,8 @@ describe('briefing retrieval and pipeline', () => {
   afterEach(() => closeModule?.());
 
   async function createCopilot(
-    doStream: Parameters<typeof mockStreamingModel>[0] = async () =>
-      replayStream(streamParts({ title: 'unused', sections: [] })),
+    doStream: Parameters<typeof mockStreamingModel>[0] = async (options) =>
+      replayStream(streamParts({ title: 'unused', sections: [] }), options),
     envOverrides: Record<string, string> = {},
   ) {
     const model = mockStreamingModel(doStream);
@@ -219,6 +219,48 @@ describe('briefing retrieval and pipeline', () => {
       expect(result.stories.map(({ id }) => id)).toEqual([both.id]);
     });
 
+    it('AC-3.1.7 finds the stories of a question whose subject is no taxonomy tag, through any of its keywords', async () => {
+      const source = await seedSource();
+      const story = (title: string, hours: number) =>
+        createStory(prisma, { title, publishedAt: hoursAgo(hours), itemSourceIds: [source.id] });
+      const workers = await story('Cloudflare Workers adds a new runtime', 1);
+      const durable = await story('Cloudflare announces Durable Objects pricing', 2);
+      const unrelated = await story('Postgres 19 released', 3);
+      const oneKeyword = await story('Kubernetes news from Cloudflare', 4);
+      const { retrieval } = await createCopilot();
+
+      const result = await retrieval.retrieve(
+        'What did Cloudflare announce for Workers this week?',
+      );
+
+      const ids = result.stories.map(({ id }) => id);
+      expect(ids.toSorted()).toEqual([workers.id, durable.id].toSorted());
+      // A story with one keyword of three, or none, is not a match.
+      expect(ids).not.toContain(oneKeyword.id);
+      expect(ids).not.toContain(unrelated.id);
+    });
+
+    it('ranks the full-text matches by relevance before keeping the best 15', async () => {
+      const source = await seedSource();
+      const story = (title: string, rankScore: number) =>
+        createStory(prisma, {
+          title,
+          publishedAt: hoursAgo(1),
+          rankScore,
+          itemSourceIds: [source.id],
+        });
+      const relevant = await story('Vitest vitest vitest and Playwright playwright', 0);
+      for (let index = 0; index < 15; index += 1) {
+        await story(`Vitest news ${index} Playwright`, 100 + index);
+      }
+      const { retrieval } = await createCopilot();
+
+      const result = await retrieval.retrieve('vitest playwright');
+
+      expect(result.stories).toHaveLength(15);
+      expect(result.stories.map(({ id }) => id)).toContain(relevant.id);
+    });
+
     it('carries the cached TL;DR of a story, and null for one without', async () => {
       const [withSummary, without] = await seedTaggedStories(2);
       if (!withSummary || !without) throw new Error('seeded two stories');
@@ -279,7 +321,7 @@ describe('briefing retrieval and pipeline', () => {
         avgPercentile: 0,
       });
       await prisma.tagDailyStat.createMany({
-        data: [stat(1, 'python', 9), stat(2, 'go', 5), stat(1, 'rust', 3), stat(20, 'css', 99)],
+        data: [stat(1, 'python', 9), stat(2, 'go', 5), stat(1, 'rust', 3), stat(7, 'css', 99)],
       });
       const { retrieval } = await createCopilot();
 
@@ -332,8 +374,8 @@ describe('briefing retrieval and pipeline', () => {
     it('AC-3.1.6 yields only messages that parse, citing only retrieved stories, in the PRD order', async () => {
       const stories = await seedCoverage();
       const ids = stories.map(({ id }) => id);
-      const { pipeline, model } = await createCopilot(async () =>
-        replayStream(streamParts(planOf(ids), { chunkSize: 25 })),
+      const { pipeline, model } = await createCopilot(async (options) =>
+        replayStream(streamParts(planOf(ids), { chunkSize: 25 }), options),
       );
 
       const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
@@ -362,8 +404,8 @@ describe('briefing retrieval and pipeline', () => {
 
     it('settles the copilot ledger row at the reported usage', async () => {
       const stories = await seedCoverage();
-      const { pipeline } = await createCopilot(async () =>
-        replayStream(streamParts(planOf(stories.map(({ id }) => id)))),
+      const { pipeline } = await createCopilot(async (options) =>
+        replayStream(streamParts(planOf(stories.map(({ id }) => id))), options),
       );
 
       const events = await collect(
@@ -457,7 +499,9 @@ describe('briefing retrieval and pipeline', () => {
           { kind: 'takeaways', items: [{ text: 'Nope.', storyIds: ['challucinated1'] }] },
         ],
       };
-      const { pipeline } = await createCopilot(async () => replayStream(streamParts(plan)));
+      const { pipeline } = await createCopilot(async (options) =>
+        replayStream(streamParts(plan), options),
+      );
 
       const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
 
@@ -466,6 +510,74 @@ describe('briefing retrieval and pipeline', () => {
         sectionSent: false,
         error: { reason: 'invalid_output' },
       });
+    });
+
+    it('AC-3.1.6 sends no message for a title with a URL or markup and ends with invalid_output', async () => {
+      await seedCoverage();
+      const plan = {
+        title: 'pwned https://evil.example/x <b>',
+        sections: [
+          { kind: 'tags', tags: ['typescript'] },
+          { kind: 'tags', tags: ['rust'] },
+        ],
+      };
+      const { pipeline } = await createCopilot(async (options) =>
+        replayStream(streamParts(plan), options),
+      );
+
+      const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
+
+      expect(messagesOf(events)).toEqual([]);
+      expect(events).toMatchObject([
+        { kind: 'failed', sectionSent: false, error: { reason: 'invalid_output' } },
+      ]);
+    });
+
+    it('opens with the whole title, then the sections in order, when the model writes sections first', async () => {
+      await seedCoverage();
+      const late =
+        '{"sections":[{"kind":"tags","tags":["typescript"]},{"kind":"tags","tags":["rust"]}],"title":"Late title"}';
+      const { pipeline } = await createCopilot(async (options) =>
+        replayStream(streamParts(late, { chunkSize: 9 }), options),
+      );
+
+      const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
+
+      const messages = messagesOf(events);
+      expect(messages.map((message) => Object.keys(message)[1])).toEqual([
+        'createSurface',
+        'updateComponents',
+        'updateDataModel',
+        'updateComponents',
+        'updateComponents',
+      ]);
+      expect(JSON.stringify(messages[1])).toContain('"title":"Late title"');
+      expect(JSON.stringify(messages[3])).toContain('s0_tags');
+      expect(JSON.stringify(messages[4])).toContain('s1_tags');
+      expect(events.at(-1)).toMatchObject({ kind: 'complete' });
+    });
+
+    it('skips a section with a URL in it and still completes the briefing', async () => {
+      await seedCoverage();
+      const plan = {
+        title: 'Skips one section',
+        sections: [
+          { kind: 'tags', tags: ['typescript'] },
+          { kind: 'stories', picks: [{ storyId: 'cstory', note: 'see bun.sh/docs' }] },
+          { kind: 'tags', tags: ['rust'] },
+        ],
+      };
+      const { pipeline } = await createCopilot(async (options) =>
+        replayStream(streamParts(plan), options),
+      );
+
+      const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
+
+      expect(events.at(-1)).toMatchObject({ kind: 'complete' });
+      const text = JSON.stringify(messagesOf(events));
+      expect(text).toContain('s0_tags');
+      expect(text).toContain('s2_tags');
+      expect(text).not.toContain('bun.sh');
     });
 
     it('lets SpendCapReachedError through before any message is yielded', async () => {
@@ -515,8 +627,8 @@ describe('briefing retrieval and pipeline', () => {
           { kind: 'tags', tags: ['typescript'] },
         ],
       };
-      const { pipeline, model } = await createCopilot(async () =>
-        replayStream(streamParts(obeying)),
+      const { pipeline, model } = await createCopilot(async (options) =>
+        replayStream(streamParts(obeying), options),
       );
 
       const events = await collect(pipeline.run({ question: 'typescript', surfaceId: SURFACE_ID }));
@@ -525,7 +637,8 @@ describe('briefing retrieval and pipeline', () => {
       expect(sent).toContain(`<source id=\\"${injected.id}\\">`);
       expect(sent.match(/<source id=\\"question\\">/g)).toHaveLength(1);
       expect(JSON.stringify(messagesOf(events))).not.toContain('evil.example');
-      expect(events.at(-1)).toMatchObject({ kind: 'failed' });
+      // The section with the link is skipped (PRD §6.4.4 rule 6); the rest of the briefing still completes.
+      expect(events.at(-1)).toMatchObject({ kind: 'complete' });
     });
   });
 });

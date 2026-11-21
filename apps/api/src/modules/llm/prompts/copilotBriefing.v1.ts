@@ -1,7 +1,8 @@
-import { BriefingPlanSchema, type SourceRef } from '@devbrief/shared';
+import { BriefingPlanSchema, QUESTION_MAX_CHARS, type SourceRef } from '@devbrief/shared';
 import { Output } from 'ai';
+import { z } from 'zod';
 import { estimateTokens, truncateToTokens } from '../budget.js';
-import { isPlainText } from './modelText.js';
+import { isPlainText, modelText } from './modelText.js';
 import { sourceBlock } from './sourceBlock.js';
 
 /** Stored on every CopilotQuery; a changed prompt or plan schema is a new file with the next version. */
@@ -16,9 +17,6 @@ export const INPUT_BUDGET_TOKENS = 6_000;
 /** PRD §8.1: each story's block, delimiters included, is cut to this. */
 export const STORY_MAX_TOKENS = 300;
 
-/** PRD §3.3: the question's limit, in characters. */
-export const QUESTION_MAX_CHARS = 200;
-
 /** True when every string in `value`, at any depth, is plain text (no URL, no markup). */
 function onlyPlainText(value: unknown): boolean {
   if (typeof value === 'string') return isPlainText(value);
@@ -29,14 +27,22 @@ function onlyPlainText(value: unknown): boolean {
 
 const PLAIN_TEXT_MESSAGE = 'must not contain a URL or markup';
 
-/** What the model returns: the contract's plan, with no URL or markup in any string (PRD §8.2). */
-export const BriefingPlanLlmSchema = BriefingPlanSchema.refine(onlyPlainText, PLAIN_TEXT_MESSAGE);
+// Typed `never` so the schema keeps the section type; `streamPlan` hands the section gate this null, which fails it.
+const MALFORMED_SECTION = null as never;
 
-/** One section of the plan, as the streaming call validates it before release. */
-export const BriefingSectionLlmSchema = BriefingPlanSchema.shape.sections.element.refine(
-  onlyPlainText,
-  PLAIN_TEXT_MESSAGE,
-);
+const PlanSectionSchema = BriefingPlanSchema.shape.sections.element;
+
+/** What the SDK checks once the stream ends: structure only, with a malformed section parsed to null, so a section the gate below skips never fails the plan. */
+export const BriefingPlanLlmSchema = z.object({
+  title: BriefingPlanSchema.shape.title,
+  sections: z.array(PlanSectionSchema.catch(MALFORMED_SECTION)).min(2).max(6),
+});
+
+/** The plan title, checked before it reaches the client (PRD §8.2). */
+export const BriefingTitleLlmSchema = modelText(BriefingPlanSchema.shape.title);
+
+/** One section of the plan, checked before it is released; a section with a URL or markup is skipped. */
+export const BriefingSectionLlmSchema = PlanSectionSchema.refine(onlyPlainText, PLAIN_TEXT_MESSAGE);
 
 // The provider strips length and count limits from the JSON schema it sends, so the prompt states them.
 export const SYSTEM_PROMPT = `Write a short briefing for developers answering the question.
@@ -102,10 +108,7 @@ function budgetedBlock(id: string, content: string, maxTokens: number) {
   return sourceBlock(id, truncateToTokens(content, maxTokens - delimiterTokens));
 }
 
-/**
- * Assembles the user prompt: the question, then each story in its own `<source>` block.
- * `fixedTokens` is what the call spends outside this prompt (system prompt and plan schema); a story's cap shrinks below 300 tokens when the stories would not fit the rest of the input budget.
- */
+/** Assembles the user prompt: the question, then each story in its own `<source>` block. */
 export function buildCopilotPrompt({
   question,
   stories,
@@ -115,6 +118,7 @@ export function buildCopilotPrompt({
   stories: readonly PromptStory[];
   fixedTokens: number;
 }) {
+  // A story's cap shrinks below 300 tokens when the stories would not fit what `fixedTokens` leaves of the budget.
   const questionBlock = budgetedBlock('question', question.slice(0, QUESTION_MAX_CHARS), 300);
   const available = INPUT_BUDGET_TOKENS - fixedTokens - estimateTokens(questionBlock);
   const storyMaxTokens = Math.min(

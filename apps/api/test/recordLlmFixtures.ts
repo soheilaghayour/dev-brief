@@ -152,6 +152,7 @@ async function recordCopilotStreams() {
     for await (const event of llm.streamPlan({
       feature: 'copilot',
       schema: copilotBriefing.BriefingPlanLlmSchema,
+      titleSchema: copilotBriefing.BriefingTitleLlmSchema,
       sectionSchema: copilotBriefing.BriefingSectionLlmSchema,
       ...request,
       maxOutputTokens: copilotBriefing.MAX_OUTPUT_TOKENS,

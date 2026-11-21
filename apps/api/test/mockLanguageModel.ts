@@ -62,13 +62,30 @@ export function streamParts(
   ];
 }
 
-/** A provider stream that delivers `parts` at once, with no timers, so fake-timer tests control the clock. */
-export function replayStream(parts: readonly StreamPart[]) {
+/** A provider stream that delivers `parts` at once, with no timers, so fake-timer tests control the clock; it errors when `abortSignal` aborts, as a fetch body does. */
+export function replayStream(
+  parts: readonly StreamPart[],
+  { abortSignal }: { abortSignal?: AbortSignal } = {},
+) {
+  const reader = simulateReadableStream({
+    chunks: [...parts],
+    initialDelayInMs: null,
+    chunkDelayInMs: null,
+  }).getReader();
   return {
-    stream: simulateReadableStream({
-      chunks: [...parts],
-      initialDelayInMs: null,
-      chunkDelayInMs: null,
+    stream: new ReadableStream<StreamPart>({
+      start(controller) {
+        abortSignal?.addEventListener('abort', () => controller.error(abortSignal.reason), {
+          once: true,
+        });
+      },
+      async pull(controller) {
+        if (abortSignal?.aborted) return;
+        const next = await reader.read();
+        if (next.done) controller.close();
+        else controller.enqueue(next.value);
+      },
+      cancel: (reason) => reader.cancel(reason),
     }),
   };
 }

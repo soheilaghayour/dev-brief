@@ -7,6 +7,7 @@ import { LlmService } from '../llm/llm.service.js';
 import {
   BriefingPlanLlmSchema,
   BriefingSectionLlmSchema,
+  BriefingTitleLlmSchema,
   buildCopilotPrompt,
   fixedInputTokens,
   MAX_OUTPUT_TOKENS,
@@ -48,10 +49,7 @@ export class BriefingPipelineService {
     private readonly llm: LlmService,
   ) {}
 
-  /**
-   * Yields the briefing as it is built. A spent cap throws `SpendCapReachedError` before any message is yielded;
-   * a failed or unusable generation ends with a `failed` event instead of throwing.
-   */
+  /** Yields the briefing as it is built, ending with `failed` rather than throwing when the generation fails. */
   async *run({
     question,
     surfaceId,
@@ -89,6 +87,7 @@ export class BriefingPipelineService {
     const plan = this.llm.streamPlan({
       feature: 'copilot',
       schema: BriefingPlanLlmSchema,
+      titleSchema: BriefingTitleLlmSchema,
       sectionSchema: BriefingSectionLlmSchema,
       system: SYSTEM_PROMPT,
       prompt,

@@ -24,10 +24,10 @@ import {
 
 export const LANGUAGE_MODEL = Symbol('LANGUAGE_MODEL');
 
-/** PRD §8.3: each attempt gets 30 s. */
+/** PRD §8.3: a call gets 30 s in total, its retry included. */
 const CALL_TIMEOUT_MS = 30_000;
 
-/** PRD §8.3: a stream that sends no token in 10 s is aborted. */
+/** PRD §8.3: a stream that sends no token in 10 s from the call's start is aborted. */
 const FIRST_TOKEN_TIMEOUT_MS = 10_000;
 
 const logger = new Logger('LlmService');
@@ -60,9 +60,11 @@ export type StructuredResult<OBJECT> = {
 type PlanObject = { title: string; sections: unknown[] };
 
 export type PlanStreamRequest<SECTION> = Omit<StructuredRequest<PlanObject>, 'schema'> & {
-  /** The whole plan, checked once the stream ends. */
-  schema: z.ZodType<PlanObject>;
-  /** Each section, checked before it is released. */
+  /** The plan's structure only, checked once the stream ends: a section the caller skips must not fail it. */
+  schema: z.ZodType<PlanObject, z.ZodTypeDef, unknown>;
+  /** The title, checked before it is released; a title that fails ends the call with `invalid_output`. */
+  titleSchema: z.ZodType<string>;
+  /** Each section, checked before it is released; one that fails is skipped. */
   sectionSchema: z.ZodType<SECTION>;
 };
 
@@ -70,6 +72,12 @@ export type PlanStreamEvent<SECTION> =
   | { kind: 'title'; title: string }
   | { kind: 'section'; index: number; section: SECTION }
   | { kind: 'finished'; usage: TokenUsage & { costUsd: number }; model: string };
+
+/** The deadlines of one `streamPlan` call, shared by its attempts. */
+type PlanCall = {
+  signal: AbortSignal;
+  firstTokenTimer: ReturnType<typeof setTimeout>;
+};
 
 type StructuredOutput<OBJECT> = ReturnType<typeof Output.object<OBJECT>>;
 
@@ -132,17 +140,39 @@ export class LlmService {
     }
   }
 
-  /**
-   * Streams a plan and yields its title and each completed section, validated, as the model writes them, then `finished`.
-   * Throws `GenerationFailedError`, or `SpendCapReachedError` before the first token; closing the iterator early settles the reservation at its worst case.
-   */
+  /** Streams a plan, yielding its validated title and each completed section as the model writes them, then `finished`. */
   async *streamPlan<SECTION>(
     request: PlanStreamRequest<SECTION>,
   ): AsyncGenerator<PlanStreamEvent<SECTION>, void> {
     const output = Output.object({ schema: request.schema });
     const inputTokens = await estimateInputTokens(request, output);
     const worstCase = { inputTokens, outputTokens: request.maxOutputTokens };
+    // Both deadlines run from the call's start, so a retry gets only the time that is left.
+    const deadline = new AbortController();
+    const expire = (limit: string) => () =>
+      deadline.abort(new DOMException(`The stream ran past its ${limit}`, 'TimeoutError'));
+    // The SDK's `totalMs` is an AbortSignal.timeout, which fake timers can't advance; these are plain timers.
+    const call = {
+      signal: request.signal ? AbortSignal.any([request.signal, deadline.signal]) : deadline.signal,
+      firstTokenTimer: setTimeout(expire('first-token time'), FIRST_TOKEN_TIMEOUT_MS),
+    };
+    const totalTimer = setTimeout(expire('total time'), CALL_TIMEOUT_MS);
+    try {
+      yield* this.attemptPlan(request, output, { inputTokens, worstCase }, call);
+    } finally {
+      clearTimeout(totalTimer);
+      clearTimeout(call.firstTokenTimer);
+    }
+  }
+
+  private async *attemptPlan<SECTION>(
+    request: PlanStreamRequest<SECTION>,
+    output: StructuredOutput<PlanObject>,
+    { inputTokens, worstCase }: { inputTokens: number; worstCase: TokenUsage },
+    call: PlanCall,
+  ): AsyncGenerator<PlanStreamEvent<SECTION>, void> {
     for (let retried = 0; ; retried += 1) {
+      request.signal?.throwIfAborted();
       const reservation = await this.ledger.reserve(
         {
           feature: request.feature,
@@ -157,7 +187,7 @@ export class LlmService {
       const progress = { tokenSeen: false };
       let closed = false;
       try {
-        const outcome = yield* this.streamAttempt(request, output, worstCase, progress);
+        const outcome = yield* this.streamAttempt(request, output, worstCase, progress, call);
         closed = true;
         if (outcome.kind === 'generated') {
           const costUsd = await this.ledger.settle(reservation, outcome.usage);
@@ -184,7 +214,11 @@ export class LlmService {
         // The consumer stopped, or something threw, mid-stream: the provider may have billed, at unknown usage.
         if (!closed) await this.ledger.fail(reservation, worstCase);
       }
-      await sleep(RETRY_POLICY.provider_error.delayMs);
+      try {
+        await sleep(RETRY_POLICY.provider_error.delayMs, call.signal);
+      } catch (cause) {
+        throw new GenerationFailedError('provider_error', { cause });
+      }
     }
   }
 
@@ -193,15 +227,11 @@ export class LlmService {
     output: StructuredOutput<PlanObject>,
     worstCase: TokenUsage,
     progress: { tokenSeen: boolean },
+    call: PlanCall,
   ): AsyncGenerator<PlanStreamEvent<SECTION>, Attempt<PlanObject>> {
     // The stream ends quietly on a provider error and reports it only here.
     let streamError: unknown;
-    // The SDK's `totalMs` is an AbortSignal.timeout, which fake timers can't advance; this one is a plain timer.
-    const deadline = new AbortController();
-    const deadlineTimer = setTimeout(
-      () => deadline.abort(new DOMException('The stream ran past its total time', 'TimeoutError')),
-      CALL_TIMEOUT_MS,
-    );
+    const stopped = new AbortController();
     const result = streamText({
       model: this.model,
       instructions: request.system,
@@ -210,10 +240,7 @@ export class LlmService {
       maxOutputTokens: request.maxOutputTokens,
       // Retries happen in `streamPlan`, so each attempt reserves and settles its own row.
       maxRetries: 0,
-      timeout: { firstChunkMs: FIRST_TOKEN_TIMEOUT_MS },
-      abortSignal: request.signal
-        ? AbortSignal.any([request.signal, deadline.signal])
-        : deadline.signal,
+      abortSignal: AbortSignal.any([call.signal, stopped.signal]),
       providerOptions: { anthropic: MINIMAL_THINKING },
       onError: ({ error }) => {
         streamError ??= error;
@@ -228,7 +255,9 @@ export class LlmService {
       const { title, sections } = planProgress(partial, final);
       if (title !== undefined && !released.title) {
         released.title = true;
-        yield { kind: 'title', title } as const;
+        const checked = request.titleSchema.safeParse(title);
+        if (!checked.success) throw new GenerationFailedError('invalid_output');
+        yield { kind: 'title', title: checked.data } as const;
       }
       for (; released.sections < sections.length; released.sections += 1) {
         const index = released.sections;
@@ -242,6 +271,7 @@ export class LlmService {
       const partials = result.partialOutputStream[Symbol.asyncIterator]();
       for (let step = await partials.next(); !step.done; step = await partials.next()) {
         progress.tokenSeen = true;
+        clearTimeout(call.firstTokenTimer);
         yield* release(step.value, false);
       }
       const plan = await result.output;
@@ -250,6 +280,9 @@ export class LlmService {
       yield* release(plan, true);
       return { kind: 'generated', object: plan, usage };
     } catch (error) {
+      // The title failed its gate: the stream is abandoned, so what it billed is unknown.
+      if (error instanceof GenerationFailedError)
+        return { kind: 'invalid_output', usage: worstCase };
       if (streamError === undefined && NoObjectGeneratedError.isInstance(error)) {
         const usage = billedTokens(error.usage, worstCase);
         return error.finishReason === 'content-filter'
@@ -258,9 +291,8 @@ export class LlmService {
       }
       return providerFailure(streamError ?? error, worstCase);
     } finally {
-      clearTimeout(deadlineTimer);
       // A consumer that stops early must not leave the provider generating, and billing, behind it.
-      deadline.abort(new Error('The consumer stopped reading the stream'));
+      stopped.abort(new Error('The consumer stopped reading the stream'));
     }
   }
 

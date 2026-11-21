@@ -5,16 +5,14 @@ const PartialPlanSchema = z.object({
   sections: z.array(z.unknown()).optional(),
 });
 
-/**
- * What a partial plan (title, then sections) has finished writing: the title once the sections key
- * appears, and every section but the last, which the model may still be writing; `final` releases it.
- */
+/** What a partial plan has finished writing: the title once a later key follows it, then the sections but the last, which `final` releases too. */
 export function planProgress(partial: unknown, final: boolean) {
   const plan = PartialPlanSchema.safeParse(partial);
   if (!plan.success) return { title: undefined, sections: [] };
-  const { title, sections } = plan.data;
-  return {
-    title: sections !== undefined || final ? title : undefined,
-    sections: sections === undefined ? [] : final ? sections : sections.slice(0, -1),
-  };
+  // Zod returns keys in schema order, so the stream's order is read from the raw object.
+  const keys = Object.keys(partial as object);
+  const titleComplete = final || (keys.includes('title') && keys.at(-1) !== 'title');
+  const { title, sections = [] } = plan.data;
+  if (!titleComplete) return { title: undefined, sections: [] };
+  return { title, sections: final ? sections : sections.slice(0, -1) };
 }
