@@ -93,6 +93,28 @@ describe('saveMutationOptions', () => {
     expect(queryClient.getQueryState(SAVE_LIST_KEY)?.isInvalidated).toBe(true);
   });
 
+  it('AC-3.4.1 an unsave refetches the collections, since the server removed the story from every board, and forgets its note', async () => {
+    const { queryClient, observer } = setup({ deleteSave: () => Promise.resolve() });
+    queryClient.setQueryData(['collections'], { items: [] });
+    queryClient.setQueryData(['collections', 'c1'], { collection: {}, items: [] });
+    queryClient.setQueryData(['saves', 'note', 'a'], { storyId: 'a' });
+
+    await observer.mutate({ storyId: 'a', save: false });
+
+    expect(queryClient.getQueryState(['collections'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['collections', 'c1'])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(['saves', 'note', 'a'])).toBeUndefined();
+  });
+
+  it('a save leaves the collections alone', async () => {
+    const { queryClient, observer } = setup({ putSave: () => Promise.resolve(undefined as never) });
+    queryClient.setQueryData(['collections'], { items: [] });
+
+    await observer.mutate({ storyId: 'b', save: true });
+
+    expect(queryClient.getQueryState(['collections'])?.isInvalidated).toBe(false);
+  });
+
   it('AC-1.5.4 sends a quick save then unsave in order, so the server ends on the last intent', async () => {
     let finishPut: () => void = () => {};
     const putSave = vi.fn(

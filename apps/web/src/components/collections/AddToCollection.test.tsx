@@ -276,15 +276,6 @@ describe('AddToCollection', () => {
     await vi.waitFor(() => expect(document.activeElement).toBe(opener));
   });
 
-  it('offers no entry and no shortcut to a signed-in user', async () => {
-    auth.user = { id: 'u1' };
-    await seedGuestStore([collection('a', 'Frontend', 0)]);
-    await showCard();
-    expect(byRole('button', 'Add to collection')).toBeNull();
-    await pressKey(document, 'a');
-    expect(dialog()).toBeNull();
-  });
-
   it('offers no entry and no shortcut while the collections flag is off', async () => {
     flag.collections = false;
     await seedGuestStore([collection('a', 'Frontend', 0)]);

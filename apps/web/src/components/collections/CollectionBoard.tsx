@@ -16,7 +16,7 @@ import { BOARD_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryLi
 import { AddToCollectionShortcut, useAddToCollection } from './AddToCollection';
 import { BoardSkeleton } from './BoardSkeleton';
 import { CollectionsSidebar } from './CollectionsSidebar';
-import { useCollections, type CollectionView } from './useCollections';
+import { useCollectionItems, useCollections, type CollectionView } from './useCollections';
 
 function BoardNotFound() {
   return (
@@ -60,7 +60,7 @@ function useBoardStories(collection: CollectionView) {
   if (newIds.length > 0) setLookupIds([...lookupIds, ...newIds]);
 
   const query = useQuery({
-    queryKey: ['collections', 'board', collection.id, lookupIds],
+    queryKey: ['collection-board', collection.id, lookupIds],
     queryFn: async () => {
       const { lookupStories } = await import('@/lib/api/endpoints');
       return lookupInChunks(lookupIds, lookupStories);
@@ -165,14 +165,16 @@ function BoardContent({ collection }: { collection: CollectionView }) {
   );
 }
 
-/** A guest's collection at `/collections/<slug>`, with its sidebar; a slug that isn't on this device shows a not-found state. */
+/** A collection at `/collections/<slug>`, with its sidebar; a slug that isn't the user's own shows a not-found state. */
 export function CollectionBoard({ slug }: { slug: string }) {
   const collections = useCollections();
-  if (collections.status === 'loading') return <BoardSkeleton />;
   const collection =
     collections.status === 'ready'
       ? collections.collections.find((candidate) => candidate.slug === slug)
       : undefined;
+  // An account's board holds its items on the server; the empty state must not flash before they arrive.
+  const { isLoading: isLoadingItems } = useCollectionItems(collection ? [collection.id] : []);
+  if (collections.status === 'loading' || isLoadingItems) return <BoardSkeleton />;
   if (!collection) return <BoardNotFound />;
 
   return (

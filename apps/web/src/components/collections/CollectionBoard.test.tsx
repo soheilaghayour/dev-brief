@@ -224,12 +224,4 @@ describe('CollectionBoard', () => {
         ?.getAttribute('href'),
     ).toBe('/saved');
   });
-
-  it('shows the not-found state to a signed-in user, whose collections are unavailable', async () => {
-    auth.user = { id: 'u1' };
-    await seedBoard();
-    await showBoard('reading-list');
-    expect(document.body.textContent).toContain('Collection not found');
-    expect(titles()).toEqual([]);
-  });
 });

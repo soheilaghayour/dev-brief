@@ -37,9 +37,9 @@ export function CollectionNameDialog({ collection, opener, onClose }: Collection
       const outcome = collection
         ? await collections.rename(collection.id, name)
         : (await collections.create(name)).outcome;
-      // A refusal at the limit is told by its own toast; only a bad name is an error here.
+      // A refusal at the limit and a failed request are told by their own toast; only a bad name is an error here.
       if (outcome === 'invalid') setError(NAME_ERROR);
-      else onClose();
+      else if (outcome !== 'failed') onClose();
     } finally {
       isSubmitting.current = false;
     }

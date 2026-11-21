@@ -126,7 +126,7 @@ export function CollectionsSidebar({ activeSlug }: CollectionsSidebarProps) {
             <RowLink
               href={`/collections/${collection.slug}`}
               label={collection.name}
-              count={collection.items.length}
+              count={collection.itemCount}
               isActive={collection.slug === activeSlug}
             />
             <CollectionMenu

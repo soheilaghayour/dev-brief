@@ -1,5 +1,8 @@
 import {
   ClusterDetailSchema,
+  CollectionDetailSchema,
+  CollectionListSchema,
+  CollectionSchema,
   CopilotQuotaSchema,
   ExampleBriefingListSchema,
   FeedPageSchema,
@@ -19,12 +22,16 @@ import {
   TagListSchema,
 } from '@devbrief/shared';
 import type {
+  CollectionCreate,
+  CollectionItemPut,
+  CollectionUpdate,
   FeedQuery,
   MergeRequest,
   PaginationQuery,
   Preferences,
   RadarMetric,
   RadarWindow,
+  SaveNotePatch,
   StoryLookupRequest,
   TagSlug,
 } from '@devbrief/shared';
@@ -132,6 +139,68 @@ export function deleteSave(storyId: string) {
   return apiClient.requestNoContent({
     method: 'DELETE',
     path: `/me/saves/${encodeURIComponent(storyId)}`,
+  });
+}
+
+/** One save with its note, or 404 when the story isn't saved. */
+export function getSave(storyId: string) {
+  return apiClient.request(
+    { path: `/me/saves/${encodeURIComponent(storyId)}`, cache: 'no-store' },
+    SaveSchema,
+  );
+}
+
+export function patchSaveNote(storyId: string, body: SaveNotePatch, { keepalive = false } = {}) {
+  return apiClient.request(
+    { method: 'PATCH', path: `/me/saves/${encodeURIComponent(storyId)}`, body, keepalive },
+    SaveSchema,
+  );
+}
+
+export function getCollections() {
+  return apiClient.request({ path: '/me/collections', cache: 'no-store' }, CollectionListSchema);
+}
+
+export function getCollection(id: string) {
+  return apiClient.request(
+    { path: `/me/collections/${encodeURIComponent(id)}`, cache: 'no-store' },
+    CollectionDetailSchema,
+  );
+}
+
+export function createCollection(body: CollectionCreate) {
+  return apiClient.request({ method: 'POST', path: '/me/collections', body }, CollectionSchema);
+}
+
+export function updateCollection(id: string, body: CollectionUpdate) {
+  return apiClient.request(
+    { method: 'PATCH', path: `/me/collections/${encodeURIComponent(id)}`, body },
+    CollectionSchema,
+  );
+}
+
+export function deleteCollection(id: string) {
+  return apiClient.requestNoContent({
+    method: 'DELETE',
+    path: `/me/collections/${encodeURIComponent(id)}`,
+  });
+}
+
+export function putCollectionItem(id: string, storyId: string, body: CollectionItemPut = {}) {
+  return apiClient.request(
+    {
+      method: 'PUT',
+      path: `/me/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(storyId)}`,
+      body,
+    },
+    CollectionSchema,
+  );
+}
+
+export function deleteCollectionItem(id: string, storyId: string) {
+  return apiClient.requestNoContent({
+    method: 'DELETE',
+    path: `/me/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(storyId)}`,
   });
 }
 

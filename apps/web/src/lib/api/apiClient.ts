@@ -6,7 +6,7 @@ import { ApiError, ApiResponseError } from './apiError';
 type Query = Record<string, string | number | undefined>;
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   query?: Query;
   body?: unknown;
@@ -16,6 +16,8 @@ type RequestOptions = {
   cookie?: string;
   /** Aborts the request, and a streamed body being read. */
   signal?: AbortSignal;
+  /** Lets the request finish after the page is gone; the browser caps such a body at 64 KB. */
+  keepalive?: boolean;
 };
 
 type ApiClientConfig = {
@@ -83,12 +85,14 @@ export function createApiClient({
     cache,
     cookie,
     signal,
+    keepalive,
   }: RequestOptions) {
     const response = await fetchImpl(buildUrl(baseUrl ?? defaultBaseUrl(), path, query), {
       method,
       credentials: 'include',
       cache,
       signal,
+      keepalive,
       headers: requestHeaders(body !== undefined, internalToken, cookie),
       body: body === undefined ? undefined : JSON.stringify(body),
     });

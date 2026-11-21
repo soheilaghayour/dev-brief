@@ -68,7 +68,12 @@ export function saveMutationOptions(
       void notify(SAVE_FAILED_NOTICE);
     },
     // Only the last of several quick toggles refetches, so an early answer can't overwrite a later patch.
-    onSettled: () => {
+    onSettled: (_data, _error, { storyId, save }) => {
+      // The server removed the story, and its note, from every board it was on.
+      if (!save) {
+        queryClient.removeQueries({ queryKey: ['saves', 'note', storyId], exact: true });
+        void queryClient.invalidateQueries({ queryKey: ['collections'] });
+      }
       if (queryClient.isMutating({ mutationKey: SAVE_MUTATION_KEY }) > 1) return;
       void queryClient.invalidateQueries({ queryKey: SAVE_IDS_KEY, exact: true });
       void queryClient.invalidateQueries({ queryKey: SAVE_LIST_KEY, exact: true });
