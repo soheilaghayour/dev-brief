@@ -125,9 +125,9 @@ describe('streamBriefing', () => {
     ).rejects.toThrow();
   });
 
-  it('rejects an a2ui event that is not a v1.0 server message', async () => {
-    const v08 = { surfaceUpdate: { surfaceId: 'x', components: [] } };
-    const fetchMock = vi.fn(async () => textResponse(sse('a2ui', v08)));
+  it('rejects an a2ui event that is not a server message', async () => {
+    const notAMessage = { version: '1.0', render: { surfaceId: 'x' } };
+    const fetchMock = vi.fn(async () => textResponse(sse('a2ui', notAMessage)));
     await expect(
       collect(streamBriefing(REQUEST, { signal: new AbortController().signal, fetch: fetchMock })),
     ).rejects.toThrow();
