@@ -37,7 +37,7 @@ export default function OpenGraphImage() {
         Your morning scan in 5 min
       </div>
       <div style={{ fontSize: 34, marginTop: 36, color: '#a4a9bd' }}>
-        Hacker News, Dev.to and engineering blogs. One fair ranking.
+        Hacker News, Dev.to and GitHub. One fair ranking.
       </div>
     </div>,
     size,

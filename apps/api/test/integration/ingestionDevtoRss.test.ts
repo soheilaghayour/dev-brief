@@ -131,6 +131,29 @@ describe('ingestion of Dev.to and RSS', () => {
     expect([...(story.excerpt ?? '')].length).toBeLessThanOrEqual(500);
   });
 
+  it('makes no RSS request and records no RSS run while the RSS source is disabled', async () => {
+    await createSources('devto', 'rss');
+    await prisma.source.update({
+      where: { slug: 'rss-cloudflare-blog' },
+      data: { enabled: false },
+    });
+    let rssRequests = 0;
+    const service = await createService([
+      devtoAdapter(),
+      rssAdapter(feedFetch({ onRequest: () => rssRequests++ })),
+    ]);
+
+    const { runId, status } = await service.run();
+
+    expect(status).toBe('success');
+    expect(rssRequests).toBe(0);
+    const rssSource = await prisma.source.findUniqueOrThrow({
+      where: { slug: 'rss-cloudflare-blog' },
+    });
+    expect(await prisma.ingestionRun.count({ where: { runId, sourceId: rssSource.id } })).toBe(0);
+    expect(await prisma.sourceItem.count({ where: { sourceId: rssSource.id } })).toBe(0);
+  });
+
   it.each([
     ['Dev.to first', 'devto', 'rss-cloudflare-blog'],
     ['RSS first', 'rss-cloudflare-blog', 'devto'],

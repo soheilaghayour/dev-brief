@@ -4,7 +4,7 @@ import { SectionHeading } from './SectionHeading';
 const STEPS = [
   {
     title: 'Ingest hourly',
-    text: 'Hacker News, Dev.to and engineering blogs are fetched every hour. One failing source never stops the rest.',
+    text: 'Hacker News, Dev.to and GitHub are fetched every hour. One failing source never stops the rest.',
   },
   {
     title: 'Dedupe and tag',

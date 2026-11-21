@@ -24,8 +24,8 @@ export function HeroSection({ data, host }: HeroSectionProps) {
           Your morning scan in 5 min
         </h1>
         <p className="text-muted-foreground mx-auto mt-5 max-w-2xl text-base text-balance md:text-lg">
-          DevBrief pulls Hacker News, Dev.to and the best engineering blogs every hour, merges
-          duplicates, tags by technology and ranks everything on one fair scale. No account needed.
+          DevBrief pulls Hacker News, Dev.to and GitHub every hour, merges duplicates, tags by
+          technology and ranks everything on one fair scale. No account needed.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg" className="max-sm:w-full">

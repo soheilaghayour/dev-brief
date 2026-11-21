@@ -2,9 +2,9 @@ import { SectionHeading } from './SectionHeading';
 
 const PROBLEMS = [
   {
-    title: 'Same story, five tabs',
-    text: 'A release lands on HN, Dev.to and three blogs. You read about it five times.',
-    mock: ['HN', 'Dev.to', 'Blog', 'Blog', 'Blog'],
+    title: 'Same story, three tabs',
+    text: 'A release lands on HN, Dev.to and GitHub. You read about it three times.',
+    mock: ['HN', 'Dev.to', 'GitHub'],
   },
   {
     title: "Rankings you can't trust",

@@ -235,10 +235,12 @@ test('AC-1.3.11 the sidebar lists tags with 7-day counts and sources with health
   await openFeed(page);
   const sidebar = page.getByRole('complementary');
   await expect(sidebar.getByRole('checkbox', { name: /^React\b.*\d+$/ })).toBeVisible();
-  for (const kind of ['hn', 'devto', 'rss', 'github']) {
+  for (const kind of ['hn', 'devto', 'github']) {
     const row = sidebar.locator(`[data-kind="${kind}"]`);
     await expect(row.locator('[data-status="healthy"]')).toHaveAttribute('title', /^Last updated /);
   }
+  // The RSS sources are switched off (PRD §8.8), so there is no "Blogs" filter.
+  await expect(sidebar.locator('[data-kind="rss"]')).toHaveCount(0);
 });
 
 test('AC-1.3.13 focus makes a first-page card active and an unknown id is ignored', async ({

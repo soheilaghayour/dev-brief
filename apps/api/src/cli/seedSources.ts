@@ -17,12 +17,16 @@ const SeedSourcesSchema = z.array(
     name: z.string().min(1),
     siteUrl: z.string().url(),
     feedUrl: z.string().url().optional(),
+    enabled: z.boolean().default(true),
   }),
 );
 
-/** Upserts every seeded source by slug, so running it again adds no rows. */
+/** The seeded sources, validated, with `enabled` defaulted to true. */
+export const SEED_SOURCES = SeedSourcesSchema.parse(sourcesJson);
+
+/** Upserts every seeded source by slug, writing `enabled` on update too, so a deploy switches a source on or off. */
 export async function seedSources(prisma: PrismaClient) {
-  for (const { slug, ...fields } of SeedSourcesSchema.parse(sourcesJson)) {
+  for (const { slug, ...fields } of SEED_SOURCES) {
     await prisma.source.upsert({ where: { slug }, create: { slug, ...fields }, update: fields });
   }
 }
