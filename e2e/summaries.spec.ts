@@ -73,7 +73,10 @@ test('AC-2.3.9 a saved summarised story shows its line on /saved', async ({ page
 test('AC-2.3.9 the landing preview shows the line of a summarised story', async ({ page }) => {
   await page.goto('/');
   const preview = page.getByRole('group', { name: 'Live feed preview' });
-  await expect(preview.locator('p.line-clamp-2', { hasText: SUMMARY_LINE }).first()).toBeVisible();
+  // The seeded summarised story is tagged databases; the preview's first six cards hold none.
+  await expect(preview).toHaveAttribute('data-saves-ready', 'true');
+  await preview.getByRole('button', { name: 'Databases' }).click();
+  await expect(clampedLine(card(page, STORY_WITH_CONSENSUS))).toHaveText(SUMMARY_LINE);
 });
 
 test('AC-2.3.12 u opens the story page to summarise, and does nothing on a story with no input', async ({
