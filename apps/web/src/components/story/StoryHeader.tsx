@@ -21,7 +21,7 @@ export function StoryHeader({ story }: { story: StoryDetail }) {
           {story.title}
         </h1>
         <div className="flex shrink-0 items-center gap-2">
-          <StorySaveButton storyId={story.id} />
+          <StorySaveButton storyId={story.id} title={story.title} />
           <Button variant="outline" asChild>
             <a href={story.url} target="_blank" rel="noopener noreferrer">
               Open <ExternalLinkIcon aria-hidden="true" />

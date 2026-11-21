@@ -4,6 +4,7 @@ import {
   CollectionDescriptionSchema,
   CollectionNameSchema,
   CollectionSlugSchema,
+  NOTE_MAX_LENGTH,
   PreferencesSchema,
   SaveSchema,
   StoryIdSchema,
@@ -17,6 +18,7 @@ import {
   GUEST_STATE_VERSION,
   MAX_GUEST_SAVES,
   type GuestData,
+  type GuestNote,
 } from './guestState';
 
 const DeviceIdSchema = z.string().uuid();
@@ -89,14 +91,35 @@ function salvageCollections(value: unknown): GuestCollection[] {
   return inStoredOrder(collections.slice(0, COLLECTIONS_MAX));
 }
 
+const GuestNoteSchema = z.object({
+  note: z.string().min(1).max(NOTE_MAX_LENGTH),
+  updatedAt: z.string().datetime(),
+});
+
+// Per entry, like saves: a note over the limit or with a bad id or date is dropped and the rest stay.
+function salvageNotes(value: unknown) {
+  const notes: Record<string, GuestNote> = {};
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return notes;
+  for (const [storyId, entry] of Object.entries(value)) {
+    const parsedId = StoryIdSchema.safeParse(storyId);
+    const parsed = GuestNoteSchema.safeParse(entry);
+    if (parsedId.success && parsed.success) notes[parsedId.data] = parsed.data;
+  }
+  return notes;
+}
+
 /**
- * True for a stored `collections` field that isn't a list at all. Its entries can't be told apart, so reading it as
- * empty and then saving would erase data that only failed to parse; the caller keeps storage untouched instead.
+ * True for a stored `collections` field that isn't a list, or `notes` that isn't an object. Their entries can't be told
+ * apart, so reading them as empty and then saving would erase data that only failed to parse; the caller keeps storage untouched instead.
  */
-export function hasUnreadableCollections(stored: unknown) {
+export function hasUnreadableCollectionsOrNotes(stored: unknown) {
   if (typeof stored !== 'object' || stored === null) return false;
-  const { collections } = stored as { collections?: unknown };
-  return collections !== undefined && collections !== null && !Array.isArray(collections);
+  const { collections, notes } = stored as { collections?: unknown; notes?: unknown };
+  const unreadableCollections =
+    collections !== undefined && collections !== null && !Array.isArray(collections);
+  const unreadableNotes =
+    notes !== undefined && notes !== null && (typeof notes !== 'object' || Array.isArray(notes));
+  return unreadableCollections || unreadableNotes;
 }
 
 /**
@@ -113,6 +136,7 @@ export function migrateGuestData(stored: unknown, version: number): Partial<Gues
     saves: salvageSaves(fields.saves),
     prefs: salvagePrefs(fields.prefs),
     collections: salvageCollections(fields.collections),
+    notes: salvageNotes(fields.notes),
     hintDismissed: fields.hintDismissed === true,
     pendingMerge: fields.pendingMerge === true,
   };

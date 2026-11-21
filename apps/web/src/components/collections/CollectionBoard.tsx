@@ -7,6 +7,7 @@ import { FolderOpenIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { StoryCard } from '@/components/feed/StoryCard';
+import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { lookupInChunks } from '@/components/saves/savedStories';
 import { useSaves } from '@/components/saves/useSaves';
@@ -105,7 +106,19 @@ function BoardContent({ collection }: { collection: CollectionView }) {
 
   return (
     <div className="min-w-0 flex-1">
-      <h1 className="text-lg font-semibold tracking-tight">{collection.name}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold tracking-tight">{collection.name}</h1>
+        {stories.length > 0 && (
+          <LazyDigestExportMenu
+            stories={stories}
+            fixedCollection={{
+              name: collection.name,
+              slug: collection.slug,
+              storyIds: collection.items.map(({ storyId }) => storyId),
+            }}
+          />
+        )}
+      </div>
       {collection.description && (
         <p className="text-muted-foreground mt-1">{collection.description}</p>
       )}
@@ -119,6 +132,7 @@ function BoardContent({ collection }: { collection: CollectionView }) {
         ) : (
           <div role="feed" aria-label={`Stories in ${collection.name}`}>
             <AddToCollectionShortcut storyId={activeId} />
+            <LazyNoteShortcut storyId={activeId} />
             {stories.map((story) => (
               <StoryCard
                 key={story.id}
@@ -127,6 +141,7 @@ function BoardContent({ collection }: { collection: CollectionView }) {
                 onToggleSave={() => toggleStory(story.id)}
                 isActive={story.id === activeId}
                 preferenceMenu={PreferenceMenu}
+                note={<LazyNoteSlot storyId={story.id} />}
                 onAddToCollection={
                   addToCollection.canAdd ? () => addToCollection.open(story.id) : undefined
                 }

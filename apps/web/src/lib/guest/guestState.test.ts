@@ -8,6 +8,8 @@ import {
   serializeGuest,
   sortSavesNewestFirst,
   toggleSave,
+  withNote,
+  withoutNotes,
 } from './guestState';
 
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
@@ -65,6 +67,7 @@ describe('stored text', () => {
       saves: [],
       prefs: { follow: { tags: [], sources: [] }, mute: { tags: [], sources: [] } },
       collections: [],
+      notes: {},
       hintDismissed: false,
       pendingMerge: false,
     });
@@ -91,5 +94,27 @@ describe('stored text', () => {
   it('keeps the current state when the stored value is garbage', () => {
     const current = createGuestData(DEVICE_ID);
     expect(mergeStoredGuest('garbage', current)).toEqual(current);
+  });
+});
+
+describe('notes', () => {
+  const saves = [{ storyId: A, savedAt: '2026-04-01T00:00:00.000Z' }];
+
+  it('AC-3.4.2 stores the note with its time for a saved story', () => {
+    expect(withNote({}, saves, A, 'hello', NOW)).toEqual({
+      [A]: { note: 'hello', updatedAt: '2026-05-01T10:00:00.000Z' },
+    });
+  });
+
+  it('AC-3.4.2 clearing the note removes it, and a story that is not saved holds none', () => {
+    const notes = withNote({}, saves, A, 'hello', NOW);
+    expect(withNote(notes, saves, A, null, NOW)).toEqual({});
+    expect(withNote({}, saves, 'other', 'hello', NOW)).toEqual({});
+  });
+
+  it('withoutNotes keeps the notes of the other stories', () => {
+    const at = NOW.toISOString();
+    const notes = { a: { note: 'x', updatedAt: at }, b: { note: 'y', updatedAt: at } };
+    expect(Object.keys(withoutNotes(notes, ['a']))).toEqual(['b']);
   });
 });

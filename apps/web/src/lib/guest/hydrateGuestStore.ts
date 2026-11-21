@@ -13,14 +13,14 @@ let loading: Promise<void> | undefined;
  */
 export function hydrateGuestStore() {
   loading ??= (async () => {
-    const { hasUnreadableCollections, mergeStoredGuest, migrateGuestData } =
+    const { hasUnreadableCollectionsOrNotes, mergeStoredGuest, migrateGuestData } =
       await import('./guestParser');
     useGuestStore.persist.setOptions({
       migrate: (stored, version) => migrateGuestData(stored, version) as GuestData,
       // `merge` fills the fields the migration left out, so the partial value is safe here.
       merge: (stored, current) => {
         // Reading them as none would erase them on the next write, so storage stays as it is.
-        if (hasUnreadableCollections(stored)) guestStorage.useMemoryOnly();
+        if (hasUnreadableCollectionsOrNotes(stored)) guestStorage.useMemoryOnly();
         return { ...current, ...mergeStoredGuest(stored, current) };
       },
     });

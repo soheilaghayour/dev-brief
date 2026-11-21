@@ -8,6 +8,8 @@ import {
   removeSaves,
   serializeGuest,
   toggleSave,
+  withNote,
+  withoutNotes,
   withoutStoriesInCollections,
   type GuestData,
 } from './guestState';
@@ -19,6 +21,7 @@ export const guestStorage = createGuestStorage(browserLocalStorage);
 
 type GuestActions = {
   toggleSave: (storyId: string, now: Date) => ReturnType<typeof toggleSave>['outcome'];
+  setNote: (storyId: string, note: string | null, now: Date) => void;
   removeSaves: (storyIds: readonly string[]) => number;
   purgeSaves: (storyIds: readonly string[]) => number;
   dismissHint: () => void;
@@ -66,13 +69,19 @@ export const useGuestStore = create<GuestStore>()(
       toggleSave: (storyId, now) => {
         const { outcome, saves } = toggleSave(get().saves, storyId, now);
         if (outcome === 'removed') {
-          set({ saves, collections: withoutStoriesInCollections(get().collections, [storyId]) });
+          set({
+            saves,
+            collections: withoutStoriesInCollections(get().collections, [storyId]),
+            notes: withoutNotes(get().notes, [storyId]),
+          });
         } else if (outcome === 'added') {
           set({ saves });
         }
         return outcome;
       },
-      // Not stripped from collections: a confirmed merge removes saves whose collections still have to sync.
+      setNote: (storyId, note, now) =>
+        set({ notes: withNote(get().notes, get().saves, storyId, note, now) }),
+      // Not stripped from collections or notes: a confirmed merge removes saves whose collections and notes still have to sync.
       removeSaves: (storyIds) => {
         const saves = removeSaves(get().saves, storyIds);
         const removed = get().saves.length - saves.length;
@@ -83,7 +92,11 @@ export const useGuestStore = create<GuestStore>()(
       purgeSaves: (storyIds) => {
         const saves = removeSaves(get().saves, storyIds);
         const removed = get().saves.length - saves.length;
-        set({ saves, collections: withoutStoriesInCollections(get().collections, storyIds) });
+        set({
+          saves,
+          collections: withoutStoriesInCollections(get().collections, storyIds),
+          notes: withoutNotes(get().notes, storyIds),
+        });
         return removed;
       },
       dismissHint: () => set({ hintDismissed: true }),
@@ -96,11 +109,20 @@ export const useGuestStore = create<GuestStore>()(
       storage: flatStorage,
       // Hydrating after mount keeps the server HTML and the first client render equal.
       skipHydration: true,
-      partialize: ({ deviceId, saves, prefs, collections, hintDismissed, pendingMerge }) => ({
+      partialize: ({
         deviceId,
         saves,
         prefs,
         collections,
+        notes,
+        hintDismissed,
+        pendingMerge,
+      }) => ({
+        deviceId,
+        saves,
+        prefs,
+        collections,
+        notes,
         hintDismissed,
         pendingMerge,
       }),

@@ -1,6 +1,6 @@
-import { COLLECTION_ITEMS_MAX, COLLECTIONS_MAX } from '@devbrief/shared';
+import { COLLECTION_ITEMS_MAX, COLLECTIONS_MAX, NOTE_MAX_LENGTH } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { hasUnreadableCollections, migrateGuestData } from './guestParser';
+import { hasUnreadableCollectionsOrNotes, migrateGuestData } from './guestParser';
 import { createGuestData, EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
 
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
@@ -29,6 +29,7 @@ describe('migrateGuestData', () => {
       prefs: EMPTY_PREFERENCES,
       hintDismissed: false,
       collections: [],
+      notes: {},
       pendingMerge: false,
     });
   });
@@ -109,9 +110,16 @@ describe('migrateGuestData collections', () => {
 
   it('AC-3.4.1 reads a stored set that is not a list as none, and flags it so storage is left alone', () => {
     expect(migrateGuestData({ collections: 'text' }, 1)?.collections).toEqual([]);
-    expect(hasUnreadableCollections({ collections: 'text' })).toBe(true);
-    expect(hasUnreadableCollections({ collections: [] })).toBe(false);
-    expect(hasUnreadableCollections({ saves: [] })).toBe(false);
+    expect(hasUnreadableCollectionsOrNotes({ collections: 'text' })).toBe(true);
+    expect(hasUnreadableCollectionsOrNotes({ collections: [] })).toBe(false);
+    expect(hasUnreadableCollectionsOrNotes({ saves: [] })).toBe(false);
+  });
+
+  it('AC-3.4.1 flags stored notes that are not an object, so storage is left alone', () => {
+    expect(hasUnreadableCollectionsOrNotes({ notes: 'text' })).toBe(true);
+    expect(hasUnreadableCollectionsOrNotes({ notes: [] })).toBe(true);
+    expect(hasUnreadableCollectionsOrNotes({ notes: {} })).toBe(false);
+    expect(hasUnreadableCollectionsOrNotes({ notes: null })).toBe(false);
   });
 
   it('AC-3.4.1 drops an invalid collection and keeps the valid ones', () => {
@@ -169,5 +177,34 @@ describe('migrateGuestData collections', () => {
     );
     const read = migrateGuestData({ collections: [stored('big', 0, items)] }, 1)?.collections;
     expect(read?.[0]?.items).toHaveLength(COLLECTION_ITEMS_MAX);
+  });
+});
+
+describe('notes in migrateGuestData', () => {
+  const UPDATED_AT = '2026-05-01T10:00:00.000Z';
+
+  it('AC-3.4.2 keeps valid notes and reads stored data without the field as none', () => {
+    const notes = { [A]: { note: 'Read **this**', updatedAt: UPDATED_AT } };
+    expect(migrateGuestData({ notes }, 1)?.notes).toEqual(notes);
+    expect(migrateGuestData({}, 1)?.notes).toEqual({});
+  });
+
+  it('AC-3.4.2 drops a note over 20,000 characters and keeps the others', () => {
+    const notes = {
+      [A]: { note: 'x'.repeat(NOTE_MAX_LENGTH + 1), updatedAt: UPDATED_AT },
+      [B]: { note: 'x'.repeat(NOTE_MAX_LENGTH), updatedAt: UPDATED_AT },
+    };
+    expect(Object.keys(migrateGuestData({ notes }, 1)?.notes ?? {})).toEqual([B]);
+  });
+
+  it('AC-3.4.2 drops an empty note, a bad story id or date, and a field that is not an object', () => {
+    const notes = {
+      [A]: { note: '', updatedAt: UPDATED_AT },
+      'not an id': { note: 'x', updatedAt: UPDATED_AT },
+      [B]: { note: 'x', updatedAt: 'yesterday' },
+    };
+    expect(migrateGuestData({ notes }, 1)?.notes).toEqual({});
+    expect(migrateGuestData({ notes: ['x'] }, 1)?.notes).toEqual({});
+    expect(migrateGuestData({ notes: 7 }, 1)?.notes).toEqual({});
   });
 });

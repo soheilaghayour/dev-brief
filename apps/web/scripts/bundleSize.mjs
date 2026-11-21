@@ -84,6 +84,8 @@ export const FORBIDDEN_MODULES = [
   { name: '@a2ui/react', marker: /a2ui-react-/ },
   { name: '@a2ui/web_core', marker: /ValidationConfig\.allowedMessages/ },
   { name: 'lit', marker: /litHtmlVersions/ },
+  // The protocol allowlist of react-markdown's default URL transform.
+  { name: 'react-markdown', marker: /https\?\|ircs\?\|mailto\|xmpp/ },
 ];
 
 /** Routes the forbidden modules are checked on: every gated route, the lazy ones included. */

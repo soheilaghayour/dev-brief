@@ -1,4 +1,4 @@
-// Fails when a gated route's first-load JS exceeds its budget in bundle-budgets.json, contains a forbidden module (Recharts, the A2UI renderer, lit), or a first-load chunk lacks the compile hint.
+// Fails when a gated route's first-load JS exceeds its budget in bundle-budgets.json, contains a forbidden module (Recharts, the A2UI renderer, lit, react-markdown), or a first-load chunk lacks the compile hint.
 // Run after `next build`: pnpm --filter web size
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

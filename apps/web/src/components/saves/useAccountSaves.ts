@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SaveIds } from '@devbrief/shared';
 import { SAVE_IDS_KEY, saveMutationOptions } from './accountSaves';
 import { notify } from '@/lib/toast/notify';
+import type { ToggleSaveOptions } from './unsaveRequest';
 
 // The endpoints module (and Zod with it) loads on the first request, not with the page.
 const lazyRequests = {
@@ -30,10 +31,17 @@ export function useAccountSaves(enabled: boolean) {
   }
 
   // Read from the cache, not the render's data: two quick toggles must see each other's patch.
-  function toggle(storyId: string) {
-    const current = queryClient.getQueryData<SaveIds>(SAVE_IDS_KEY)?.ids ?? ids;
-    mutation.mutate({ storyId, save: !current.includes(storyId) });
+  function currentIds() {
+    return queryClient.getQueryData<SaveIds>(SAVE_IDS_KEY)?.ids ?? ids;
+  }
+  function toggle(storyId: string, options?: ToggleSaveOptions) {
+    const isSaved = currentIds().includes(storyId);
+    if (isSaved) options?.onUnsave?.();
+    mutation.mutate({ storyId, save: !isSaved });
+  }
+  function remove(storyId: string) {
+    if (currentIds().includes(storyId)) mutation.mutate({ storyId, save: false });
   }
 
-  return { ids, isSaved, toggle };
+  return { ids, isSaved, toggle, remove };
 }

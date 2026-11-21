@@ -127,7 +127,7 @@ export function FeedList() {
     if (url) openInNewTab(url);
   }
   function toggleActiveSave() {
-    if (activeStory) saves.toggle(activeStory.id);
+    if (activeStory) saves.toggle(activeStory.id, { title: activeStory.title });
   }
   // Stable, so the sentinel's observer isn't rebuilt on every j/k press.
   const loadNextPage = useCallback(() => {
@@ -165,7 +165,7 @@ export function FeedList() {
           key={story.id}
           story={story}
           isSaved={saves.isSaved(story.id)}
-          onToggleSave={() => saves.toggle(story.id)}
+          onToggleSave={() => saves.toggle(story.id, { title: story.title })}
           isActive={story.id === activeId}
           preferenceMenu={PreferenceMenu}
           relatedToggle={RelatedToggle}
