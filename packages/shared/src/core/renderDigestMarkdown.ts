@@ -25,22 +25,30 @@ function escapeText(text: string) {
   return text.replace(/\s+/g, ' ').trim().replace(MARKDOWN_SPECIALS, '\\$&');
 }
 
-// Spaces and parentheses would end a link target early.
+// Spaces, parentheses and angle brackets would end a link target early, and a backslash would escape its end.
 function escapeUrl(url: string) {
   return url.replace(
-    /[\s()<>]/g,
+    /[\s()<>\\]/g,
     (char) => `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`,
   );
+}
+
+// Every line in a blockquote: an open code fence, list or heading in the note ends with it and can't swallow the entries after.
+function quoteNote(note: string) {
+  return note
+    .split(/\r?\n/)
+    .map((line) => (line === '' ? '>' : `> ${line}`))
+    .join('\n');
 }
 
 function renderItem(item: DigestItem) {
   const lines = [`## [${escapeText(item.title)}](${escapeUrl(item.url)})`];
   if (item.tags.length > 0) lines.push('', `Tags: ${item.tags.map(escapeText).join(', ')}`);
-  if (item.note) lines.push('', item.note);
+  if (item.note) lines.push('', quoteNote(item.note));
   return lines.join('\n');
 }
 
-/** A Markdown digest of the stories saved in one UTC ISO week, oldest save first; notes are the writer's own Markdown and stay as written. */
+/** A Markdown digest of the stories saved in one UTC ISO week, oldest save first; each note is the writer's own Markdown, quoted so it stays inside its entry. */
 export function renderDigestMarkdown({ week, collection, items }: DigestInput) {
   const members = collection && new Set(collection.storyIds);
   const inDigest = items

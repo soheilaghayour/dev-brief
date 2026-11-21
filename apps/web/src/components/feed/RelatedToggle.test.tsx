@@ -304,7 +304,10 @@ describe('RelatedToggle', () => {
     await press('k');
     expect(activeId()).toBe('rep');
     await press('s');
-    expect(feed.toggleSave).toHaveBeenCalledWith('rep');
+    expect(feed.toggleSave).toHaveBeenCalledWith(
+      'rep',
+      expect.objectContaining({ title: expect.any(String) }),
+    );
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
   });
 

@@ -109,13 +109,17 @@ function salvageNotes(value: unknown) {
 }
 
 /**
- * True for a stored `collections` field that isn't a list at all. Its entries can't be told apart, so reading it as
- * empty and then saving would erase data that only failed to parse; the caller keeps storage untouched instead.
+ * True for a stored `collections` field that isn't a list, or `notes` that isn't an object. Their entries can't be told
+ * apart, so reading them as empty and then saving would erase data that only failed to parse; the caller keeps storage untouched instead.
  */
-export function hasUnreadableCollections(stored: unknown) {
+export function hasUnreadableCollectionsOrNotes(stored: unknown) {
   if (typeof stored !== 'object' || stored === null) return false;
-  const { collections } = stored as { collections?: unknown };
-  return collections !== undefined && collections !== null && !Array.isArray(collections);
+  const { collections, notes } = stored as { collections?: unknown; notes?: unknown };
+  const unreadableCollections =
+    collections !== undefined && collections !== null && !Array.isArray(collections);
+  const unreadableNotes =
+    notes !== undefined && notes !== null && (typeof notes !== 'object' || Array.isArray(notes));
+  return unreadableCollections || unreadableNotes;
 }
 
 /**

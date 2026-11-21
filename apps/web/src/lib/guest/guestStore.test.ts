@@ -277,4 +277,30 @@ describe('guest store', () => {
     reloaded.useGuestStore.getState().toggleSave(A, NOW);
     expect(reloaded.useGuestStore.getState().notes).toEqual({});
   });
+
+  it('AC-3.4.1 purging a story that no longer exists deletes its note and keeps the others', async () => {
+    const { localStorage } = fakeLocalStorage();
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
+    useGuestStore.getState().toggleSave(A, NOW);
+    useGuestStore.getState().toggleSave(B, NOW);
+    useGuestStore.getState().setNote(A, 'gone with it', NOW);
+    useGuestStore.getState().setNote(B, 'stays', NOW);
+
+    useGuestStore.getState().purgeSaves([A]);
+
+    expect(Object.keys(useGuestStore.getState().notes)).toEqual([B]);
+  });
+
+  it('AC-3.4.1 never writes over stored notes that could not be read as an object', async () => {
+    const text = JSON.stringify({ version: 1, deviceId: DEVICE_ID, saves: [], notes: 'weird' });
+    const { items, localStorage } = fakeLocalStorage({ [STORAGE_KEY]: text });
+    const { useGuestStore, hydrateGuestStore } = await loadStore({ localStorage });
+    await hydrateGuestStore();
+
+    useGuestStore.getState().toggleSave(A, NOW);
+
+    expect(useGuestStore.getState().saves).toHaveLength(1);
+    expect(items.get(STORAGE_KEY)).toBe(text);
+  });
 });

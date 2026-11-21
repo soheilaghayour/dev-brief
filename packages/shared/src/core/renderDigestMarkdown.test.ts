@@ -26,9 +26,27 @@ describe('renderDigestMarkdown', () => {
         '',
         'Tags: react, typescript',
         '',
-        'Read **this** twice.',
+        '> Read **this** twice.',
         '',
       ].join('\n'),
+    );
+  });
+
+  it('AC-3.4.4 quotes every line of a note, so an open code fence or heading stays inside its entry', () => {
+    const markdown = renderDigestMarkdown({
+      week: '2026-W47',
+      items: [
+        item({
+          storyId: 'a',
+          title: 'First',
+          savedAt: '2026-11-17T10:00:00.000Z',
+          note: '```js\nunclosed\n\n# Not a section\r\nlast',
+        }),
+        item({ storyId: 'b', title: 'Second', savedAt: '2026-11-18T10:00:00.000Z' }),
+      ],
+    });
+    expect(markdown).toContain(
+      '\n> ```js\n> unclosed\n>\n> # Not a section\n> last\n\n## [Second](https://example.com/a)',
     );
   });
 
@@ -107,6 +125,14 @@ describe('renderDigestMarkdown', () => {
       '## [Why \\[React\\] \\*wins\\* and\\_more](https://example.com/a_%28b%29%20c)',
     );
     expect(markdown).toContain('Tags: c\\#');
+  });
+
+  it('AC-3.4.4 encodes a backslash and a closing parenthesis in the link target', () => {
+    const markdown = renderDigestMarkdown({
+      week: '2026-W47',
+      items: [item({ storyId: 'a', url: 'https://example.com/a\\)b' })],
+    });
+    expect(markdown).toContain('](https://example.com/a%5C%29b)');
   });
 
   it('AC-3.4.4 says so when nothing was saved in the week', () => {

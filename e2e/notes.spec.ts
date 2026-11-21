@@ -59,7 +59,7 @@ test('AC-3.4.1 unsaving a story with a note asks first; without a note it is ins
   const save = cards(page).first().getByRole('button', { name: 'Save story' });
 
   await save.click();
-  const dialog = page.getByRole('dialog', { name: 'Remove this story and its note?' });
+  const dialog = page.getByRole('dialog', { name: `Remove “${story.title}” and its note?` });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
@@ -79,6 +79,46 @@ test('AC-3.4.1 unsaving a story with a note asks first; without a note it is ins
   await saveButton.click();
   await expect(saveButton).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('AC-3.4.1 cancelling an unsave with Esc keeps the active card, so the next s asks about the same story', async ({
+  page,
+}) => {
+  await page.goto('/feed?sort=latest');
+  await expect(cards(page).nth(1)).toBeVisible();
+  const second = cards(page).nth(1);
+  const older = {
+    id: (await cards(page).first().getAttribute('data-story-id')) ?? '',
+    title: '',
+  };
+  const newer = {
+    id: (await second.getAttribute('data-story-id')) ?? '',
+    title: ((await second.locator('h2 a').textContent()) ?? '').trim(),
+  };
+  await saveWithNote(page, older);
+  // Saved last, so it is the first card on /saved.
+  await saveWithNote(page, newer);
+  await page.goto('/saved');
+  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  await expect(cards(page)).toHaveCount(2);
+  await page.keyboard.press('j');
+  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
+
+  const dialog = page.getByRole('dialog', { name: `Remove “${newer.title}” and its note?` });
+  // The card's `s` binding registers just after `data-active` shows, so the first press can land early.
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await page.keyboard.press('s');
+    await expect(dialog).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
+
+  await page.keyboard.press('s');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Remove story and note' }).click();
+  await expect(cards(page)).toHaveCount(1);
+  await expect(cards(page).first()).toHaveAttribute('data-story-id', older.id);
 });
 
 test.describe('digest', () => {

@@ -1,7 +1,8 @@
 'use client';
 
 import { useReturnFocus } from '@/components/collections/useReturnFocus';
-import { confirmUnsave } from '@/components/saves/useGuestSaves';
+import { cancelUnsave, type UnsaveRequest } from '@/components/saves/unsaveRequest';
+import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import {
   Dialog,
@@ -10,14 +11,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/Dialog';
-import { cancelUnsave } from './unsaveRequest';
 
 /** Asks before unsaving a story whose note would go with it. */
-export function UnsaveNoteDialog({ storyId }: { storyId: string }) {
+export function UnsaveNoteDialog({ request }: { request: UnsaveRequest }) {
   const returnFocus = useReturnFocus();
+  const saves = useSaves();
 
   function confirm() {
-    confirmUnsave(storyId);
+    request.onUnsave?.();
+    void saves.remove(request.storyId);
     cancelUnsave();
   }
   function handleOpenChange(open: boolean) {
@@ -28,7 +30,7 @@ export function UnsaveNoteDialog({ storyId }: { storyId: string }) {
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent onCloseAutoFocus={returnFocus}>
         <DialogHeader>
-          <DialogTitle>Remove this story and its note?</DialogTitle>
+          <DialogTitle>Remove “{request.title}” and its note?</DialogTitle>
           <DialogDescription>
             The note is deleted with the story and can’t be brought back.
           </DialogDescription>

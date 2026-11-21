@@ -4,12 +4,14 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
   type KeyboardEvent,
 } from 'react';
 import { NOTE_MAX_LENGTH } from '@devbrief/shared';
+import { registerPendingNote } from '@/components/saves/pendingNote';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
@@ -29,16 +31,27 @@ type NoteEditorProps = {
   onDone?: () => void;
 };
 
-type SaveStatus = 'idle' | 'saving' | 'saved';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
-const STATUS_TEXT = { idle: '', saving: 'Saving…', saved: 'Saved' } satisfies Record<
-  SaveStatus,
-  string
->;
+const STATUS_TEXT = {
+  idle: '',
+  saving: 'Saving…',
+  saved: 'Saved',
+  failed: 'Couldn’t save',
+} satisfies Record<SaveStatus, string>;
+
+// "Saving…" is for the eyes only: announcing every pause in typing would talk over the reader.
+const ANNOUNCEMENT = {
+  idle: '',
+  saving: '',
+  saved: 'Saved',
+  failed: 'Couldn’t save',
+} satisfies Record<SaveStatus, string>;
 
 /** Write and Preview for one story's note, saved 800 ms after the last keystroke, on blur and on unmount. */
 export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorProps) {
-  const { note, setNote } = useSaves();
+  const { note, setNote, setNoteNow, prepareNoteWrites } = useSaves();
+  const counterId = useId();
   const [text, setText] = useState(() => note(storyId) ?? '');
   const [view, setView] = useState<'write' | 'preview'>('write');
   const [status, setStatus] = useState<SaveStatus>('idle');
@@ -46,9 +59,9 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
   const unsaved = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const write = useRef(setNote);
+  const writers = useRef({ setNote, setNoteNow, prepareNoteWrites });
   useEffect(() => {
-    write.current = setNote;
+    writers.current = { setNote, setNoteNow, prepareNoteWrites };
   });
 
   async function flush() {
@@ -56,13 +69,19 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
     const value = unsaved.current;
     if (value === null) return;
     unsaved.current = null;
-    await write.current(storyId, value === '' ? null : value);
-    setStatus(unsaved.current === null ? 'saved' : 'saving');
+    const outcome = await writers.current.setNote(storyId, value === '' ? null : value);
+    if (outcome === 'not-saved' || outcome === 'too-long') setStatus('failed');
+    else setStatus(unsaved.current === null ? 'saved' : 'saving');
   }
 
   useEffect(() => {
     if (focusOnOpen) textarea.current?.focus();
   }, [focusOnOpen]);
+
+  // Load the writer now, so the write as the page closes can be synchronous.
+  useEffect(() => {
+    writers.current.prepareNoteWrites();
+  }, []);
 
   // Unmounting (leaving the page, closing the editor) must not lose the last keystrokes.
   useEffect(
@@ -71,6 +90,29 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
     },
     [storyId],
   );
+
+  // Lets a decision about the note (unsaving the story) see what is typed but not written yet.
+  useEffect(() => registerPendingNote(flush), [storyId]);
+
+  // A reload or a closing tab can't wait for an async write: write synchronously, with the writer loaded when the editor opened.
+  useEffect(() => {
+    function writeBeforeLeaving() {
+      const value = unsaved.current;
+      if (value === null) return;
+      unsaved.current = null;
+      clearTimeout(timer.current);
+      writers.current.setNoteNow(storyId, value === '' ? null : value);
+    }
+    function writeWhenHidden() {
+      if (document.visibilityState === 'hidden') writeBeforeLeaving();
+    }
+    window.addEventListener('pagehide', writeBeforeLeaving);
+    document.addEventListener('visibilitychange', writeWhenHidden);
+    return () => {
+      window.removeEventListener('pagehide', writeBeforeLeaving);
+      document.removeEventListener('visibilitychange', writeWhenHidden);
+    };
+  }, [storyId]);
 
   function handleChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const value = event.target.value.slice(0, NOTE_MAX_LENGTH);
@@ -113,8 +155,11 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
             Preview
           </Button>
         </div>
-        <span role="status" aria-live="polite" className="text-muted-foreground text-xs">
+        <span aria-hidden="true" className="text-muted-foreground text-xs">
           {STATUS_TEXT[status]}
+        </span>
+        <span role="status" aria-live="polite" className="sr-only">
+          {ANNOUNCEMENT[status]}
         </span>
       </div>
       {view === 'write' ? (
@@ -123,13 +168,18 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
           placeholder="Write a note in Markdown…"
           value={text}
           maxLength={NOTE_MAX_LENGTH}
+          aria-describedby={counterId}
           ref={textarea}
           onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
         />
       ) : (
-        <div className="min-h-28 rounded-md border px-3 py-2" aria-label="Note preview">
+        <div
+          role="region"
+          aria-label="Note preview"
+          className="min-h-28 rounded-md border px-3 py-2"
+        >
           {text === '' ? (
             <p className="text-muted-foreground text-sm">Nothing to preview.</p>
           ) : (
@@ -140,8 +190,11 @@ export function NoteEditor({ storyId, focusOnOpen = false, onDone }: NoteEditorP
         </div>
       )}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground text-xs">
+        <span id={counterId} className="text-muted-foreground text-xs">
           {text.length.toLocaleString('en-US')} / {NOTE_MAX_LENGTH.toLocaleString('en-US')}
+        </span>
+        <span role="status" aria-live="polite" className="sr-only">
+          {text.length >= NOTE_MAX_LENGTH ? 'Note limit reached' : ''}
         </span>
         {onDone && (
           <Button variant="outline" size="sm" onClick={onDone}>

@@ -7,6 +7,7 @@ import {
   isEnterOnInteractiveElement,
   moveActiveId,
 } from '@/components/feed/feedNavigation';
+import type { ToggleSaveOptions } from '@/components/saves/unsaveRequest';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
 import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
@@ -43,7 +44,7 @@ export const BOARD_SHORTCUTS = listShortcuts('board', 'Collection board');
 type StoryListNavigationOptions = {
   stories: readonly StoryCard[];
   shortcuts: ReturnType<typeof listShortcuts>;
-  onToggleSave: (storyId: string) => void;
+  onToggleSave: (storyId: string, options: ToggleSaveOptions) => void;
 };
 
 /** j/k, o, Enter, c and s over a list of cards that can lose a card at any time (Saved, a board). */
@@ -86,9 +87,14 @@ export function useStoryListNavigation({
     setActiveId(neighbourId);
     if (neighbourId) focusStory(neighbourId);
   }
+  // The card leaves only once the unsave happens: a cancelled confirmation keeps the active card and focus.
   function toggleStory(storyId: string) {
-    leaveStory(storyId);
-    onToggleSave(storyId);
+    const story = stories.find(({ id }) => id === storyId);
+    if (!story) return;
+    onToggleSave(storyId, {
+      title: story.title,
+      onUnsave: () => leaveStory(storyId),
+    });
   }
   function toggleActiveSave() {
     if (activeStory) toggleStory(activeStory.id);

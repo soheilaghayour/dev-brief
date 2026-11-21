@@ -1,6 +1,6 @@
 import { COLLECTION_ITEMS_MAX, COLLECTIONS_MAX, NOTE_MAX_LENGTH } from '@devbrief/shared';
 import { describe, expect, it } from 'vitest';
-import { hasUnreadableCollections, migrateGuestData } from './guestParser';
+import { hasUnreadableCollectionsOrNotes, migrateGuestData } from './guestParser';
 import { createGuestData, EMPTY_PREFERENCES, MAX_GUEST_SAVES } from './guestState';
 
 const DEVICE_ID = '3f2b8f0e-6a52-4c53-9a39-6b1c2f1e7a10';
@@ -110,9 +110,16 @@ describe('migrateGuestData collections', () => {
 
   it('AC-3.4.1 reads a stored set that is not a list as none, and flags it so storage is left alone', () => {
     expect(migrateGuestData({ collections: 'text' }, 1)?.collections).toEqual([]);
-    expect(hasUnreadableCollections({ collections: 'text' })).toBe(true);
-    expect(hasUnreadableCollections({ collections: [] })).toBe(false);
-    expect(hasUnreadableCollections({ saves: [] })).toBe(false);
+    expect(hasUnreadableCollectionsOrNotes({ collections: 'text' })).toBe(true);
+    expect(hasUnreadableCollectionsOrNotes({ collections: [] })).toBe(false);
+    expect(hasUnreadableCollectionsOrNotes({ saves: [] })).toBe(false);
+  });
+
+  it('AC-3.4.1 flags stored notes that are not an object, so storage is left alone', () => {
+    expect(hasUnreadableCollectionsOrNotes({ notes: 'text' })).toBe(true);
+    expect(hasUnreadableCollectionsOrNotes({ notes: [] })).toBe(true);
+    expect(hasUnreadableCollectionsOrNotes({ notes: {} })).toBe(false);
+    expect(hasUnreadableCollectionsOrNotes({ notes: null })).toBe(false);
   });
 
   it('AC-3.4.1 drops an invalid collection and keeps the valid ones', () => {

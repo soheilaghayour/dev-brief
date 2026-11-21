@@ -27,6 +27,14 @@ export function NoteSlot({ storyId }: { storyId: string }) {
     if (shown) preloadNoteEditorWhenIdle();
   }, [shown]);
 
+  // Leaving the page takes the slot with it; the open editor must not come back on another page.
+  useEffect(
+    () => () => {
+      if (useNoteEditing.getState().storyId === storyId) closeNoteEditor();
+    },
+    [storyId],
+  );
+
   function open() {
     openNoteEditor(storyId);
   }
@@ -53,6 +61,7 @@ export function NoteSlot({ storyId }: { storyId: string }) {
       size="sm"
       className="mt-1 -ml-2.5 max-w-full justify-start"
       title="Edit note (N)"
+      aria-label={text ? `Edit note: ${firstLine(text)}` : 'Add note'}
       onClick={open}
     >
       {text ? (

@@ -20,6 +20,8 @@ export function useSaves() {
       canNote: false,
       note: () => null,
       setNote: async () => 'not-saved' as const,
+      setNoteNow: () => {},
+      prepareNoteWrites: () => {},
       savedAt: () => null,
     };
   }
@@ -30,9 +32,12 @@ export function useSaves() {
     ids: guest.ids,
     isSaved: guest.isSaved,
     toggle: guest.toggle,
+    remove: guest.remove,
     canNote: isFeatureEnabled('collections'),
     note: guest.note,
     setNote: guest.setNote,
+    setNoteNow: guest.setNoteNow,
+    prepareNoteWrites: guest.prepareNoteWrites,
     savedAt: guest.savedAt,
   };
 }
