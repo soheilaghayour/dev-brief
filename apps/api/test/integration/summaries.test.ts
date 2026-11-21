@@ -15,7 +15,8 @@ import { utcDay } from '../../src/common/time/utcDay.js';
 import { GenerationFailedError } from '../../src/modules/llm/llm.errors.js';
 import { SummariesService } from '../../src/modules/summaries/summaries.service.js';
 import { SummaryInputsUnavailableError } from '../../src/modules/summaries/summaries.errors.js';
-import { modelReply, RECORDED_USAGE } from '../mockLanguageModel.js';
+import { mockLanguageModel, modelReply, RECORDED_USAGE } from '../mockLanguageModel.js';
+import { summaryFixtureFetch } from '../summaryFixtures.js';
 import { createTestApp } from './createTestApp.js';
 import { createSource } from './seedStories.js';
 import {
@@ -27,6 +28,8 @@ import {
 } from './summariesTestModule.js';
 import { useTestDatabase } from './testDatabase.js';
 
+// A cap in USD with room for one worst-case reservation (0.000641) but not for a second one on top of the first call's actual cost (0.0003).
+const CAP_FOR_ONE_ATTEMPT = '0.0008';
 const MISSING_ID = 'cmissingmissingmissing0000';
 
 const MODEL_OUTPUT = {
@@ -84,7 +87,7 @@ describe('summary generator', () => {
     const row = await prisma.summary.findUniqueOrThrow({ where: { storyId: story.id } });
     expect(row).toMatchObject({
       trigger: 'on_demand',
-      promptVersion: 1,
+      promptVersion: 2,
       inputTokens: RECORDED_USAGE.inputTokens,
       outputTokens: RECORDED_USAGE.outputTokens,
     });
@@ -589,5 +592,117 @@ describe('cluster summary reads', () => {
       [ids[1], false],
       [ids[2], true],
     ]);
+  });
+});
+
+describe('summary quotation check', () => {
+  const prisma = useTestDatabase();
+  let hnSourceId = '';
+  let app: INestApplication | undefined;
+  let storyCounter = 0;
+
+  // Ten consecutive words of the second comment in the recorded thread.
+  const COPIED_PASSAGE = 'if you like this sort of thing, go check out creating';
+  const quoting = {
+    ...MODEL_OUTPUT,
+    tldr: [
+      `Commenters recall that ${COPIED_PASSAGE} generators long ago.`,
+      ...MODEL_OUTPUT.tldr.slice(1),
+    ],
+  };
+
+  beforeAll(async () => {
+    hnSourceId = (await createSource(prisma, 'hn-quote', 'hn')).id;
+  });
+
+  beforeEach(async () => {
+    await prisma.llmUsage.deleteMany();
+    await prisma.story.deleteMany();
+  });
+
+  afterEach(() => app?.close());
+
+  async function boot(replies: unknown[], envOverrides: Record<string, string> = {}) {
+    let call = 0;
+    const model = mockLanguageModel(async () =>
+      modelReply(replies[Math.min(call++, replies.length - 1)]),
+    );
+    app = await createTestApp(
+      [],
+      { ...SUMMARIES_ON, AUTH_TEST_MODE: 'true', ...envOverrides },
+      {
+        languageModel: model,
+        upstreamFetch: summaryFixtureFetch({ hnFallbackId: '50544168' }).fetch,
+      },
+    );
+    return model;
+  }
+
+  async function story() {
+    storyCounter += 1;
+    return createDiscussedStory(prisma, {
+      title: 'Quotes',
+      sourceId: hnSourceId,
+      externalId: String(8_000_000 + storyCounter),
+    });
+  }
+
+  const post = (storyId: string) =>
+    request(app!.getHttpServer())
+      .post(`/api/v1/stories/${storyId}/summary`)
+      .set('Origin', process.env.APP_URL ?? '')
+      .set('X-Forwarded-For', `203.0.113.${storyCounter}`)
+      .send({ deviceId: '4f0c1c1e-1b0a-4d27-9a38-3f1c2c0f9a11' });
+
+  it('AC-2.3.10 retries once after a copied passage, answers 201 and writes two ledger rows', async () => {
+    const target = await story();
+    const model = await boot([quoting, MODEL_OUTPUT]);
+
+    const response = await post(target.id);
+
+    expect(response.status).toBe(201);
+    expect(StorySummarySchema.parse(response.body).tldr).toEqual(MODEL_OUTPUT.tldr);
+    expect(model.doGenerateCalls).toHaveLength(2);
+    const rows = await prisma.llmUsage.findMany({ orderBy: { createdAt: 'asc' } });
+    expect(rows.map((row) => row.status)).toEqual(['failed', 'settled']);
+    expect(rows.every((row) => row.refId === target.id)).toBe(true);
+    const stored = await prisma.summary.findUniqueOrThrow({ where: { storyId: target.id } });
+    expect(stored).toMatchObject({ promptVersion: 2, tldr: MODEL_OUTPUT.tldr });
+  });
+
+  it('AC-2.3.10 answers 502 GENERATION_FAILED after two copying replies and caches nothing', async () => {
+    const target = await story();
+    const model = await boot([quoting]);
+
+    const response = await post(target.id);
+
+    expect(response.status).toBe(502);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('GENERATION_FAILED');
+    expect(model.doGenerateCalls).toHaveLength(2);
+    expect(await prisma.summary.count()).toBe(0);
+  });
+
+  it('AC-2.3.10 fails a copied con as well as a copied TL;DR point', async () => {
+    const target = await story();
+    const copiedCon = {
+      ...MODEL_OUTPUT,
+      consensus: { ...MODEL_OUTPUT.consensus, cons: [`Notes that ${COPIED_PASSAGE}, too.`] },
+    };
+    await boot([copiedCon]);
+
+    expect((await post(target.id)).status).toBe(502);
+  });
+
+  it('AC-2.3.10 the retry reserves its own row, so a cap with room for one attempt refuses the second with 503 and caches nothing', async () => {
+    const target = await story();
+    const model = await boot([quoting], { LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY: CAP_FOR_ONE_ATTEMPT });
+
+    const response = await post(target.id);
+
+    expect(response.status).toBe(503);
+    expect(ApiErrorSchema.parse(response.body).error.code).toBe('SPEND_CAP_REACHED');
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(await prisma.summary.count()).toBe(0);
+    expect((await prisma.llmUsage.findMany()).map((row) => row.status)).toEqual(['failed']);
   });
 });

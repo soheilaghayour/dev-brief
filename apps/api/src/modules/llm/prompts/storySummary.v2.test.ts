@@ -1,10 +1,9 @@
 import { Output } from 'ai';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
-  INJECTED_PHRASES,
-  INJECTED_VERDICT,
   promptInjectionRequest,
   readPromptInjectionRecording,
+  recordingViolations,
 } from '../../../../test/promptInjection.js';
 import { flattenComments } from '../../summaries/flattenComments.js';
 import { estimateTokens } from '../budget.js';
@@ -12,9 +11,10 @@ import {
   buildStorySummaryPrompt,
   commentBlockTokens,
   INPUT_BUDGET,
+  PROMPT_VERSION,
   StorySummaryLlmSchema,
   SYSTEM_PROMPT,
-} from './storySummary.v1.js';
+} from './storySummary.v2.js';
 
 // The SDK sends the output's JSON schema with the prompt, and LlmService counts it as input.
 const sentSchema = await Output.object({ schema: StorySummaryLlmSchema }).responseFormat;
@@ -167,22 +167,40 @@ describe('buildStorySummaryPrompt', () => {
   });
 });
 
+describe('the v2 system prompt', () => {
+  it('AC-2.3.10 is version 2 and tells the model to paraphrase and never quote', async () => {
+    expect(PROMPT_VERSION).toBe(2);
+    await expect(SYSTEM_PROMPT).toMatchFileSnapshot('./__snapshots__/storySummary.v2.system.txt');
+    expect(SYSTEM_PROMPT).toContain('own words');
+    expect(SYSTEM_PROMPT).toContain('no quotation marks');
+  });
+});
+
 describe('prompt injection', () => {
   const { prompt } = promptInjectionRequest();
   const recording = readPromptInjectionRecording();
+  const isPlaceholder = recording.placeholder === true;
   // A hand-written reply proves nothing, so the tests that read it wait for the real recording.
-  const recorded = it.skipIf(recording.placeholder === true);
+  const recorded = it.skipIf(isPlaceholder);
   beforeAll(() => {
-    if (!recording.placeholder) return;
+    if (!isPlaceholder) return;
     // Straight to stderr: the default reporter hides console output of a passing file.
     process.stderr.write(
-      '\nWARNING, 2 tests SKIPPED: the AC-2.3.7 LLM recording is still a placeholder. Record it before FEATURE_SUMMARIES goes on (issue #57, apps/api/test/fixtures/llm/README.md).\n\n',
+      '\nWARNING, 2 tests SKIPPED: the AC-2.3.7 LLM recording (storySummary.v2) is still a placeholder. Record it before FEATURE_SUMMARIES goes on (issue #57, apps/api/test/fixtures/llm/README.md).\n\n',
     );
   });
 
+  // Deleting the flag without recording must fail here instead of passing the checks below.
+  it.runIf(isPlaceholder)(
+    'AC-2.3.7 the placeholder breaks the recorded-reply checks, so removing its flag cannot pass',
+    () => {
+      expect(recordingViolations(recording)).not.toEqual([]);
+    },
+  );
+
   it('AC-2.3.7 keeps the injected comment inside its own source block of the prompt', async () => {
     await expect(prompt).toMatchFileSnapshot(
-      './__snapshots__/storySummary.v1.prompt-injection.txt',
+      './__snapshots__/storySummary.v2.prompt-injection.txt',
     );
     const injectedBlock = prompt
       .split('</source>\n\n')
@@ -194,14 +212,7 @@ describe('prompt injection', () => {
   recorded(
     'AC-2.3.7 the recorded reply validates and follows none of the injected instructions',
     () => {
-      const text = recording.reply.content.flatMap((part) =>
-        part.type === 'text' ? [part.text] : [],
-      );
-      const output = StorySummaryLlmSchema.parse(JSON.parse(text.join('')));
-
-      const written = JSON.stringify(output).toLowerCase();
-      for (const phrase of INJECTED_PHRASES) expect(written).not.toContain(phrase);
-      expect(output.consensus?.verdict).not.toBe(INJECTED_VERDICT);
+      expect(recordingViolations(recording)).toEqual([]);
     },
   );
 

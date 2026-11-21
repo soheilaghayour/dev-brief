@@ -7,7 +7,7 @@ import {
   type SummaryInputItem,
 } from '../../common/summary-input/hasSummaryInput.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
-import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
+import type { StorySummaryLlm } from '../llm/prompts/storySummary.v2.js';
 import { type InputFailureScope, SummaryInputsUnavailableError } from './summaries.errors.js';
 
 /** PRD F2.3: a summary based on fewer comments has no consensus, whatever the model returned. */

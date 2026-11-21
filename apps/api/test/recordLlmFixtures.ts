@@ -8,7 +8,7 @@ import { GenerationFailedError } from '../src/modules/llm/llm.errors.js';
 import { LlmService } from '../src/modules/llm/llm.service.js';
 import * as clusterMatch from '../src/modules/llm/prompts/clusterMatch.v1.js';
 import * as copilotBriefing from '../src/modules/llm/prompts/copilotBriefing.v1.js';
-import * as storySummary from '../src/modules/llm/prompts/storySummary.v1.js';
+import * as storySummary from '../src/modules/llm/prompts/storySummary.v2.js';
 import type { Reservation, SpendLedgerService } from '../src/modules/llm/spendLedger.service.js';
 import {
   CLUSTER_PAIRS_RECORDING,
@@ -90,10 +90,11 @@ function takeReply() {
 }
 
 async function recordPromptInjection() {
-  const { system, prompt } = promptInjectionRequest();
+  const request = promptInjectionRequest();
+  const { system, prompt, schema } = request;
   const { object } = await llm.generateStructured({
     feature: 'summary_on_demand',
-    schema: storySummary.StorySummaryLlmSchema,
+    schema,
     system,
     prompt,
     maxOutputTokens: storySummary.MAX_OUTPUT_TOKENS,
@@ -102,6 +103,7 @@ async function recordPromptInjection() {
     recordedAt: new Date().toISOString(),
     model: env.LLM_MODEL,
     promptVersion: storySummary.PROMPT_VERSION,
+    requestHash: requestHash(request),
     reply: takeReply(),
   };
   writeFileSync(PROMPT_INJECTION_RECORDING, `${JSON.stringify(recording, null, 2)}\n`);

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ApiException } from '../../common/errors/api.exception.js';
 import { HttpError } from '../../common/http/httpClient.js';
 import { GenerationFailedError, SpendCapReachedError } from '../llm/llm.errors.js';
-import type { StorySummaryLlm } from '../llm/prompts/storySummary.v1.js';
+import type { StorySummaryLlm } from '../llm/prompts/storySummary.v2.js';
 import { SummaryInputsUnavailableError } from './summaries.errors.js';
 import {
   AUTO_ATTEMPTS_PER_RUN,
