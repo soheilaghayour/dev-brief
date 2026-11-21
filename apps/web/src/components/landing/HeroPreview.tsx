@@ -245,7 +245,8 @@ export function HeroPreview({
           </>
         )}
       </div>
-      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-xs">
+      {/* Always two rows: on one wrapping row, the story count, which the Briefing view drops, would decide the footer's height. */}
+      <div className="text-muted-foreground flex flex-col items-start gap-2 border-t px-4 py-2.5 text-xs">
         <p
           className={cn('flex items-center gap-1.5', isBriefing && 'invisible')}
           aria-hidden="true"
