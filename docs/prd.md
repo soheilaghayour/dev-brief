@@ -19,8 +19,11 @@
 | **SourceItem** | One appearance of a link on one source, such as HN item 4231 or Dev.to article 9981. It carries that source's engagement numbers. |
 | **Story** | One canonical link after exact dedup. It has 1..n SourceItems. It is the unit shown on a feed card in Phase 1. |
 | **Cluster** | Phase 2. A group of distinct Stories about the same event, such as a release post, its HN thread and a Dev.to write-up. |
+| **Summary line** | Phase 2. The first TL;DR point of a story's or cluster's summary, shown under the title on its feed card (F2.3). |
+| **TDM reservation** | A source's opt-out from text and data mining (§ 44b UrhG, Art. 4 of the EU DSM Directive), in machine-readable form or in its terms. None of a reserved source's text reaches the model (§8.8). |
 | **Briefing** | Phase 3. A generated, interactive answer to a research question, rendered as an A2UI surface. |
 | **Guest** | A visitor without an account. Their state lives in `localStorage`. They can do everything except sync. |
+| **Feature flag** | The env variable `FEATURE_<NAME>` that hides a feature while it is unfinished or not yet launched. The launch deletes it (§3). |
 
 ---
 
@@ -55,7 +58,7 @@
 | Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, keyboard navigation, dark/light themes, generative UI rendered with native React components |
 | Product ownership | Phased scope, a guest-first funnel, a cost model, measurable acceptance criteria, a public changelog |
 | Pragmatic full stack | NestJS REST with a Zod contract shared with the web app, a relational Prisma schema, Postgres full-text search and `pg_trgm`, scheduled ingestion with circuit breaking, OAuth sessions |
-| AI engineering with guardrails | Structured outputs, an under-$2/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
+| AI engineering with guardrails | Structured outputs, an under-$10/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
 | Operability | One VPS run by Coolify, CI on every PR, Sentry, backups, a health endpoint, no Kubernetes or queues |
 
 ### 1.5 Product principles
@@ -63,7 +66,7 @@
 2. **Fast before clever.** Static landing, a server-rendered first feed page, no images on cards, code-split heavy features.
 3. **Deterministic first, LLM second.** Tagging, ranking and dedup are pure, tested functions. Clustering finds its candidates the same way. The LLM writes prose and briefing composition, and it makes one bounded same-story decision for each new story that has clustering candidates, always inside a schema and a budget. A failed call leaves the story unclustered.
 4. **One process per concern, not per feature.** A single API process (REST, SSE and cron). No queues, no workers, no microservices.
-5. **Show only what has shipped.** The landing page and navigation hide features behind phase flags, so there are no "coming soon" teasers.
+5. **Show only what has shipped.** A feature that is unfinished or not yet launched stays behind its feature flag (§3), absent from the landing page and the navigation, so there are no "coming soon" teasers. Copy claims only what is live in production.
 
 ### 1.6 Success metrics
 | Metric | Target | Phase |
@@ -75,7 +78,7 @@
 | Feed API p95 server time | ≤ 150 ms | P1 |
 | Exact-duplicate cards visible in Top (last 24 h) | 0 | P1 |
 | Cluster precision / recall on the labelled fixture (recorded model replies) | ≥ 0.90 / ≥ 0.70 | P2 |
-| LLM spend | < $2.00 per calendar month, enforced by a hard cap | P2–P3 |
+| LLM spend | < $10.00 per calendar month, enforced by a hard cap | P2–P3 |
 | Copilot time to first rendered component | ≤ 3 s at p50 | P3 |
 
 ### 1.7 Non-goals (all phases)
@@ -85,7 +88,7 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 
 ## 2. Landing Page & First-Impression Blueprint
 
-**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders, gradient hairlines and restrained motion. [Raycast](https://www.raycast.com) for keycap visuals, a keyboard-first story and a dark-mode-first aesthetic.
+**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders and restrained motion. [Raycast](https://www.raycast.com) for keycap visuals and a keyboard-first story. Colour comes from the warm palette of §7.1, with no glow or gradient behind the hero.
 
 **Rendering:** `app/(marketing)/page.tsx` is statically generated with ISR (`export const revalidate = 900`). Live preview data is fetched at build or revalidate time from `API_INTERNAL_URL`. If the API is unreachable on the very first build, the page renders from a committed fixture snapshot, `apps/web/src/content/landing-fixture.json`, and shows a small "Sample data" label. After that, ISR keeps serving the last good page.
 
@@ -94,7 +97,7 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 | # | Section | Layout and content | Interactivity | Phase |
 |---|---|---|---|---|
 | 0 | **Top nav** | Sticky, translucent background with backdrop blur and a 1 px bottom border. Left: logo and wordmark. Center: Feed, Radar (P3) and GitHub (repo link). Right: theme toggle, "Sign in" (ghost) and "Explore feed" (primary, small). | The nav collapses to a sheet below 768 px. | P1 |
-| 1 | **Hero** | An eyebrow pill with live counts, e.g. "Updated 14 min ago · 312 stories today · 12 sources". Then the H1, a one-sentence subhead and two CTAs: primary **"Explore the feed — no login required"** → `/feed`, and secondary "Sign in with GitHub". Below them sits the **live preview window** (§2.3). | See §2.3 | P1 |
+| 1 | **Hero** | Two columns from `md` (768 px) up, 45% for the text and 55% for the window. Left, left-aligned: an eyebrow pill with live counts, e.g. "Updated 14 min ago · 312 stories today · 12 sources", then the H1, two sentences on deduplication (§2.2) and two CTAs: primary **"Explore the feed — no login required"** → `/feed`, and secondary "Sign in with GitHub". Right: the **live preview window** (§2.3). Below `md` the columns stack, text first, with no horizontal scroll. No glow or gradient sits behind the hero. | See §2.3 | P1 |
 | 2 | **Source strip** | One line of monospace wordmarks (text only, no third-party logos): `Hacker News · Dev.to · React Blog · TypeScript Blog · Vercel · Cloudflare · Netflix Tech · Uber Eng · Simon Willison · Josh Comeau …`. GitHub is added in P2. | None | P1 |
 | 3 | **Problem** | Three bordered cards: "Same story, five tabs", "Rankings you can't trust", "Signal buried in comments". Each has a 1-line pain statement and a tiny illustrative mock. | Hover lifts the border colour. | P1 |
 | 4 | **How it works** | Three steps joined by a hairline connector: **Ingest hourly** → **Dedupe and tag** → **Rank fairly**. Each step has a 2-line explanation and a "See the formula" link to Appendix B of this PRD on GitHub. | None | P1 |
@@ -111,8 +114,8 @@ Copy should be confident, concrete and technical. Lead with verbs and avoid supe
 
 | Slot | Phase 1 sample | Phase 2/3 variant |
 |---|---|---|
-| H1 (pick one) | "Developer news, minus the noise." · "Every source. One feed. Ranked fairly." · "The five-minute scan for busy engineers." | P2: "Same story on HN and Dev.to? You'll see it once." · P3: "Ask the news. Get a briefing, not a wall of text." |
-| Subhead | "DevBrief pulls Hacker News, Dev.to and the best engineering blogs every hour, merges duplicates, tags by technology and ranks everything on one fair scale. No account needed." | P2 adds: "…with the pros and cons from every comment section." |
+| H1 | "Your morning tech scan in 5 minutes" (the owner's pick). The page title and the OG text reuse it as "DevBrief — Your morning tech scan in 5 minutes". | Unchanged |
+| Dedup sentences (under the H1) | "The same link on Hacker News, Dev.to, an engineering blog and GitHub becomes one card, with every source's points and comments side by side. DevBrief pulls them all every hour and ranks everything on one fair scale, no account needed." It claims only URL dedup (AC-1.2.4, AC-1.2.5), which is live without clustering (§1.5 principle 5). | Clusters on (F2.1): "The same story on Hacker News, Dev.to, engineering blogs and GitHub becomes one card, even when each links somewhere else. DevBrief pulls them all every hour and ranks everything on one fair scale, no account needed." |
 | Primary CTA | "Explore the feed — no login required" | Unchanged |
 | Secondary CTA | "Sign in with GitHub" | Unchanged |
 | Guest hint (in-app) | "You're browsing as a guest. Saves stay on this device. Sign in to sync anywhere." | P3 adds: "…including collections and notes." |
@@ -123,17 +126,19 @@ Copy should be confident, concrete and technical. Lead with verbs and avoid supe
 | Final CTA | "Your morning scan, in five minutes." | |
 
 ### 2.3 Interactive hero preview
-A product "window" framed like Linear's: rounded border, three window dots and a fake title bar reading `devbrief.dev/feed`. Inside is a slimmed-down version of the real feed.
+A product "window" framed like Linear's, in the hero's right column (below `md`, full width under the text): rounded border, three window dots and a fake title bar reading `<host>/feed`. Inside is a slimmed-down version of the real feed.
 
 | Element | Behaviour |
 |---|---|
-| Data | The top 30 stories from the last 24 h (`GET /api/v1/feed?sort=top&limit=30`) are embedded in the static HTML at build/ISR. The **first 6 render server-side**, so no spinner and no CLS. |
-| Tag chips | A row of 6 chips: All, React, TypeScript, AI/LLMs, System Design, Databases. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
-| Keyboard | When the preview is focused (click or Tab), `j`/`k` move the active card, `s` toggles a "Saved" demo state stored in the real guest store (so it carries over to `/feed`), and `Enter` opens `/feed?focus=<storyId>`. A muted hint line shows `J K to navigate · S to save · Enter to open`. |
-| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time and up to 3 tags. |
-| Footer of window | "Showing 6 of 312 stories today → Open full feed". |
+| Data | The top 30 stories from the last 24 h (`GET /api/v1/feed?sort=top&limit=30`) are embedded in the static HTML at build/ISR. **All of them render server-side**, so there is no spinner and no CLS. |
+| Frame | The window has a fixed height at each breakpoint, whatever the chip, the number of matching stories or the Phase 3 view, so nothing below it moves. Its list scrolls vertically inside the frame and the page never scrolls sideways. |
+| List | Every embedded story that matches the selected chip, in rank order, up to 30. With clustering on (F2.1), a cluster's card shows its combined source line and "+N related" control, as in the feed (F2.2). |
+| Tag chips | A row of 6 chips: All, React, Rust, AI/LLMs, TypeScript, Databases. The row wraps on narrow screens. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
+| Keyboard | When the preview is focused (click or Tab), `j`/`k` move the active card and scroll it into view inside the frame, `s` toggles a "Saved" demo state stored in the real guest store (so it carries over to `/feed`), and `Enter` opens the active story's page, `/story/<storyId>`. A muted hint line shows `J K to navigate · S to save · Enter to open`. |
+| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time and up to 3 tags. Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. |
+| Footer of window | "Showing 30 of 312 stories today → Open full feed", counting the stories the selected chip shows. |
 | Hydration budget | The preview is the only client island above the fold. It must be ≤ 25 KB gzip on top of the framework baseline. |
-| Phase 3 | The window gains a segmented control, **Feed \| Briefing**. "Briefing" lazy-loads the A2UI renderer and shows example briefing #1. |
+| Phase 3 | The window's title bar gains a segmented control, **Feed \| Briefing**. "Briefing" lazy-loads the A2UI renderer and shows example briefing #1 in the same fixed-height frame, scrolling inside it. |
 
 ### 2.4 Guest "Explore Feed — no login required" flow
 ```
@@ -161,12 +166,16 @@ Rules:
 - **AC-L2** Given the API is unreachable on the first build, when the site builds, then the build succeeds using `landing-fixture.json`, and the preview shows the "Sample data" label.
 - **AC-L3** Given CI runs Lighthouse (mobile preset) against the production build of `/`, then Performance, Accessibility, Best Practices and SEO are each ≥ 95. The PR fails otherwise.
 - **AC-L4** Given a guest clicks the primary CTA, then `/feed` (Top, default params omitted from the URL) loads with no authentication prompt.
-- **AC-L5** Given the preview has focus, when the user presses `j` three times and then `Enter`, then the browser navigates to `/feed?focus=<id of 4th card>`.
+- **AC-L5** Given the preview has focus, when the user presses `j` three times and then `Enter`, then the browser navigates to `/story/<id of 4th card>`. Clicking a card's title opens that card's `/story/<id>` in the same tab.
 - **AC-L6** Given the OS is in dark mode and no theme is stored, then the page renders dark on first paint with no light flash. The theme toggle choice persists across reloads.
-- **AC-L7** Given a feature flag for a later phase is off, then its bento tile, nav item and copy variant are absent from the HTML.
+- **AC-L7** Given a feature's flag (§3) is off, then its bento tile, nav item and copy variant are absent from the HTML.
 - **AC-L8** `/impressum` and `/privacy` exist, are linked from the footer, and are statically rendered.
 - **AC-L9** The page has a `<title>`, a meta description, a canonical URL, Open Graph and Twitter tags, and a generated OG image (`opengraph-image.tsx`).
 - **AC-L10** With `prefers-reduced-motion: reduce`, no looping animations run.
+- **AC-L11** `/privacy` names Anthropic as a processor and says what it receives: for summaries and clustering, story titles, excerpts, Dev.to article text and public comments; for the copilot, the question as typed plus the retrieved stories' titles, excerpts and summaries. It says that no account data, IP address or device id is sent, and gives the basis for the transfer outside the EU. It ships before any AI flag is on in production (§8.8 launch gate).
+- **AC-L12** Given a viewport at least 768 px wide, then the hero shows two columns, 45% text and 55% preview window, with the text left-aligned. Given a narrower viewport, the text comes first and the window below it, and there is no horizontal scroll at 360 px. No radial gradient or glow is rendered behind the hero.
+- **AC-L13** Given the preview, then it lists every embedded story of the selected chip (up to 30) in the server-rendered HTML, inside a frame of fixed height that scrolls vertically. Changing the chip or, in Phase 3, the Feed | Briefing view leaves the frame's height unchanged (landing CLS ≤ 0.05, §8.5), and `j`/`k` keep the active card in view inside the frame without scrolling the page.
+- **AC-L14** Given clustering is on and an embedded story is a cluster's representative, then its preview card shows the combined source line and the "+N related" control (F2.2), and the hero's dedup sentences are the clusters-on variant (§2.2). Given clustering is off, they are the URL-dedup variant. The e2e seed holds one cluster, so the test is deterministic.
 
 ---
 
@@ -178,7 +187,13 @@ Rules:
 | **2 — V2** | Clustering, AI TL;DR and consensus, GitHub source, follow/mute | After Phase 1 is live | Created when Phase 2 starts |
 | **3 — V3** | A2UI research copilot, Tech Radar, collections and notes | After Phase 2 | Created when Phase 3 starts |
 
-Phase flags live in `apps/web/src/config/features.ts` (`clusters`, `summaries`, `preferences`, `copilot`, `radar`, `collections`), and their API equivalents live in env (`FEATURE_*`). A flag that is off hides the UI entry points. The matching API routes then return 404.
+**Feature flags.** A flag exists only while its feature is unfinished or not yet launched. The launch deletes it, together with every branch on it, and the feature is then always on.
+- The flags are `clusters`, `summaries`, `copilot` and `collections`. The Tech Radar and follow/mute (`preferences`) have none: they are finished and cost nothing to run.
+- Each flag is **one** env variable, `FEATURE_<NAME>` (`FEATURE_CLUSTERS`, `FEATURE_SUMMARIES`, `FEATURE_COPILOT`, `FEATURE_COLLECTIONS`). The API reads it at boot. The web build inlines the same variable through `next.config.ts` into `apps/web/src/config/features.ts`, so the web app is rebuilt after a change. There are no `NEXT_PUBLIC_FEATURE_*` variables.
+- A flag that is off hides the UI entry points, and the matching API routes return 404 `FEATURE_DISABLED`.
+- Production ships each flag off until its launch. `.env.example` turns on every flag whose feature needs no key (`FEATURE_COLLECTIONS=true`) and leaves the AI flags (`summaries`, `clusters`, `copilot`) off until a key is set. `AUTO_SUMMARIES` and `AUTO_CLUSTERING` are separate switches for the ingestion run's live model calls; they default to off and stay after their flags are deleted.
+- Launches: summaries once their real recorded reply exists (AC-2.3.7); clusters once their real recorded replies exist (AC-2.1.1); the copilot and collections at the Phase 3 launch. The first AI feature to launch also waits for the content-rights launch gate (§8.8).
+- Once a flag is deleted, its feature's secrets (`ANTHROPIC_API_KEY`, `IP_HASH_SECRET`) are required at boot like any other. Dev and CI run with placeholder values and with the `AUTO_*` switches off, so no live model call is made.
 
 ### 3.1 Phase 1 — MVP
 
@@ -202,7 +217,7 @@ User stories:
 - As a **recruiter**, I want to see real, current content on the first screen so I can judge the product in seconds.
 - As a **visitor**, I want to enter the feed with one click and no account.
 
-Acceptance criteria: **AC-L1 – AC-L10** (§2.5).
+Acceptance criteria: **AC-L1 – AC-L14** (§2.5). AC-L11 gates the AI features (§8.8), and AC-L14 needs clustering (F2.1).
 
 #### F1.2 Scheduled ingestion
 User stories:
@@ -213,8 +228,8 @@ Source contracts for Phase 1:
 | Source | Calls per run | Mapping |
 |---|---|---|
 | HN (Firebase) | `GET /v0/topstories.json`, keeping the first 100 IDs. Then `GET /v0/item/{id}.json` for each, with concurrency 10. | Keep items where `type === "story"` and that are not `dead` or `deleted`. `url` falls back to `https://news.ycombinator.com/item?id={id}` for Ask/Show HN posts without a URL. `points = score`, `comments = descendants`, `discussionUrl = HN item URL`, `publishedAt = time`. |
-| Dev.to (Forem v1) | `GET /api/articles?top=1&per_page=50` and `GET /api/articles/latest?per_page=50`. Send the header `Accept: application/vnd.forem.api-v1+json`. Requests are serial, ≥ 2.5 s apart. | `url = canonical_url ?? url`, which makes cross-posts dedup against the original blog. `reactions = public_reactions_count`, `comments = comments_count`, `sourceTags = tag_list`, `readingTimeMinutes = reading_time_minutes`, `discussionUrl = url` (the dev.to page). |
-| RSS (seeded list, ~10) | One conditional GET per feed (`If-None-Match` / `If-Modified-Since`). Concurrency 4. | Keep items published in the last 7 days, at most 20 per feed. `externalId = sha1(guid ?? link)`. `excerpt` = plain-text snippet ≤ 500 chars. `sourceTags = categories`. Engagement = none (baseline percentile). |
+| Dev.to (Forem v1) | `GET /api/articles?top=1&per_page=50` and `GET /api/articles/latest?per_page=50`. Send the header `Accept: application/vnd.forem.api-v1+json`. Requests are serial, ≥ 2.5 s apart. | `url = canonical_url ?? url`, which makes cross-posts dedup against the original blog. `reactions = public_reactions_count`, `comments = comments_count`, `sourceTags = tag_list`, `readingTimeMinutes = reading_time_minutes`, `discussionUrl = url` (the dev.to page). `excerpt` = the first sentence of `description` as plain text, ≤ 200 chars (§8.8). |
+| RSS (seeded list, ~10) | One conditional GET per feed (`If-None-Match` / `If-Modified-Since`). Concurrency 4. | Keep items published in the last 7 days, at most 20 per feed. `externalId = sha1(guid ?? link)`. `excerpt` = the first sentence as plain text, ≤ 200 chars (§8.8). `sourceTags = categories`. Engagement = none (baseline percentile). |
 
 Seeded RSS feeds live in `apps/api/prisma/seed/sources.json`. The initial list is: React Blog, TypeScript Blog, Vercel Blog, Cloudflare Blog, Netflix Tech Blog, Uber Engineering, Simon Willison, Josh Comeau, web.dev, and Node.js Blog. The implementer verifies each feed URL works and replaces any that are dead.
 
@@ -284,6 +299,7 @@ Acceptance criteria:
 - **AC-1.6.1** `/settings` shows: Appearance (System/Light/Dark) and, when signed in, Account (avatar, name, email, linked providers, Sign out, Delete account).
 - **AC-1.6.2** Delete account requires typing `delete` in a confirm dialog. It then calls `DELETE /api/v1/me`, which removes the user, sessions, accounts and saves (cascade), signs out and redirects to `/` with a toast.
 - **AC-1.6.3** Guests see Appearance and a "Clear local data" action, which resets `devbrief:guest:v1`.
+- **AC-1.6.4** Both themes use the palette of §7.1. A test reads the light and dark token values from `globals.css` and checks that each text token reaches ≥ 4.5:1 on the backgrounds it is used on, `--primary-foreground` included, and that no `--chart-*` token equals `--primary` or `--brand`.
 
 #### F1.7 Platform
 - **AC-1.7.1** `GET /api/v1/health` returns 200 `{ status: "ok" | "degraded", db: "ok", version, sources: [...] }`. `degraded` means at least one source is stale or has an open circuit. It returns 503 if the DB is unreachable.
@@ -293,6 +309,7 @@ Acceptance criteria:
 - **AC-1.7.5** A push to `main` auto-deploys through Coolify. API containers run `prisma migrate deploy` before starting. A failed migration fails the deploy and the old container keeps serving.
 - **AC-1.7.6** Unhandled errors in web and api reach Sentry with the release version. Sentry is configured with `sendDefaultPii: false`.
 - **AC-1.7.7** Postgres is backed up daily to S3-compatible object storage with 14-day retention. A restore is rehearsed once and documented in `docs/operations.md`.
+- **AC-1.7.8** Each feature flag (§3) is the one env variable `FEATURE_<NAME>`, read by the API at boot and inlined by the web build. A value other than `true` or `false` fails the API's boot and `next build`. No `NEXT_PUBLIC_FEATURE_*` variable exists, `radar` and `preferences` have no flag, and `.env.example` sets `FEATURE_COLLECTIONS=true` and the AI flags to `false`.
 
 **Phase 1 definition of done:** all P1 work items (Appendix C) are merged, the production URL serves the landing page and feed with live data for 48 h, the 4 Playwright smoke tests pass against production, and `docs/changelog.md` has a `v0.1.0` entry.
 
@@ -300,14 +317,14 @@ Acceptance criteria:
 
 ### 3.2 Phase 2 — V2: AI synthesis and smart clustering
 
-**Goal:** remove cross-source duplicate noise and surface what the community actually concluded, at near-zero cost.
+**Goal:** remove cross-source duplicate noise and surface what the community actually concluded, on every card, for a few dollars a month.
 
 **In scope**
 | ID | Feature |
 |---|---|
 | F2.1 | Cross-source story clustering: a deterministic pre-filter, then one Claude Haiku 5.5 decision per new story with candidates (no embeddings) |
 | F2.2 | Cluster cards and a cluster/story detail view |
-| F2.3 | AI summaries: auto 3-bullet TL;DR and "Community Consensus" for the top 20 stories per day, plus on-demand "Summarize" |
+| F2.3 | AI summaries: an auto 3-bullet TL;DR and "Community Consensus" for every new story, its first point on the feed card, plus on-demand "Summarize" |
 | F2.4 | GitHub source (Search API: new repos sorted by stars) |
 | F2.5 | Follow/mute tags and sources (guest-local plus account sync) |
 | F2.6 | LLM spend ledger and caps (shared with Phase 3) |
@@ -356,7 +373,7 @@ The clustering step runs inside the ingestion run, after the sources settle and 
 - Cluster upkeep is derived from the database's current state, meaning a cluster's actual members. It doesn't depend on what an earlier step remembers, so a purge that stopped part-way repairs itself on the next pass (§5.3).
 - A cluster left with fewer than 2 members is dissolved. The remaining story gets `clusterId = null` and `isPrimary = true`, and it **keeps** its `clusterScore`, which AC-2.1.3 stores for every decided story. A card never carries a `cluster` with fewer than 2 members.
 
-**6. Flag:** `FEATURE_CLUSTERS` in the API and `NEXT_PUBLIC_FEATURE_CLUSTERS` in the web build ship off. While the flag is off, the clustering step doesn't run. The rank recompute ignores clusters entirely: each story's `k` counts only its own items, and no representative is picked. Feed and story responses match Phase 1 even after the flag was on: every story is listed, and no cluster fields are sent.
+**6. Flag:** `FEATURE_CLUSTERS` (§3) ships off until clustering launches. While the flag is off, the clustering step doesn't run. The rank recompute ignores clusters entirely: each story's `k` counts only its own items, and no representative is picked. Feed and story responses match Phase 1 even after the flag was on: every story is listed, and no cluster fields are sent.
 
 **7. Fixture**
 - `apps/api/test/fixtures/cluster-pairs.json` holds ~50 hand-labelled pairs: ≥ 20 positive and ≥ 20 negative, including hard negatives such as two different "React 19.x" posts, or two posts about the same project that report different events.
@@ -383,10 +400,16 @@ Default UI (the orchestrator's choice while the owner was away; reversible): a c
 
 #### F2.3 AI summaries
 - Model: `claude-haiku-5-5` via Vercel AI SDK structured output (schema `StorySummaryLlmSchema`).
-- Input: title, the best available text (the Dev.to `body_markdown` truncated to ~1,000 tokens, or the RSS excerpt), and top comments from all cluster members (HN via Algolia `GET /api/v1/items/{id}` as one call with the nested tree, Dev.to via `GET /api/comments?a_id={id}`). Comments are flattened breadth-first and trimmed to ≤ 2,400 tokens.
+- Input: title, the best available text that §8.8 permits (the Dev.to `body_markdown` truncated to ~1,000 tokens, or the RSS excerpt), and top comments from all cluster members (HN via Algolia `GET /api/v1/items/{id}` as one call with the nested tree, Dev.to via `GET /api/comments?a_id={id}`). Comments are flattened breadth-first and trimmed to ≤ 2,400 tokens.
 - Output: `tldr: string[3]` (≤ 25 words each) and `consensus: { pros: string[≤3], cons: string[≤3], verdict: "mostly_positive" | "mixed" | "mostly_negative", basedOnComments: number } | null`. Consensus is `null` when fewer than 5 comments exist, and the UI then says "Not enough discussion yet".
-- Auto: after each ingestion run, unsummarised primary stories are summarised in `rankScore` order until 20 auto-summaries exist for the current UTC day. Only stories with ≥ 10 comments in total are eligible for auto.
+- Auto: after each ingestion run, the step summarises the unsummarised primary stories of the Top window in `rankScore` order, so every new story gets a summary.
+  - A story is eligible once it has ≥ 10 comments in total (`AUTO_MIN_COMMENTS`) or was first seen ≥ 2 h ago (`AUTO_SUMMARY_MIN_AGE_HOURS = 2`), whichever comes first. A summary is cached forever, so a fresh thread first gathers some discussion.
+  - A story whose model input would hold nothing but its title (no comments and no text that §8.8 permits, such as a GitHub repo) is never auto-summarised, because three points from a title alone would be invented.
+  - Each UTC day allows up to `AUTO_SUMMARIES_PER_DAY = 400` auto summaries, the top of the §5.3 volume, under the `summary_auto` cap (§8.1). A run keeps its limits of 25 attempts and 25 HN Algolia requests (§8.3), which an hourly run of about 8–17 new stories fits.
+  - A story left over by a cap or a run limit stays a candidate while it is in the Top window. Fresh stories usually rank highest, so at launch the window's backlog drains over a few days, newest first.
 - On-demand: a "Summarize" button on any story calls `POST /api/v1/stories/:id/summary`.
+- **Card line:** a feed card whose story or cluster has a summary shows that summary's first TL;DR point (`tldr[0]`, ≤ 220 chars) under the title, as plain text clamped to 2 lines. A story without a summary yet shows no line: there is no excerpt fallback. A cluster card's line comes from the cluster's summary (Clusters, below). The API sends it as `summaryLine` on every `StoryCard` (§6.1). The story page keeps the full panel (3 points and the consensus).
+  - Cost: at most 220 chars more per card, about 4.4 KB per 20-card feed page before gzip (the shorter excerpt of §8.8 saves up to 300 chars per card). It is data, not script: the card adds a few lines of markup, and the `/feed` first-load JS budget (§8.5) is unchanged.
 - **Cached forever:** a Story never gets a second Summary row (unique `storyId`). The summary is deleted only when the Story is purged.
 - **Clusters** (with F2.1 on): the comment count for auto eligibility is summed over all members. A clustered story's summary is looked up across all its members, newest first. Only when no member has one is a new summary generated, from all members' inputs, and stored on the representative. The same lookup serves `GET /stories/:id/summary`, `POST` (cached → 200) and the summary panel on any member's page.
 
@@ -398,6 +421,10 @@ Acceptance criteria:
 - **AC-2.3.5** LLM output that fails schema validation is retried once, then the request returns 502 `GENERATION_FAILED`, and nothing is cached.
 - **AC-2.3.6** Summary text is rendered as plain text (no HTML or Markdown injection) and labelled "AI-generated · based on N comments".
 - **AC-2.3.7** A prompt-injection fixture (a comment containing "ignore previous instructions…") yields output that still validates against the schema and contains no instructions from the fixture (snapshot test with a recorded response).
+- **AC-2.3.8** Given a primary story in the Top window without a summary, with ≥ 10 comments or first seen ≥ 2 h ago, and with model input beyond its title, then the next ingestion run's auto step summarises it, unless `AUTO_SUMMARIES_PER_DAY`, the `summary_auto` or global cap, or the run's limits stop the step first. A title-only story is never sent to the model.
+- **AC-2.3.9** Given a story or its cluster has a summary, then every `StoryCard` the API returns for it carries `summaryLine` equal to that summary's `tldr[0]`, and the card renders it under the title as plain text clamped to 2 lines. Given no summary, `summaryLine` is `null` and the card shows no line.
+- **AC-2.3.10** Summaries use prompt `storySummary.v2` (`promptVersion = 2`), which tells the model to paraphrase and never quote (§8.8). A TL;DR point, pro or con that repeats 8 or more consecutive words of the model's input, compared without case and punctuation, fails validation and so gets the one retry of AC-2.3.5. v2's recorded replies are new fixture files (§8.2), so the AC-2.3.7 recording is made for v2.
+- **AC-2.3.11** Every rendered summary shows its story's source names and a prominent link to the original: on the story page, "Read the original on <domain> ↗" beside the panel's label; on a feed card, the summary line sits under the title, which links to the original (AC-1.3.7).
 
 #### F2.4 GitHub source
 - Call: `GET /search/repositories?q=created:>{today-7d} stars:>50&sort=stars&order=desc&per_page=30` with `GITHUB_TOKEN`, making at most 2 calls per run.
@@ -416,7 +443,7 @@ Acceptance criteria:
 
 ### 3.3 Phase 3 — V3: A2UI research copilot, Tech Radar and knowledge workspace
 
-**Goal:** showcase frontend architecture at its highest level: generative UI composed from native design-system components, data visualisation, and rich client state, still at under $2/month.
+**Goal:** showcase frontend architecture at its highest level: generative UI composed from native design-system components, data visualisation, and rich client state, still at under $10/month.
 
 **In scope**
 | ID | Feature |
@@ -471,7 +498,7 @@ Retrieval: the tag path is `tagStory(question)`. The FTS path matches a story th
 | O2 | Buy the domain (`devbrief.dev` is a placeholder) and update `APP_URL`, the OAuth callbacks and the OG metadata. | User | Before the public launch of Phase 1 |
 | O3 | The GitHub "trending" proxy (new repos by stars) is not true star velocity. Decide whether daily star snapshots are worth it. | PM | Phase 2 review |
 | O4 | **Resolved 2026-11-20.** `@a2ui/react` and `@a2ui/web_core` are pinned to exactly 0.15.0, which speaks A2UI v1.0 on React 19, Next 16 and the workspace's Zod 3.25. The renderer is client-only by necessity, not by choice: importing `@a2ui/react` on the server throws (§6.4.3). Its lazy chunk is ≈ 89 KB gzip. The findings are in `DECISIONS.md`. | Eng | Done 2026-11-20 |
-| O5 | **Monthly LLM budget.** With the cluster cap, the per-feature caps add up to $0.075/day once the copilot ships, while the global cap stays at $0.064/day to keep the < $2.00/month promise (§8.1). On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot then serves its example-briefing fallback. A budget of $2.50/month would allow a $0.08/day global cap. | User | Before Phase 3 |
+| O5 | **Resolved 2026-11-21.** The monthly LLM budget target is $10.00 (§1.6), up from $2.00, so the auto step can summarise every new story (F2.3). The global cap is $0.32/day (31 × $0.32 = $9.92), above the $0.285/day the feature caps add up to with the copilot (§8.1). The owner's monthly API credits cover it; they expire at month end, and when they run out calls stop and nothing is charged. | User | Done 2026-11-21 |
 
 ---
 
@@ -555,7 +582,7 @@ dev-brief/
 │  │  ├─ src/lib/guest/                      Zustand guest store (persist → localStorage)
 │  │  ├─ src/lib/hotkeys/                    shortcut registry + help dialog data
 │  │  ├─ src/content/landing-fixture.json    fallback snapshot for first build
-│  │  └─ src/config/features.ts              phase feature flags
+│  │  └─ src/config/features.ts              feature flags (§3)
 │  └─ api/                                   NestJS
 │     ├─ prisma/schema.prisma · migrations/ · seed.ts · seed/sources.json
 │     ├─ prisma.config.ts
@@ -573,7 +600,7 @@ dev-brief/
 │     ├─ src/modules/maintenance/            rollup + retention job
 │     ├─ src/modules/{clustering,summaries,preferences,llm}/   (P2)
 │     ├─ src/modules/{copilot,radar,collections}/              (P3)
-│     ├─ src/cli/                            ingestOnce.ts, generateExampleBriefings.ts (P3)
+│     ├─ src/cli/                            ingestOnce.ts, removeContent.ts (§8.8), generateExampleBriefings.ts (P3)
 │     └─ test/{integration,fixtures}/
 ├─ packages/shared/
 │  ├─ src/contracts/                         Zod API schemas + inferred types (per resource)
@@ -719,6 +746,7 @@ sequenceDiagram
 | `FeedPreference` | P2 | Follow/mute |
 | `LlmUsage` | P2 | Spend ledger |
 | `RateLimitCounter` | P2 | Daily quotas (summaries, copilot) |
+| `ContentRemoval` (+ `Source.tdmReserved`) | P2 | Removal on request and TDM reservations (§8.8) |
 | `Collection`, `CollectionItem` | P3 | Boards |
 | `CopilotQuery`, `ExampleBriefing` | P3 | Copilot cache, history and landing examples |
 
@@ -817,6 +845,7 @@ model Source {
   feedUrl             String?                       // RSS only
   enabled             Boolean      @default(true)
   baselinePercentile  Float?                        // RSS: fixed percentile (default 0.6)
+  tdmReserved         Boolean      @default(false)  // P2, §8.8: none of its text reaches the model
   // conditional GET (RSS)
   etag                String?
   lastModified        String?
@@ -839,7 +868,7 @@ model Story {
   domain               String                       // "react.dev"
   title                String
   normalizedTitle      String                       // dedup key #2 (±72h)
-  excerpt              String?                      // plain text ≤ 500 chars
+  excerpt              String?                      // plain text, first sentence, ≤ 200 chars (§8.8)
   author               String?
   publishedAt          DateTime                     // earliest across items
   firstSeenAt          DateTime     @default(now())
@@ -1035,6 +1064,20 @@ model RateLimitCounter {
   @@id([key, day])
 }
 
+enum ContentRemovalKind {
+  domain
+  source
+}
+
+model ContentRemoval {                               // §8.8 removal on request
+  id        String             @id @default(cuid())
+  kind      ContentRemovalKind
+  value     String                                   // "example.com" (subdomains included) or a source slug
+  reason    String?                                  // the request, briefly
+  createdAt DateTime           @default(now())
+  @@unique([kind, value])
+}
+
 // ───────────────────────────── Phase 3 ─────────────────────────────
 
 model Collection {
@@ -1127,6 +1170,7 @@ Migration rule: in Phase 1 **work item P1-02 creates the initial migrations**. A
 | `RateLimitCounter` | 7 days | Daily job |
 | `CopilotQuery` | 30 days (the cache uses only the last 24 h) | Daily job |
 | `ExampleBriefing` | Until regenerated | Manual CLI |
+| `ContentRemoval` | Until restored | `content:restore` CLI (§8.8) |
 | User data | Until account deletion (cascade) | `DELETE /api/v1/me` |
 | Backups | 14 daily snapshots | Coolify scheduled backup → object storage |
 
@@ -1158,7 +1202,7 @@ export const ApiErrorCodeSchema = z.enum([
   'FORBIDDEN_ORIGIN',    // 403
   'NOT_FOUND',           // 404
   'CONFLICT',            // 409 (retryable: a per-user write lock was busy)
-  'FEATURE_DISABLED',    // 404 (phase flag off)
+  'FEATURE_DISABLED',    // 404 (feature flag off, §3)
   'RATE_LIMITED',        // 429 (short-window throttle)
   'QUOTA_EXCEEDED',      // 429 (daily quota)
   'GENERATION_FAILED',   // 502
@@ -1212,6 +1256,7 @@ export const StoryCardSchema = z.object({
     sources: z.array(SourceRefSchema),
   }).nullable().optional(),
   hasSummary: z.boolean().optional(),      // P2 (additive)
+  summaryLine: z.string().max(220).nullable().optional(), // P2 (additive): the summary's tldr[0] (F2.3 card line), null without one
 });
 
 export const StoryDetailSchema = StoryCardSchema.extend({
@@ -1267,7 +1312,7 @@ Test-only route: `POST /api/auth/test/sign-in` creates a session for a fixture u
 ### 6.3 REST endpoints — Phase 2 (additive)
 | # | Method | Path | Auth | Query / Body | 2xx response | Notes |
 |---|---|---|---|---|---|---|
-| 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster` and `hasSummary` | |
+| 15 | GET | `/api/v1/feed` | public | adds `excludeTags`, `excludeSources`, `boostTags`, `boostSources` | `FeedPageSchema`, with items being primary stories with `cluster`, `hasSummary` and `summaryLine` | |
 | 16 | GET | `/api/v1/clusters/:id` | public | none | 200 `ClusterDetailSchema` `{ id, representative: StoryCard, members: StoryCard[], sourceKinds, summary: StorySummary \| null }` | `members` excludes the representative. `summary` is the cluster's (F2.3 Clusters). 404 `NOT_FOUND`, or `FEATURE_DISABLED` with the flag off |
 | 17 | GET | `/api/v1/stories/:id/summary` | public | none | 200 `StorySummarySchema` | 404 `NOT_FOUND` if none yet |
 | 18 | POST | `/api/v1/stories/:id/summary` | optional | `{ deviceId: uuid }` (guests) | 200 (cached) or 201 (generated) `StorySummarySchema` | 429 `QUOTA_EXCEEDED`, 503 `SPEND_CAP_REACHED`, 502 `GENERATION_FAILED` |
@@ -1525,11 +1570,27 @@ Client handling: one `MessageProcessor` per briefing. Each `a2ui` event's data i
 ### 7.1 Design references and system
 | Area | Reference | What we take |
 |---|---|---|
-| Landing | [linear.app](https://linear.app), [raycast.com](https://www.raycast.com) | Product-window hero, hairline borders, gradient accents, keycap visuals, dark-first palette |
+| Landing | [linear.app](https://linear.app), [raycast.com](https://www.raycast.com) | Product-window hero, hairline borders, keycap visuals |
 | Feed density | [app.daily.dev](https://app.daily.dev), [news.ycombinator.com](https://news.ycombinator.com) | Scannable single-line metadata, source badges with numbers, j/k navigation, quick tag filters, no thumbnails |
 | Trends | [github.com/trending](https://github.com/trending), Vercel Analytics | Clean time-series, movers table, compact toggles (7d/30d) |
 
-System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--background`, `--foreground`, `--muted`, `--border`, `--accent`, and one brand accent hue). Themes use `next-themes` (class strategy, system default). Type: Geist Sans and Geist Mono via `next/font`, self-hosted with `display: swap`. Base text is 14 px in the app and 16 px on the landing page. Radius is 8 px for cards and 6 px for controls. Accessibility targets WCAG 2.2 AA: visible focus rings, contrast ≥ 4.5:1, every control reachable by keyboard, and `aria-live` toasts.
+System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--background`, `--foreground`, `--muted`, `--border`, `--accent`, and one brand accent hue). Themes use `next-themes` (class strategy, system default).
+
+**Palette "Warm Paper & Terracotta"** (the one brand hue is terracotta), light and dark:
+
+| Role | Tokens | Light | Dark |
+|---|---|---|---|
+| Background | `--background` | `#FAF8F5` | `#161514` |
+| Surface: sidebar, cards, menus | `--card`, `--popover`, `--secondary`, `--muted` | `#F3EFEA` | `#1E1C1A` |
+| Text | `--foreground` and the `*-foreground` of surfaces | `#1C1917` | `#EAE6DF` |
+| Brand for text, links, button fills and the focus ring | `--primary`, `--ring` | `#C2410C` | `#F0643B` |
+| Label on a brand fill | `--primary-foreground` | `#FFFFFF` | `#161514` |
+| Brand for large or decorative use only (text ≥ 24 px, icons, borders, the logo mark) | `--brand` | `#D94E1F` | `#F0643B` |
+
+- Contrast (WCAG): light `#C2410C` on the background is 4.9:1 and 4.5:1 on a surface, and white on `#C2410C` is 5.2:1; `#D94E1F` on the background is only 3.9:1, which passes for large text and graphics alone. Dark `#F0643B` on the background is 5.7:1, and its labels are dark (`#161514` on `#F0643B` is 5.7:1), because white on it is 3.2:1.
+- Every other token (`--muted-foreground`, `--border`, `--input`, `--accent`, `--destructive`, `--success`, `--warning`) is re-derived in the same warm hue, and text tokens keep ≥ 4.5:1 on the surfaces they sit on.
+- `--chart-1` … `--chart-5` are re-derived for the warm palette and none of them is the brand hue, so a chart line never reads as a link or a button. They stay distinguishable from each other in both themes.
+- `apps/web/src/app/icon.svg` and the generated OG image can't read CSS variables, so they use the palette's hex values: the background, the text colour and `--brand`. Type: Geist Sans and Geist Mono via `next/font`, self-hosted with `display: swap`. Base text is 14 px in the app and 16 px on the landing page. Radius is 8 px for cards and 6 px for controls. Accessibility targets WCAG 2.2 AA: visible focus rings, contrast ≥ 4.5:1, every control reachable by keyboard, and `aria-live` toasts.
 
 ### 7.2 Routes and views
 | Route | View | Render | Phase |
@@ -1552,27 +1613,44 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ ◆ DevBrief        Feed   Radar   GitHub              ◐  Sign in  [Explore ▸] │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│             ( ● Updated 14 min ago · 312 stories today · 12 sources )        │
-│                    Developer news, minus the noise.                          │
-│     DevBrief pulls HN, Dev.to and top engineering blogs every hour, merges   │
-│     duplicates and ranks everything on one fair scale. No account needed.    │
-│          [ Explore the feed — no login required ]   [  Sign in with GitHub ] │
-│  ┌──────────────────────────────────────────────────────────────────────┐    │
-│  │ ● ● ●   devbrief.dev/feed                                [Feed|Brief]│    │
-│  │ [All] [React] [TypeScript] [AI/LLMs] [System Design] [Databases]     │    │
-│  │ ▸ Native TS compiler preview ships          devblogs.microsoft.com   │    │
-│  │   HN ▲612 💬288 · TypeScript Blog · 3h · typescript performance       │    │
-│  │   Postgres 18 async I/O in practice         planetscale.com          │    │
-│  │   HN ▲301 💬97 · 5h · databases performance                          │    │
-│  │   …(6 rows)                                                          │    │
-│  │ J K navigate · S save · Enter open        Showing 6 of 312 → Open feed│   │
-│  └──────────────────────────────────────────────────────────────────────┘    │
-│  Hacker News · Dev.to · React Blog · TypeScript Blog · Vercel · Cloudflare … │
-│  ┌ Same story, five tabs ┐ ┌ Rankings you can't trust ┐ ┌ Signal in comments ┐│
-│  ① Ingest hourly ───── ② Dedupe & tag ───── ③ Rank fairly                     │
-│  ┌──────── bento ────────┬─────────────┐   [J] [K] [S] [/] [?]  keyboard row │
-│  Under the hood · FAQ · Final CTA · Footer (Impressum · Privacy · Status)    │
+│ ( ● Updated 14 min ago ·      │ ┌──────────────────────────────────────────┐ │
+│   312 today · 12 sources )    │ │ ● ● ●  devbrief.dev/feed    [Feed|Brief] │ │
+│                               │ │ [All] [React] [Rust] [AI/LLMs]           │ │
+│ Your morning tech scan        │ │ [TypeScript] [Databases]                 │ │
+│ in 5 minutes                  │ │▸Native TS compiler preview ships        ▲│ │
+│                               │ │ HN ▲612 · TS Blog · 3h · [ts][perf]     █│ │
+│ The same link on Hacker News, │ │ Postgres 18 async I/O in practice       ░│ │
+│ Dev.to, an engineering blog   │ │ HN ▲301 · Dev.to ♥95 · 5h · [databases] ░│ │
+│ and GitHub becomes one card,  │ │ Bun 2.0 ships a built-in test runner    ░│ │
+│ with every source's points…   │ │ HN ▲188 · 7h · [javascript][testing]    ▼│ │
+│                               │ │ J K · S · Enter    Showing 30 of 312 →   │ │
+│ [Explore the feed — no login] │ └──────────────────────────────────────────┘ │
+│ [ Sign in with GitHub ]       │   list of up to 30 scrolls inside the frame  │
+│ Hacker News · Dev.to · React Blog · TypeScript Blog · Vercel · Cloudflare …  │
+│ ┌ Same story, five tabs ┐ ┌ Rankings you can't trust ┐ ┌ Signal in comments ┐│
+│ ① Ingest hourly ───── ② Dedupe & tag ───── ③ Rank fairly                     │
+│ ┌──────── bento ────────┬─────────────┐   [J] [K] [S] [/] [?]  keyboard row  │
+│ Under the hood · FAQ · Final CTA · Footer (Impressum · Privacy · Status)     │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Landing (mobile < 768 px)**
+```
+┌──────────────────────────────┐
+│ ◆ DevBrief          ◐   ☰    │
+│ ( ● 14 min ago · 312 today ) │
+│ Your morning tech scan       │
+│ in 5 minutes                 │
+│ The same link on Hacker News,│
+│ Dev.to, a blog and GitHub …  │
+│ [ Explore the feed — no lo… ]│
+│ [ Sign in with GitHub      ] │
+│ ┌ ● ● ● devbrief.dev/feed ─┐ │
+│ │ [All] [React] [Rust] …   │ │
+│ │▸Native TS compiler prev… │ │
+│ │ … fixed height, scrolls  │ │
+│ └──────────────────────────┘ │
+└──────────────────────────────┘
 ```
 
 **Feed (desktop)**
@@ -1584,18 +1662,19 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ Saved      g s│ Filters: React × TypeScript ×  · HN ×        Clear all      │
 │ Radar (P3) g r│──────────────────────────────────────────────────────────────│
 │───────────────│▌Native TS compiler preview ships     devblogs.microsoft.com │
-│ TAGS     7d   │▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
-│ ☑ React   48  │ ─────────────────────────────────────────────────────────── │
-│ ☑ TypeScr 41  │  React Compiler 1.x in production: lessons      vercel.com  │
-│ ☐ AI/LLMs 77  │  HN ▲188 💬64 · Dev.to ♥95 💬12 · 7h       [react][perf] [★]│
-│ ☐ …           │ ─────────────────────────────────────────────────────────── │
-│ SOURCES       │  …                                                          │
-│ ☑ Hacker News●│                                                             │
-│ ☐ Dev.to     ●│                    (infinite scroll sentinel)               │
-│ ☐ Blogs (10) ●│                                                             │
+│ TAGS     7d   │▌Go port builds large codebases ~10x faster; watch mode lags │
+│ ☑ React   48  │▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
+│ ☑ TypeScr 41  │ ─────────────────────────────────────────────────────────── │
+│ ☐ AI/LLMs 77  │  React Compiler 1.x in production: lessons      vercel.com  │
+│ ☐ …           │  Teams report fewer memo bugs; build-time cost is debated   │
+│ SOURCES       │  HN ▲188 💬64 · Dev.to ♥95 💬12 · 7h       [react][perf] [★]│
+│ ☑ Hacker News●│ ─────────────────────────────────────────────────────────── │
+│ ☐ Dev.to     ●│  …                                                          │
+│ ☐ Blogs (10) ●│                    (infinite scroll sentinel)               │
 │ Status: all ok│                                       ? Keyboard shortcuts  │
 └───────────────┴──────────────────────────────────────────────────────────────┘
  ▌ = active card (j/k)    ☆/★ = save toggle (s)    ● = source health dot
+ P2: the muted line under a title is its summary line (F2.3); a story without a summary has none
  P2: a cluster card shows its combined source line and a "+N related ▾" control under it (F2.2)
 ```
 
@@ -1605,6 +1684,8 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ ◆ DevBrief        🔍  ◐  ☰   │
 │ [Top|Latest]   [Filters (3)] │ → bottom sheet: tags, sources
 │ Native TS compiler preview…  │
+│ Go port builds large code-   │
+│ bases ~10x faster; watch …   │
 │ HN ▲612 · 3h · ts perf    ☆  │
 │ ──────────────────────────── │
 │ React Compiler 1.x in prod…  │
@@ -1692,14 +1773,14 @@ Export digest ▾ → Download .md · Copy to clipboard   (week picker: 2026-W47
 RootLayout  (ThemeProvider · QueryProvider · Toaster · HotkeysProvider · Sentry)
 ├─ (marketing)/layout → SiteHeader, SiteFooter
 │  └─ LandingPage
-│     ├─ Hero → LiveCountsPill, HeroCtas, HeroPreview(client) → PreviewTagChips, StoryCard[compact]×6
+│     ├─ Hero (2 columns from md) → LiveCountsPill, HeroCtas | HeroPreview(client, fixed-height scroll frame) → PreviewTagChips, StoryCard[compact]×≤30
 │     ├─ SourceStrip · ProblemGrid · HowItWorks · FeatureBento(flags) · KeyboardShowcase
 │     ├─ ExampleBriefings (P3, lazy client) → BriefingView
 │     └─ UnderTheHood · Faq · CtaBand
 └─ (app)/layout → AppShell
    ├─ AppHeader → Logo, SearchInput(/), SortToggle(t), ThemeToggle, UserMenu | SignInButton
    ├─ Sidebar → NavLinks, TagFilterList, SourceFilterList, SourceStatus
-   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, RelatedToggle(P2)
+   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, SummaryLine(P2), RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
    ├─ StoryPage → StoryHeader, SourceItemList, SummaryPanel(P2) → TldrList, ConsensusCallout · ClusterMembers(P2) · NoteEditor(P3)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
@@ -1749,28 +1830,29 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 
 | Feature | Input tokens (max) | Output tokens (max) | Worst-case cost per call | Volume cap | Worst-case per day | Worst case per 31-day month |
 |---|---|---|---|---|---|---|
-| Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | 20/day | $0.0150 | $0.465 |
+| Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | every new story: `AUTO_SUMMARIES_PER_DAY = 400`; the cap pays for 300/day at worst case | $0.2250 | $6.975 |
 | On-demand summaries (P2) | 4,000 | 700 | $0.00075 | 15 new/day globally (cache hits free) | $0.01125 | $0.349 |
 | Clustering decisions (P2) | 1,000 (system + schema 280 + 6 stories × 120) | 50 | 1,000×$0.10/1M + 50×$0.50/1M = **$0.000125** | ≤ 1 per new story with candidates; the cap allows 160/day at worst case, ≈ 265/day at the expected $0.000075 | $0.0200 | $0.620 |
 | Copilot (P3) | 6,000 (fixed ≈ 1,728: system ≈ 375 + plan schema ≈ 1,353; plus ≈ 277 per story × 15 stories; total ≤ 6,000) | 1,500 | 6,000×$0.10/1M + 1,500×$0.50/1M = **$0.00135** | 20 fresh questions/day globally (cache/fallback free) | $0.0270 | $0.837 |
 | Example briefings (P3) | 6,000 | 1,500 | $0.00135 | 3, manual, rare | n/a | ≈ $0.004 |
-| **Total** | | | | | **$0.07325** | **≈ $2.27**, above $2.00, so the global cap below is the binding stop |
+| **Total** | | | | | **$0.28325** | **≈ $8.79**, under $10.00; the global cap below is the backstop |
 
 **Hard caps (config, `apps/api/src/modules/llm/budget.ts`, overridable by env)**
 | Cap | Value |
 |---|---|
-| `LLM_CAP_SUMMARY_AUTO_USD_DAY` | 0.015 |
+| `LLM_CAP_SUMMARY_AUTO_USD_DAY` | 0.225: 300 worst-case summaries (300 × $0.00075), or ≈ 550 at the measured settled cost of $0.000409 a summary |
 | `LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY` | 0.012 |
 | `LLM_CAP_CLUSTER_USD_DAY` | 0.020: 160 worst-case decisions ($0.02 / $0.000125), or ≈ 265 at the expected settled cost of $0.000075 a call; the pre-filter must keep its expected spend ≥ 30% under the cap |
 | `LLM_CAP_COPILOT_USD_DAY` | 0.028 |
-| `LLM_CAP_GLOBAL_USD_DAY` | **0.064**, the binding stop: 31 × $0.064 = **$1.984 < $2.00** |
+| `LLM_CAP_GLOBAL_USD_DAY` | **0.32**, the backstop: 31 × $0.32 = **$9.92 < $10.00** |
 | `LLM_PRICE_INPUT_PER_MTOK` / `LLM_PRICE_OUTPUT_PER_MTOK` | 0.10 / 0.50 |
 
 - **Enforcement:** before each call, a transaction sums `reservedUsd` for the day and feature. If `spent + worstCase > cap`, it refuses; otherwise it inserts a `reserved` row. After the call, the row is settled with the actual `costUsd`. Failed calls settle at their actual usage. This holds even under concurrency because it is serialised by a per-day advisory lock.
-- **Cap arithmetic:** in Phase 2, the per-feature caps add up to $0.015 + $0.012 + $0.020 = $0.047/day, under the $0.064 global cap, so the global cap never starves a Phase 2 feature. With the copilot (Phase 3), they add up to $0.075/day. On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot falls back to its example briefing. A $0.08 global cap would allow 31 × $0.08 = $2.48 per month, which breaks the §1.6 target (open item O5).
+- **Cap arithmetic:** in Phase 2, the per-feature caps add up to $0.225 + $0.012 + $0.020 = $0.257/day. With the copilot (Phase 3), they add up to $0.285/day. Both are under the $0.32 global cap, so no feature starves another: the global cap stops a day only when a feature cap was overridden too high by env. 31 × $0.285 = $8.84 a month at worst case, plus the rare example briefings, stays under the $10.00 target (§1.6, O5).
+- **Volume behind the auto-summary cap:** 200–400 new stories a day (§5.3), about 300 on a typical day. At the worst case, 300 × $0.00075 = $0.225/day, which is the cap. Like the cluster cap, it limits settled spend: each call reserves its worst case and settles at its actual usage. One real summary (an HN story with 185 comments) settled at $0.000409 on 2026-11-21, so a 400-story day costs about 400 × $0.000409 = $0.164 and fits; most stories have fewer comments and cost less. On a day when the cap runs out first, the remaining stories stay candidates for the next day (F2.3).
 - **Volume behind the cluster cap:** 200–400 new stories a day (§5.3). The pre-filter's floor sends only stories with a plausible duplicate to the model, about 30–45% of them at a production-sized window of about 1,200 stories. The cap limits settled spend: each call reserves its worst case, then settles at its actual usage, so only the day's last reservation needs the worst-case room. The expected settled cost is about 650 input tokens and under 20 output tokens: 650 × $0.10/1M + 20 × $0.50/1M = $0.000075 a call. Settling uses the provider's reported `usage`, not the ledger's estimate (which over-counts and is only the basis of the reservation); the 650 comes from that estimate on the recorded stories, so it errs high. This per-call cost is unverified until #82 records real usage. About 176 calls on a 400-story day then cost about $0.0132, which leaves 34% headroom under the cap. When the cap runs out late in a day, the remaining stories stay single, which is the Phase 1 behaviour.
-- **Expected real spend** is well below the cap, at about $0.80–1.20 per month: actual outputs are around 350–900 tokens for summaries and about 15 tokens for a clustering decision. About 176 clustering decisions a day at the expected $0.000075 each cost about $0.013/day (≈ $0.40/month). Copilot traffic is low, and caching takes effect.
-- **Backstop:** a monthly spend limit is also set in the provider console (operations runbook).
+- **Expected real spend** is well below the caps, at about $4–5 per month: about 300 auto summaries a day at the measured $0.000409 cost about $0.12/day (≈ $3.80/month), and about 176 clustering decisions a day at the expected $0.000075 each cost about $0.013/day (≈ $0.40/month). On-demand summaries are rare once every story has one, copilot traffic is low, and caching takes effect.
+- **Backstop:** the production key belongs to its own Anthropic Console workspace, `devbrief`, which has a monthly spend limit of $10 (operations runbook). The key is long-lived, with a reminder to rotate it. It is never exported in a shell profile, where other tools on the same machine, Claude Code among them, would bill their calls to it.
 - **Cost levers:** summaries are cached forever. Identical copilot questions are cached for 24 h. Landing examples are pre-generated. The no-coverage path makes no LLM call. Optional LLM tagging (F2.7) piggybacks on the summary call at zero extra calls. Clustering makes no call for a story without candidates and never re-decides a story. There are no embeddings. Provider prompt caching for the static system prompt is an extra saving and is not counted above.
 - **Copilot quotas:** guests get 3 per day per (IP hash, device id), with an IP backstop of 10 per day. Signed-in users get 20 per day. All are counted in `RateLimitCounter`, keyed by UTC day. When the global cap is hit, the copilot serves the example-briefing fallback.
 
@@ -1778,7 +1860,8 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 - Story text and comments are wrapped in delimited `<source id="…">` blocks. The system prompt tells the model that this content is data and never instructions.
 - Output is always schema-constrained (structured output) and validated with Zod. One retry is allowed, then the call fails closed.
 - The LLM cannot emit URLs, HTML or arbitrary component names. Links and numbers are injected server-side, and storyIds and tags are checked against allowlists.
-- Prompts are versioned (`promptVersion`) in `apps/api/src/modules/llm/prompts/`, with snapshot tests using a recorded provider response. CI never calls the live LLM.
+- Prompts are versioned (`promptVersion`) in `apps/api/src/modules/llm/prompts/`, with snapshot tests using a recorded provider response. CI never calls the live LLM. A new prompt version gets its own recordings in new fixture files; a recording is never edited.
+- No text from a source with a TDM reservation goes into a prompt (§8.8).
 - The model is configured through `LLM_MODEL=claude-haiku-5-5`. The provider is swappable through the AI SDK provider registry, and the price table is keyed by model.
 
 ### 8.3 External sources: timeouts, retries, circuit breaking
@@ -1853,7 +1936,7 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
   - A2UI messages are validated against the catalog before sending, and treated as untrusted on the client: only catalog components are registered.
 - **Headers (Next.js `headers()` and Nest):** HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (deny all unused), and a CSP of `default-src 'self'` that allows Sentry ingest and inline styles from Tailwind. Scripts are `'self'` plus Next's nonce.
 - **Secrets:** Coolify environment variables only, never committed. `.env.example` lists every variable. Env is validated with Zod at boot in both apps (fail fast), and `AUTH_TEST_MODE` is forbidden in production. GitHub, Google, Anthropic and GitHub-search tokens use the least scope (`user:email`, read-only PAT).
-- **Privacy:** GDPR basics for the German market. There are Impressum and Datenschutz pages. Only essential cookies are used, so no consent banner is needed. No third-party analytics. Sentry runs with `sendDefaultPii: false`. Account deletion is self-serve, and copilot questions are retained for 30 days.
+- **Privacy:** GDPR basics for the German market. There are Impressum and Datenschutz pages, and the privacy page names every processor, Anthropic included (AC-L11). Only essential cookies are used, so no consent banner is needed. No third-party analytics. Sentry runs with `sendDefaultPii: false`. Account deletion is self-serve, and copilot questions are retained for 30 days.
 - **Dependencies:** Dependabot (weekly) and `pnpm audit --prod` in CI (fails on high or critical). `@a2ui/*` and `better-auth` are pinned to exact versions.
 
 ### 8.7 Testing and CI
@@ -1869,6 +1952,48 @@ First-load JS means the gzip (level 6) size of every script in the route's HTML 
 **CI workflow (`.github/workflows/ci.yml`) on every PR and on push to `main`:** setup (pnpm and Node from `.nvmrc`, with cache) → lint → typecheck → unit → integration (Postgres service) → build → size check → E2E smoke → Lighthouse. A PR needs all checks green. Merge is by squash, through the orchestrator. Coolify deploys from `main` after the push.
 
 **Agent rules (also stated in `AGENTS.md`):** one issue per PR. Each PR lists the AC IDs it covers and adds tests for each one. Agents must not change `packages/shared/src/contracts` without updating every consumer in the same PR. Migrations are created only by issues that declare them. PRs touching `docs/` keep this PRD consistent.
+
+### 8.8 Content rights
+DevBrief links to what its sources publish and summarises the public discussion around it. It never fetches a publisher's page (§3.2): it stores titles, links, engagement numbers and short excerpts from each source's API or feed, and the model sees only the text below.
+
+| Source kind | Stored | Sent to the model |
+|---|---|---|
+| HN | Item title, link, author, points, comment count | The title and the public comments (Algolia) for summaries; the title for clustering and the copilot |
+| Dev.to | Title, link, author, excerpt, tags, reactions, comment count | The title, the article body (`body_markdown`, ≤ 1,000 tokens) and the comments for summaries; the title and excerpt for clustering and the copilot |
+| RSS | Title, link, author, excerpt, categories | The title and excerpt (summaries, clustering, copilot) |
+| GitHub | Title (`owner/repo: description`), link, stars, language, topics | The title for clustering and the copilot; no summary, since a title-only story isn't summarised (F2.3) |
+
+The copilot also receives a story's summary, which is DevBrief's own text.
+
+**Rights table.** One row per source in `apps/api/prisma/seed/sources.json`. "Terms / licence" records the source's API or feed terms and the licence of its content; "TDM opt-out" records whether it reserves text and data mining, through robots.txt, the TDM-Rep header or `/.well-known/tdmrep.json`, or its terms. Status is `unchecked` or `checked` (with the date).
+
+| Source | Terms / licence | TDM opt-out | Stored | Sent to the model | Status |
+|---|---|---|---|---|---|
+| `hn` (Hacker News) | — | — | Title, link, author, points, comment count | Title; comments (summaries) | unchecked |
+| `devto` (Dev.to) | — | — | Title, link, author, excerpt, tags, reactions, comment count | Title, excerpt; article body and comments (summaries) | unchecked |
+| `github` (GitHub) | — | — | Title (`owner/repo: description`), link, stars, language, topics | Title (clustering, copilot) | unchecked |
+| `rss-react-blog` (React Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-typescript-blog` (TypeScript Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-vercel-blog` (Vercel Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-cloudflare-blog` (Cloudflare Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-netflix-tech-blog` (Netflix Tech Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-shopify-engineering` (Shopify Engineering) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-simon-willison` (Simon Willison) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-josh-comeau` (Josh Comeau) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-web-dev` (web.dev) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+| `rss-nodejs-blog` (Node.js Blog) | — | — | Title, link, author, excerpt, categories | Title, excerpt | unchecked |
+
+Acceptance criteria:
+- **AC-R1** The rights table has one row per source in `sources.json`, and a test that reads this section fails when a seeded slug has no row. A new source joins `sources.json` only together with its row, filled in and `checked`, in the same PR.
+- **AC-R2** A source whose row records a TDM reservation has `"tdmReserved": true` in `sources.json`, which the seed stores on `Source.tdmReserved`. No text from its items (title, excerpt, article body or comments) goes into any prompt: summaries, clustering or the copilot. A story whose items all come from reserved sources gets no clustering call and isn't retrieved by the copilot; it is never auto-summarised, the story page shows no Summarize button, and `POST /stories/:id/summary` answers 404 `NOT_FOUND`. A story with other sources too is summarised from their text only.
+- **AC-R3** RSS descriptions and Dev.to `description`s are stored as plain text cut to their first sentence and to ≤ 200 chars at a word boundary, with `…` when cut. Excerpts stored before this rule are cut the same way once, as a data step without a schema change; `searchVector` follows, as it is generated.
+- **AC-R4** Removal on request. The Impressum names the address for removal requests. `pnpm --filter api content:remove (--domain <domain> | --source <slug>) --reason <text> --confirm-database <name>` stores a `ContentRemoval` row and, in one transaction, deletes every matching Story with its items, summary, saves, collection items and notes. A domain matches a Story whose `domain` is it or one of its subdomains; a source matches a Story with any item from it, and that source is disabled. From then on ingestion drops matching items before they are stored, and the seed doesn't re-enable a removed source. `content:restore` with the same arguments deletes the row; content returns only when it is ingested again. Removed stories leave every page within the cache times: 60 s plus 300 s stale-while-revalidate for API responses (§8.4), and 15 min for the landing page.
+- Summaries paraphrase, stay short (F2.3: ≤ 25 words a point) and always show their source and a prominent link to the original: AC-2.3.10 and AC-2.3.11.
+
+**Launch gate (owner task, no test).** Before the first AI feature goes on in production (the launches in §3):
+1. Every row of the rights table is `checked`, and every TDM reservation is in `sources.json`.
+2. A German IT and copyright lawyer has reviewed this section and the summary feature (F2.3). This is an owner step of the launch checklist.
+3. `/privacy` names Anthropic (AC-L11).
 
 ---
 
