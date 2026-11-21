@@ -7,6 +7,7 @@ import { budgetFromEnv } from '../src/modules/llm/budget.js';
 import { GenerationFailedError } from '../src/modules/llm/llm.errors.js';
 import { LlmService } from '../src/modules/llm/llm.service.js';
 import * as clusterMatch from '../src/modules/llm/prompts/clusterMatch.v1.js';
+import * as copilotBriefing from '../src/modules/llm/prompts/copilotBriefing.v1.js';
 import * as storySummary from '../src/modules/llm/prompts/storySummary.v1.js';
 import type { Reservation, SpendLedgerService } from '../src/modules/llm/spendLedger.service.js';
 import {
@@ -17,6 +18,9 @@ import {
   readHeldOutPairs,
   requestHash,
 } from './clusterPairs.js';
+import { COPILOT_RECORDINGS, copilotRequest } from './copilotFixtures.js';
+import type { LlmStreamRecording } from './llmStreamRecording.js';
+import type { StreamPart } from './mockLanguageModel.js';
 import {
   type LlmRecording,
   PROMPT_INJECTION_RECORDING,
@@ -24,14 +28,15 @@ import {
 } from './promptInjection.js';
 
 const targets = process.argv[2] ?? 'all';
-if (!['all', 'injection', 'pairs'].includes(targets)) {
-  throw new Error('Usage: tsx test/recordLlmFixtures.ts [all|injection|pairs]');
+if (!['all', 'injection', 'pairs', 'copilot'].includes(targets)) {
+  throw new Error('Usage: tsx test/recordLlmFixtures.ts [all|injection|pairs|copilot]');
 }
 
 const env = loadEnv();
 if (!env.ANTHROPIC_API_KEY) throw new Error('Set ANTHROPIC_API_KEY to record the LLM fixtures.');
 
 let reply: LlmRecording['reply'] | undefined;
+let streamedParts: StreamPart[] | undefined;
 const recordingModel = wrapLanguageModel({
   model: createAnthropic({
     apiKey: env.ANTHROPIC_API_KEY,
@@ -44,6 +49,22 @@ const recordingModel = wrapLanguageModel({
       const { content, finishReason, usage, warnings } = result;
       reply = { content, finishReason, usage, warnings };
       return result;
+    },
+    wrapStream: async ({ doStream }) => {
+      const { stream, ...rest } = await doStream();
+      const parts: StreamPart[] = [];
+      const recorded = stream.pipeThrough(
+        new TransformStream<StreamPart, StreamPart>({
+          transform: (part, controller) => {
+            parts.push(part);
+            controller.enqueue(part);
+          },
+          flush: () => {
+            streamedParts = parts;
+          },
+        }),
+      );
+      return { stream: recorded, ...rest };
     },
   },
 });
@@ -123,5 +144,34 @@ async function recordClusterPairs() {
   );
 }
 
-if (targets !== 'pairs') await recordPromptInjection();
-if (targets !== 'injection') await recordClusterPairs();
+async function recordCopilotStreams() {
+  for (const name of ['normal', 'injection'] as const) {
+    const request = await copilotRequest(name);
+    streamedParts = undefined;
+    const events: string[] = [];
+    for await (const event of llm.streamPlan({
+      feature: 'copilot',
+      schema: copilotBriefing.BriefingPlanLlmSchema,
+      titleSchema: copilotBriefing.BriefingTitleLlmSchema,
+      sectionSchema: copilotBriefing.BriefingSectionLlmSchema,
+      ...request,
+      maxOutputTokens: copilotBriefing.MAX_OUTPUT_TOKENS,
+    })) {
+      events.push(JSON.stringify(event));
+    }
+    if (!streamedParts) throw new Error('The model call returned without a stream to record.');
+    const recording: LlmStreamRecording = {
+      recordedAt: new Date().toISOString(),
+      model: env.LLM_MODEL,
+      promptVersion: copilotBriefing.PROMPT_VERSION,
+      requestHash: requestHash(request),
+      parts: streamedParts,
+    };
+    writeFileSync(COPILOT_RECORDINGS[name], `${JSON.stringify(recording, null, 2)}\n`);
+    console.log(`Recorded ${COPILOT_RECORDINGS[name].pathname}:\n${events.join('\n')}`);
+  }
+}
+
+if (targets === 'all' || targets === 'injection') await recordPromptInjection();
+if (targets === 'all' || targets === 'pairs') await recordClusterPairs();
+if (targets === 'all' || targets === 'copilot') await recordCopilotStreams();

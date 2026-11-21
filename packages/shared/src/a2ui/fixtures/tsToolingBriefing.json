@@ -4,7 +4,11 @@
     "createSurface": {
       "surfaceId": "briefing-cbriefq0ts001",
       "catalogId": "https://devbrief.dev/a2ui/catalogs/devbrief/v1.json",
-      "dataModel": { "meta": { "subtitle": "Retrieving stories…" } }
+      "dataModel": {
+        "meta": {
+          "subtitle": "Retrieving stories…"
+        }
+      }
     }
   },
   {
@@ -16,7 +20,9 @@
           "id": "root",
           "component": "Briefing",
           "title": "TypeScript tooling: this week's debates",
-          "subtitle": { "@path": "/meta/subtitle" },
+          "subtitle": {
+            "@path": "/meta/subtitle"
+          },
           "children": []
         }
       ]
@@ -58,7 +64,9 @@
           "id": "root",
           "component": "Briefing",
           "title": "TypeScript tooling: this week's debates",
-          "subtitle": { "@path": "/meta/subtitle" },
+          "subtitle": {
+            "@path": "/meta/subtitle"
+          },
           "children": ["s0_takeaways"]
         }
       ]
@@ -110,7 +118,9 @@
           "id": "root",
           "component": "Briefing",
           "title": "TypeScript tooling: this week's debates",
-          "subtitle": { "@path": "/meta/subtitle" },
+          "subtitle": {
+            "@path": "/meta/subtitle"
+          },
           "children": ["s0_takeaways", "s1_story_0"]
         }
       ]
@@ -143,7 +153,9 @@
           "id": "root",
           "component": "Briefing",
           "title": "TypeScript tooling: this week's debates",
-          "subtitle": { "@path": "/meta/subtitle" },
+          "subtitle": {
+            "@path": "/meta/subtitle"
+          },
           "children": ["s0_takeaways", "s1_story_0", "s2_consensus"]
         }
       ]
@@ -165,32 +177,86 @@
               "tag": "typescript",
               "label": "TypeScript",
               "points": [
-                { "date": "2026-11-13", "value": 9 },
-                { "date": "2026-11-14", "value": 21 },
-                { "date": "2026-11-15", "value": 17 },
-                { "date": "2026-11-16", "value": 11 },
-                { "date": "2026-11-17", "value": 10 },
-                { "date": "2026-11-18", "value": 12 },
-                { "date": "2026-11-19", "value": 8 }
+                {
+                  "date": "2026-11-13",
+                  "value": 9
+                },
+                {
+                  "date": "2026-11-14",
+                  "value": 21
+                },
+                {
+                  "date": "2026-11-15",
+                  "value": 17
+                },
+                {
+                  "date": "2026-11-16",
+                  "value": 11
+                },
+                {
+                  "date": "2026-11-17",
+                  "value": 10
+                },
+                {
+                  "date": "2026-11-18",
+                  "value": 12
+                },
+                {
+                  "date": "2026-11-19",
+                  "value": 8
+                }
               ]
             }
-          ]
-        },
-        {
-          "id": "s4_tags",
-          "component": "TagBadgeList",
-          "title": "Explore related",
-          "tags": [
-            { "slug": "javascript", "label": "JavaScript", "count": 48, "deltaPct": 12 },
-            { "slug": "performance", "label": "Performance", "count": 19, "deltaPct": 35 },
-            { "slug": "testing", "label": "Testing", "count": 7 }
           ]
         },
         {
           "id": "root",
           "component": "Briefing",
           "title": "TypeScript tooling: this week's debates",
-          "subtitle": { "@path": "/meta/subtitle" },
+          "subtitle": {
+            "@path": "/meta/subtitle"
+          },
+          "children": ["s0_takeaways", "s1_story_0", "s2_consensus", "s3_velocity"]
+        }
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "updateComponents": {
+      "surfaceId": "briefing-cbriefq0ts001",
+      "components": [
+        {
+          "id": "s4_tags",
+          "component": "TagBadgeList",
+          "title": "Explore related",
+          "tags": [
+            {
+              "slug": "javascript",
+              "label": "JavaScript",
+              "count": 48,
+              "deltaPct": 12
+            },
+            {
+              "slug": "performance",
+              "label": "Performance",
+              "count": 19,
+              "deltaPct": 35
+            },
+            {
+              "slug": "testing",
+              "label": "Testing",
+              "count": 7
+            }
+          ]
+        },
+        {
+          "id": "root",
+          "component": "Briefing",
+          "title": "TypeScript tooling: this week's debates",
+          "subtitle": {
+            "@path": "/meta/subtitle"
+          },
           "children": ["s0_takeaways", "s1_story_0", "s2_consensus", "s3_velocity", "s4_tags"]
         }
       ]
