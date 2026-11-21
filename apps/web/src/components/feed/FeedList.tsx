@@ -158,7 +158,9 @@ export function FeedList() {
       aria-label="Stories"
       onFocusCapture={trackFocus}
     >
-      {isFeatureEnabled('summaries') && activeId && <SummarizeShortcut storyId={activeId} />}
+      {isFeatureEnabled('summaries') && activeStory?.canSummarize && (
+        <SummarizeShortcut storyId={activeStory.id} />
+      )}
       <AddToCollectionShortcut storyId={activeId} />
       {stories.map((story) => (
         <StoryCard

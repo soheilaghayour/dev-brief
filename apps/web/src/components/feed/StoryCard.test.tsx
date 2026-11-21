@@ -175,6 +175,30 @@ describe('StoryCard', () => {
     expect(render({ ...STORY, hasSummary: true })).not.toContain('TL;DR');
   });
 
+  it('AC-2.3.9 renders the summary line under the title as clamped plain text, in both densities', () => {
+    features.summaries = true;
+    const story = { ...STORY, hasSummary: true, summaryLine: 'Uses <b>Go</b> for speed' };
+    const html = render(story);
+    const compact = render(story, { compact: true });
+    features.summaries = false;
+    for (const markup of [html, compact]) {
+      expect(markup).toContain('Uses &lt;b&gt;Go&lt;/b&gt; for speed');
+      expect(markup).toMatch(/<p[^>]*class="[^"]*line-clamp-2[^"]*"/);
+      expect(markup.indexOf('Native TS compiler')).toBeLessThan(markup.indexOf('Uses &lt;b'));
+    }
+    expect(html).toContain('TL;DR');
+  });
+
+  it('AC-2.3.9 shows no line and no placeholder without a summary line or while the flag is off', () => {
+    features.summaries = true;
+    const none = render({ ...STORY, summaryLine: null });
+    features.summaries = false;
+    const off = render({ ...STORY, summaryLine: 'Hidden while off' });
+    expect(none).not.toContain('line-clamp-2');
+    expect(none).not.toMatch(/unavailable/i);
+    expect(off).not.toContain('Hidden while off');
+  });
+
   const CLUSTERED: StoryCardData = {
     ...STORY,
     cluster: { id: 'cluster-1', memberCount: 3, sources: STORY.sources },

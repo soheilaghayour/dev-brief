@@ -78,6 +78,9 @@ export function StoryCard({
             {story.domain}
           </span>
         </h2>
+        {story.summaryLine && isFeatureEnabled('summaries') && (
+          <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">{story.summaryLine}</p>
+        )}
         <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           {cluster && SourceLine ? (
             <SourceLine sources={cluster.sources} />
