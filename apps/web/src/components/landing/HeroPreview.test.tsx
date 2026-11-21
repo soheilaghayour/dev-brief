@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import fixture from '@/content/landing-fixture.json';
 import { HeroPreview } from './HeroPreview';
 import { sampleExampleBriefings } from './exampleBriefingData';
@@ -46,6 +46,9 @@ function mount(briefingIsSample = false) {
   );
   return container;
 }
+
+// Load the lazy chunk up front so tests wait on the briefing appearing, not on a cold import.
+beforeAll(() => import('./HeroBriefing'));
 
 // The briefing module is a lazy chunk, so the click is followed by a short wait for it.
 async function showBriefing(container: HTMLElement) {

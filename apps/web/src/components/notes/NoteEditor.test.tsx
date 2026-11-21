@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react';
 import { NOTE_MAX_LENGTH } from '@devbrief/shared';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { byRole, click, mount } from '@/components/collections/collectionsHarness';
 import { forgetAllFailedNotes } from '@/components/saves/pendingNote';
 import { NoteEditor, NOTE_SAVE_DELAY_MS } from './NoteEditor';
@@ -227,6 +227,9 @@ describe('NoteEditor autosave', () => {
 });
 
 describe('NoteEditor preview', () => {
+  // The preview (and react-markdown) is a lazy chunk; load it so tests wait on the render, not a cold import.
+  beforeAll(() => import('./NotePreview'));
+
   async function preview(note: string) {
     saves.stored = note;
     await showEditor();

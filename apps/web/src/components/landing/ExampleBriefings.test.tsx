@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXAMPLE_QUESTIONS } from '@devbrief/shared';
 import { ExampleBriefings } from './ExampleBriefings';
 import { sampleExampleBriefings } from './exampleBriefingData';
@@ -52,6 +52,9 @@ function mount(isSample = false) {
   act(() => root!.render(<ExampleBriefings examples={EXAMPLES} isSample={isSample} />));
   return container;
 }
+
+// Load the lazy chunk up front so tests wait on the tabs appearing, not on a cold import.
+beforeAll(() => import('./ExampleBriefingTabs'));
 
 // The live tabs are a lazy chunk: only they give their tabs an id, so that marks their arrival.
 async function scrollIntoView(container: HTMLElement) {
