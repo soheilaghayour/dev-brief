@@ -5,10 +5,6 @@ const useMe = vi.fn();
 vi.mock('@/lib/auth/useMe', () => ({ useMe: () => useMe() }));
 vi.mock('@/lib/auth/useSignOut', () => ({ useSignOut: () => vi.fn() }));
 vi.mock('./DeleteAccountDialog', () => ({ DeleteAccountDialog: () => null }));
-const features = vi.hoisted(() => ({ preferences: false }));
-vi.mock('@/config/features', () => ({
-  isFeatureEnabled: (flag: 'preferences') => features[flag],
-}));
 vi.mock('@/components/preferences/FeedPreferencesSection', () => ({
   FeedPreferencesSection: () => <section>Feed preferences</section>,
 }));
@@ -26,7 +22,6 @@ const user = {
 
 beforeEach(() => {
   useMe.mockReset();
-  features.preferences = false;
 });
 
 describe('SettingsPage', () => {
@@ -50,26 +45,15 @@ describe('SettingsPage', () => {
     expect(html).not.toContain('Clear local data');
   });
 
-  it('AC-2.5.1 shows the Feed section to guests and users while the preferences flag is on', () => {
-    features.preferences = true;
+  it('AC-2.5.1 shows the Feed section to guests and users', () => {
     for (const data of [null, user]) {
       useMe.mockReturnValue({ data, isPending: false });
       expect(renderToStaticMarkup(<SettingsPage />)).toContain('Feed preferences');
     }
   });
 
-  it('AC-2.5.1 names feed preferences in the guest note only while the preferences flag is on', () => {
+  it('AC-2.5.1 names feed preferences in the guest note', () => {
     useMe.mockReturnValue({ data: null, isPending: false });
-    features.preferences = true;
     expect(renderToStaticMarkup(<SettingsPage />)).toContain('your saves and feed preferences');
-    features.preferences = false;
-    const html = renderToStaticMarkup(<SettingsPage />);
-    expect(html).toContain('As a guest, your saves stay on this device.');
-    expect(html).not.toContain('feed preferences');
-  });
-
-  it('AC-2.5.1 has no Feed section in the HTML while the preferences flag is off', () => {
-    useMe.mockReturnValue({ data: null, isPending: false });
-    expect(renderToStaticMarkup(<SettingsPage />)).not.toContain('Feed preferences');
   });
 });

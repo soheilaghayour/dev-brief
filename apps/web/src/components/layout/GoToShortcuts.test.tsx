@@ -10,7 +10,7 @@ import { getGoToTargets, getNavItems } from './navItems';
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
-const flags = vi.hoisted(() => ({ radar: false, collections: true }));
+const flags = vi.hoisted(() => ({ collections: true }));
 vi.mock('@/config/features', () => ({
   isFeatureEnabled: (name: keyof typeof flags, features?: typeof flags) =>
     (features ?? flags)[name],
@@ -69,6 +69,6 @@ describe('g c', () => {
       href: '/saved',
       shortcut: { description: 'Go to Collections' },
     });
-    expect(getNavItems().map(({ href }) => href)).toEqual(['/feed', '/saved']);
+    expect(getNavItems().map(({ href }) => href)).toEqual(['/feed', '/saved', '/radar']);
   });
 });

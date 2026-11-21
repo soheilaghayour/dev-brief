@@ -1,6 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { PREFS_KEY } from '@/components/preferences/preferenceQueries';
-import { isFeatureEnabled } from '@/config/features';
 import { ApiError } from '@/lib/api/apiError';
 import { getMe, getPreferences } from '@/lib/api/endpoints';
 import { ME_QUERY_KEY } from '@/lib/auth/meQueryKey';
@@ -49,7 +48,7 @@ export async function prefetchFeed(
   filters: FeedFilters,
   cookie: string | null,
 ) {
-  const hasSession = isFeatureEnabled('preferences') && cookie?.includes(SESSION_COOKIE);
+  const hasSession = cookie?.includes(SESSION_COOKIE);
   const personal = hasSession && cookie ? await prefetchAccountFeedParams(queryClient, cookie) : {};
   await queryClient.prefetchInfiniteQuery(feedQueryOptions(filters, personal));
 }

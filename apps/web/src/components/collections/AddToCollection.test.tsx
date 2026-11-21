@@ -29,7 +29,7 @@ vi.mock('@/lib/auth/useMe', () => ({
 }));
 const notify = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/toast/notify', () => ({ notify }));
-// The phase flag is read when the module loads, so the test swaps the module.
+// The feature flag is read when the module loads, so the test swaps the module.
 const flag = vi.hoisted(() => ({ collections: true }));
 vi.mock('@/config/features', () => ({
   FEATURES: {},
