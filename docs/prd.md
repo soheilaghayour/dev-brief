@@ -323,10 +323,10 @@ The clustering step runs inside the ingestion run, after the sources settle and 
 **1. Candidate pre-filter (pure, no LLM call)**
 - The window is every other Story with `publishedAt` within ±72 h of S. That range, served by the `publishedAt` index, is what bounds the window query. A Story in a cluster stands for its cluster: each cluster is offered at most once, through its best-scoring member, and a cluster that already holds `CLUSTER_MAX_SIZE = 12` stories is not offered.
 - Signals:
-  - `trgm = similarity(S.normalizedTitle, C.normalizedTitle)`, the `pg_trgm` score, computed in the window query for each window story. A `similarity()` call can't use the GIN trigram index (§5.2). That index is kept for a future index-backed candidate search with the `%` operator.
-  - `ent = jaccard(entityTokens(S), entityTokens(C))`. `entityTokens()` is a pure function in `packages/shared/src/core`. It keeps capitalised or product-like tokens, version strings (`v5.2`, `1.0`), repo slugs and domains, and drops a stoplist.
-  - `link = 1` if either story's URL points at the same GitHub repo or the same domain and path prefix as the other, else 0.
-- `candidateScore = 0.55·trgm + 0.35·ent + 0.10·link`. A candidate needs `candidateScore ≥ CLUSTER_CANDIDATE_MIN_SCORE`. That floor starts at `0.20`, the value measured on the fixture, and is tuned for recall: at least 95% of the positive pairs must pass it. It decides only whether a call is worth making. The model makes the same-story decision.
+  - `trgm`, the `pg_trgm` similarity of `S.normalizedTitle` and `C.normalizedTitle` (the share of distinct padded trigrams they have in common). It is computed in process, over the window stories loaded once per run, and a test checks that it equals `similarity()` on the fixture titles. The step doesn't use the GIN trigram index (§5.2), which is kept for a future index-backed candidate search with the `%` operator.
+  - `ent = jaccard(entityTokens(S), entityTokens(C))`. `entityTokens()` is a pure function in `packages/shared/src/core`. It keeps capitalised or product-like tokens, version strings (`v5.2`, `1.0`) and repo slugs, and drops a stoplist of words that name nothing, "AI" among them.
+  - `link = 1` if either story's URL points at the same GitHub repo or the same domain and path prefix as the other, or if both stories name the same CVE or GHSA id in their title, excerpt or URL; else 0.
+- `candidateScore = 0.45·trgm + 0.45·ent + 0.10·link`. A candidate needs `candidateScore ≥ CLUSTER_CANDIDATE_MIN_SCORE = 0.16`. The floor and weights are tuned for recall: at least 95% of the main fixture's positive pairs and at least 75% of the held-out positive pairs must pass. The floor decides only whether a call is worth making. The model makes the same-story decision.
 - The top 5 candidates by `candidateScore` (ties: newer `publishedAt`, then `id`) go to the model. With no candidate, there is **no LLM call** and S stays a single story.
 
 **2. Decision (one LLM call per new story with candidates)**
@@ -362,7 +362,7 @@ The clustering step runs inside the ingestion run, after the sources settle and 
 - `apps/api/test/fixtures/cluster-pairs.json` holds ~50 hand-labelled pairs: ≥ 20 positive and ≥ 20 negative, including hard negatives such as two different "React 19.x" posts, or two posts about the same project that report different events.
 - Fixture stories have the shapes ingestion produces. HN and GitHub stories have a `null` excerpt, and GitHub titles read `owner/repo: description` (F2.4). The fixture holds no pair that ingestion's URL dedup (canonical URLs, AC-1.2.4) would already merge into one Story.
 - Labelling rule: several reports of the same event are a positive pair. Follow-up coverage of a distinct event is a negative pair, for example an IPO's pricing day and its trading debut, or a vulnerability disclosure and a vendor's mitigation post.
-- A held-out set of pairs is never used for tuning the constants, and its precision and recall are reported separately.
+- A held-out set of real pairs, labelled before any constant is tuned on it, gates the pre-filter (at least 75% of its positives pass). It is never used for tuning the prompt or `CLUSTER_MIN_CONFIDENCE`, and its precision and recall are reported separately.
 - The model's reply for each pair is recorded once with a real key, in `apps/api/test/fixtures/llm/clusterMatch.v1.pairs.json`. CI replays the recording and never calls the live model.
 - The test runs each pair end to end: the pre-filter with the pair's other story as the only window story, then the recorded reply. A positive pair that the pre-filter cuts counts as a miss.
 
@@ -593,7 +593,7 @@ Rules: `apps/*` may import from `packages/shared`, never from each other. `packa
 - Sessions in guards use `auth.api.getSession({ headers: fromNodeHeaders(req.headers) })`.
 - Validation goes through a Zod pipe (for example `nestjs-zod`, compatible with Zod 3.25) using the schemas from `packages/shared`. OpenAPI is generated from the same schemas with `@nestjs/swagger`.
 - Logging: structured JSON (`nestjs-pino`), with `x-request-id` propagated into logs and error responses.
-- Prisma 7 conventions: the connection URL lives in `prisma.config.ts` and the client uses the `@prisma/adapter-pg` driver adapter. A query the Prisma client can't express uses parameterised `$queryRaw` tagged templates, never built strings. Today there are two: the feed query (FTS, a dynamic ORDER BY and a keyset cursor) and the clustering window query (`pg_trgm` `similarity()`). Every other query uses the Prisma client.
+- Prisma 7 conventions: the connection URL lives in `prisma.config.ts` and the client uses the `@prisma/adapter-pg` driver adapter. A query the Prisma client can't express uses parameterised `$queryRaw` tagged templates, never built strings. Today there are two: the feed query (FTS, a dynamic ORDER BY and a keyset cursor) and the database clock (`SELECT now()`), which gives the ingestion run its start time and so the clustering step its `firstSeenAt` cut-off. Every other query uses the Prisma client, including the clustering window, whose trigram similarity is computed in process (F2.1 rule 1).
 
 ### 4.3 Request and data flows
 
@@ -1744,7 +1744,7 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 |---|---|---|---|---|---|---|
 | Auto summaries (P2) | 4,000 (system 600 + text ≤ 1,000 + comments ≤ 2,400) | 700 | 4,000×$0.10/1M + 700×$0.50/1M = **$0.00075** | 20/day | $0.0150 | $0.465 |
 | On-demand summaries (P2) | 4,000 | 700 | $0.00075 | 15 new/day globally (cache hits free) | $0.01125 | $0.349 |
-| Clustering decisions (P2) | 1,000 (system + schema 280 + 6 stories × 120) | 50 | 1,000×$0.10/1M + 50×$0.50/1M = **$0.000125** | ≤ 1 per new story with candidates; the cap allows 160/day | $0.0200 | $0.620 |
+| Clustering decisions (P2) | 1,000 (system + schema 280 + 6 stories × 120) | 50 | 1,000×$0.10/1M + 50×$0.50/1M = **$0.000125** | ≤ 1 per new story with candidates; the cap allows 160/day at worst case, ≈ 265/day at the expected $0.000075 | $0.0200 | $0.620 |
 | Copilot (P3) | 6,000 (system + plan schema 1,500 + 15 stories × 300) | 1,500 | 6,000×$0.10/1M + 1,500×$0.50/1M = **$0.00135** | 20 fresh questions/day globally (cache/fallback free) | $0.0270 | $0.837 |
 | Example briefings (P3) | 6,000 | 1,500 | $0.00135 | 3, manual, rare | n/a | ≈ $0.004 |
 | **Total** | | | | | **$0.07325** | **≈ $2.27**, above $2.00, so the global cap below is the binding stop |
@@ -1754,15 +1754,15 @@ All prompts are hard-truncated to ≤ 8K tokens, so the >100K pricing tier ($0.5
 |---|---|
 | `LLM_CAP_SUMMARY_AUTO_USD_DAY` | 0.015 |
 | `LLM_CAP_SUMMARY_ON_DEMAND_USD_DAY` | 0.012 |
-| `LLM_CAP_CLUSTER_USD_DAY` | 0.020: 160 worst-case decisions ($0.02 / $0.000125), or 40% of a 400-new-story day |
+| `LLM_CAP_CLUSTER_USD_DAY` | 0.020: 160 worst-case decisions ($0.02 / $0.000125), or ≈ 265 at the expected settled cost of $0.000075 a call; the pre-filter must keep its expected spend ≥ 30% under the cap |
 | `LLM_CAP_COPILOT_USD_DAY` | 0.028 |
 | `LLM_CAP_GLOBAL_USD_DAY` | **0.064**, the binding stop: 31 × $0.064 = **$1.984 < $2.00** |
 | `LLM_PRICE_INPUT_PER_MTOK` / `LLM_PRICE_OUTPUT_PER_MTOK` | 0.10 / 0.50 |
 
 - **Enforcement:** before each call, a transaction sums `reservedUsd` for the day and feature. If `spent + worstCase > cap`, it refuses; otherwise it inserts a `reserved` row. After the call, the row is settled with the actual `costUsd`. Failed calls settle at their actual usage. This holds even under concurrency because it is serialised by a per-day advisory lock.
 - **Cap arithmetic:** in Phase 2, the per-feature caps add up to $0.015 + $0.012 + $0.020 = $0.047/day, under the $0.064 global cap, so the global cap never starves a Phase 2 feature. With the copilot (Phase 3), they add up to $0.075/day. On a day when every feature reaches its cap, the global cap refuses whichever call comes last, and the copilot falls back to its example briefing. A $0.08 global cap would allow 31 × $0.08 = $2.48 per month, which breaks the §1.6 target (open item O5).
-- **Volume behind the cluster cap:** 200–400 new stories a day (§5.3). The pre-filter's floor sends only stories with a plausible duplicate to the model, about 25–40% of them. When the cap runs out late in a day, the remaining stories stay single, which is the Phase 1 behaviour.
-- **Expected real spend** is well below the cap, at about $0.60–1.00 per month: actual outputs are around 350–900 tokens for summaries and about 15 tokens for a clustering decision. About 100 clustering decisions a day at roughly 600 input tokens each cost about $0.007/day (≈ $0.21/month). Copilot traffic is low, and caching takes effect.
+- **Volume behind the cluster cap:** 200–400 new stories a day (§5.3). The pre-filter's floor sends only stories with a plausible duplicate to the model, about 30–45% of them at a production-sized window of about 1,200 stories. The cap limits settled spend: each call reserves its worst case, then settles at its actual usage, so only the day's last reservation needs the worst-case room. The expected settled cost is about 650 input tokens and under 20 output tokens: 650 × $0.10/1M + 20 × $0.50/1M = $0.000075 a call. Settling uses the provider's reported `usage`, not the ledger's estimate (which over-counts and is only the basis of the reservation); the 650 comes from that estimate on the recorded stories, so it errs high. This per-call cost is unverified until #82 records real usage. About 176 calls on a 400-story day then cost about $0.0132, which leaves 34% headroom under the cap. When the cap runs out late in a day, the remaining stories stay single, which is the Phase 1 behaviour.
+- **Expected real spend** is well below the cap, at about $0.80–1.20 per month: actual outputs are around 350–900 tokens for summaries and about 15 tokens for a clustering decision. About 176 clustering decisions a day at the expected $0.000075 each cost about $0.013/day (≈ $0.40/month). Copilot traffic is low, and caching takes effect.
 - **Backstop:** a monthly spend limit is also set in the provider console (operations runbook).
 - **Cost levers:** summaries are cached forever. Identical copilot questions are cached for 24 h. Landing examples are pre-generated. The no-coverage path makes no LLM call. Optional LLM tagging (F2.7) piggybacks on the summary call at zero extra calls. Clustering makes no call for a story without candidates and never re-decides a story. There are no embeddings. Provider prompt caching for the static system prompt is an extra saving and is not counted above.
 - **Copilot quotas:** guests get 3 per day per (IP hash, device id), with an IP backstop of 10 per day. Signed-in users get 20 per day. All are counted in `RateLimitCounter`, keyed by UTC day. When the global cap is hit, the copilot serves the example-briefing fallback.
