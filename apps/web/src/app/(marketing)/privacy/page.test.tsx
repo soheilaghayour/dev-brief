@@ -20,7 +20,22 @@ const FORBIDDEN_CLAIMS = [
   /certif(ied|ication)/i,
   /\blawful/i,
   /legal basis/i,
-  /Art\.\s*\d/i,
+  /\bArt(icle)?\.?\s*\d/i,
+  /konform/i,
+  /Standardvertragsklauseln/i,
+  /Rechtsgrundlage/i,
+  /berechtigte[sn]? Interesse/i,
+  /legitimate interest/i,
+  /adequacy/i,
+  /Privacy Shield/i,
+  /binding corporate rules/i,
+  /\bBCR\b/,
+  /ISO ?27001/i,
+  /SOC ?2/i,
+  /certificate/i,
+  /certifies/i,
+  /anonymi[sz]/i,
+  /\banonymous/i,
 ];
 
 function renderPage() {
@@ -36,7 +51,7 @@ function anthropicEntry(page = renderPage()) {
 }
 
 describe('PrivacyPage', () => {
-  it('AC-L11 lists Anthropic as a recipient with what it receives for summaries, clustering and the copilot', () => {
+  it('AC-L11 lists Anthropic as a recipient with what it receives for summaries, grouping of related stories and the copilot', () => {
     const page = renderPage();
     const recipients = page.querySelector('h2 + ul');
     expect(recipients?.previousElementSibling?.textContent).toBe('Processors and recipients');
@@ -46,7 +61,7 @@ describe('PrivacyPage', () => {
     const text = entry.textContent ?? '';
     expect(text).toContain('Anthropic provides the AI model');
     expect(text).toMatch(
-      /Summaries and clustering\..*title, its Dev\.to article text or excerpt, and public comments from Hacker News and Dev\.to/,
+      /Summaries and grouping of related stories\..*title, its Dev\.to article text or excerpt, and public comments from Hacker News and Dev\.to/,
     );
     expect(text).toMatch(
       /Copilot\..*the question as typed, plus the titles, excerpts and summaries/,
@@ -54,8 +69,13 @@ describe('PrivacyPage', () => {
   });
 
   it('AC-L11 says that no account data, IP address or device id is sent', () => {
-    expect(anthropicEntry().textContent).toContain(
-      'Anthropic never receives your account data (name, email), your IP address or your device id.',
+    const text = anthropicEntry().textContent ?? '';
+    expect(text).toContain(
+      'DevBrief does not send Anthropic your name, email address, account id, IP address or device id.',
+    );
+    expect(text).toContain('Your copilot question is sent exactly as you typed it');
+    expect(text).toContain(
+      'DevBrief sends Anthropic nothing for an AI feature that is switched off.',
     );
   });
 
@@ -63,7 +83,9 @@ describe('PrivacyPage', () => {
     const text = anthropicEntry().textContent ?? '';
     expect(text).toMatch(/Summaries .* kept with their story\. A story is deleted 90 days/);
     expect(text).toContain('Copilot questions and answers are deleted after 30 days');
-    expect(text).toMatch(/usage record .* kept for 400 days.* It contains no text\./);
+    expect(text).toMatch(
+      /usage record of each AI request for 400 days.* It contains none of the text that was sent\. Deleting your account removes the account id/,
+    );
   });
 
   it("AC-L11 links to Anthropic's Commercial Terms and Privacy Policy on anthropic.com", () => {

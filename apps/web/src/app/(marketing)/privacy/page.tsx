@@ -12,16 +12,20 @@ export default function PrivacyPage() {
       <p>[OPERATOR NAME], [POSTAL ADDRESS], [CONTACT EMAIL]. See the Impressum.</p>
       <h2>Browsing as a guest</h2>
       <p>
-        You can read the feed without an account. Your saved stories, hint dismissal and theme
-        choice are stored in your browser&apos;s local storage, not on our server. If you sign in,
-        your saved stories are copied to your account. No analytics, advertising or tracking cookies
-        are used, which is why there is no cookie banner.
+        You can read the feed without an account. Your saved stories, collections, notes, the tags
+        and sources you follow or mute, hint dismissal and theme choice are stored in your
+        browser&apos;s local storage, not on DevBrief&apos;s server. When you sign in, your saved
+        stories, collections, notes, follows and mutes are moved to your account and removed from
+        the browser. Your browser also keeps a random device id, which it sends only with AI
+        requests (see below). No analytics, advertising or tracking cookies are used, which is why
+        there is no cookie banner.
       </p>
       <h2>Signing in</h2>
       <p>
         If you sign in with GitHub or Google, we receive your name, verified email address and
-        profile picture from that provider. We store them together with your saved stories until you
-        delete your account in the settings, which removes all of it. We store no passwords.
+        profile picture from that provider. We store them together with your saved stories,
+        collections, notes, follows and mutes until you delete your account in the settings, which
+        removes all of it. We store no passwords.
       </p>
       <h2>Cookies</h2>
       <p>
@@ -32,8 +36,8 @@ export default function PrivacyPage() {
       <ul>
         <li>Hetzner Online GmbH hosts the servers and the database.</li>
         <li>
-          Functional Software, Inc. (Sentry) receives error reports. Personal data such as IP
-          addresses, cookies and authorization headers is removed before sending.
+          Functional Software, Inc. (Sentry) receives error reports. IP addresses, cookies,
+          authorization headers and the contents of the failed request are removed before sending.
         </li>
         <li>
           GitHub, Inc. and Google LLC handle the sign-in if you choose them. Their own privacy
@@ -42,17 +46,21 @@ export default function PrivacyPage() {
         <li data-recipient="anthropic">
           <p>
             Anthropic provides the AI model behind DevBrief&apos;s AI features. Each of these
-            features is switched on separately, and DevBrief sends Anthropic nothing for a feature
-            that is off.
+            features is switched on separately. DevBrief sends Anthropic nothing for an AI feature
+            that is switched off.
           </p>
           <p>What Anthropic receives, and why:</p>
           <ul>
             <li>
-              <strong>Summaries and clustering.</strong> To write a story&apos;s summary, Anthropic
-              receives the story&apos;s title, its Dev.to article text or excerpt, and public
-              comments from Hacker News and Dev.to, without the commenters&apos; names. To decide
-              whether two stories report the same event, it receives their titles, excerpts,
-              websites and publication dates.
+              <strong>Summaries and grouping of related stories.</strong> To write a story&apos;s
+              summary, Anthropic receives the story&apos;s title, its Dev.to article text or
+              excerpt, and public comments from Hacker News and Dev.to, without the commenters&apos;
+              names. To decide whether two stories report the same event, it receives their titles,
+              excerpts, websites and publication dates.
+            </li>
+            <li>
+              DevBrief does not store the Dev.to article text or the comments it sends; it fetches
+              them only to write the summary.
             </li>
             <li>
               <strong>Copilot.</strong> To answer a reader&apos;s question, Anthropic receives the
@@ -62,9 +70,10 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            Anthropic never receives your account data (name, email), your IP address or your device
-            id. The identifiers DevBrief uses to count daily usage limits stay on DevBrief&apos;s
-            server.
+            DevBrief does not send Anthropic your name, email address, account id, IP address or
+            device id. The ids DevBrief uses to count daily usage limits stay on DevBrief&apos;s
+            server. Your copilot question is sent exactly as you typed it, so don&apos;t put
+            personal details in it.
           </p>
           <p>How long DevBrief keeps this data:</p>
           <ul>
@@ -75,12 +84,15 @@ export default function PrivacyPage() {
             <li>
               Copilot questions and answers are deleted after 30 days, or earlier when the signed-in
               reader who asked deletes their account. A guest&apos;s question is stored with a
-              one-way hash instead of the IP address or device id.
+              scrambled code (a hash) made from the IP address and device id, not with the address
+              or id itself.
             </li>
             <li>
-              A usage record of each AI request is kept for 400 days to track spending. It holds the
-              feature, token counts and cost, and for a signed-in reader&apos;s request the account
-              id. It contains no text.
+              DevBrief keeps a usage record of each AI request for 400 days, to track spending. It
+              holds the date, the feature, the model, the amount of text processed (token counts),
+              the cost, the id of the story or copilot question it was for, and, for a signed-in
+              reader&apos;s request, the account id. It contains none of the text that was sent.
+              Deleting your account removes the account id from these records.
             </li>
           </ul>
           <p>
@@ -97,13 +109,14 @@ export default function PrivacyPage() {
           </p>
         </li>
       </ul>
-      <h2>Server logs and IP addresses</h2>
+      <h2>IP addresses and usage limits</h2>
       <p>
-        For abuse protection, requests are rate-limited per client. Per-minute limits keep their
-        counters in the server&apos;s memory only. DevBrief&apos;s database never stores your IP
-        address itself: the daily limits for AI features store only a salted hash of it, and the
-        salt changes every day. A guest&apos;s daily counters also hold the random device id that
-        the browser creates and sends with AI requests. Daily counters are deleted after 7 days.
+        For abuse protection, requests are limited per IP address. Per-minute limits count requests
+        in the server&apos;s memory only and are never written to the database. DevBrief&apos;s
+        database never stores your IP address: the daily limits for AI features store only a
+        scrambled code (a hash) made from it with a key that changes every day, so the same address
+        gives a different code each day. The daily counters also hold your account id if you are
+        signed in, or the device id if you are a guest. They are deleted after 7 days.
       </p>
       <h2>Your rights</h2>
       <p>
