@@ -10,7 +10,7 @@ import { radarQueryOptions } from './radarQueries';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock('./VelocityLines', () => ({ default: () => <div data-testid="lines" /> }));
+vi.mock('@/components/radar/VelocityLines', () => ({ default: () => <div data-testid="lines" /> }));
 
 const SLUGS = ['ai-llms', 'rust', 'vue', 'go', 'react', 'typescript'] as const;
 const movers = SLUGS.map((tag, index) => ({
