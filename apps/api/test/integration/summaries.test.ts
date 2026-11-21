@@ -11,7 +11,7 @@ import {
 } from '@devbrief/shared';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { utcDay } from '../../src/modules/llm/budget.js';
+import { utcDay } from '../../src/common/time/utcDay.js';
 import { GenerationFailedError } from '../../src/modules/llm/llm.errors.js';
 import { SummariesService } from '../../src/modules/summaries/summaries.service.js';
 import { SummaryInputsUnavailableError } from '../../src/modules/summaries/summaries.errors.js';

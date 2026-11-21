@@ -47,6 +47,22 @@ Reservations are serialised per UTC day: each runs in one transaction that first
 
 `POST /api/v1/stories/:id/summary` (`OnDemandSummaryService`) is the on-demand path: a stored summary answers 200 for free; otherwise a daily quota slot (20 per user, 5 per guest keyed by IP digest `sha256(ip + daily salt)` plus device id, in `RateLimitCounter`) is taken, `generate` runs, and the response is 201. Over the quota is 429 `QUOTA_EXCEEDED`; the route also has a 5/min/IP window. The story page shows the result in `SummaryPanel`, with a Summarize button when none is stored. Choices: [DECISIONS](../DECISIONS.md).
 
+### Copilot
+
+`apps/api/src/modules/copilot/` answers a question with a streamed briefing. `BriefingPipelineService` (question → retrieval → streamed `BriefingPlan` → compiled A2UI messages) is wrapped by `CopilotService`, which `CopilotController` serves as `POST /api/v1/copilot/ask` (SSE, written on the raw Express response) and `GET /api/v1/copilot/quota`.
+
+`ask` checks in this order:
+
+1. **Before the stream (JSON errors).** The `FEATURE_COPILOT` flag, the Origin check, the 5/min/IP window and the body schema; then the **24 h cache**: the newest `complete` `CopilotQuery` with the same `questionHash` (sha256 of `normalizeQuestion`) is replayed as `meta { cached: true }`, its stored messages and `done`, with no quota, no row and no model call. Otherwise a **quota slot** is taken (`copilotQuota`: a user 20 per UTC day; a guest 3 per device and 10 per IP digest, both taken or neither), and a full counter is a 429 `QUOTA_EXCEEDED` with `resetsAt` and `Retry-After`.
+2. **The stream.** The `CopilotQuery` row is created as `streaming` before the headers (a failure there is still a JSON 500 and gives the slot back); the headers and a `: ping` go out at once and a `: ping` follows every 15 s. The pipeline's first event decides the opening `meta`: its spend reservation has happened by then, so `meta` says whether this is a fallback.
+   - `no_coverage`: the deterministic briefing, status `no_coverage`, slot given back.
+   - `SpendCapReachedError` (the `copilot` cap or the global one): the closest `ExampleBriefing` (`closestExample`: most shared `tagStory` tags, ties by `position`) with `meta.fallback = 'SPEND_CAP'`, status `fallback`, slot given back; with no examples, `error { SPEND_CAP_REACHED }`.
+   - Otherwise every compiled message is one `a2ui` event; at the end the row becomes `complete` with its messages, `storyIds`, tokens and cost, and `done { usage }` closes the stream.
+   - A failure after the stream started (provider error, invalid plan, the 10 s first-token or 30 s total deadline of `LlmService`) sends `error { GENERATION_FAILED }`, stores `failed` (never replayed) and gives the slot back only when no section component was written; the opening `root` alone is not one. An unexpected error sends `meta` if none went out yet, then `error { INTERNAL }`. A client hang-up sends no error event: the row is stored as `failed` under the same slot rule.
+3. **Disconnects.** The response's `close` aborts the pipeline's `AbortSignal`, which aborts the model call; the service still stores the row and settles the slot. The model call's `LlmUsage.refId` is the `CopilotQuery` id, and the row's `guestKey` is `sha256(ip digest + deviceId)`.
+
+Every event payload is parsed with its shared schema before it is written. Choices: [DECISIONS](../DECISIONS.md).
+
 ## Clusters
 
 A cluster is a `Cluster` row plus `clusterId`, `isPrimary` and `clusterScore` on its member stories (written by the clustering step). The read side keeps three things current:

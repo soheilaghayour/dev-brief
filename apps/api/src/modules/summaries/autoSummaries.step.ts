@@ -7,7 +7,8 @@ import {
   type IngestionPostRunStep,
   type PostRunContext,
 } from '../ingestion/postRunStep.js';
-import { type LedgerStatus, utcDay } from '../llm/budget.js';
+import { utcDay } from '../../common/time/utcDay.js';
+import type { LedgerStatus } from '../llm/budget.js';
 import { SummariesService } from './summaries.service.js';
 import {
   AUTO_SUMMARIES_PER_DAY,
