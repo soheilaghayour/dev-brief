@@ -20,7 +20,7 @@ export type TagVelocityInput = {
 };
 
 const DAY_MS = 86_400_000;
-const WINDOW_DAYS = { '7d': 7, '30d': 30 } as const satisfies Record<RadarWindow, number>;
+export const WINDOW_DAYS = { '7d': 7, '30d': 30 } as const satisfies Record<RadarWindow, number>;
 const DEFAULT_SERIES_COUNT = 5;
 
 const dayKey = (dayMs: number) => new Date(dayMs).toISOString().slice(0, 10);

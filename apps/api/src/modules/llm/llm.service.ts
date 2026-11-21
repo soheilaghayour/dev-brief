@@ -1,5 +1,5 @@
 import type { AnthropicLanguageModelOptions } from '@ai-sdk/anthropic';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   APICallError,
   generateText,
@@ -7,12 +7,14 @@ import {
   type LanguageModelUsage,
   NoObjectGeneratedError,
   Output,
+  streamText,
 } from 'ai';
 import type { z } from 'zod';
 import { sleep } from '../../common/http/httpClient.js';
 import type { LlmFeature } from '../../generated/prisma/client.js';
 import { type Budget, estimateTokens } from './budget.js';
 import { GenerationFailedError } from './llm.errors.js';
+import { planProgress } from './planProgress.js';
 import {
   LLM_BUDGET,
   type Reservation,
@@ -22,8 +24,13 @@ import {
 
 export const LANGUAGE_MODEL = Symbol('LANGUAGE_MODEL');
 
-/** PRD §8.3: each attempt gets 30 s. */
+/** PRD §8.3: a call gets 30 s in total, its retry included. */
 const CALL_TIMEOUT_MS = 30_000;
+
+/** PRD §8.3: a stream that sends no token in 10 s from the call's start is aborted. */
+const FIRST_TOKEN_TIMEOUT_MS = 10_000;
+
+const logger = new Logger('LlmService');
 
 // PRD §8.1: no thinking and the lowest effort, so `maxOutputTokens` bounds what a call bills.
 const MINIMAL_THINKING = {
@@ -47,6 +54,29 @@ export type StructuredResult<OBJECT> = {
   object: OBJECT;
   usage: TokenUsage & { costUsd: number };
   model: string;
+};
+
+/** The shape every streamed plan has: a title, then sections the caller validates one by one. */
+type PlanObject = { title: string; sections: unknown[] };
+
+export type PlanStreamRequest<SECTION> = Omit<StructuredRequest<PlanObject>, 'schema'> & {
+  /** The plan's structure only, checked once the stream ends: a section the caller skips must not fail it. */
+  schema: z.ZodType<PlanObject, z.ZodTypeDef, unknown>;
+  /** The title, checked before it is released; a title that fails ends the call with `invalid_output`. */
+  titleSchema: z.ZodType<string>;
+  /** Each section, checked before it is released; one that fails is skipped. */
+  sectionSchema: z.ZodType<SECTION>;
+};
+
+export type PlanStreamEvent<SECTION> =
+  | { kind: 'title'; title: string }
+  | { kind: 'section'; index: number; section: SECTION }
+  | { kind: 'finished'; usage: TokenUsage & { costUsd: number }; model: string };
+
+/** The deadlines of one `streamPlan` call, shared by its attempts. */
+type PlanCall = {
+  signal: AbortSignal;
+  firstTokenTimer: ReturnType<typeof setTimeout>;
 };
 
 type StructuredOutput<OBJECT> = ReturnType<typeof Output.object<OBJECT>>;
@@ -110,6 +140,162 @@ export class LlmService {
     }
   }
 
+  /** Streams a plan, yielding its validated title and each completed section as the model writes them, then `finished`. */
+  async *streamPlan<SECTION>(
+    request: PlanStreamRequest<SECTION>,
+  ): AsyncGenerator<PlanStreamEvent<SECTION>, void> {
+    const output = Output.object({ schema: request.schema });
+    const inputTokens = await estimateInputTokens(request, output);
+    const worstCase = { inputTokens, outputTokens: request.maxOutputTokens };
+    // Both deadlines run from the call's start, so a retry gets only the time that is left.
+    const deadline = new AbortController();
+    const expire = (limit: string) => () =>
+      deadline.abort(new DOMException(`The stream ran past its ${limit}`, 'TimeoutError'));
+    // The SDK's `totalMs` is an AbortSignal.timeout, which fake timers can't advance; these are plain timers.
+    const call = {
+      signal: request.signal ? AbortSignal.any([request.signal, deadline.signal]) : deadline.signal,
+      firstTokenTimer: setTimeout(expire('first-token time'), FIRST_TOKEN_TIMEOUT_MS),
+    };
+    const totalTimer = setTimeout(expire('total time'), CALL_TIMEOUT_MS);
+    try {
+      yield* this.attemptPlan(request, output, { inputTokens, worstCase }, call);
+    } finally {
+      clearTimeout(totalTimer);
+      clearTimeout(call.firstTokenTimer);
+    }
+  }
+
+  private async *attemptPlan<SECTION>(
+    request: PlanStreamRequest<SECTION>,
+    output: StructuredOutput<PlanObject>,
+    { inputTokens, worstCase }: { inputTokens: number; worstCase: TokenUsage },
+    call: PlanCall,
+  ): AsyncGenerator<PlanStreamEvent<SECTION>, void> {
+    for (let retried = 0; ; retried += 1) {
+      request.signal?.throwIfAborted();
+      const reservation = await this.ledger.reserve(
+        {
+          feature: request.feature,
+          model: this.budget.model,
+          inputTokens,
+          maxOutputTokens: request.maxOutputTokens,
+          userId: request.userId,
+          refId: request.refId,
+        },
+        new Date(),
+      );
+      const progress = { tokenSeen: false };
+      let closed = false;
+      try {
+        const outcome = yield* this.streamAttempt(request, output, worstCase, progress, call);
+        closed = true;
+        if (outcome.kind === 'generated') {
+          const costUsd = await this.ledger.settle(reservation, outcome.usage);
+          yield {
+            kind: 'finished',
+            usage: { ...outcome.usage, costUsd },
+            model: reservation.model,
+          };
+          return;
+        }
+        await this.ledger.fail(reservation, outcome.usage);
+        // A retry after streamed output would duplicate it, so only a failure before the first token is retried.
+        const retryable =
+          outcome.kind === 'provider_error' &&
+          outcome.retryable &&
+          !progress.tokenSeen &&
+          retried < RETRY_POLICY.provider_error.retries;
+        if (!retryable) {
+          throw new GenerationFailedError(outcome.kind, {
+            cause: outcome.kind === 'provider_error' ? outcome.cause : undefined,
+          });
+        }
+      } finally {
+        // The consumer stopped, or something threw, mid-stream: the provider may have billed, at unknown usage.
+        if (!closed) await this.ledger.fail(reservation, worstCase);
+      }
+      try {
+        await sleep(RETRY_POLICY.provider_error.delayMs, call.signal);
+      } catch (cause) {
+        throw new GenerationFailedError('provider_error', { cause });
+      }
+    }
+  }
+
+  private async *streamAttempt<SECTION>(
+    request: PlanStreamRequest<SECTION>,
+    output: StructuredOutput<PlanObject>,
+    worstCase: TokenUsage,
+    progress: { tokenSeen: boolean },
+    call: PlanCall,
+  ): AsyncGenerator<PlanStreamEvent<SECTION>, Attempt<PlanObject>> {
+    // The stream ends quietly on a provider error and reports it only here.
+    let streamError: unknown;
+    const stopped = new AbortController();
+    const result = streamText({
+      model: this.model,
+      instructions: request.system,
+      prompt: request.prompt,
+      output,
+      maxOutputTokens: request.maxOutputTokens,
+      // Retries happen in `streamPlan`, so each attempt reserves and settles its own row.
+      maxRetries: 0,
+      abortSignal: AbortSignal.any([call.signal, stopped.signal]),
+      providerOptions: { anthropic: MINIMAL_THINKING },
+      onError: ({ error }) => {
+        streamError ??= error;
+      },
+    });
+    // A failed stream rejects all of these; the ones the code below never reaches must not go unhandled.
+    for (const settled of [result.output, result.totalUsage, result.finishReason]) {
+      Promise.resolve(settled).catch(() => undefined);
+    }
+    const released = { title: false, sections: 0 };
+    function* release(partial: unknown, final: boolean) {
+      const { title, sections } = planProgress(partial, final);
+      if (title !== undefined && !released.title) {
+        released.title = true;
+        const checked = request.titleSchema.safeParse(title);
+        if (!checked.success) throw new GenerationFailedError('invalid_output');
+        yield { kind: 'title', title: checked.data } as const;
+      }
+      for (; released.sections < sections.length; released.sections += 1) {
+        const index = released.sections;
+        const section = request.sectionSchema.safeParse(sections[index]);
+        if (section.success) yield { kind: 'section', index, section: section.data } as const;
+        else logger.warn(`Plan section ${index} failed its schema and was skipped`);
+      }
+    }
+    try {
+      // Not `for await`: leaving that loop early cancels the SDK's stream mid-pipe, which rejects unhandled inside the SDK.
+      const partials = result.partialOutputStream[Symbol.asyncIterator]();
+      for (let step = await partials.next(); !step.done; step = await partials.next()) {
+        progress.tokenSeen = true;
+        clearTimeout(call.firstTokenTimer);
+        yield* release(step.value, false);
+      }
+      const plan = await result.output;
+      const usage = billedTokens(await result.totalUsage, worstCase);
+      if ((await result.finishReason) === 'content-filter') return { kind: 'refused', usage };
+      yield* release(plan, true);
+      return { kind: 'generated', object: plan, usage };
+    } catch (error) {
+      // The title failed its gate: the stream is abandoned, so what it billed is unknown.
+      if (error instanceof GenerationFailedError)
+        return { kind: 'invalid_output', usage: worstCase };
+      if (streamError === undefined && NoObjectGeneratedError.isInstance(error)) {
+        const usage = billedTokens(error.usage, worstCase);
+        return error.finishReason === 'content-filter'
+          ? { kind: 'refused', usage }
+          : { kind: 'invalid_output', usage };
+      }
+      return providerFailure(streamError ?? error, worstCase);
+    } finally {
+      // A consumer that stops early must not leave the provider generating, and billing, behind it.
+      stopped.abort(new Error('The consumer stopped reading the stream'));
+    }
+  }
+
   private async callModel<OBJECT>(
     request: StructuredRequest<OBJECT>,
     output: StructuredOutput<OBJECT>,
@@ -159,7 +345,7 @@ export class LlmService {
 
 // The SDK sends the output's JSON schema with the prompt, so it counts as input.
 async function estimateInputTokens<OBJECT>(
-  request: StructuredRequest<OBJECT>,
+  request: Pick<StructuredRequest<OBJECT>, 'system' | 'prompt'>,
   output: StructuredOutput<OBJECT>,
 ) {
   const format = await output.responseFormat;

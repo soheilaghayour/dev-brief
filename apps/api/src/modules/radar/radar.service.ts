@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Radar, RadarQuery } from '@devbrief/shared';
 import { LruCache } from '../../common/cache/lru.cache.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-import { computeTagVelocity, radarStartDay } from './tagVelocity.js';
+import { computeTagVelocity, radarStartDay } from '../../common/tag-velocity/tagVelocity.js';
 
 /** How long a radar response stays in the LRU (PRD §8.4); the post-run cache clear cuts it short. */
 const RADAR_CACHE_TTL_MS = 3_600_000;

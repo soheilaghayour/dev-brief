@@ -3,8 +3,11 @@ import { A2uiServerMessageSchema } from '../a2ui/catalog.js';
 import { EXAMPLE_QUESTIONS, type ExampleQuestion } from '../a2ui/exampleQuestions.js';
 import { ApiErrorCodeSchema } from './error.js';
 
+/** PRD §3.3: the question's limit, in characters. */
+export const QUESTION_MAX_CHARS = 200;
+
 export const CopilotAskRequestSchema = z.object({
-  question: z.string().trim().min(3).max(200),
+  question: z.string().trim().min(3).max(QUESTION_MAX_CHARS),
   deviceId: z.string().uuid(),
 });
 export type CopilotAskRequest = z.infer<typeof CopilotAskRequestSchema>;
