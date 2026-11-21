@@ -1,8 +1,11 @@
 import { pathToFileURL } from 'node:url';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { A2uiServerMessageSchema, EXAMPLE_QUESTIONS } from '@devbrief/shared';
+import tsToolingBriefing from '@devbrief/shared/a2ui/fixtures/tsToolingBriefing.json';
 import { Prisma, PrismaClient } from '../src/generated/prisma/client.js';
 import { loadEnv } from '../src/env.js';
 import { seedSources } from '../src/cli/seedSources.js';
+import { questionHash } from '../src/modules/copilot/normalizeQuestion.js';
 
 const HOUR = 3_600_000;
 const STORY_COUNT = 45;
@@ -195,6 +198,23 @@ export function buildTagDailyStats(now: Date) {
     );
 }
 
+/** A stored, complete answer to the first suggested question, so the command bar's cached replay runs in e2e without a model call. */
+async function seedCopilotQuery(prisma: PrismaClient, now: Date) {
+  const { question } = EXAMPLE_QUESTIONS[0];
+  const messages = A2uiServerMessageSchema.array().parse(tsToolingBriefing);
+  await prisma.copilotQuery.create({
+    data: {
+      question,
+      questionHash: questionHash(question),
+      status: 'complete',
+      messages: messages as unknown as Prisma.InputJsonValue,
+      storyIds: [],
+      // Inside the 24 h cache whenever the specs run right after seeding.
+      createdAt: now,
+    },
+  });
+}
+
 async function seedSummary(
   prisma: PrismaClient,
   storyId: string,
@@ -229,7 +249,7 @@ export function assertDestructiveSeedAllowed(databaseUrl: string, allowDestructi
   );
 }
 
-/** Replaces all stories and saves with the fixture ones and resets every source to freshly fetched and closed. */
+/** Replaces all stories, saves and copilot answers with the fixture ones and resets every source to freshly fetched and closed. */
 export async function seedE2e(prisma: PrismaClient, now = new Date()) {
   await seedSources(prisma);
   // Leftovers (e.g. from integration tests sharing the CI database) would break the exact counts specs rely on.
@@ -239,6 +259,7 @@ export async function seedE2e(prisma: PrismaClient, now = new Date()) {
     prisma.story.deleteMany(),
     prisma.cluster.deleteMany(),
     prisma.tagDailyStat.deleteMany(),
+    prisma.copilotQuery.deleteMany(),
   ]);
   await prisma.tagDailyStat.createMany({ data: buildTagDailyStats(now) });
   // The cluster row goes first: its stories point at it.
@@ -261,6 +282,7 @@ export async function seedE2e(prisma: PrismaClient, now = new Date()) {
     12,
   );
   await seedSummary(prisma, SUMMARISED_NO_CONSENSUS_STORY_ID, Prisma.DbNull, 3);
+  await seedCopilotQuery(prisma, now);
   await prisma.source.updateMany({
     data: { lastSuccessAt: now, consecutiveFailures: 0, circuitOpenUntil: null },
   });

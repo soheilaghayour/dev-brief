@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TAG_SLUGS } from '@devbrief/shared';
+import { EXAMPLE_QUESTIONS, TAG_SLUGS } from '@devbrief/shared';
+import tsToolingBriefing from '@devbrief/shared/a2ui/fixtures/tsToolingBriefing.json';
 import {
   assertDestructiveSeedAllowed,
   CLUSTER_ID,
@@ -9,6 +10,7 @@ import {
   SUMMARISED_NO_CONSENSUS_STORY_ID,
   SUMMARISED_STORY_ID,
 } from '../../prisma/seedE2e.js';
+import { questionHash } from '../../src/modules/copilot/normalizeQuestion.js';
 import { computeTagVelocity } from '../../src/common/tag-velocity/tagVelocity.js';
 import { useTestDatabase } from './testDatabase.js';
 
@@ -62,6 +64,20 @@ describe('end-to-end seed', () => {
     expect(cluster.stories.filter(({ isPrimary }) => isPrimary).map(({ id }) => id)).toEqual([
       CLUSTER_REPRESENTATIVE_ID,
     ]);
+  });
+
+  it('stores one complete copilot answer under the first suggestion, and reseeding keeps it one', async () => {
+    await seedE2e(prisma, now);
+    await seedE2e(prisma, now);
+
+    const rows = await prisma.copilotQuery.findMany();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      status: 'complete',
+      questionHash: questionHash(EXAMPLE_QUESTIONS[0].question),
+      createdAt: now,
+    });
+    expect(rows[0]?.messages).toEqual(tsToolingBriefing);
   });
 
   it('removes stories that are not fixtures', async () => {
