@@ -28,10 +28,10 @@ function LateProbe() {
   return null;
 }
 
-function press(key: string) {
+function press(key: string, target: EventTarget = document) {
   act(() => {
-    document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-    document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    target.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
   });
 }
 
@@ -86,5 +86,34 @@ describe('HotkeysProvider', () => {
     press('s');
     expect(onGoToSaved).toHaveBeenCalledTimes(1);
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('AC-1.3.8 a modifier pressed between the leader and the second key keeps the sequence', async () => {
+    const { onSave, onGoToSaved } = await mount();
+    press('g');
+    press('Shift');
+    press('s');
+    expect(onGoToSaved).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('AC-1.3.8 a repeated leader cancels the sequence, as in the hook, so no navigation happens', async () => {
+    const { onSave, onGoToSaved } = await mount();
+    press('g');
+    press('g');
+    press('s');
+    expect(onGoToSaved).not.toHaveBeenCalled();
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('AC-1.3.8 a leader typed in an editable field does not arm the sequence', async () => {
+    const { onSave, onGoToSaved } = await mount();
+    const input = document.createElement('input');
+    document.body.append(input);
+    press('g', input);
+    press('s');
+    input.remove();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onGoToSaved).not.toHaveBeenCalled();
   });
 });

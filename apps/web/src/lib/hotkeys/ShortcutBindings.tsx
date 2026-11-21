@@ -36,11 +36,13 @@ export function ShortcutBindings({
   bindings: readonly ShortcutBinding[];
   leaderPending: RefObject<boolean>;
 }) {
-  // Lets e2e tests wait until the lazily loaded hook has bound the shortcuts registered during hydration.
-  const hasBindings = bindings.length > 0;
+  // Lets e2e tests wait for the lazily loaded bindings before pressing keys; removed on unmount so a shared <html> doesn't leak it.
   useEffect(() => {
-    if (hasBindings) document.documentElement.dataset.hotkeysReady = '';
-  }, [hasBindings]);
+    document.documentElement.dataset.hotkeysReady = '';
+    return () => {
+      delete document.documentElement.dataset.hotkeysReady;
+    };
+  }, []);
 
   return bindings.map(({ shortcut, handlerRef }) => (
     <Binding
