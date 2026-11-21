@@ -41,6 +41,8 @@ export function HeroSection({ data, host }: HeroSectionProps) {
             storiesToday={stats?.storiesToday}
             isSample={isSample}
             host={host}
+            briefing={data.examples[0]}
+            briefingIsSample={data.examplesAreSample}
           />
         </div>
       </div>

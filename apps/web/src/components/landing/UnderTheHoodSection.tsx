@@ -1,7 +1,13 @@
+import { isFeatureEnabled, type Features } from '@/config/features';
 import { API_DOCS_PATH, CHANGELOG_URL, PRD_URL, REPO_URL } from './landingLinks';
 import { SectionHeading } from './SectionHeading';
 
 const STACK = ['Next.js', 'NestJS', 'Prisma', 'PostgreSQL', 'TanStack Query', 'Tailwind CSS'];
+
+/** The stack badges of what is shipped: the copilot adds A2UI. */
+export function visibleStack(features?: Features) {
+  return isFeatureEnabled('copilot', features) ? [...STACK, 'A2UI'] : STACK;
+}
 
 const LINKS = [
   { label: 'GitHub repo', href: REPO_URL },
@@ -12,7 +18,7 @@ const LINKS = [
 
 const ARCHITECTURE = ['Sources', 'Ingestion', 'PostgreSQL', 'NestJS API', 'Next.js'];
 
-export function UnderTheHoodSection() {
+export function UnderTheHoodSection({ features }: { features?: Features }) {
   return (
     <section aria-labelledby="hood-title" className="mx-auto max-w-6xl px-4 py-20">
       <SectionHeading id="hood-title" eyebrow="Under the hood" title="Typed end to end">
@@ -35,7 +41,7 @@ export function UnderTheHoodSection() {
           ))}
         </ol>
         <ul aria-label="Stack" className="mt-6 flex flex-wrap justify-center gap-2">
-          {STACK.map((name) => (
+          {visibleStack(features).map((name) => (
             <li key={name} className="text-muted-foreground rounded-full border px-3 py-1 text-sm">
               {name}
             </li>

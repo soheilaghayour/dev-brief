@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ExampleBriefings } from '@/components/landing/ExampleBriefings';
 import { FaqSection } from '@/components/landing/FaqSection';
 import { FeatureBento } from '@/components/landing/FeatureBento';
 import { FinalCtaBand } from '@/components/landing/FinalCtaBand';
@@ -42,6 +43,7 @@ export default async function LandingPage() {
       <HowItWorksSection />
       <FeatureBento />
       <KeyboardShowcase />
+      <ExampleBriefings examples={data.examples} isSample={data.examplesAreSample} />
       <UnderTheHoodSection />
       <FaqSection />
       <FinalCtaBand />

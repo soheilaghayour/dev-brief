@@ -5,14 +5,16 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import type { FocusEvent, KeyboardEvent } from 'react';
+import { useMemo, useState } from 'react';
+import type { CSSProperties, FocusEvent, KeyboardEvent } from 'react';
 import { ArrowRightIcon } from 'lucide-react';
 import { TAG_LABELS, type StoryCard as StoryCardData } from '@devbrief/shared';
 import { StoryCard } from '@/components/feed/StoryCard';
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
+import { LazyBriefingView } from '@/features/copilot/LazyBriefingView';
 import { cn } from '@/lib/cn';
+import { storedBriefingSource, type ExampleBriefing } from './exampleBriefingData';
 import {
   PREVIEW_TAGS,
   feedFocusHref,
@@ -29,18 +31,34 @@ type HeroPreviewProps = {
   storiesToday: number | undefined;
   isSample: boolean;
   host: string;
+  /** Example briefing #1; present only while the copilot flag is on, and it adds the Feed | Briefing switch. */
+  briefing?: ExampleBriefing;
+  briefingIsSample?: boolean;
 };
 
 const MODIFIER_KEYS = ['ctrlKey', 'metaKey', 'altKey'] as const;
 
 /** The product window of the hero: filter chips, the feed's top stories and the feed's j/k/s/Enter keys. */
-export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPreviewProps) {
+export function HeroPreview({
+  stories,
+  storiesToday,
+  isSample,
+  host,
+  briefing,
+  briefingIsSample = false,
+}: HeroPreviewProps) {
   const router = useRouter();
   const saves = usePreviewSaves();
   const [tag, setTag] = useState<PreviewTag>('all');
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [hasChosenTag, setHasChosenTag] = useState(false);
+  const [view, setView] = useState<'feed' | 'briefing'>('feed');
+  const briefingSource = useMemo(
+    () => (briefing ? storedBriefingSource(briefing.messages) : undefined),
+    [briefing],
+  );
+  const isBriefing = view === 'briefing' && briefingSource !== undefined;
 
   const shown = visibleStories(stories, tag);
   const activeStory = shown[activeIndex];
@@ -51,7 +69,16 @@ export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPrevi
     setActiveIndex(0);
   }
 
+  function showFeed() {
+    setView('feed');
+  }
+
+  function showBriefing() {
+    setView('briefing');
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (isBriefing) return;
     if (MODIFIER_KEYS.some((modifier) => event[modifier])) return;
     if (event.key === 'j' || event.key === 'k') {
       event.preventDefault();
@@ -94,50 +121,83 @@ export function HeroPreview({ stories, storiesToday, isSample, host }: HeroPrevi
           <span className="bg-muted-foreground/30 size-2.5 rounded-full" />
         </div>
         <span className="text-muted-foreground font-mono text-xs">{host}/feed</span>
-        {isSample && (
+        {(isSample || (isBriefing && briefingIsSample)) && (
           <span className="text-muted-foreground ml-auto rounded-sm border px-1.5 text-[11px] leading-5">
             Sample data
           </span>
         )}
       </div>
-      <div role="group" aria-label="Filter by tag" className="flex flex-wrap gap-1.5 px-3 pt-3">
-        {PREVIEW_TAGS.map((slug) => (
-          <TagChip
-            key={slug}
-            label={slug === 'all' ? 'All' : TAG_LABELS[slug]}
-            slug={slug}
-            isSelected={tag === slug}
-            onChoose={chooseTag}
-          />
-        ))}
-      </div>
-      <div key={tag} className="mt-2 min-h-[26rem] text-left">
-        {shown.length === 0 && (
-          <p className="text-muted-foreground px-4 py-10 text-center">
-            No stories with this tag in the last 24 hours.
-          </p>
-        )}
-        {shown.map((story, index) => (
-          <div
-            key={story.id}
-            className={cn(
-              hasChosenTag &&
-                'animate-in fade-in slide-in-from-bottom-1 fill-mode-backwards duration-300',
-            )}
-            style={hasChosenTag ? { animationDelay: `${index * 30}ms` } : undefined}
-          >
-            <StoryCard
-              story={story}
-              compact
-              isActive={isFocused && index === activeIndex}
-              isSaved={saves.isSaved(story.id)}
-              onToggleSave={() => saves.toggle(story.id)}
-            />
+      {briefingSource && (
+        <div
+          role="group"
+          aria-label="Preview view"
+          className="bg-muted mx-3 mt-3 flex w-fit gap-0.5 rounded-md p-0.5"
+        >
+          <Button variant="segment" size="sm" aria-pressed={!isBriefing} onClick={showFeed}>
+            Feed
+          </Button>
+          <Button variant="segment" size="sm" aria-pressed={isBriefing} onClick={showBriefing}>
+            Briefing
+          </Button>
+        </div>
+      )}
+      {isBriefing ? (
+        <div
+          role="region"
+          aria-label={briefing?.question}
+          tabIndex={0}
+          style={{ '--briefing-sticky-top': '0px' } as CSSProperties}
+          className="isolate mt-2 h-[28.5rem] overflow-y-auto px-4 pb-4 text-left"
+        >
+          <div className="pt-3">
+            <LazyBriefingView source={briefingSource} />
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <>
+          <div role="group" aria-label="Filter by tag" className="flex flex-wrap gap-1.5 px-3 pt-3">
+            {PREVIEW_TAGS.map((slug) => (
+              <TagChip
+                key={slug}
+                label={slug === 'all' ? 'All' : TAG_LABELS[slug]}
+                slug={slug}
+                isSelected={tag === slug}
+                onChoose={chooseTag}
+              />
+            ))}
+          </div>
+          <div key={tag} className="mt-2 min-h-[26rem] text-left">
+            {shown.length === 0 && (
+              <p className="text-muted-foreground px-4 py-10 text-center">
+                No stories with this tag in the last 24 hours.
+              </p>
+            )}
+            {shown.map((story, index) => (
+              <div
+                key={story.id}
+                className={cn(
+                  hasChosenTag &&
+                    'animate-in fade-in slide-in-from-bottom-1 fill-mode-backwards duration-300',
+                )}
+                style={hasChosenTag ? { animationDelay: `${index * 30}ms` } : undefined}
+              >
+                <StoryCard
+                  story={story}
+                  compact
+                  isActive={isFocused && index === activeIndex}
+                  isSaved={saves.isSaved(story.id)}
+                  onToggleSave={() => saves.toggle(story.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-xs">
-        <p className="flex items-center gap-1.5" aria-hidden="true">
+        <p
+          className={cn('flex items-center gap-1.5', isBriefing && 'invisible')}
+          aria-hidden="true"
+        >
           <Kbd size="sm">J</Kbd>
           <Kbd size="sm">K</Kbd>
           <span>to navigate</span>

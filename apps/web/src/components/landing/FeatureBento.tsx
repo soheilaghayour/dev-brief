@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BookmarkIcon, FolderIcon } from 'lucide-react';
+import { BookmarkIcon, FolderIcon, SparklesIcon } from 'lucide-react';
 import { isFeatureEnabled, type FeatureFlag, type Features } from '@/config/features';
 import { SectionHeading } from './SectionHeading';
 
@@ -59,6 +59,20 @@ function RankingVisual() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AskVisual() {
+  return (
+    <div aria-hidden="true" className="grid gap-2 text-xs">
+      <p className="text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-2">
+        <SparklesIcon className="size-3.5 motion-safe:animate-[bento-pop_5s_ease-in-out_infinite]" />
+        What were this week&apos;s TypeScript tooling debates?
+      </p>
+      <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2">
+        Key takeaways · Story cards · Community consensus
+      </p>
     </div>
   );
 }
@@ -125,6 +139,13 @@ const TILES: readonly BentoTile[] = [
     text: 'Engagement is scored within each source, so a blog post is not buried under Hacker News points.',
     visual: <RankingVisual />,
     className: 'md:col-span-3',
+  },
+  {
+    title: 'Ask the News',
+    text: 'Ask a question and get a briefing of real story cards, takeaways and the community consensus, not a wall of text.',
+    visual: <AskVisual />,
+    className: 'md:col-span-3',
+    flag: 'copilot',
   },
   {
     title: 'Tech Radar',
