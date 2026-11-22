@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 // The web build runs with the API up and the e2e stories seeded, so the landing page holds live stories.
 const preview = (page: Page) => page.getByRole('group', { name: 'Live feed preview' });
@@ -16,7 +16,7 @@ test('AC-L4 the landing page renders and the primary CTA reaches the feed withou
 }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Your morning scan in 5 min' }),
+    page.getByRole('heading', { level: 1, name: 'Your morning tech scan in 5 minutes' }),
   ).toBeVisible();
   await page.getByRole('link', { name: 'Explore the feed — no login required' }).first().click();
   // AC-L4: Top is the default, so the URL carries no params.
@@ -34,7 +34,7 @@ test('AC-L1 the initial HTML holds at least 6 story titles and no sample label',
   expect(html).toMatch(/\d+ stories today · \d+ sources?/);
 });
 
-test('AC-L5 j three times then Enter opens the feed on the fourth card', async ({ page }) => {
+test('AC-L5 j three times then Enter opens the fourth card’s story page', async ({ page }) => {
   await focusPreview(page);
   const fourthId = await previewCards(page).nth(3).getAttribute('data-story-id');
   expect(fourthId).toBeTruthy();
@@ -43,7 +43,151 @@ test('AC-L5 j three times then Enter opens the feed on the fourth card', async (
   await page.keyboard.press('j');
   await expect(previewCards(page).nth(3)).toHaveAttribute('data-active', 'true');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(`/feed?focus=${fourthId}`);
+  await expect(page).toHaveURL(`/story/${fourthId}`);
+});
+
+test('AC-L5 clicking a card title opens its story page in the same tab', async ({ page }) => {
+  await page.goto('/');
+  const card = previewCards(page).nth(1);
+  const id = await card.getAttribute('data-story-id');
+  const title = card.getByRole('heading', { level: 2 }).getByRole('link');
+  await expect(title).not.toHaveAttribute('target');
+  await title.click();
+  await expect(page).toHaveURL(`/story/${id}`);
+  expect(page.context().pages()).toHaveLength(1);
+});
+
+const frame = (page: Page) => preview(page).locator('[data-preview-frame]');
+const height = async (locator: Locator) => (await locator.boundingBox())!.height;
+
+test('AC-L13 the server-rendered HTML holds all 30 embedded stories inside a vertically scrolling frame', async ({
+  browser,
+}) => {
+  // Without JavaScript the page shows exactly what the server sent.
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto('/');
+  await expect(frame(page).locator('article[data-story-id]')).toHaveCount(30);
+  expect(await frame(page).evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto');
+  expect(await frame(page).evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
+    true,
+  );
+  await context.close();
+});
+
+test('AC-L13 the window and its frame keep their height for a chip, an empty list and the Briefing view', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  const windowHeight = await height(preview(page));
+  const frameHeight = await height(frame(page));
+
+  await preview(page).getByRole('button', { name: 'Rust' }).click();
+  await expect(preview(page).getByRole('button', { name: 'Rust' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(await height(preview(page))).toBeCloseTo(windowHeight, 0);
+  expect(await height(frame(page))).toBeCloseTo(frameHeight, 0);
+
+  await preview(page).getByRole('button', { name: 'Briefing' }).click();
+  await expect(preview(page).getByRole('heading', { level: 2, name: /^Example 1:/ })).toBeVisible();
+  expect(await height(preview(page))).toBeCloseTo(windowHeight, 0);
+
+  await preview(page).getByRole('button', { name: 'Feed' }).click();
+  await expect(previewCards(page).first()).toBeVisible();
+  // Every chip has seeded stories, so the empty result is staged last: the cards give way to a one-line message.
+  await frame(page).evaluate((element) => {
+    element.replaceChildren(Object.assign(document.createElement('p'), { textContent: 'None' }));
+  });
+  expect(await height(preview(page))).toBeCloseTo(windowHeight, 0);
+  expect(await height(frame(page))).toBeCloseTo(frameHeight, 0);
+});
+
+for (const viewport of [
+  { width: 360, height: 740 },
+  { width: 1280, height: 800 },
+]) {
+  test(`AC-L13 j ten times keeps the active card in the frame without scrolling the page (${viewport.width} px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await focusPreview(page);
+    // Scroll the page so the frame is only partly in view: a scrollIntoView would then move the page.
+    await page.evaluate(() => window.scrollTo(0, 120));
+    await preview(page).evaluate((element) => element.focus({ preventScroll: true }));
+    const scrollY = await page.evaluate(() => window.scrollY);
+    for (let step = 0; step < 10; step++) await page.keyboard.press('j');
+    const active = previewCards(page).nth(10);
+    await expect(active).toHaveAttribute('data-active', 'true');
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
+    const frameBox = (await frame(page).boundingBox())!;
+    const cardBox = (await active.boundingBox())!;
+    expect(cardBox.y).toBeGreaterThanOrEqual(frameBox.y - 1);
+    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1);
+  });
+}
+
+test('AC-L12 from md up the hero is two columns, 45% text on the left and 55% window', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  const textBox = (await page.locator('[data-hero-column="text"]').boundingBox())!;
+  const windowBox = (await page.locator('[data-hero-column="preview"]').boundingBox())!;
+  expect(textBox.x + textBox.width).toBeLessThanOrEqual(windowBox.x);
+  expect(Math.abs(textBox.y - windowBox.y)).toBeLessThan(windowBox.height);
+  expect(textBox.width / (textBox.width + windowBox.width)).toBeCloseTo(0.45, 2);
+  expect(
+    await page.locator('#hero-title').evaluate((element) => getComputedStyle(element).textAlign),
+  ).toMatch(/^(left|start)$/);
+});
+
+test('AC-L12 at 360 px the text comes first, the window below it, and nothing scrolls sideways', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  const textBox = (await page.locator('[data-hero-column="text"]').boundingBox())!;
+  const windowBox = (await page.locator('[data-hero-column="preview"]').boundingBox())!;
+  expect(textBox.y + textBox.height).toBeLessThanOrEqual(windowBox.y);
+  expect(windowBox.x + windowBox.width).toBeLessThanOrEqual(360);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+});
+
+test('AC-L12 at 360 px a 40-character unbreakable title and domain do not scroll the page sideways', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await page.evaluate(() => {
+    const card = document.querySelector('[data-hero-column="preview"] article[data-story-id]')!;
+    card.querySelector('h2 a')!.textContent = 'x'.repeat(40);
+    card.querySelector('h2 span')!.textContent = 'y'.repeat(40);
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+});
+
+test('AC-L13 at 320 px the footer keeps its height between the Feed and Briefing views', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  const footer = preview(page).locator(':scope > div').last();
+  const feedHeight = await height(footer);
+  await preview(page).getByRole('button', { name: 'Briefing' }).click();
+  await expect(preview(page).getByRole('heading', { level: 2, name: /^Example 1:/ })).toBeVisible();
+  expect(await height(footer)).toBeCloseTo(feedHeight, 0);
 });
 
 test('pressing s in the preview saves to the guest store and the feed shows it saved', async ({

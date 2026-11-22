@@ -24,7 +24,7 @@ test('production health is ok', async ({ request }) => {
 test('the landing page renders', async ({ page }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Your morning scan in 5 min' }),
+    page.getByRole('heading', { level: 1, name: 'Your morning tech scan in 5 minutes' }),
   ).toBeVisible();
 });
 

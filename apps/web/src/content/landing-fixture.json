@@ -21,28 +21,91 @@
           "reactions": null,
           "stars": null
         }
-      ]
+      ],
+      "hasSummary": true,
+      "summaryLine": "The preview compiler type-checks large codebases several times faster than the current one; editor support and a few flags are still missing."
     },
     {
-      "id": "sample-2",
-      "title": "Postgres async I/O in practice",
-      "url": "https://planetscale.com/blog/postgres-async-io",
-      "domain": "planetscale.com",
-      "ageMinutes": 300,
-      "tags": ["databases", "performance"],
-      "readingTimeMinutes": 8,
+      "id": "sample-13",
+      "title": "Rust stabilises async closures",
+      "url": "https://blog.rust-lang.org/async-closures",
+      "domain": "blog.rust-lang.org",
+      "ageMinutes": 150,
+      "tags": ["rust"],
+      "readingTimeMinutes": 5,
       "sources": [
         {
           "kind": "hn",
           "slug": "hn",
           "name": "Hacker News",
-          "itemUrl": "https://news.ycombinator.com/item?id=1002",
-          "points": 301,
-          "comments": 97,
+          "itemUrl": "https://news.ycombinator.com/item?id=1013",
+          "points": 455,
+          "comments": 203,
           "reactions": null,
           "stars": null
         }
-      ]
+      ],
+      "cluster": {
+        "id": "sample-cluster-1",
+        "memberCount": 3,
+        "sources": [
+          {
+            "kind": "hn",
+            "slug": "hn",
+            "name": "Hacker News",
+            "itemUrl": "https://news.ycombinator.com/item?id=1013",
+            "points": 455,
+            "comments": 203,
+            "reactions": null,
+            "stars": null
+          },
+          {
+            "kind": "devto",
+            "slug": "devto",
+            "name": "Dev.to",
+            "itemUrl": "https://dev.to/example/rust-async-closures",
+            "points": null,
+            "comments": 18,
+            "reactions": 140,
+            "stars": null
+          },
+          {
+            "kind": "github",
+            "slug": "github",
+            "name": "GitHub",
+            "itemUrl": "https://github.com/rust-lang/rust",
+            "points": null,
+            "comments": null,
+            "reactions": null,
+            "stars": 104000
+          }
+        ]
+      },
+      "hasSummary": true,
+      "summaryLine": "Async closures can now borrow from their surroundings across await points, which removes most of the boxing workarounds in async Rust."
+    },
+    {
+      "id": "sample-4",
+      "title": "How we cut LLM inference costs by 60%",
+      "url": "https://example.com/blog/llm-inference-costs",
+      "domain": "example.com",
+      "ageMinutes": 95,
+      "tags": ["ai-llms"],
+      "readingTimeMinutes": 9,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1004",
+          "points": 254,
+          "comments": 121,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Batching requests, caching shared prompt prefixes and routing easy queries to a smaller model each cut a share of the bill."
     },
     {
       "id": "sample-3",
@@ -73,49 +136,9 @@
           "reactions": 95,
           "stars": null
         }
-      ]
-    },
-    {
-      "id": "sample-4",
-      "title": "How we cut LLM inference costs by 60%",
-      "url": "https://example.com/blog/llm-inference-costs",
-      "domain": "example.com",
-      "ageMinutes": 95,
-      "tags": ["ai-llms"],
-      "readingTimeMinutes": 9,
-      "sources": [
-        {
-          "kind": "hn",
-          "slug": "hn",
-          "name": "Hacker News",
-          "itemUrl": "https://news.ycombinator.com/item?id=1004",
-          "points": 254,
-          "comments": 121,
-          "reactions": null,
-          "stars": null
-        }
-      ]
-    },
-    {
-      "id": "sample-7",
-      "title": "Building a distributed rate limiter with Redis and Lua",
-      "url": "https://blog.cloudflare.com/distributed-rate-limiter",
-      "domain": "blog.cloudflare.com",
-      "ageMinutes": 780,
-      "tags": ["system-design", "security"],
-      "readingTimeMinutes": 12,
-      "sources": [
-        {
-          "kind": "hn",
-          "slug": "hn",
-          "name": "Hacker News",
-          "itemUrl": "https://news.ycombinator.com/item?id=1007",
-          "points": 143,
-          "comments": 40,
-          "reactions": null,
-          "stars": null
-        }
-      ]
+      ],
+      "hasSummary": true,
+      "summaryLine": "Automatic memoisation removed most hand-written useMemo calls, but a few components needed refactoring before the compiler would optimise them."
     },
     {
       "id": "sample-8",
@@ -146,7 +169,176 @@
           "reactions": 210,
           "stars": null
         }
+      ],
+      "hasSummary": true,
+      "summaryLine": "The team merged its services back into one deployable after network calls and coordination costs outweighed independent releases."
+    },
+    {
+      "id": "sample-2",
+      "title": "Postgres async I/O in practice",
+      "url": "https://planetscale.com/blog/postgres-async-io",
+      "domain": "planetscale.com",
+      "ageMinutes": 300,
+      "tags": ["databases", "performance"],
+      "readingTimeMinutes": 8,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1002",
+          "points": 301,
+          "comments": 97,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Asynchronous reads let Postgres keep more I/O in flight, which helps sequential scans on network storage far more than on local disks."
+    },
+    {
+      "id": "sample-14",
+      "title": "Show HN: A terminal UI for reading Postgres query plans",
+      "url": "https://github.com/example/pgplan-tui",
+      "domain": "github.com",
+      "ageMinutes": 210,
+      "tags": ["databases", "performance"],
+      "readingTimeMinutes": null,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1014",
+          "points": 233,
+          "comments": 58,
+          "reactions": null,
+          "stars": null
+        },
+        {
+          "kind": "github",
+          "slug": "github",
+          "name": "GitHub",
+          "itemUrl": "https://github.com/example/pgplan-tui",
+          "points": null,
+          "comments": null,
+          "reactions": null,
+          "stars": 1800
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "The tool turns EXPLAIN ANALYZE output into a collapsible tree and highlights the nodes where estimated and actual rows diverge."
+    },
+    {
+      "id": "sample-17",
+      "title": "Running small language models in the browser with WebGPU",
+      "url": "https://example.com/blog/webgpu-small-models",
+      "domain": "example.com",
+      "ageMinutes": 270,
+      "tags": ["ai-llms", "web-platform"],
+      "readingTimeMinutes": 10,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1017",
+          "points": 198,
+          "comments": 77,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "A 1-billion-parameter model runs at interactive speed on recent laptops once weights are quantised and cached in the browser."
+    },
+    {
+      "id": "sample-15",
+      "title": "Writing a garbage collector in Rust, step by step",
+      "url": "https://dev.to/example/rust-gc-step-by-step",
+      "domain": "dev.to",
+      "ageMinutes": 330,
+      "tags": ["rust"],
+      "readingTimeMinutes": 15,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/rust-gc-step-by-step",
+          "points": null,
+          "comments": 31,
+          "reactions": 210,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "A mark-and-sweep collector is built behind a safe API, with the unsafe pointer work kept to one small, documented module."
+    },
+    {
+      "id": "sample-7",
+      "title": "Building a distributed rate limiter with Redis and Lua",
+      "url": "https://blog.cloudflare.com/distributed-rate-limiter",
+      "domain": "blog.cloudflare.com",
+      "ageMinutes": 780,
+      "tags": ["system-design", "security"],
+      "readingTimeMinutes": 12,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1007",
+          "points": 143,
+          "comments": 40,
+          "reactions": null,
+          "stars": null
+        }
       ]
+    },
+    {
+      "id": "sample-16",
+      "title": "Type-safe environment variables with Zod",
+      "url": "https://dev.to/example/typesafe-env-zod",
+      "domain": "dev.to",
+      "ageMinutes": 360,
+      "tags": ["typescript"],
+      "readingTimeMinutes": 4,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/typesafe-env-zod",
+          "points": null,
+          "comments": 14,
+          "reactions": 118,
+          "stars": null
+        }
+      ]
+    },
+    {
+      "id": "sample-18",
+      "title": "When our SQLite database outgrew a single file",
+      "url": "https://example.com/blog/sqlite-outgrew",
+      "domain": "example.com",
+      "ageMinutes": 450,
+      "tags": ["databases"],
+      "readingTimeMinutes": 8,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1018",
+          "points": 167,
+          "comments": 92,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Write contention, not size, forced the split; read replicas over a replicated log covered the read side for another year."
     },
     {
       "id": "sample-10",
@@ -167,7 +359,187 @@
           "reactions": null,
           "stars": null
         }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Separating instructions from untrusted text and limiting what tools a model can call matter more than filtering inputs."
+    },
+    {
+      "id": "sample-19",
+      "title": "React form actions in a real checkout flow",
+      "url": "https://dev.to/example/react-form-actions-checkout",
+      "domain": "dev.to",
+      "ageMinutes": 480,
+      "tags": ["react"],
+      "readingTimeMinutes": 7,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/react-form-actions-checkout",
+          "points": null,
+          "comments": 11,
+          "reactions": 96,
+          "stars": null
+        }
       ]
+    },
+    {
+      "id": "sample-20",
+      "title": "A SIMD JSON parser for Rust",
+      "url": "https://github.com/example/simd-json-rs",
+      "domain": "github.com",
+      "ageMinutes": 510,
+      "tags": ["rust", "performance"],
+      "readingTimeMinutes": null,
+      "sources": [
+        {
+          "kind": "github",
+          "slug": "github",
+          "name": "GitHub",
+          "itemUrl": "https://github.com/example/simd-json-rs",
+          "points": null,
+          "comments": null,
+          "reactions": null,
+          "stars": 3400
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "The parser validates UTF-8 and finds structural characters with vector instructions, then builds a borrowed document without copying strings."
+    },
+    {
+      "id": "sample-21",
+      "title": "Evaluating LLM agents without fooling yourself",
+      "url": "https://example.com/blog/evaluating-agents",
+      "domain": "example.com",
+      "ageMinutes": 540,
+      "tags": ["ai-llms", "testing"],
+      "readingTimeMinutes": 11,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1021",
+          "points": 151,
+          "comments": 64,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Fixed task sets with recorded tool replies make agent runs repeatable, and grading the final state beats grading the transcript."
+    },
+    {
+      "id": "sample-22",
+      "title": "TypeScript's satisfies operator in everyday code",
+      "url": "https://dev.to/example/satisfies-everyday",
+      "domain": "dev.to",
+      "ageMinutes": 570,
+      "tags": ["typescript"],
+      "readingTimeMinutes": 5,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/satisfies-everyday",
+          "points": null,
+          "comments": 9,
+          "reactions": 87,
+          "stars": null
+        }
+      ]
+    },
+    {
+      "id": "sample-23",
+      "title": "Zero-downtime Postgres migrations at scale",
+      "url": "https://example.com/blog/zero-downtime-migrations",
+      "domain": "example.com",
+      "ageMinutes": 600,
+      "tags": ["databases", "devops"],
+      "readingTimeMinutes": 12,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1023",
+          "points": 139,
+          "comments": 45,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Every schema change ships in expand and contract steps, and long locks are avoided by building indexes concurrently."
+    },
+    {
+      "id": "sample-24",
+      "title": "Suspense boundaries that don't flash",
+      "url": "https://dev.to/example/suspense-no-flash",
+      "domain": "dev.to",
+      "ageMinutes": 630,
+      "tags": ["react", "performance"],
+      "readingTimeMinutes": 6,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/suspense-no-flash",
+          "points": null,
+          "comments": 13,
+          "reactions": 104,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Placing boundaries around slow data only, and keeping the previous content during transitions, stops spinners from flickering in."
+    },
+    {
+      "id": "sample-25",
+      "title": "An open-source code review bot that runs on a local model",
+      "url": "https://github.com/example/local-review-bot",
+      "domain": "github.com",
+      "ageMinutes": 660,
+      "tags": ["ai-llms"],
+      "readingTimeMinutes": null,
+      "sources": [
+        {
+          "kind": "github",
+          "slug": "github",
+          "name": "GitHub",
+          "itemUrl": "https://github.com/example/local-review-bot",
+          "points": null,
+          "comments": null,
+          "reactions": null,
+          "stars": 2600
+        }
+      ]
+    },
+    {
+      "id": "sample-26",
+      "title": "Embedded Rust on a $4 microcontroller",
+      "url": "https://example.com/blog/embedded-rust-4-dollars",
+      "domain": "example.com",
+      "ageMinutes": 690,
+      "tags": ["rust"],
+      "readingTimeMinutes": 9,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1026",
+          "points": 128,
+          "comments": 51,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "A no_std firmware with an async executor fits in 16 KB of flash and replaces the vendor's C toolchain end to end."
     },
     {
       "id": "sample-11",
@@ -188,7 +560,109 @@
           "reactions": 132,
           "stars": null
         }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Strict mode was turned on one folder at a time, with a lint rule that blocked new untyped code while the rest caught up."
+    },
+    {
+      "id": "sample-27",
+      "title": "Branded types in TypeScript without runtime cost",
+      "url": "https://dev.to/example/branded-types",
+      "domain": "dev.to",
+      "ageMinutes": 720,
+      "tags": ["typescript"],
+      "readingTimeMinutes": 5,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/branded-types",
+          "points": null,
+          "comments": 8,
+          "reactions": 79,
+          "stars": null
+        }
       ]
+    },
+    {
+      "id": "sample-28",
+      "title": "Choosing between Postgres and DuckDB for analytics",
+      "url": "https://example.com/blog/postgres-or-duckdb",
+      "domain": "example.com",
+      "ageMinutes": 810,
+      "tags": ["databases"],
+      "readingTimeMinutes": 10,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1028",
+          "points": 112,
+          "comments": 67,
+          "reactions": null,
+          "stars": null
+        },
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/postgres-or-duckdb",
+          "points": null,
+          "comments": 6,
+          "reactions": 58,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "DuckDB wins for scans over a few columns of a large table; Postgres stays simpler when the data changes all day."
+    },
+    {
+      "id": "sample-29",
+      "title": "React Native's new architecture, one year in",
+      "url": "https://example.com/blog/react-native-new-architecture",
+      "domain": "example.com",
+      "ageMinutes": 870,
+      "tags": ["react", "mobile"],
+      "readingTimeMinutes": 8,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1029",
+          "points": 104,
+          "comments": 39,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Startup time and list scrolling improved after the switch, while a handful of native modules still needed rewrites."
+    },
+    {
+      "id": "sample-30",
+      "title": "Prompt caching cut our model bill in half",
+      "url": "https://dev.to/example/prompt-caching-bill",
+      "domain": "dev.to",
+      "ageMinutes": 930,
+      "tags": ["ai-llms"],
+      "readingTimeMinutes": 6,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/prompt-caching-bill",
+          "points": null,
+          "comments": 12,
+          "reactions": 92,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Moving the long, unchanging system prompt to the front of every request let most calls reuse the cached prefix."
     },
     {
       "id": "sample-12",
@@ -210,6 +684,73 @@
           "stars": null
         }
       ]
+    },
+    {
+      "id": "sample-31",
+      "title": "A type-level SQL query builder for TypeScript",
+      "url": "https://github.com/example/typed-sql-builder",
+      "domain": "github.com",
+      "ageMinutes": 990,
+      "tags": ["typescript", "databases"],
+      "readingTimeMinutes": null,
+      "sources": [
+        {
+          "kind": "github",
+          "slug": "github",
+          "name": "GitHub",
+          "itemUrl": "https://github.com/example/typed-sql-builder",
+          "points": null,
+          "comments": null,
+          "reactions": null,
+          "stars": 1500
+        }
+      ]
+    },
+    {
+      "id": "sample-32",
+      "title": "What changed for Rust in the Linux kernel this cycle",
+      "url": "https://example.com/blog/rust-linux-kernel-cycle",
+      "domain": "example.com",
+      "ageMinutes": 1080,
+      "tags": ["rust", "security"],
+      "readingTimeMinutes": 7,
+      "sources": [
+        {
+          "kind": "hn",
+          "slug": "hn",
+          "name": "Hacker News",
+          "itemUrl": "https://news.ycombinator.com/item?id=1032",
+          "points": 97,
+          "comments": 83,
+          "reactions": null,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "More driver abstractions were merged, and the build now checks that the Rust and C views of shared structs stay in sync."
+    },
+    {
+      "id": "sample-33",
+      "title": "Debugging Node.js memory leaks with heap snapshots",
+      "url": "https://dev.to/example/node-heap-snapshots",
+      "domain": "dev.to",
+      "ageMinutes": 1260,
+      "tags": ["javascript", "performance"],
+      "readingTimeMinutes": 8,
+      "sources": [
+        {
+          "kind": "devto",
+          "slug": "devto",
+          "name": "Dev.to",
+          "itemUrl": "https://dev.to/example/node-heap-snapshots",
+          "points": null,
+          "comments": 7,
+          "reactions": 73,
+          "stars": null
+        }
+      ],
+      "hasSummary": true,
+      "summaryLine": "Comparing two snapshots taken minutes apart shows which retainers grow; closures held by event listeners were the usual cause."
     }
   ]
 }

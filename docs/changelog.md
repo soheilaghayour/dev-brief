@@ -4,6 +4,8 @@ User-visible changes per release. There is no release yet.
 
 ## Unreleased
 
+- The landing hero is two columns from tablet width up: the text on the left, the live feed window on the right. The window lists all of the day's top 30 stories in a frame that scrolls, with a Rust chip, and a card opens its DevBrief story page. The headline reads "Your morning tech scan in 5 minutes", and the copy under it says what deduplication does today.
+
 - Tech Radar and Follow / Mute are live: they no longer sit behind a flag, so the next deploy shows the radar page, its sidebar item and `g r`, its landing tile, and the follow and mute menus on every tag and source badge.
 - Feature flags are one variable each, `FEATURE_<NAME>`, for both the API and the web build; the `NEXT_PUBLIC_FEATURE_*` variables are gone.
 - Cluster cards: with `FEATURE_CLUSTERS` on, stories covering the same news show as one feed card with a combined source line and a "+N related" control. A story page of a cluster lists the whole cluster as "Related coverage".

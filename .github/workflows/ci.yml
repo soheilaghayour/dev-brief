@@ -67,7 +67,7 @@ jobs:
           # The e2e API must not run the hourly ingestion against live sources.
           INGEST_SCHEDULE: 'false'
           AUTH_TEST_MODE: 'true'
-          # The e2e run reaches the Phase 2 UI and routes; Lighthouse builds with only the copilot flag on.
+          # The e2e run reaches the Phase 2 UI and routes; Lighthouse builds with the flags that change the landing page on.
           FEATURE_SUMMARIES: 'true'
           # AUTO_CLUSTERING stays unset, so no clustering model call is made.
           FEATURE_CLUSTERS: 'true'
@@ -109,10 +109,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # The copilot flag is on so the gate measures the example briefings section with the sample briefing.
+      # The gate measures the landing page with every flag that adds to it: the example briefings (copilot), and the summary lines and the cluster card of the 30-story preview.
       - run: pnpm --filter @devbrief/shared --filter web build
         env:
           FEATURE_COPILOT: 'true'
+          FEATURE_SUMMARIES: 'true'
+          FEATURE_CLUSTERS: 'true'
       - run: pnpm exec lhci autorun --config=lighthouserc.json
       # Printed only to diagnose a result: the CPU multiplier stays fixed (DECISIONS.md).
       - name: Runner benchmark index

@@ -82,6 +82,21 @@ describe('StoryCard', () => {
     expect(html).toContain('devblogs.microsoft.com</span>');
   });
 
+  it('AC-L5 links the title to titleHref in the same tab when one is passed', () => {
+    const html = renderToStaticMarkup(
+      <StoryCard
+        story={STORY}
+        isSaved={false}
+        onToggleSave={() => {}}
+        titleHref="/story/story-1"
+      />,
+    );
+    expect(html).toMatch(
+      /<a[^>]*href="\/story\/story-1"[^>]*>Native TS compiler preview ships<\/a>/,
+    );
+    expect(html).not.toMatch(/<a[^>]*target="_blank"[^>]*>Native TS compiler preview ships/);
+  });
+
   it('AC-1.3.7 shows one badge per source with its numbers and the relative time', () => {
     const html = render(STORY);
     expect(html).toContain('data-source-kind="hn"');

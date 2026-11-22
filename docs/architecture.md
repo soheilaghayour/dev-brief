@@ -12,6 +12,12 @@ Two apps and one shared package:
 
 One env variable per unlaunched feature; see PRD §3.
 
+## Landing page
+
+`app/(marketing)/page.tsx` is static with ISR. `loadLandingData` fetches the top stories, the stats and (with the copilot on) the example briefings at build and revalidation. It keeps up to 30 stories from the last 24 h, falls back to `content/landing-fixture.json` below `PREVIEW_MIN_STORIES` fresh ones, and cuts each story with `toPreviewStory` to the fields its card renders under the page's flags before the data reaches the client.
+
+`HeroSection` (a Server Component) lays out the hero: text left and the preview window right from `md` up, stacked below. Its dedup sentences follow the clusters flag. `HeroPreview` is the one client island above the fold. It server-renders every story of the selected chip as a compact `StoryCard` inside a frame of fixed height that scrolls on its own, the Briefing view shares the same height, and cards past the first six carry `content-visibility: auto`. Chips filter the embedded stories in the browser (`previewLogic.ts`). `j`/`k` set the frame's `scrollTop` (`scrollTopToReveal`), so the page never scrolls. Enter and a click on a title open `/story/<id>`. A cluster card shows `ClusterSourceLine` and a static "+N related" link to the same page, since the feed's expanding `RelatedToggle` needs TanStack Query, which the landing doesn't load.
+
 ## AI pipeline
 
 `apps/api/src/modules/llm/` is the only code that calls a model. Feature modules import `LlmModule` and call `LlmService.generateStructured({ feature, schema, system, prompt, maxOutputTokens })`, which returns the validated object with its token counts and cost, or throws `SpendCapReachedError` (callers answer 503 `SPEND_CAP_REACHED`) or `GenerationFailedError` (502 `GENERATION_FAILED`).

@@ -1,16 +1,25 @@
 import { PHASE_PRODUCTION_BUILD } from 'next/constants';
-import type { Stats, StoryCard } from '@devbrief/shared';
+import type { Stats } from '@devbrief/shared';
+import type { CardStory } from '@/components/feed/StoryCard';
 import fixture from '@/content/landing-fixture.json';
 import { FEATURES, type Features } from '@/config/features';
 import { ApiError } from '@/lib/api/apiError';
 import { getExampleBriefings, getFeed, getStats } from '@/lib/api/endpoints';
 import { sampleExampleBriefings, type ExampleBriefing } from './exampleBriefingData';
-import { PREVIEW_VISIBLE } from './previewLogic';
-import { fixtureStories, selectRecentStories, type FixtureStory } from './landingStories';
+import {
+  fixtureStories,
+  selectRecentStories,
+  toPreviewStory,
+  type FixtureStory,
+} from './landingStories';
+
+/** Fewer fresh stories than this and the page falls back to the sample fixture (AC-L1). */
+export const PREVIEW_MIN_STORIES = 6;
 
 /** Live data, or the committed sample when the API is unreachable or has too few fresh stories. */
 export type LandingData = {
-  stories: StoryCard[];
+  /** The preview's stories, cut to the fields its cards render. */
+  stories: CardStory[];
   stats: Stats | null;
   isSample: boolean;
   /** When this page was generated; ISR keeps it fixed until the next revalidation. */
@@ -66,7 +75,7 @@ export async function loadLandingData(features: Features = FEATURES): Promise<La
   ]);
   const stories = feed.status === 'fulfilled' ? selectRecentStories(feed.value.items, now) : [];
   const preview: PreviewData =
-    stories.length < PREVIEW_VISIBLE
+    stories.length < PREVIEW_MIN_STORIES
       ? fallbackData(now)
       : {
           stories,
@@ -74,5 +83,9 @@ export async function loadLandingData(features: Features = FEATURES): Promise<La
           isSample: false,
           renderedAt: now.toISOString(),
         };
-  return { ...preview, ...resolveExamples(examples, features) };
+  return {
+    ...preview,
+    stories: preview.stories.map((story) => toPreviewStory(story, features)),
+    ...resolveExamples(examples, features),
+  };
 }
