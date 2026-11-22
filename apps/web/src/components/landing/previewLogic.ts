@@ -27,9 +27,9 @@ export function moveActiveIndex(current: number, key: string, count: number) {
   return current;
 }
 
-/** The story page a preview card opens. */
+/** The story page a preview card opens; a sample story (`sample-N`) has none, so its card opens the feed. */
 export function storyHref(storyId: string) {
-  return `/story/${encodeURIComponent(storyId)}`;
+  return storyId.startsWith('sample-') ? '/feed' : `/story/${encodeURIComponent(storyId)}`;
 }
 
 type ScrollFrame = { scrollTop: number; height: number };

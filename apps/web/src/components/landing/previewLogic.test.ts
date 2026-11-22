@@ -56,6 +56,10 @@ describe('storyHref', () => {
   it('AC-L5 opens the story page', () => {
     expect(storyHref('abc123')).toBe('/story/abc123');
   });
+
+  it('AC-L2 opens the feed for a sample story, which has no story page', () => {
+    expect(storyHref('sample-7')).toBe('/feed');
+  });
 });
 
 describe('scrollTopToReveal', () => {

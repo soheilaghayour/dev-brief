@@ -92,6 +92,35 @@ describe('loadLandingData', () => {
       expect(data.stories[0]).not.toHaveProperty(field);
   });
 
+  it('AC-L1 falls back below exactly 6 fresh stories', () => {
+    expect(PREVIEW_MIN_STORIES).toBe(6);
+  });
+
+  it('AC-L14 passes the feature flags on: cluster and summary fields only while their flags are on', async () => {
+    const [clusterCard] = fixtureStories(fixture.items as FixtureStory[], new Date()).filter(
+      (story) => story.cluster,
+    );
+    const withExtras = liveStories(PREVIEW_MIN_STORIES).map((story) => ({
+      ...story,
+      cluster: clusterCard!.cluster,
+      hasSummary: true,
+      summaryLine: 'A summary line.',
+    }));
+    endpoints.getFeed.mockResolvedValue({ items: withExtras, nextCursor: null });
+    endpoints.getStats.mockResolvedValue(null);
+
+    const off = await loadLandingData({ ...COPILOT_OFF, clusters: false, summaries: false });
+    for (const field of ['cluster', 'hasSummary', 'summaryLine'])
+      expect(off.stories[0]).not.toHaveProperty(field);
+
+    const on = await loadLandingData({ ...COPILOT_OFF, clusters: true, summaries: true });
+    expect(on.stories[0]).toMatchObject({
+      cluster: clusterCard!.cluster,
+      hasSummary: true,
+      summaryLine: 'A summary line.',
+    });
+  });
+
   it('fails a revalidation instead of replacing the last good page with the sample', async () => {
     unreachableApi();
     vi.stubEnv('NODE_ENV', 'production');

@@ -53,6 +53,8 @@ describe('HeroSection', () => {
     ]);
     const text = container.querySelector('[data-hero-column="text"]')!;
     expect(text.className).toContain('text-left');
+    // A long unbreakable title must shrink inside its column on the single-column layout too.
+    for (const column of grid.children) expect(column.className).toContain('min-w-0');
     expect(text.querySelector('h1')!.textContent).toBe('Your morning tech scan in 5 minutes');
     expect(
       container.querySelector('[data-hero-column="preview"] [aria-label="Live feed preview"]'),
@@ -62,7 +64,7 @@ describe('HeroSection', () => {
   it('AC-L12 renders no radial gradient or glow behind the hero', () => {
     const container = render();
     const backgrounds = [...container.querySelectorAll('*')].filter((element) =>
-      /radial-gradient|bg-gradient|glow/.test(
+      /gradient|bg-(linear|radial|conic)|blur|glow/.test(
         `${element.getAttribute('class') ?? ''} ${element.getAttribute('style') ?? ''}`,
       ),
     );

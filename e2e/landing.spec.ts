@@ -114,6 +114,9 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await focusPreview(page);
+    // Scroll the page so the frame is only partly in view: a scrollIntoView would then move the page.
+    await page.evaluate(() => window.scrollTo(0, 120));
+    await preview(page).evaluate((element) => element.focus({ preventScroll: true }));
     const scrollY = await page.evaluate(() => window.scrollY);
     for (let step = 0; step < 10; step++) await page.keyboard.press('j');
     const active = previewCards(page).nth(10);
@@ -155,6 +158,36 @@ test('AC-L12 at 360 px the text comes first, the window below it, and nothing sc
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
+});
+
+test('AC-L12 at 360 px a 40-character unbreakable title and domain do not scroll the page sideways', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/');
+  await page.evaluate(() => {
+    const card = document.querySelector('[data-hero-column="preview"] article[data-story-id]')!;
+    card.querySelector('h2 a')!.textContent = 'x'.repeat(40);
+    card.querySelector('h2 span')!.textContent = 'y'.repeat(40);
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+});
+
+test('AC-L13 at 320 px the footer keeps its height between the Feed and Briefing views', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  const footer = preview(page).locator(':scope > div').last();
+  const feedHeight = await height(footer);
+  await preview(page).getByRole('button', { name: 'Briefing' }).click();
+  await expect(preview(page).getByRole('heading', { level: 2, name: /^Example 1:/ })).toBeVisible();
+  expect(await height(footer)).toBeCloseTo(feedHeight, 0);
 });
 
 test('pressing s in the preview saves to the guest store and the feed shows it saved', async ({

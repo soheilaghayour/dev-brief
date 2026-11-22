@@ -24,7 +24,11 @@ vi.mock('@/features/copilot/LazyBriefingView', () => ({
   LazyBriefingView: () => <div data-testid="renderer" />,
 }));
 
-const STORIES = fixtureStories(fixture.items as FixtureStory[], new Date());
+// Live ids: a `sample-N` story links to the feed instead.
+const STORIES = fixtureStories(fixture.items as FixtureStory[], new Date()).map((story) => ({
+  ...story,
+  id: story.id.replace('sample-', 'live-'),
+}));
 const CLUSTER_CARD = STORIES.find((story) => story.cluster)!;
 const [BRIEFING] = sampleExampleBriefings();
 
@@ -162,6 +166,16 @@ describe('HeroPreview', () => {
     expect(title.hasAttribute('target')).toBe(false);
   });
 
+  it('AC-L2 links a sample card’s title and Enter to the feed, since a sample story has no page', () => {
+    const sample = STORIES.map((story, index) => ({ ...story, id: `sample-${index + 1}` }));
+    const container = document.createElement('div');
+    container.innerHTML = staticMarkup(sample);
+    const title = [...container.querySelectorAll('a')].find(
+      (link) => link.textContent === sample[0]!.title,
+    )!;
+    expect(title.getAttribute('href')).toBe('/feed');
+  });
+
   it('AC-L5 j three times then Enter opens the fourth card’s story page', () => {
     const container = mount();
     stubLayout(container);
@@ -259,7 +273,69 @@ describe('HeroPreview', () => {
     expect(container.textContent).toContain('Showing 30 of 300 stories today');
     await showBriefing(container);
     expect(previewWindow(container).hasAttribute('aria-keyshortcuts')).toBe(false);
-    expect(container.textContent).not.toContain('Showing');
+    // Hidden, not removed, so the footer keeps its height at 320 px.
+    const count = [...container.querySelectorAll('span')].find((span) =>
+      span.textContent?.startsWith('Showing'),
+    )!;
+    expect(count.className).toContain('invisible');
+  });
+
+  it('AC-L13 counts the chip’s stories against the day’s total, not the pool’s', () => {
+    const container = mount();
+    const reactCount = STORIES.filter((story) => story.tags.includes('react')).length;
+    expect(reactCount).toBeLessThan(STORIES.length);
+    act(() => button(container, 'React').click());
+    expect(container.textContent).toContain(`Showing ${reactCount} of 300 stories today`);
+  });
+
+  it('AC-L13 labels the scrolling frame as a region without a tab stop', () => {
+    const frameElement = frame(mount());
+    expect(frameElement.getAttribute('role')).toBe('region');
+    expect(frameElement.getAttribute('aria-label')).toBe('Latest stories');
+    expect(frameElement.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('AC-L13 starts the active card at the top again after a chip change', () => {
+    const container = mount();
+    stubLayout(container);
+    act(() => previewWindow(container).focus());
+    press(container, 'j');
+    press(container, 'j');
+    expect(cards(container)[2]!.dataset.active).toBe('true');
+    act(() => button(container, 'React').click());
+    expect(cards(container)[0]!.dataset.active).toBe('true');
+    expect(cards(container).filter((card) => card.dataset.active === 'true')).toHaveLength(1);
+  });
+
+  it('AC-L13 starts the active card at the top again after Briefing and back to Feed', async () => {
+    const container = mount();
+    stubLayout(container);
+    act(() => previewWindow(container).focus());
+    press(container, 'j');
+    press(container, 'j');
+    expect(cards(container)[2]!.dataset.active).toBe('true');
+    await showBriefing(container);
+    act(() => button(container, 'Feed').click());
+    expect(cards(container)[0]!.dataset.active).toBe('true');
+    expect(cards(container).filter((card) => card.dataset.active === 'true')).toHaveLength(1);
+  });
+
+  it('AC-L13 resets the frame to its top on a chip change', () => {
+    const container = mount();
+    const before = frame(container);
+    before.scrollTop = 300;
+    act(() => button(container, 'React').click());
+    expect(frame(container)).not.toBe(before);
+    expect(frame(container).scrollTop).toBe(0);
+  });
+
+  it('AC-L5 Enter on a chip keeps its own meaning and opens no story', () => {
+    const container = mount();
+    const chip = button(container, 'React');
+    act(() => {
+      chip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('AC-L2 announces a sample briefing through a live region', async () => {

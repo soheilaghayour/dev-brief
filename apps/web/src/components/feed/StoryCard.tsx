@@ -74,8 +74,7 @@ export function StoryCard({
       <div className="min-w-0 flex-1">
         <h2 className="leading-snug">
           {titleHref ? (
-            // Thirty preview titles would otherwise prefetch thirty dynamic story pages on every landing visit.
-            <Link href={titleHref} prefetch={false} className={TITLE_CLASS}>
+            <Link href={titleHref} className={TITLE_CLASS}>
               {story.title}
             </Link>
           ) : (

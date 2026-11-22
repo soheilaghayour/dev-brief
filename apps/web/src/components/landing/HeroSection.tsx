@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import { isFeatureEnabled, type Features } from '@/config/features';
+import { isFeatureEnabled } from '@/config/features';
 import { HeroPreview } from './HeroPreview';
 import { SIGN_IN_PATH } from './landingLinks';
 import type { LandingData } from './loadLandingData';
@@ -16,10 +16,8 @@ const PULL_SENTENCE =
   'DevBrief pulls them all every hour and ranks everything on one fair scale, no account needed.';
 
 /** The two sentences under the H1, in the variant the clusters flag allows. */
-export function dedupSentences(features?: Features) {
-  const dedup = isFeatureEnabled('clusters', features)
-    ? DEDUP_SENTENCE.clusters
-    : DEDUP_SENTENCE.url;
+function dedupSentences() {
+  const dedup = isFeatureEnabled('clusters') ? DEDUP_SENTENCE.clusters : DEDUP_SENTENCE.url;
   return `${dedup} ${PULL_SENTENCE}`;
 }
 
@@ -29,9 +27,9 @@ export function HeroSection({ data, host }: HeroSectionProps) {
   const { stories, stats, isSample, renderedAt } = data;
   return (
     <section aria-labelledby="hero-title">
-      {/* minmax(0, …) lets a long title or URL shrink inside its column instead of widening the page. */}
+      {/* min-w-0 and minmax(0, …) let a long title or URL shrink inside its column, on one column and on two, instead of widening the page. */}
       <div className="mx-auto grid max-w-6xl gap-12 px-4 pt-16 pb-16 md:grid-cols-[minmax(0,45fr)_minmax(0,55fr)] md:items-center md:gap-10 md:pt-24">
-        <div data-hero-column="text" className="text-left">
+        <div data-hero-column="text" className="min-w-0 text-left">
           <StatsPill stats={stats} renderedAt={renderedAt} />
           <h1
             id="hero-title"
@@ -49,7 +47,7 @@ export function HeroSection({ data, host }: HeroSectionProps) {
             </Button>
           </div>
         </div>
-        <div data-hero-column="preview">
+        <div data-hero-column="preview" className="min-w-0">
           <HeroPreview
             stories={stories}
             storiesToday={stats?.storiesToday}

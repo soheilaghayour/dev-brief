@@ -85,6 +85,12 @@ export function HeroPreview({
     setActiveIndex(0);
   }
 
+  // The list remounts at its top on the way back, so the active card starts there too.
+  function chooseView(next: 'feed' | 'briefing') {
+    setView(next);
+    setActiveIndex(0);
+  }
+
   // Scrolls the frame only: scrollIntoView would also scroll the page to bring the frame into view.
   function revealCard(index: number) {
     const frame = frameRef.current;
@@ -157,7 +163,7 @@ export function HeroPreview({
           label="Preview view"
           options={VIEW_OPTIONS}
           value={view}
-          onValueChange={setView}
+          onValueChange={chooseView}
           className="mx-3 mt-3 w-fit"
         />
       )}
@@ -208,6 +214,8 @@ export function HeroPreview({
               key={tag}
               ref={frameRef}
               data-preview-frame
+              role="region"
+              aria-label="Latest stories"
               className="mt-2 min-h-0 flex-1 overflow-y-auto text-left"
             >
               {shown.length === 0 && (
@@ -265,10 +273,12 @@ export function HeroPreview({
           href="/feed"
           className="text-foreground group inline-flex items-center gap-1 rounded-sm font-medium"
         >
-          {!isBriefing &&
-            (storiesToday === undefined
+          {/* Hidden, not removed, in the Briefing view, so the footer keeps its height when the count and the link wrap on a narrow window. */}
+          <span className={cn(isBriefing && 'invisible')}>
+            {storiesToday === undefined
               ? `Showing ${shown.length} stories`
-              : `Showing ${shown.length} of ${storiesToday} stories today`)}
+              : `Showing ${shown.length} of ${storiesToday} stories today`}
+          </span>
           <span className="inline-flex items-center gap-0.5">
             Open full feed
             <ArrowRightIcon
@@ -287,7 +297,6 @@ function RelatedLink({ storyId, memberCount }: RelatedToggleProps) {
   return (
     <Link
       href={storyHref(storyId)}
-      prefetch={false}
       className="text-muted-foreground mt-1.5 inline-block rounded-sm text-xs hover:underline"
     >
       +{memberCount - 1} related

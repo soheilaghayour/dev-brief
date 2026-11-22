@@ -27,7 +27,7 @@ export function fixtureStories(stories: readonly FixtureStory[], now: Date): Car
   }));
 }
 
-/** Copies only what the preview's cards render under these flags, so nothing else crosses into the client island's payload. */
+/** Copies only what the preview's cards render under these flags, so nothing else crosses into the client island's payload. `url` and `readingTimeMinutes` stay because `StoryCard`'s type needs them for the feed's title link and non-compact row; the preview shows neither. */
 export function toPreviewStory(story: CardStory, features: Features): CardStory {
   const { id, title, url, domain, publishedAt, tags, readingTimeMinutes, sources } = story;
   return {
