@@ -47,7 +47,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
-    "@nestjs/cli": "^12.0.13",
+    "@nestjs/cli": "^12.0.15",
     "@nestjs/testing": "^12.5.1",
     "@swc/core": "^1.16.22",
     "@types/express": "^5.0.6",
