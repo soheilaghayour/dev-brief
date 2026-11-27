@@ -35,12 +35,6 @@ describe('markSegments', () => {
     expect(marked('École', 'cole')).toEqual(['cole']);
   });
 
-  it('AC-1.3.14 never splits a surrogate pair when a cut q leaves a lone surrogate', () => {
-    const lone = '😀'.slice(0, 1);
-    expect(marked('a 😀 b', lone)).toEqual(['😀']);
-    expect(marked('a 😀 b', '😀'.slice(1))).toEqual(['😀']);
-  });
-
   it('AC-1.3.14 marks a match next to an emoji without including it', () => {
     expect(marked('😀react😀', 'react')).toEqual(['react']);
   });

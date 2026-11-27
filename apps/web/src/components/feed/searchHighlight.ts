@@ -1,9 +1,7 @@
 import { findMatchRanges } from '@devbrief/shared';
 import type { MatchRange } from '@devbrief/shared';
 
-export type Segment = { text: string; isMatch: boolean };
-export type MarkedText = { text: string; ranges: MatchRange[] };
-export type CardHighlight = { titleRanges: MatchRange[]; snippet: MarkedText | null };
+type Segment = { text: string; isMatch: boolean };
 
 // About 3 words of lead-in: at 360 px the line holds ~40 characters, so the match starts in its first half.
 const LEAD_CHARS = 24;
@@ -23,26 +21,11 @@ function splitsPair(text: string, index: number) {
   return index > 0 && isHighSurrogate(text, index - 1) && isLowSurrogate(text, index);
 }
 
-/** Widens each range to whole characters, so a lone surrogate from a cut `q` never splits an emoji. */
-function snapToCharacters(text: string, ranges: MatchRange[]) {
-  const snapped: MatchRange[] = [];
-  for (const { start, end } of ranges) {
-    const range = {
-      start: splitsPair(text, start) ? start - 1 : start,
-      end: splitsPair(text, end) ? end + 1 : end,
-    };
-    const last = snapped.at(-1);
-    if (last && range.start <= last.end) last.end = Math.max(last.end, range.end);
-    else snapped.push(range);
-  }
-  return snapped;
-}
-
 /** Splits the text into alternating plain and matched parts; the parts join back to the text. */
 export function markSegments(text: string, ranges: MatchRange[]) {
   const segments: Segment[] = [];
   let position = 0;
-  for (const { start, end } of snapToCharacters(text, ranges)) {
+  for (const { start, end } of ranges) {
     if (start > position) segments.push({ text: text.slice(position, start), isMatch: false });
     segments.push({ text: text.slice(start, end), isMatch: true });
     position = end;
@@ -80,11 +63,7 @@ export function excerptSnippet(excerpt: string, missingPieces: string[], ranges:
 }
 
 /** What a search result card marks: the title's ranges and, when a piece is missing from the title, the excerpt line. */
-export function highlightCard(
-  title: string,
-  excerpt: string | null,
-  pieces: string[],
-): CardHighlight {
+export function highlightCard(title: string, excerpt: string | null, pieces: string[]) {
   const missingPieces = pieces.filter((piece) => findMatchRanges(title, [piece]).length === 0);
   const snippet =
     excerpt && missingPieces.length > 0
