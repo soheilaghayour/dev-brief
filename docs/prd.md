@@ -29,7 +29,7 @@
 ## 1. Executive Summary & Differentiation
 
 ### 1.1 One-liner
-**DevBrief is a fast, keyboard-first developer news reader.** Every hour it pulls Hacker News and Dev.to, and GitHub from Phase 2. It merges duplicates, tags stories by technology and ranks them fairly across sources. Later phases add AI summaries of what the comments actually debate, and generative-UI research briefings. No login is needed to use it.
+**DevBrief is a fast news reader for developers.** Every hour it pulls Hacker News and Dev.to, and GitHub from Phase 2. It merges duplicates, tags stories by technology and ranks them fairly across sources. Later phases add AI summaries of what the comments actually debate, and generative-UI research briefings. No login is needed to use it.
 
 ### 1.2 Problem
 | Pain | Today |
@@ -46,15 +46,14 @@
 | Cross-source dedup | Weak (one card per source post) | Manual, curated | n/a | Exact URL and title dedup (P1); AI-assisted clustering behind a deterministic pre-filter (P2) |
 | Fair cross-source ranking | Engagement plus personalisation, opaque | Editorial | HN votes only | Per-source percentile × age decay, a documented formula (Appendix B) |
 | Comment synthesis | No | No | No | 3-bullet TL;DR and "Community Consensus" pros/cons (P2) |
-| Ask a question, get a structured answer | No | No | No | ⌘K "Ask the News", which streams a native-component briefing (P3, A2UI v1.0) |
+| Ask a question, get a structured answer | No | No | No | "Ask the News", which streams a native-component briefing (P3, A2UI v1.0) |
 | Trends | No | No | No | Tech Radar: 7/30-day tag velocity (P3) |
 | Usable without an account | Partially | Email required | Yes | Yes, fully. Saves and collections stay local, and you sign in only to sync |
-| Keyboard-first | Partial | n/a | No | j/k, s, /, ?, ⌘K throughout |
 
 ### 1.4 What the project demonstrates
 | Capability | Evidence in DevBrief |
 |---|---|
-| Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, keyboard navigation, dark/light themes, generative UI rendered with native React components |
+| Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, dark/light themes, generative UI rendered with native React components |
 | Product ownership | Phased scope, a guest-first funnel, a cost model, measurable acceptance criteria, a public changelog |
 | Pragmatic full stack | NestJS REST with a Zod contract shared with the web app, a relational Prisma schema, Postgres full-text search and `pg_trgm`, scheduled ingestion with circuit breaking, OAuth sessions |
 | AI engineering with guardrails | Structured outputs, an under-$10/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
@@ -87,7 +86,7 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 
 ## 2. Landing Page & First-Impression Blueprint
 
-**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders and restrained motion. [Raycast](https://www.raycast.com) for keycap visuals and a keyboard-first story. Colour comes from the warm palette of §7.1, with no glow or gradient behind the hero.
+**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders and restrained motion. Colour comes from the warm palette of §7.1, with no glow or gradient behind the hero.
 
 **Rendering:** `app/(marketing)/page.tsx` is statically generated with ISR (`export const revalidate = 900`). Live preview data is fetched at build or revalidate time from `API_INTERNAL_URL`. If the API is unreachable on the very first build, the page renders from a committed fixture snapshot, `apps/web/src/content/landing-fixture.json`, and shows a small "Sample data" label. After that, ISR keeps serving the last good page.
 
@@ -100,13 +99,12 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 | 2 | **Source strip** | One line of monospace wordmarks (text only, no third-party logos) of the enabled sources: `Hacker News · Dev.to · GitHub`. The RSS blog feeds are off (§8.8), so they aren't listed. | None | P1 |
 | 3 | **Problem** | Three bordered cards: "Same story, five tabs", "Rankings you can't trust", "Signal buried in comments". Each has a 1-line pain statement and a tiny illustrative mock. | Hover lifts the border colour. | P1 |
 | 4 | **How it works** | Three steps joined by a hairline connector: **Ingest hourly** → **Dedupe and tag** → **Rank fairly**. Each step has a 2-line explanation and a "See the formula" link to Appendix B of this PRD on GitHub. | None | P1 |
-| 5 | **Feature bento** | A bento grid: 3 tiles in P1, up to 8 by P3. Tiles appear only when their feature flag is on. P1: "Keyboard-first feed", "Guest mode, real features", "Fair cross-source ranking". P2 adds "One card per story" and "TL;DR + Community Consensus". P3 adds "Ask the News", "Tech Radar" and "Collections & notes". | Each tile has a short looped CSS/SVG animation that respects `prefers-reduced-motion`. | P1+ |
-| 6 | **Keyboard showcase** | Raycast-style row of keycaps: `J` `K` `S` `/` `?`. P3 adds `⌘K`. Each keycap has a one-word label. | Pressing a shown key on the landing page animates its keycap. This works only while the section is in view and focus is not in an input. | P1 |
-| 7 | **Example briefings** | Three tabs, each a question such as "What were this week's TypeScript tooling debates?". The tab body renders a **pre-generated** A2UI briefing through the real renderer. | Tabs; the renderer is lazy-loaded on scroll into view, at zero runtime LLM cost. | P3 |
-| 8 | **Under the hood** | Aimed at engineers and recruiters. A mini architecture diagram, stack badges (Next.js, NestJS, Prisma, PostgreSQL, TanStack Query, Vercel AI SDK, A2UI), and links to the GitHub repo, this PRD, the OpenAPI docs (`/api/v1/docs`) and the changelog. Includes the line "Built end-to-end by one engineer." | Links | P1 |
-| 9 | **FAQ** | 5–6 accordion items: "Do I need an account?", "How are stories ranked?", "What data do you store?", "Does it cost anything?", "How do the AI features stay cheap?" (P2+), "Is it open source?" | Accordion (Radix) | P1 |
-| 10 | **Final CTA band** | The H2 "Your morning scan, in five minutes." plus the primary CTA. | None | P1 |
-| 11 | **Footer** | GitHub, API docs, Changelog, Source status, **Impressum**, **Privacy (Datenschutz)** and © year. | None | P1 |
+| 5 | **Feature bento** | A bento grid: 2 tiles in P1, up to 7 by P3. Tiles appear only when their feature flag is on. P1: "Guest mode, real features", "Fair cross-source ranking". P2 adds "One card per story" and "TL;DR + Community Consensus". P3 adds "Ask the News", "Tech Radar" and "Collections & notes". | Each tile has a short looped CSS/SVG animation that respects `prefers-reduced-motion`. | P1+ |
+| 6 | **Example briefings** | Three tabs, each a question such as "What were this week's TypeScript tooling debates?". The tab body renders a **pre-generated** A2UI briefing through the real renderer. | Tabs; the renderer is lazy-loaded on scroll into view, at zero runtime LLM cost. | P3 |
+| 7 | **Under the hood** | Aimed at engineers and recruiters. A mini architecture diagram, stack badges (Next.js, NestJS, Prisma, PostgreSQL, TanStack Query, Vercel AI SDK, A2UI), and links to the GitHub repo, this PRD, the OpenAPI docs (`/api/v1/docs`) and the changelog. Includes the line "Built end-to-end by one engineer." | Links | P1 |
+| 8 | **FAQ** | 5–6 accordion items: "Do I need an account?", "How are stories ranked?", "What data do you store?", "Does it cost anything?", "How do the AI features stay cheap?" (P2+), "Is it open source?" | Accordion (Radix) | P1 |
+| 9 | **Final CTA band** | The H2 "Your morning scan, in five minutes." plus the primary CTA. | None | P1 |
+| 10 | **Footer** | GitHub, API docs, Changelog, Source status, **Impressum**, **Privacy (Datenschutz)** and © year. | None | P1 |
 
 ### 2.2 Copy direction
 Copy should be confident, concrete and technical. Lead with verbs and avoid superlatives. Use numbers wherever they are real: live counts and source counts.
@@ -133,8 +131,7 @@ A product "window" framed like Linear's, in the hero's right column (below `md`,
 | Frame | The window has a fixed height at each breakpoint, whatever the chip, the number of matching stories or the Phase 3 view, so nothing below it moves. Its list scrolls vertically inside the frame and the page never scrolls sideways. |
 | List | Every embedded story that matches the selected chip, in rank order, up to 30. With clustering on (F2.1), a cluster's card shows its combined source line, as in the feed (F2.2), and a static "+N related" that links to the representative's `/story/<storyId>`. It doesn't expand: the feed's expanding control fetches with TanStack Query, which the landing doesn't load (§7.4, §8.5). |
 | Tag chips | A row of 6 chips: All, React, Rust, AI/LLMs, TypeScript, Databases. The row wraps on narrow screens. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
-| Keyboard | When the preview is focused (click or Tab), `j`/`k` move the active card and scroll it into view inside the frame, `s` toggles a "Saved" demo state stored in the real guest store (so it carries over to `/feed`), and `Enter` opens the active story's page, `/story/<storyId>`. A muted hint line shows `J K to navigate · S to save · Enter to open`. |
-| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time, up to 3 tags and the summary line (F2.3). Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. |
+| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time, up to 3 tags and the summary line (F2.3). Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. Its Save button saves to the real guest store, so the story shows as saved on `/feed`. |
 | Footer of window | "Showing 30 of 312 stories today → Open full feed", counting the stories the selected chip shows. |
 | Hydration budget | The preview is the only client island above the fold. It must be ≤ 25 KB gzip on top of the framework baseline. |
 | Phase 3 | The window's title bar gains a segmented control, **Feed \| Briefing**. "Briefing" lazy-loads the A2UI renderer and shows example briefing #1 in the same fixed-height frame, scrolling inside it. |
@@ -144,9 +141,8 @@ A product "window" framed like Linear's, in the hero's right column (below `md`,
 Landing (/) ──click "Explore the feed"──▶ /feed            (SSR first page, < 1 s)
    │                                         │
    │                                         ├─ dismissible GuestHintBar (shown once; dismissal stored locally)
-   │                                         ├─ "?" opens shortcuts dialog; "/" focuses search
    │                                         ├─ filter by tags/sources → URL updates (shareable)
-   │                                         └─ "s" saves → toast "Saved on this device · Sign in to sync"
+   │                                         └─ clicking Save → toast "Saved on this device · Sign in to sync"
    │                                                     │
    └─────────────── any "Sign in" ───────────────────────┴─▶ /sign-in?callbackURL=<current URL>
                                                               │ GitHub or Google OAuth
@@ -165,7 +161,7 @@ Rules:
 - **AC-L2** Given the API is unreachable on the first build, when the site builds, then the build succeeds using `landing-fixture.json`, and the preview shows the "Sample data" label.
 - **AC-L3** Given CI runs Lighthouse (mobile preset) against the production build of `/`, then Performance, Accessibility, Best Practices and SEO are each ≥ 95. The PR fails otherwise.
 - **AC-L4** Given a guest clicks the primary CTA, then `/feed` (Top, default params omitted from the URL) loads with no authentication prompt.
-- **AC-L5** Given the preview has focus, when the user presses `j` three times and then `Enter`, then the browser navigates to `/story/<id of 4th card>`. Clicking a card's title opens that card's `/story/<id>` in the same tab.
+- **AC-L5** Given the preview, when the user clicks a card's title, then that card's `/story/<id>` opens in the same tab.
 - **AC-L6** Given the OS is in dark mode and no theme is stored, then the page renders dark on first paint with no light flash. The theme toggle choice persists across reloads.
 - **AC-L7** Given a feature's flag (§3) is off, then its bento tile, nav item and copy variant are absent from the HTML.
 - **AC-L8** `/impressum` and `/privacy` exist, are linked from the footer, and are statically rendered.
@@ -173,7 +169,7 @@ Rules:
 - **AC-L10** With `prefers-reduced-motion: reduce`, no looping animations run.
 - **AC-L11** `/privacy` names Anthropic, the provider of the AI model, as a recipient and states plain, verifiable facts only: what it receives (for summaries and clustering, story titles, excerpts, Dev.to article text and public comments; for the copilot, the question as typed plus the retrieved stories' titles, excerpts and summaries), why, and how long DevBrief keeps that data. It says that no account data, IP address or device id is sent, and links to Anthropic's public Commercial Terms and Privacy Policy. It makes no claim about a data processing agreement, certifications or transfer mechanisms, and draws no legal conclusion. It ships before any AI flag is on in production (§8.8).
 - **AC-L12** Given a viewport at least 768 px wide, then the hero shows two columns, 45% text and 55% preview window, with the text left-aligned. Given a narrower viewport, the text comes first and the window below it, and there is no horizontal scroll at 360 px. No radial gradient or glow is rendered behind the hero.
-- **AC-L13** Given the preview, then it lists every embedded story of the selected chip (up to 30) in the server-rendered HTML, inside a frame of fixed height that scrolls vertically. Changing the chip or, in Phase 3, the Feed | Briefing view leaves the frame's height unchanged (landing CLS ≤ 0.05, §8.5), and `j`/`k` keep the active card in view inside the frame without scrolling the page.
+- **AC-L13** Given the preview, then it lists every embedded story of the selected chip (up to 30) in the server-rendered HTML, inside a frame of fixed height that scrolls vertically. Changing the chip or, in Phase 3, the Feed | Briefing view leaves the frame's height unchanged (landing CLS ≤ 0.05, §8.5).
 - **AC-L14** Given clustering is on and an embedded story is a cluster's representative, then its preview card shows the combined source line (F2.2) and a static "+N related" that links to its `/story/<id>` and doesn't expand (§2.3), and the hero's dedup sentences are the clusters-on variant (§2.2). Given clustering is off, they are the URL-dedup variant. The e2e seed's one cluster ranks below the preview's 30 on purpose, so the cluster case is tested on `landing-fixture.json`, which holds one cluster card (§2.3).
 
 ---
@@ -203,7 +199,7 @@ Rules:
 |---|---|
 | F1.1 | Public landing page with a live hero preview (§2) |
 | F1.2 | Hourly ingestion from HN and Dev.to (the ~10 curated RSS feeds are supported but seeded off, §8.8), with exact dedup and deterministic tagging |
-| F1.3 | Feed: Top/Latest, multi-tag filter, source-kind filter, text search, infinite scroll, keyboard navigation and a story page |
+| F1.3 | Feed: Top/Latest, multi-tag filter, source-kind filter, text search, infinite scroll and a story page |
 | F1.4 | Guest saves (localStorage) and a Saved page |
 | F1.5 | Auth with Better Auth (GitHub and Google OAuth), account saves, guest→account merge and optimistic updates |
 | F1.6 | Settings: theme, account info, sign out and delete account |
@@ -249,7 +245,6 @@ Acceptance criteria:
 #### F1.3 Feed and story page
 User stories:
 - As a **reader**, I want to switch between Top and Latest, filter by several tags and source kinds, and search, so I can find relevant stories fast.
-- As a **keyboard user**, I want to triage the feed without a mouse.
 - As a **sharer**, I want the URL to capture my filters.
 
 Acceptance criteria:
@@ -267,14 +262,12 @@ Acceptance criteria:
 - **AC-1.3.5** Given the user scrolls to the end of the list, then the next page (20 items, cursor-based) loads automatically. No story id appears twice in the rendered list, and the client dedups by id.
 - **AC-1.3.6** Given any filter, sort or search change, then the URL updates via `router.replace`, and reloading or sharing the URL reproduces the view. The default `sort=top` is omitted from the URL.
 - **AC-1.3.7** A card shows: title (linking to the original, `target="_blank" rel="noopener noreferrer"`), domain, one badge per source with its numbers (HN `▲ 320 · 💬 141`, Dev.to `♥ 95 · 💬 12`, RSS = blog name), relative time (`3h`), up to 3 tags plus `+n`, reading time when known, and, during a search, the excerpt line of AC-1.3.14. It also has a Save button with `aria-pressed`.
-- **AC-1.3.8** Keyboard: `j`/`k` move the active card (focus ring visible, scrolled into view), `o`/`Enter` open the original, `c` opens the discussion (first HN or Dev.to item), `s` toggles save, `/` focuses search, `t` toggles Top/Latest, `Esc` blurs search or closes dialogs, and `?` opens the shortcuts dialog. Shortcuts are ignored while focus is in a text input, except `Esc`.
 - **AC-1.3.9** Loading shows skeleton cards with fixed height (CLS < 0.05). An empty result shows "No stories match" plus a "Clear filters" button. An API error shows an inline error with "Retry". A failed next page keeps the existing cards.
 - **AC-1.3.10** `/story/[id]` shows the title, excerpt, domain, tags, every SourceItem (source, author, numbers, discussion link), first-seen and published times, and Save. An unknown id gives a 404 page.
 - **AC-1.3.11** The sidebar lists every tag with a count (`GET /api/v1/tags`). It also lists source kinds with a health dot: green = success within 2 h, amber = stale for more than 3 h or degraded, red = circuit open. A tooltip shows "Last updated 14 min ago".
   - A tag's count is the number of stories the feed lists, over all its pages, with that tag as the only selected tag and the same sort, search, source-kind and source filters, and mutes (a cluster counts once, by its representative's tags). Given no tag selected, selecting a tag whose count is `n` lists `n` stories across all pages, both read from the same data.
   - The tags currently selected do not change the counts. A tag with no stories shows `0` and stays in the list. While new counts load, the sidebar keeps the previous ones.
 - **AC-1.3.12** On mobile (< 768 px), filters move into a bottom sheet, cards stay single-column, and there is no horizontal scroll at 360 px.
-- **AC-1.3.13** `/feed?focus=<id>` scrolls to that card and makes it active if it is on the first page. Otherwise it is ignored.
 - **AC-1.3.14** Given `q` on `/feed`, then each card shows why it matches:
   - A card highlights every occurrence of every piece of `q` (AC-1.3.4) in its title, with a `<mark>` element, using the case rule of AC-1.3.4: `ai` highlights "AI" in a title and the letters "ai" inside "main".
   - When at least one piece does not occur in the title, the card also shows one line of the excerpt, starting a few words before the earliest place in the excerpt where such a piece occurs, with "…" where text is cut, and highlighted the same way. Without `q`, a card shows no excerpt line.
@@ -286,7 +279,7 @@ User stories:
 - As a **guest**, I want to save stories and find them later on this device, without an account.
 
 Acceptance criteria:
-- **AC-1.4.1** Given a guest presses `s` on a card, or clicks Save, then the button state flips immediately and the toast "Saved on this device · Sign in to sync" appears. The toast appears at most once per session.
+- **AC-1.4.1** Given a guest clicks Save, then the button state flips immediately and the toast "Saved on this device · Sign in to sync" appears. The toast appears at most once per session.
 - **AC-1.4.2** Guest state is persisted under the `localStorage` key `devbrief:guest:v1` as `{ version: 1, deviceId: uuid, saves: [{ storyId, savedAt }], hintDismissed: boolean }`. A reload preserves it.
 - **AC-1.4.3** `/saved` for a guest lists saved stories newest-saved first. Data comes from `POST /api/v1/stories/lookup` in chunks of ≤ 100 ids. Ids reported as `missingIds` (purged stories) are removed from the local store with a one-time notice.
 - **AC-1.4.4** If `localStorage` is unavailable (private mode, quota), saves work in memory for the session and a one-time warning is shown. Nothing throws.
@@ -429,7 +422,7 @@ Default UI (the orchestrator's choice while the owner was away; reversible): a c
 - **Summary input:** one server predicate, `hasSummaryInput(story)`, decides whether a story has enough text to summarise. The auto step, `POST /stories/:id/summary` and `StoryCard.canSummarize` (§6.1, which `StoryDetail` inherits) all use it, so they never disagree.
   - It is true when the story has a Dev.to article body, or at least 3 comments in total across its HN and Dev.to items (summed over cluster members, as for auto eligibility). Below that, three points would be invented from a title, an excerpt or a comment or two, so a GitHub-only story, for example, is never summarised.
   - The auto step evaluates it before any upstream fetch, from the stored items and comment counts.
-  - When it is false and the story has no summary, the card shows no summary line, `u` on its feed card does nothing (§7.6), the story page shows no Summarize button, and `POST` answers 404 `NOT_FOUND` with a message that says the story has too little to summarise. A summary stored earlier is still served: the card shows its line (AC-2.3.9), `u` opens it, and `POST` answers 200.
+  - When it is false and the story has no summary, the card shows no summary line, the story page shows no Summarize button, and `POST` answers 404 `NOT_FOUND` with a message that says the story has too little to summarise. A summary stored earlier is still served: the card shows its line (AC-2.3.9), and `POST` answers 200.
 - **Card line:** a feed card whose story or cluster has a summary shows that summary's first TL;DR point (`tldr[0]`, ≤ 220 chars) under the title, as plain text clamped to 2 lines. A story without a summary yet shows no summary line: the excerpt does not stand in for it (the search excerpt line of AC-1.3.14 is separate). A cluster card's line comes from the cluster's summary (Clusters, below). The API sends it as `summaryLine` on every `StoryCard` (§6.1). The line shows in both densities, the landing preview included (§2.3). The story page keeps the full panel (3 points and the consensus).
   - Cost: at most 220 chars more per card, about 4.4 KB per 20-card feed page before gzip. It is data, not script: the card adds a few lines of markup, and the `/feed` first-load JS budget (§8.5) is unchanged.
 - **Cached forever:** a Story never gets a second Summary row (unique `storyId`). The summary is deleted only when the Story is purged.
@@ -447,7 +440,7 @@ Acceptance criteria:
 - **AC-2.3.9** Given a story or its cluster has a summary, then every `StoryCard` the API returns for it carries `summaryLine` equal to that summary's `tldr[0]`, and the card renders it under the title as plain text clamped to 2 lines. Given no summary, `summaryLine` is `null` and the card shows no line.
 - **AC-2.3.10** Summaries use prompt `storySummary.v2` (`promptVersion = 2`), which tells the model to paraphrase and never quote (§8.8). A TL;DR point, pro or con that repeats 8 or more consecutive words of the model's input text and comment blocks, compared without case and punctuation, fails validation and so gets the one retry of AC-2.3.5. The title is left out of the comparison, because a first TL;DR point often restates a long title. v2's recorded replies are new fixture files (§8.2), so the AC-2.3.7 recording is made for v2.
 - **AC-2.3.11** Every rendered summary shows its story's source names and a prominent link to the original: on the story page, "Read the original on <domain> ↗" beside the panel's label; on a feed card, the summary line sits under the title, which links to the original (AC-1.3.7).
-- **AC-2.3.12** `hasSummaryInput` is true exactly when the story has a Dev.to article body or at least 3 comments across its HN and Dev.to items (summed over cluster members). When it is false, the story is no auto candidate, `POST /stories/:id/summary` answers 404 `NOT_FOUND` and makes no LLM call, and `canSummarize` is false on its `StoryCard` and `StoryDetail`, so the story page shows no Summarize button and, while the story has no summary, `u` on its feed card does nothing.
+- **AC-2.3.12** `hasSummaryInput` is true exactly when the story has a Dev.to article body or at least 3 comments across its HN and Dev.to items (summed over cluster members). When it is false, the story is no auto candidate, `POST /stories/:id/summary` answers 404 `NOT_FOUND` and makes no LLM call, and `canSummarize` is false on its `StoryCard` and `StoryDetail`, so the story page shows no Summarize button.
 
 #### F2.4 GitHub source
 - Call: `GET /search/repositories?q=created:>{today-7d} stars:>50&sort=stars&order=desc&per_page=30` with `GITHUB_TOKEN`, making at most 2 calls per run.
@@ -479,7 +472,7 @@ Acceptance criteria:
 **In scope**
 | ID | Feature |
 |---|---|
-| F3.1 | "Ask the News" copilot: a ⌘K command bar that streams an A2UI v1.0 briefing over SSE |
+| F3.1 | "Ask the News" copilot: a command bar that streams an A2UI v1.0 briefing over SSE |
 | F3.2 | Three pre-generated example briefings on the landing page and as the spend-cap fallback |
 | F3.3 | Tech Radar: 7/30-day tag volume and engagement velocity |
 | F3.4 | Collections (boards), Markdown notes per saved story, and weekly digest export (download or copy) |
@@ -492,7 +485,7 @@ User stories:
 - As a **guest**, I want to try it a few times without signing up.
 
 Acceptance criteria:
-- **AC-3.1.1** `⌘K` / `Ctrl+K` from any app page opens the command bar. It has 3 suggested questions and an input limited to 200 chars. `Enter` submits and `Esc` closes. The copilot bundle is lazy-loaded on first open.
+- **AC-3.1.1** The header's Ask button, on every app page and at every width, opens the command bar. It has 3 suggested questions and an input limited to 200 chars. `Enter` submits and `Esc` closes. The copilot bundle is lazy-loaded on first open.
 - **AC-3.1.2** Given a submitted question, then a skeleton shows until the `root` component arrives, and components then appear progressively in stream order.
 - **AC-3.1.3** Given a question that normalises identically to one answered in the last 24 h, then the cached message sequence is replayed, `meta.cached = true`, and the quota is not consumed.
 - **AC-3.1.4** Quotas: guests get 3 questions per day per (IP hash, device id), with an IP-wide backstop of 10 per day. Users get 20 per day. Exceeding a quota returns 429 `QUOTA_EXCEEDED`, and the UI shows the remaining count and the reset time.
@@ -518,7 +511,7 @@ Retrieval: the tag path is `tagStory(question)`. The FTS path matches a story th
 #### F3.4 Collections, notes and digest
 - **AC-3.4.1** Users and guests can create, rename, reorder and delete collections. A saved story can belong to 0..n collections. Unsaving removes it from all collections, with a confirm step if it has a note.
 - **AC-3.4.2** Each saved story has one Markdown note (≤ 20,000 chars) with an editor, preview and autosave (debounced 800 ms, optimistic, with a "Saved" indicator). The note renders through `react-markdown` without raw HTML.
-- **AC-3.4.3** Pressing `a` on a card opens "Add to collection" with type-ahead. The `/collections/[slug]` board view lists items with their notes.
+- **AC-3.4.3** A card's "Add to collection" button opens a dialog of that name with type-ahead. The `/collections/[slug]` board view lists items with their notes.
 - **AC-3.4.4** "Export weekly digest" builds Markdown client-side with the pure `renderDigestMarkdown()` function from `packages/shared`. It covers stories saved in the selected ISO week, optionally per collection, with title, link, tags and note. The two actions are **Download .md** and **Copy to clipboard**. No email.
 - **AC-3.4.5** Guest collections and notes are merged on sign-in via `POST /api/v1/me/merge`. Collections are matched by slug. If a note conflicts, the server note is kept and the local note is appended under a `---` separator.
 
@@ -611,7 +604,6 @@ dev-brief/
 │  │  ├─ src/components/radar/               Recharts velocity chart (P3)
 │  │  ├─ src/lib/api/                        typed fetch client (parses with shared Zod)
 │  │  ├─ src/lib/guest/                      Zustand guest store (persist → localStorage)
-│  │  ├─ src/lib/hotkeys/                    shortcut registry + help dialog data
 │  │  ├─ src/content/landing-fixture.json    fallback snapshot for first build
 │  │  └─ src/config/features.ts              feature flags (§3)
 │  └─ api/                                   NestJS
@@ -1271,7 +1263,7 @@ export const StoryCardSchema = z.object({
   }).nullable().optional(),
   hasSummary: z.boolean().optional(),      // P2 (additive)
   summaryLine: z.string().max(220).nullable().optional(), // P2 (additive): the summary's tldr[0] (F2.3 card line), null without one
-  canSummarize: z.boolean().optional(),    // P2 (additive): hasSummaryInput (F2.3), read by the feed's u; omitted with summaries off
+  canSummarize: z.boolean().optional(),    // P2 (additive): hasSummaryInput (F2.3); omitted with summaries off
 });
 
 export const StoryDetailSchema = StoryCardSchema.extend({
@@ -1585,8 +1577,8 @@ Client handling: one `MessageProcessor` per briefing. Each `a2ui` event's data i
 ### 7.1 Design references and system
 | Area | Reference | What we take |
 |---|---|---|
-| Landing | [linear.app](https://linear.app), [raycast.com](https://www.raycast.com) | Product-window hero, hairline borders, keycap visuals |
-| Feed density | [app.daily.dev](https://app.daily.dev), [news.ycombinator.com](https://news.ycombinator.com) | Scannable single-line metadata, source badges with numbers, j/k navigation, quick tag filters, no thumbnails |
+| Landing | [linear.app](https://linear.app) | Product-window hero, hairline borders |
+| Feed density | [app.daily.dev](https://app.daily.dev), [news.ycombinator.com](https://news.ycombinator.com) | Scannable single-line metadata, source badges with numbers, quick tag filters, no thumbnails |
 | Trends | [github.com/trending](https://github.com/trending), Vercel Analytics | Clean time-series, movers table, compact toggles (7d/30d) |
 
 System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--background`, `--foreground`, `--muted`, `--border`, `--accent`, and one brand accent hue). Themes use `next-themes` (class strategy, system default).
@@ -1619,7 +1611,7 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 | `/settings` | Settings | Client | P1 |
 | `/sign-in` | Sign-in | Static | P1 |
 | `/impressum`, `/privacy` | Legal | Static | P1 |
-| ⌘K overlay | Copilot command bar | Client, lazy | P3 |
+| Command bar (Ask button) | Copilot command bar | Client, lazy | P3 |
 
 ### 7.3 Wireframes
 
@@ -1632,19 +1624,19 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │   312 today · 3 sources )     │ │ ● ● ●  devbrief.dev/feed    [Feed|Brief] │ │
 │                               │ │ [All] [React] [Rust] [AI/LLMs]           │ │
 │ Your morning tech scan        │ │ [TypeScript] [Databases]                 │ │
-│ in 5 minutes                  │ │▸Native TS compiler preview ships        ▲│ │
+│ in 5 minutes                  │ │ Native TS compiler preview ships        ▲│ │
 │                               │ │ HN ▲612 · TS Blog · 3h · [ts][perf]     █│ │
 │ The same link on Hacker News, │ │ Postgres 18 async I/O in practice       ░│ │
 │ Dev.to and GitHub becomes one │ │ HN ▲301 · Dev.to ♥95 · 5h · [databases] ░│ │
 │ card, with every source's     │ │ Bun 2.0 ships a built-in test runner    ░│ │
 │ points and comments…          │ │ HN ▲188 · 7h · [javascript][testing]    ▼│ │
-│                               │ │ J K · S · Enter    Showing 30 of 312 →   │ │
+│                               │ │                    Showing 30 of 312 →   │ │
 │ [Explore the feed — no login] │ └──────────────────────────────────────────┘ │
 │ [ Sign in with GitHub ]       │   list of up to 30 scrolls inside the frame  │
 │ Hacker News · Dev.to · GitHub (P2)                                           │
 │ ┌ Same story, five tabs ┐ ┌ Rankings you can't trust ┐ ┌ Signal in comments ┐│
 │ ① Ingest hourly ───── ② Dedupe & tag ───── ③ Rank fairly                     │
-│ ┌──────── bento ────────┬─────────────┐   [J] [K] [S] [/] [?]  keyboard row  │
+│ ┌──────── bento ────────┬─────────────┐                                      │
 │ Under the hood · FAQ · Final CTA · Footer (Impressum · Privacy · Status)     │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1662,7 +1654,7 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ [ Sign in with GitHub      ] │
 │ ┌ ● ● ● devbrief.dev/feed ─┐ │
 │ │ [All] [React] [Rust] …   │ │
-│ │▸Native TS compiler prev… │ │
+│ │ Native TS compiler prev… │ │
 │ │ … fixed height, scrolls  │ │
 │ └──────────────────────────┘ │
 └──────────────────────────────┘
@@ -1671,14 +1663,14 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 **Feed (desktop)**
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ◆ DevBrief   [ / Search stories…                    ]   Top|Latest  ◐  (👤)  │
+│ ◆ DevBrief   [ Search stories…                      ]   Top|Latest  ◐  (👤)  │
 ├───────────────┬──────────────────────────────────────────────────────────────┤
-│ Feed       g f│ ⓘ You're browsing as a guest. Saves stay on this device. [×]│
-│ Saved      g s│ Filters: React × TypeScript ×  · HN ×        Clear all      │
-│ Radar (P3) g r│──────────────────────────────────────────────────────────────│
-│───────────────│▌Native TS compiler preview ships     devblogs.microsoft.com │
-│ TAGS          │▌Go port builds large codebases ~10x faster; watch mode lags │
-│ ☑ React   48 ♡│▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
+│ Feed          │ ⓘ You're browsing as a guest. Saves stay on this device. [×]│
+│ Saved         │ Filters: React × TypeScript ×  · HN ×        Clear all      │
+│ Radar (P3)    │──────────────────────────────────────────────────────────────│
+│───────────────│ Native TS compiler preview ships     devblogs.microsoft.com │
+│ TAGS          │ Go port builds large codebases ~10x faster; watch mode lags │
+│ ☑ React   48 ♡│ HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
 │ ☑ TypeScr 41 ♡│ ─────────────────────────────────────────────────────────── │
 │ ☐ AI/LLMs 77 ♡│  React Compiler 1.x in production: lessons      vercel.com  │
 │ ☐ …           │  Teams report fewer memo bugs; build-time cost is debated   │
@@ -1686,9 +1678,9 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ ☑ Hacker N ●♡ │ ─────────────────────────────────────────────────────────── │
 │ ☐ Dev.to   ●♡ │  …                                                          │
 │ ☐ Blogs(10)●♡ │                    (infinite scroll sentinel)               │
-│ Status: all ok│                                       ? Keyboard shortcuts  │
+│ Status: all ok│                                                             │
 └───────────────┴──────────────────────────────────────────────────────────────┘
- ▌ = active card (j/k)    ☆/★ = save toggle (s)    ● = source health dot
+ ☆/★ = save toggle    ● = source health dot
  P2: ♡/♥/⊘ = follow/mute heart: none, followed, muted (AC-2.5.1)
  P2: the muted line under a title is its summary line (F2.3); a story without a summary has none
  P2: a cluster card shows its combined source line and a "+N related ▾" control under it (F2.2)
@@ -1754,7 +1746,7 @@ Export digest ▾ → Download .md · Copy to clipboard   (week picker: 2026-W47
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Copilot command bar (P3, ⌘K)**
+**Copilot command bar (P3)**
 ```
 ┌────────────────────────── Ask the News ─────────────────────── 2/3 left ─┐
 │ > What were this week's TypeScript tooling debates?                  ⏎  │
@@ -1791,20 +1783,19 @@ RootLayout  (ThemeProvider; Sentry starts from instrumentation)
 ├─ (marketing)/layout → SiteHeader, SiteFooter
 │  └─ LandingPage
 │     ├─ Hero (2 columns from md) → LiveCountsPill, HeroCtas | HeroPreview(client, fixed-height scroll frame) → PreviewTagChips, StoryCard[compact]×≤30
-│     ├─ SourceStrip · ProblemGrid · HowItWorks · FeatureBento(flags) · KeyboardShowcase
+│     ├─ SourceStrip · ProblemGrid · HowItWorks · FeatureBento(flags)
 │     ├─ ExampleBriefings (P3, lazy client) → BriefingView
 │     └─ UnderTheHood · Faq · CtaBand
-└─ (app)/layout  (HotkeysProvider · QueryProvider · NuqsAdapter · Toaster) → AppShell
-   ├─ AppHeader → Logo, SearchInput(/), SortToggle(t), ThemeToggle(AC-1.6.5), UserMenu | SignInButton
+└─ (app)/layout  (QueryProvider · NuqsAdapter · Toaster) → AppShell
+   ├─ AppHeader → Logo, SearchInput, SortToggle, AskButton(P3, opens CopilotCommandBar), ThemeToggle(AC-1.6.5), UserMenu | SignInButton
    ├─ Sidebar → NavLinks, TagFilterList → FollowMuteHeart(P2), SourceFilterList → FollowMuteHeart(P2), SourceStatus
-   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, SummaryLine(P2), RelatedToggle(P2)
+   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, AddToCollectionButton(P3), SummaryLine(P2), RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
    ├─ StoryPage → StoryHeader, SourceItemList, SummaryPanel(P2) → TldrList, ConsensusCallout · ClusterMembers(P2) · NoteEditor(P3)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
    ├─ RadarPage (P3) → RadarControls, MoversTable, TechVelocityChart(Recharts, lazy)
    ├─ SettingsPage → AppearanceSection, FeedPreferencesSection(P2) → FollowMuteHeart, AccountSection → DeleteAccountDialog
-   ├─ CopilotCommandBar (P3, global, lazy) → QuestionInput, SuggestionList, QuotaBadge, BriefingView → A2uiSurface | BriefingSkeleton | StreamErrorNotice
-   └─ ShortcutsHelpDialog (?)
+   └─ CopilotCommandBar (P3, global, lazy) → QuestionInput, SuggestionList, QuotaBadge, BriefingView → A2uiSurface | BriefingSkeleton | StreamErrorNotice
 ```
 The landing has no `QueryProvider`, so nothing it renders may use TanStack Query (§2.3 "+N related").
 
@@ -1815,30 +1806,11 @@ Shared visual components (`StoryCard`, `TagBadge`, `SourceBadge`, `ConsensusCall
 |---|---|---|
 | **Server state** | TanStack Query | Keys: `['feed', normalizedQuery]` (infinite), `['story', id]`, `['tags', normalizedQuery]` (the feed's query without `tags`, `cursor`, `limit` and the boosts), `['sources']`, `['me']`, `['saves','ids']`, `['saves','list']`, `['summary', id]` (P2), `['cluster', id]` (P2), `['prefs']` (P2), `['radar', window, metric, tags]` (P3), `['collections']` (P3). `staleTime` is 60 s for feed, tags and sources and `Infinity` for summaries. Retry 2× for GETs and 0 for mutations. SSR uses `HydrationBoundary` with dehydrated state. |
 | **Guest state** | Zustand + `persist` (`localStorage` key `devbrief:guest:v1`) | `{ version, deviceId, saves[], prefs (P2), collections[] + notes (P3), hintDismissed, pendingMerge }`. Versioned `migrate()`. In-memory fallback if storage is unavailable. |
-| **URL state** | `nuqs` (type-safe search params) | `sort`, `tags`, `kinds`, `sources`, `q` (debounced 250 ms), and `focus`. Uses `router.replace`, never push, for filter changes. URL state is the only source of truth for filters. |
-| **Ephemeral UI** | React state / small Zustand slice | Active card index, open dialogs and the command bar, toasts. |
+| **URL state** | `nuqs` (type-safe search params) | `sort`, `tags`, `kinds`, `sources` and `q` (debounced 250 ms). Uses `router.replace`, never push, for filter changes. URL state is the only source of truth for filters. |
+| **Ephemeral UI** | React state / small Zustand slice | Open dialogs and the command bar, toasts. |
 | **Mode abstraction** | Hooks `useSaves()`, `usePreferences()` (P2), `useCollections()` (P3) | Each returns the same interface `{ ids, isSaved(id), toggle(id), list… }`. Guest mode backs it with the Zustand store, and account mode with TanStack Query and the API. Components never branch on auth. |
 | **Optimistic updates** | TanStack `useMutation` | `onMutate`: cancel queries, snapshot, then patch `['saves','ids']` and `['saves','list']`. `onError`: roll back and toast. `onSettled`: invalidate. The same pattern covers notes autosave and collection reorder (P3). |
 | **Theme** | `next-themes` | Stored in `localStorage`. A `class` on `<html>` prevents flashes. |
-
-### 7.6 Keyboard shortcuts
-| Key | Action | Scope | Phase |
-|---|---|---|---|
-| `j` / `k` | Next / previous card | Feed, Saved, landing preview | P1 |
-| `o` / `Enter` | Open original in a new tab | Active card | P1 |
-| `c` | Open discussion (HN/Dev.to) | Active card | P1 |
-| `s` | Save / unsave | Active card | P1 |
-| `/` | Focus search | App | P1 |
-| `t` | Toggle Top / Latest | Feed | P1 |
-| `g` then `f` / `s` / `r` / `c` | Go to Feed / Saved / Radar / Collections | App | P1 (`r`, `c` in P3) |
-| `?` | Shortcuts help dialog | App | P1 |
-| `Esc` | Blur input or close dialog | Global | P1 |
-| `u` | Summarize active story; bound only while the card has a summary or `canSummarize` is true | Active card (Feed) | P2 |
-| `a` | Add to collection | Active card | P3 |
-| `n` | Edit note | Active saved item | P3 |
-| `⌘K` / `Ctrl+K` | Open the Ask the News command bar | Global | P3 |
-
-Implementation: one registry in `apps/web/src/lib/hotkeys` (built on `react-hotkeys-hook`) feeds both the handlers and the help dialog, so they cannot diverge. Single-key shortcuts are disabled while focus is in an editable element.
 
 ---
 
@@ -2094,12 +2066,12 @@ Each item is one PR from one agent in its own worktree. **Done when** means the 
 | **P1-06** | Dev.to and RSS sources | P1-05 | Dev.to adapter (Accept header, serial pacing, canonical_url mapping, 429 handling) and RSS adapter (`rss-parser`, conditional GET, plain-text excerpt, 7-day window, 20 per feed), each with fixtures | AC-1.2.4 and AC-1.2.7 pass, and Dev.to and RSS fixtures ingest with the expected counts |
 | **P1-07** | Rank recompute, daily rollup & retention jobs | P1-05 | Post-run percentile and `rankScore` recompute (7-day window), cache-clear hook, daily `15 3 * * *` job (`TagDailyStat` upsert for the last 3 days, 90-day purge sparing saved stories, `IngestionRun` 30-day purge, expired session cleanup) | AC-1.2.10 and AC-1.7.3 pass, and an integration test proves a saved 91-day-old story survives while an unsaved one is deleted |
 | **P1-08** | Public read API: feed, story, lookup, tags, sources | P1-02, P1-04 | `GET /feed` (keyset cursor, Top/Latest, tags/kinds/sources, `q` contains search, 7-day Top window, 60 s LRU, cache headers), `GET /stories/:id`, `POST /stories/lookup`, `GET /tags`, `GET /sources`, and health with source status. Tests seed data directly. | Integration tests cover AC-1.3.1–1.3.5 (API side) and AC-1.7.1, and every response parses with its shared schema |
-| **P1-09** | Web app shell & design system | P1-01, P1-04 | Tailwind + shadcn/ui init and tokens, `next-themes`, Geist fonts, `AppShell` (header, sidebar, mobile sheet), `QueryProvider` with SSR hydration helpers, Toaster, hotkeys registry + `ShortcutsHelpDialog`, error and 404 pages, `features.ts` flags, Playwright config + the first smoke test (shell renders in both themes) | The app shell renders at 360 px and 1280 px with no horizontal scroll, `?` opens the help dialog, and the Playwright smoke test is green in CI |
-| **P1-10** | Feed UI & story page | P1-08, P1-09 | `/feed` (SSR first page, infinite list, `StoryCard`, filters sidebar and mobile sheet, search, sort toggle, `nuqs` URL state, `focus` param, skeleton/empty/error states, source health dots), `/story/[id]`, keyboard `j` `k` `o` `c` `t` `/` `Esc`. `StoryCard` exposes `isSaved`/`onToggleSave` props, which are wired in P1-11. | AC-1.3.1–1.3.13 pass (the UI side, with Playwright for 1.3.3, 1.3.6 and 1.3.8), except the save behaviour in AC-1.3.7/1.3.8, which is verified in P1-11 |
-| **P1-11** | Guest saves & Saved page | P1-10 | Zustand guest store (`devbrief:guest:v1`, versioned, in-memory fallback), `useSaves()` guest mode, Save button and `s` shortcut, toast, `GuestHintBar`, `/saved` via `POST /stories/lookup`, `missingIds` cleanup | AC-1.4.1–1.4.5 pass, and the Playwright test "guest saves, reloads, sees it on /saved" is green |
+| **P1-09** | Web app shell & design system | P1-01, P1-04 | Tailwind + shadcn/ui init and tokens, `next-themes`, Geist fonts, `AppShell` (header, sidebar, mobile sheet), `QueryProvider` with SSR hydration helpers, Toaster, error and 404 pages, `features.ts` flags, Playwright config + the first smoke test (shell renders in both themes) | The app shell renders at 360 px and 1280 px with no horizontal scroll, and the Playwright smoke test is green in CI |
+| **P1-10** | Feed UI & story page | P1-08, P1-09 | `/feed` (SSR first page, infinite list, `StoryCard`, filters sidebar and mobile sheet, search, sort toggle, `nuqs` URL state, skeleton/empty/error states, source health dots), `/story/[id]`. `StoryCard` exposes `isSaved`/`onToggleSave` props, which are wired in P1-11. | AC-1.3.1–1.3.7, 1.3.9–1.3.12 and 1.3.14 pass (the UI side, with Playwright for 1.3.3 and 1.3.6), except the save behaviour in AC-1.3.7, which is verified in P1-11 |
+| **P1-11** | Guest saves & Saved page | P1-10 | Zustand guest store (`devbrief:guest:v1`, versioned, in-memory fallback), `useSaves()` guest mode, Save button, toast, `GuestHintBar`, `/saved` via `POST /stories/lookup`, `missingIds` cleanup | AC-1.4.1–1.4.5 pass, and the Playwright test "guest saves, reloads, sees it on /saved" is green |
 | **P1-12** | Authentication: Better Auth with GitHub + Google | P1-02, P1-04, P1-09 | Better Auth instance (Prisma adapter, GitHub `user:email`, Google, account linking, cookie config) mounted at `/api/auth` before the body parser. `AuthGuard`. `GET` and `DELETE /api/v1/me`. `/sign-in` page with `callbackURL`. `UserMenu`. `/settings` (appearance, account, sign out, delete account, clear local data). Guarded test-mode sign-in route. Playwright sign-in test. OAuth app setup steps in `docs/operations.md`. | AC-1.5.1–1.5.3, AC-1.5.8, AC-1.5.9 and AC-1.6.1–1.6.3 pass |
 | **P1-13** | Account saves, optimistic UI & guest→account merge | P1-08, P1-11, P1-12 | `PUT`/`DELETE /me/saves/:id`, `GET /me/saves`, `GET /me/saves/ids`, `POST /me/merge` (transactional, idempotent). `useSaves()` account mode with optimistic mutations and rollback. Merge-on-sign-in with a `pendingMerge` retry. Playwright test "guest save → sign in → merged". | AC-1.5.4–1.5.7 pass, and repeating the merge creates no rows (integration test) |
-| **P1-14** | Landing page | P1-08, P1-10 | All §2.1 Phase 1 sections, live hero preview island (ISR data, client tag filter, preview keyboard), `landing-fixture.json` fallback, `/impressum` and `/privacy`, metadata and OG image, Lighthouse CI and `size-limit` gates | AC-L1–L10 pass, Lighthouse is ≥ 95 in all four categories in CI, and the landing JS is ≤ 90 KB gzip |
+| **P1-14** | Landing page | P1-08, P1-10 | All §2.1 Phase 1 sections, live hero preview island (ISR data, client tag filter), `landing-fixture.json` fallback, `/impressum` and `/privacy`, metadata and OG image, Lighthouse CI and `size-limit` gates | AC-L1–L10 pass, Lighthouse is ≥ 95 in all four categories in CI, and the landing JS is ≤ 90 KB gzip |
 | **P1-15** | Production deployment, observability & backups | P1-08, P1-09, P1-12 | Dockerfiles (web standalone, api with `prisma migrate deploy` on start), Coolify setup (domain, `/api/*` routing, HTTPS, env vars, auto-deploy from `main`), SSE-safe proxy settings (no compression or buffering on `/api/v1/copilot/*`, prepared for P3), Sentry (web + api, release tagging), daily Postgres backups to object storage with a restore rehearsal, and `docs/operations.md` runbook | AC-1.7.5–1.7.7 pass, production `/api/v1/health` is `ok`, and the Phase 1 Playwright smoke suite passes against the production URL |
 
 **Suggested execution order (dependency waves):**
