@@ -19,7 +19,7 @@ describe('API conventions', () => {
   afterAll(() => app.close());
 
   it('returns 400 VALIDATION_FAILED in the error envelope for an invalid query', async () => {
-    const response = await request(server()).get('/api/v1/probe/feed?q=a&limit=99');
+    const response = await request(server()).get('/api/v1/probe/feed?q=%20&limit=99');
     expect(response.status).toBe(400);
     const { error } = ApiErrorSchema.parse(response.body);
     expect(error.code).toBe('VALIDATION_FAILED');
@@ -104,7 +104,7 @@ describe('API conventions', () => {
   });
 
   it('never lets an error response inherit the public Cache-Control header', async () => {
-    const response = await request(server()).get('/api/v1/probe/feed?q=a');
+    const response = await request(server()).get('/api/v1/probe/feed?q=%20');
     expect(response.status).toBe(400);
     expect(response.headers['cache-control']).toBe('private, no-store');
   });
@@ -121,7 +121,7 @@ describe('API conventions', () => {
 
   it('echoes a supplied x-request-id on the response and in the error body', async () => {
     const response = await request(server())
-      .get('/api/v1/probe/feed?q=a')
+      .get('/api/v1/probe/feed?q=%20')
       .set('x-request-id', 'trace-123');
     expect(response.headers['x-request-id']).toBe('trace-123');
     expect(response.body.error.requestId).toBe('trace-123');
