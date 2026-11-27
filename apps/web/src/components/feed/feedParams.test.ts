@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FEED_QUERY_MAX } from '@devbrief/shared';
 import {
   countActiveFilters,
+  cutSearch,
   hasActiveFilters,
   loadFeedSearchParams,
   toFeedFilters,
@@ -88,5 +89,14 @@ describe('toggleValue', () => {
   it('adds an absent value and removes a present one', () => {
     expect(toggleValue(['a'], 'b')).toEqual(['a', 'b']);
     expect(toggleValue(['a', 'b'], 'a')).toEqual(['b']);
+  });
+});
+
+describe('cutSearch', () => {
+  it('AC-1.3.4 drops a high surrogate left at the end by the cut, and keeps whole emoji', () => {
+    expect(cutSearch(`${'a'.repeat(FEED_QUERY_MAX - 1)}😀`)).toBe('a'.repeat(FEED_QUERY_MAX - 1));
+    expect(cutSearch(`${'a'.repeat(FEED_QUERY_MAX - 2)}😀`)).toBe(
+      `${'a'.repeat(FEED_QUERY_MAX - 2)}😀`,
+    );
   });
 });
