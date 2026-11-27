@@ -115,6 +115,8 @@ describe('tagsQueryOptions', () => {
   });
 
   it('AC-1.3.11 requests the counts with the keyed parameters', async () => {
+    // The endpoints module captures fetch when it loads, so an earlier test's stub must not be reused.
+    vi.resetModules();
     vi.stubGlobal('window', {});
     const fetchTags = vi.fn(async () => Response.json({ version: 1, tags: [] }));
     vi.stubGlobal('fetch', fetchTags);
