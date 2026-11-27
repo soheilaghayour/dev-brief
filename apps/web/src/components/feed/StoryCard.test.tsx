@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
+import { splitSearchPieces } from '@devbrief/shared';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { ClusterSourceLine } from './ClusterSourceLine';
 import { RelatedToggle } from './RelatedToggle';
@@ -269,5 +270,73 @@ describe('StoryCard', () => {
     const html = render(CLUSTERED);
     features.clusters = false;
     expect(html).toBe(render(STORY));
+  });
+});
+
+describe('StoryCard search highlight', () => {
+  const ANGULAR = { ...STORY, title: 'Angular 20 <ships> & more' } satisfies StoryCardData;
+
+  function renderSearch(story: StoryCardData, query: string, excerpt: string | null = null) {
+    return renderToStaticMarkup(
+      <StoryCard
+        story={story}
+        isSaved={false}
+        onToggleSave={() => {}}
+        search={{ pieces: splitSearchPieces(query), excerpt }}
+      />,
+    );
+  }
+  const marks = (html: string) => [...html.matchAll(/<mark[^>]*>(.*?)<\/mark>/g)].map((m) => m[1]);
+
+  it('AC-1.3.14 with q=ai marks "ai" in Maintaining and "AI"', () => {
+    const html = renderSearch({ ...STORY, title: 'Maintaining AI agents' }, 'ai');
+    expect(marks(html)).toEqual(['ai', 'ai', 'AI']);
+  });
+
+  it('AC-1.3.14 with q=angu react marks Angu in the title and React in the excerpt line', () => {
+    const html = renderSearch(ANGULAR, 'angu react', 'A guide to React hooks.');
+    expect(html).toContain('<mark class="bg-primary/25 text-foreground rounded-sm">Angu</mark>lar');
+    expect(marks(html)).toEqual(['Angu', 'React']);
+    expect(html).toContain('A guide to ');
+  });
+
+  it('AC-1.3.14 shows no excerpt line when the title holds every piece', () => {
+    const html = renderSearch(ANGULAR, 'angu 20', 'React everywhere');
+    expect(html).not.toContain('React everywhere');
+    expect(html).not.toContain('truncate');
+  });
+
+  it('AC-1.3.14 shows no excerpt line for a null excerpt', () => {
+    expect(renderSearch(ANGULAR, 'angu react', null)).not.toContain('truncate');
+  });
+
+  it('AC-1.3.14 without q the card has no mark and no excerpt line, as before', () => {
+    expect(render(ANGULAR)).not.toContain('<mark');
+    expect(render(ANGULAR)).not.toContain('truncate');
+  });
+
+  it('AC-1.3.14 merges overlapping pieces into one mark', () => {
+    const html = renderSearch({ ...STORY, title: 'Angular' }, 'ang gul');
+    expect(marks(html)).toEqual(['Angul']);
+    expect(html).not.toMatch(/<mark[^>]*>[^<]*<mark/);
+  });
+
+  it('AC-1.3.14 escapes HTML characters in a marked title', () => {
+    const html = renderSearch(ANGULAR, 'ships');
+    expect(html).toContain('&lt;<mark');
+    expect(html).toContain('&gt; &amp; more');
+  });
+
+  it('AC-1.3.14 keeps the title link accessible name the plain title', () => {
+    const html = renderSearch(ANGULAR, 'angu');
+    const link = /<a[^>]*target="_blank"[^>]*>(.*?)<\/a>/.exec(html)?.[1] ?? '';
+    expect(link.replaceAll(/<[^>]+>/g, '')).toBe('Angular 20 &lt;ships&gt; &amp; more');
+    expect(link).not.toContain('aria-label');
+    expect(html).not.toMatch(/<mark[^>]*aria-/);
+  });
+
+  it('AC-1.3.14 does not crash on a q cut in the middle of an emoji', () => {
+    const lone = '😀'.slice(0, 1);
+    expect(marks(renderSearch({ ...STORY, title: 'Hi 😀' }, lone))).toEqual(['😀']);
   });
 });

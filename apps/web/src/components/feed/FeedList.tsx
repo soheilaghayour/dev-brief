@@ -6,6 +6,7 @@ import {
   AddToCollectionShortcut,
   useAddToCollection,
 } from '@/components/collections/AddToCollection';
+import { splitSearchPieces } from '@devbrief/shared';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
@@ -15,7 +16,7 @@ import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { FeedEmpty } from './FeedEmpty';
 import { FeedError } from './FeedError';
 import { FeedSkeleton } from './FeedSkeleton';
-import { hasActiveFilters } from './feedParams';
+import { hasActiveFilters, toFeedParams } from './feedParams';
 import {
   discussionUrl,
   flattenPages,
@@ -88,6 +89,8 @@ export function FeedList() {
   });
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const { prefs } = preferences;
+  // The same `q` the API receives, so the marks and the results never disagree.
+  const searchPieces = useMemo(() => splitSearchPieces(toFeedParams(filters).q ?? ''), [filters]);
   // The server-rendered page and a list kept while preferences change still hold muted stories.
   const stories = useMemo(() => hideMuted(flattenPages(data?.pages ?? []), prefs), [data, prefs]);
   // Derived from hydrated data, so the server HTML and the first client render agree.
@@ -169,6 +172,9 @@ export function FeedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => saves.toggle(story.id, { title: story.title })}
           isActive={story.id === activeId}
+          search={
+            searchPieces.length > 0 ? { pieces: searchPieces, excerpt: story.excerpt } : undefined
+          }
           preferenceMenu={PreferenceMenu}
           relatedToggle={RelatedToggle}
           sourceLine={ClusterSourceLine}
