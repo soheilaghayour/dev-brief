@@ -1,14 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   encodeCursor,
-  foldAsciiCase,
   FOLLOW_BOOST,
-  splitSearchPieces,
-  topWindowStart,
   type FeedPage,
   type FeedQuery,
   type StoryCard,
 } from '@devbrief/shared';
+import {
+  buildFeedFilters,
+  sourceExists,
+  whereClause,
+} from '../../common/feed-filters/feedFilters.js';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
 import { ENV, type Env } from '../../common/env/env.module.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -26,9 +28,6 @@ import {
   questionKeywords,
   type Keyset,
 } from './feedQuery.js';
-
-/** Above this many source items, a source filter is not resolved to a list of story ids. */
-const SMALL_SOURCE_STORIES = 500;
 
 /** Options for in-process callers; the feed contract does not carry them. */
 export type FirstPageOptions = {
@@ -90,32 +89,14 @@ export class FeedService {
     keyset: Keyset | undefined,
     { ftsMode }: FirstPageOptions = {},
   ) {
-    const { exclusions, boost } = personalisation(query);
+    const boost = boostCondition(query);
     const keywords = ftsMode === 'any' && query.q ? questionKeywords(query.q) : undefined;
     if (keywords?.length === 0) return [];
-    // A small source is better a list of ids than an EXISTS probe: the planner can't size the subquery, and without
-    // the list it walks the whole rankScore (Top) or publishedAt (Latest) index looking for the few matches.
-    const sourceStoryIds = query.sources?.length
-      ? await this.smallSourceStoryIds(query.sources)
-      : undefined;
-    const filters = [
-      // A cluster is its representative's one card: members never list on their own.
-      ...(this.features.clusters ? [Prisma.sql`s."isPrimary" = true`] : []),
-      ...(query.sort === 'top'
-        ? [Prisma.sql`s."publishedAt" >= ${topWindowStart(new Date())}`]
-        : []),
-      ...(query.tags?.length ? [Prisma.sql`s."tags" && ${query.tags}::text[]`] : []),
-      ...(query.kinds?.length
-        ? [sourceExists(Prisma.sql`src."kind"::text = ANY(${query.kinds}::text[])`)]
-        : []),
-      ...(sourceStoryIds
-        ? [Prisma.sql`s."id" = ANY(${sourceStoryIds}::text[])`]
-        : query.sources?.length
-          ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
-          : []),
-      ...(query.q && !keywords ? splitSearchPieces(query.q).map(pieceMatches) : []),
-      ...exclusions,
-    ];
+    const filters = await buildFeedFilters(this.prisma, query, {
+      clusters: this.features.clusters,
+      now: new Date(),
+      keywords,
+    });
     const limit = query.limit + 1;
     const pageQuery = keywords
       ? keywordPage(filters, keywords, limit)
@@ -123,22 +104,6 @@ export class FeedService {
         ? latestPage(filters, keyset, limit)
         : topPage(filters, boost, keyset, limit);
     return this.prisma.$queryRaw<PageRow[]>(pageQuery);
-  }
-
-  /**
-   * The story ids of the sources when at most SMALL_SOURCE_STORIES items have them, else undefined. The planner
-   * can't size a subquery, so an id list is what makes it look the few stories up instead of scanning; a big source
-   * stays an EXISTS, which stops after a page in rankScore order.
-   */
-  private async smallSourceStoryIds(slugs: string[]) {
-    const items = await this.prisma.sourceItem.findMany({
-      where: { source: { slug: { in: slugs } } },
-      select: { storyId: true },
-      take: SMALL_SOURCE_STORIES + 1,
-    });
-    return items.length > SMALL_SOURCE_STORIES
-      ? undefined
-      : [...new Set(items.map((item) => item.storyId))];
   }
 
   private async loadCards(ids: string[]) {
@@ -152,34 +117,8 @@ export class FeedService {
   }
 }
 
-function whereClause(conditions: Prisma.Sql[]) {
-  return conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}` : Prisma.empty;
-}
-
-/** A piece occurring in the title or the excerpt: strpos has no pattern syntax, and lower() under COLLATE "C" folds A-Z only, as `foldAsciiCase` does. */
-function pieceMatches(piece: string) {
-  const folded = foldAsciiCase(piece);
-  return Prisma.sql`(strpos(lower(s."title" COLLATE "C"), ${folded}::text) > 0
-    OR strpos(lower(s."excerpt" COLLATE "C"), ${folded}::text) > 0)`;
-}
-
-function sourceExists(sourceCondition: Prisma.Sql) {
-  return Prisma.sql`EXISTS (
-    SELECT 1 FROM "SourceItem" si JOIN "Source" src ON src."id" = si."sourceId"
-    WHERE si."storyId" = s."id" AND ${sourceCondition})`;
-}
-
-/** Mutes and follows, applied per story: with clusters on that is the representative's. */
-function personalisation(query: FeedQuery) {
-  const { excludeTags, excludeSources, boostTags, boostSources } = query;
-  const exclusions = [
-    // IS NOT TRUE, not NOT: a story with NULL tags matches no tag, so no tag mute hides it.
-    ...(excludeTags?.length ? [Prisma.sql`(s."tags" && ${excludeTags}::text[]) IS NOT TRUE`] : []),
-    // A muted source hides a story only when every one of its sources is muted.
-    ...(excludeSources?.length
-      ? [sourceExists(Prisma.sql`src."slug" <> ALL(${excludeSources}::text[])`)]
-      : []),
-  ];
+/** Follows, applied per story: with clusters on that is the representative's. */
+function boostCondition({ boostTags, boostSources }: FeedQuery) {
   const follows = [
     ...(boostTags?.length ? [Prisma.sql`s."tags" && ${boostTags}::text[]`] : []),
     ...(boostSources?.length
@@ -187,8 +126,7 @@ function personalisation(query: FeedQuery) {
       : []),
   ];
   // One multiplier however many follows match.
-  const boost = follows.length ? Prisma.sql`(${Prisma.join(follows, ' OR ')})` : undefined;
-  return { exclusions, boost };
+  return follows.length ? Prisma.sql`(${Prisma.join(follows, ' OR ')})` : undefined;
 }
 
 /** The stories holding any keyword, and at least two of them when there are two or more, best `ts_rank_cd` first. */

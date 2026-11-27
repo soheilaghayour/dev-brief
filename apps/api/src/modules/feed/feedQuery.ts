@@ -1,3 +1,4 @@
+import { sortedSet } from '../../common/feed-filters/feedFilters.js';
 import { decodeCursor, InvalidCursorError, type FeedQuery } from '@devbrief/shared';
 
 export type Keyset = { sortKey: number | Date; id: string };
@@ -16,8 +17,7 @@ export function parseKeyset(cursor: string, sort: FeedQuery['sort']): Keyset {
   return { sortKey: publishedAt, id };
 }
 
-// Sorted and deduplicated: the feed query treats every list as a set.
-const asSet = (values: readonly string[] = []) => [...new Set(values)].sort();
+const asSet = sortedSet;
 
 /** The query the feed runs: Latest orders by date, never by rankScore, so its boost params are dropped. */
 export function effectiveFeedQuery(query: FeedQuery): FeedQuery {

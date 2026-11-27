@@ -33,6 +33,7 @@ import type {
   RadarWindow,
   SaveNotePatch,
   StoryLookupRequest,
+  TagListQuery,
   TagSlug,
 } from '@devbrief/shared';
 import { createApiClient } from './apiClient';
@@ -46,14 +47,18 @@ export function getHealth() {
   return apiClient.request({ path: '/health' }, HealthSchema);
 }
 
-/** `isPerRequest: false` leaves the fetch cacheable, for statically generated pages. */
-export function getFeed(params: FeedParams = {}, { isPerRequest = true } = {}) {
-  // List params travel comma-separated (PRD §6.1).
-  const query = Object.fromEntries(
+// List params travel comma-separated (PRD §6.1).
+function toQuery(params: FeedParams | Partial<TagListQuery>) {
+  return Object.fromEntries(
     Object.entries(params).map(
       ([key, value]) => [key, Array.isArray(value) ? value.join(',') : value] as const,
     ),
   );
+}
+
+/** `isPerRequest: false` leaves the fetch cacheable, for statically generated pages. */
+export function getFeed(params: FeedParams = {}, { isPerRequest = true } = {}) {
+  const query = toQuery(params);
   // Per request by default: the feed's first page renders from fresh API data (PRD §8.4).
   const cache = isPerRequest ? 'no-store' : undefined;
   return apiClient.request({ path: '/feed', query, cache }, FeedPageSchema);
@@ -89,8 +94,8 @@ export function summarizeStory(storyId: string, deviceId: string) {
   );
 }
 
-export function getTags() {
-  return apiClient.request({ path: '/tags' }, TagListSchema);
+export function getTags(params: Partial<TagListQuery> = {}) {
+  return apiClient.request({ path: '/tags', query: toQuery(params) }, TagListSchema);
 }
 
 export function getStats() {

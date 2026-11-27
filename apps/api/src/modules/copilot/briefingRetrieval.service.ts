@@ -76,7 +76,7 @@ export class BriefingRetrievalService {
   }
 
   private async popularTags(now: Date) {
-    // The same 7 UTC days as `TagsService`: today and the six before it.
+    // The 7 UTC days of the radar's `7d` window: today and the six before it.
     const since = new Date(
       Math.floor(now.getTime() / DAY_MS) * DAY_MS - (WINDOW_DAYS['7d'] - 1) * DAY_MS,
     );

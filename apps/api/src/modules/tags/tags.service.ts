@@ -1,43 +1,50 @@
-import { Injectable } from '@nestjs/common';
-import { TAXONOMY, TAXONOMY_VERSION, type TagList } from '@devbrief/shared';
+import { Inject, Injectable } from '@nestjs/common';
+import { TAXONOMY, TAXONOMY_VERSION, type TagList, type TagListQuery } from '@devbrief/shared';
 import { CACHE_TTL_MS, LruCache } from '../../common/cache/lru.cache.js';
+import { ENV, type Env } from '../../common/env/env.module.js';
+import { buildFeedFilters, whereClause } from '../../common/feed-filters/feedFilters.js';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
-
-const CACHE_KEY = 'tags';
-const WINDOW_DAYS = 7;
-const DAY_MS = 86_400_000;
-
-/** The first UTC day of the 7-day window that ends with the day of `now`. */
-function windowStartDay(now: Date) {
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  return new Date(today - (WINDOW_DAYS - 1) * DAY_MS);
-}
+import { storyFeatures } from '../../common/story-card/storyCard.mapper.js';
+import { tagCountsCacheKey } from './tagCountsKey.js';
 
 @Injectable()
 export class TagsService {
+  private readonly clusters: boolean;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: LruCache,
-  ) {}
+    @Inject(ENV) env: Env,
+  ) {
+    this.clusters = storyFeatures(env).clusters;
+  }
 
-  async list(): Promise<TagList> {
-    const cached = this.cache.get<TagList>(CACHE_KEY);
+  /** Every taxonomy tag with the number of stories the feed lists for it as the only selected tag. */
+  async list(query: TagListQuery): Promise<TagList> {
+    const cacheKey = tagCountsCacheKey(query);
+    const cached = this.cache.get<TagList>(cacheKey);
     if (cached) return cached;
-    const sums = await this.prisma.tagDailyStat.groupBy({
-      by: ['tag'],
-      where: { day: { gte: windowStartDay(new Date()) } },
-      _sum: { storyCount: true },
-    });
-    const countByTag = new Map(sums.map((row) => [row.tag, row._sum.storyCount ?? 0]));
+
+    const countByTag = await this.countByTag(query);
     const list: TagList = {
       version: TAXONOMY_VERSION,
-      tags: TAXONOMY.map(({ slug, label }) => ({
-        slug,
-        label,
-        count7d: countByTag.get(slug) ?? 0,
-      })),
+      tags: TAXONOMY.map(({ slug, label }) => ({ slug, label, count: countByTag.get(slug) ?? 0 })),
     };
-    this.cache.set(CACHE_KEY, list, CACHE_TTL_MS);
+    this.cache.set(cacheKey, list, CACHE_TTL_MS);
     return list;
+  }
+
+  /** One grouped read over the stories the feed lists without its tag filter: the feed's own filters, so the counts match the list. */
+  private async countByTag(query: TagListQuery) {
+    const filters = await buildFeedFilters(this.prisma, query, {
+      clusters: this.clusters,
+      now: new Date(),
+    });
+    const rows = await this.prisma.$queryRaw<{ tag: string; count: number }[]>`
+      SELECT tag, count(*)::int AS count
+      FROM "Story" s, unnest(s."tags") AS tag
+      ${whereClause(filters)}
+      GROUP BY tag`;
+    return new Map(rows.map(({ tag, count }) => [tag, count]));
   }
 }
