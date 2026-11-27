@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { FeedQuerySchema } from './feed.js';
 
 describe('FeedQuerySchema', () => {
-  it('rejects q of 1 character and of 101 characters, accepts 2 and 100', () => {
-    expect(FeedQuerySchema.safeParse({ q: 'a' }).success).toBe(false);
+  it('AC-1.3.4 accepts q of 1 to 100 characters and rejects an empty, blank or 101-character q', () => {
+    expect(FeedQuerySchema.safeParse({ q: '' }).success).toBe(false);
+    expect(FeedQuerySchema.safeParse({ q: '   ' }).success).toBe(false);
     expect(FeedQuerySchema.safeParse({ q: 'a'.repeat(101) }).success).toBe(false);
-    expect(FeedQuerySchema.safeParse({ q: 'ab' }).success).toBe(true);
+    expect(FeedQuerySchema.safeParse({ q: 'a' }).success).toBe(true);
     expect(FeedQuerySchema.safeParse({ q: 'a'.repeat(100) }).success).toBe(true);
+    expect(FeedQuerySchema.parse({}).q).toBeUndefined();
   });
 
   it('parses tags=react,typescript to an array and rejects an unknown tag', () => {
