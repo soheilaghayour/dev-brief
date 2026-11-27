@@ -207,3 +207,42 @@ describe('brand colour use', () => {
     expect(icon).not.toMatch(/#6366f1|#8b93ff/i);
   });
 });
+
+describe('pointer cursor', () => {
+  const rule = /(:is\([^{}]*\)):not\(([^{}]*)\)\s*\{\s*cursor:\s*pointer;\s*\}/.exec(css);
+
+  it('a base-layer rule gives every kind of enabled control the pointer', () => {
+    expect(rule, 'no `cursor: pointer` rule').not.toBeNull();
+    for (const control of [
+      'button',
+      'summary',
+      "[type='checkbox']",
+      "[type='radio']",
+      'label:has(',
+      "[role='button']",
+      "[role='tab']",
+      "[role='radio']",
+      "[role='switch']",
+      "[role='menuitem']",
+      "[role='menuitemcheckbox']",
+      "[role='menuitemradio']",
+      "[role='option']",
+    ]) {
+      expect(rule![1], control).toContain(control);
+    }
+  });
+
+  it('the rule leaves disabled controls and text inputs alone', () => {
+    expect(rule![2]).toContain(':disabled');
+    expect(rule![2]).toContain("[aria-disabled='true']");
+    expect(rule![2]).toContain('[data-disabled]');
+    expect(rule![1]).not.toMatch(/\binput[,)\s]|textarea|\[type='text'\]/);
+  });
+
+  it('no component sets a cursor class the rule already provides', () => {
+    const offenders = sourceFiles(join(__dirname, '..')).filter((file) =>
+      /\bcursor-(pointer|default)\b/.test(readFileSync(file, 'utf8')),
+    );
+    expect(offenders).toEqual([]);
+  });
+});

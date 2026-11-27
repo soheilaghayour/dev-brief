@@ -36,7 +36,7 @@ export function FaqSection() {
       <div className="divide-y rounded-lg border">
         {FAQ.map((item) => (
           <details key={item.question} name="faq" className="group px-5 py-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-base font-medium [&::-webkit-details-marker]:hidden">
+            <summary className="flex list-none items-center justify-between gap-4 rounded-sm text-base font-medium [&::-webkit-details-marker]:hidden">
               {item.question}
               <ChevronDownIcon
                 className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"

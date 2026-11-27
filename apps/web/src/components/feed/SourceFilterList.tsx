@@ -39,7 +39,7 @@ export function SourceFilterList() {
             data-kind={kind}
             className="hover:bg-accent flex items-center gap-2 rounded-md px-2 py-1"
           >
-            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+            <label className="flex min-w-0 flex-1 items-center gap-2">
               <Checkbox checked={filters.kinds.includes(kind)} onChange={() => toggleKind(kind)} />
               <span className="flex-1 truncate">{SOURCE_KIND_LABELS[kind]}</span>
             </label>
