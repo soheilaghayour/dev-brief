@@ -4,7 +4,7 @@ export const alt = 'DevBrief — Your morning tech scan in 5 minutes';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-// These mirror the light-theme tokens in PRD §7.1; Satori can't read CSS variables.
+// These mirror the light tokens in globals.css; Satori can't read CSS variables.
 const BACKGROUND = '#faf8f5';
 const FOREGROUND = '#1c1917';
 const MUTED_FOREGROUND = '#57534e';
