@@ -9,7 +9,7 @@ test('every enabled control on the feed shows the pointer cursor', async ({ page
   const controls = {
     // The Ask button is absent unless FEATURE_COPILOT is on for the API and the web build, as in CI's e2e run.
     ask: header.getByRole('button', { name: /^Ask\b/ }),
-    theme: header.getByRole('radio').first(),
+    theme: header.getByRole('button', { name: /^Switch to (dark|light) theme$/ }),
     signIn: header.getByRole('button', { name: 'Sign in' }),
     tagRow: page.getByRole('group', { name: /^Tags/ }).locator('label').first(),
     save: page.getByRole('button', { name: 'Save story' }).first(),
