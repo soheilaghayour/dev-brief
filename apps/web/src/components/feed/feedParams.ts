@@ -57,7 +57,7 @@ export function toFeedFilters(raw: RawFeedFilters): FeedFilters {
   };
 }
 
-/** The API query for these filters; a search shorter than 2 characters is not sent. */
+/** The API query for these filters; an empty search is not sent. */
 export function toFeedParams(filters: FeedFilters): Partial<FeedQuery> {
   const { sort, tags, kinds, sources, q } = filters;
   return {

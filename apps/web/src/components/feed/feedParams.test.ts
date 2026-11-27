@@ -53,8 +53,9 @@ describe('toFeedFilters', () => {
 });
 
 describe('toFeedParams', () => {
-  it('AC-1.3.4 does not send a 1-character search', () => {
-    expect(toFeedParams({ ...NONE, q: 'b' })).toEqual({ sort: 'top' });
+  it('AC-1.3.4 sends a search of any length from 1 character and omits an empty one', () => {
+    expect(toFeedParams({ ...NONE, q: '' })).toEqual({ sort: 'top' });
+    expect(toFeedParams({ ...NONE, q: 'b' })).toEqual({ sort: 'top', q: 'b' });
     expect(toFeedParams({ ...NONE, q: 'bu' })).toEqual({ sort: 'top', q: 'bu' });
   });
 
@@ -78,8 +79,8 @@ describe('filter counts', () => {
     expect(hasActiveFilters({ ...NONE })).toBe(false);
   });
 
-  it('does not count a 1-character search, which is never sent', () => {
-    expect(hasActiveFilters({ ...NONE, q: 'b' })).toBe(false);
+  it('AC-1.3.4 treats a 1-character search as active', () => {
+    expect(hasActiveFilters({ ...NONE, q: 'b' })).toBe(true);
   });
 });
 

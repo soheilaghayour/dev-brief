@@ -142,7 +142,7 @@ describe('GET /api/v1/feed', () => {
     expect(await feedTitles({ kinds: 'rss', sources: 'hn' })).toEqual([]);
   });
 
-  it('AC-1.3.4 searches title and excerpt with websearch syntax, combined with filters and sort', async () => {
+  it('AC-1.3.4 searches title and excerpt, combined with filters and sort', async () => {
     expect(await feedTitles({ q: 'bun runtime' })).toEqual(['Bun runtime news']);
     expect(await feedTitles({ q: 'javascript' })).toEqual(['Bun runtime news']);
     expect(await feedTitles({ q: 'react', sort: 'latest' })).toEqual([
@@ -155,8 +155,8 @@ describe('GET /api/v1/feed', () => {
     ]);
   });
 
-  it('AC-1.3.4 rejects q shorter than 2 or longer than 100 characters', async () => {
-    for (const q of ['a', 'x'.repeat(101)]) {
+  it('AC-1.3.4 rejects a blank q and one longer than 100 characters', async () => {
+    for (const q of [' ', 'x'.repeat(101)]) {
       const response = await getFeed({ q });
       expect(response.status).toBe(400);
       expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');

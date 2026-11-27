@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   encodeCursor,
+  foldAsciiCase,
   FOLLOW_BOOST,
+  splitSearchPieces,
   topWindowStart,
   type FeedPage,
   type FeedQuery,
@@ -30,7 +32,7 @@ const SMALL_SOURCE_STORIES = 500;
 
 /** Options for in-process callers; the feed contract does not carry them. */
 export type FirstPageOptions = {
-  /** Match a story holding any keyword of `q` (not all of them), best `ts_rank_cd` first, instead of the feed's `websearch_to_tsquery`. */
+  /** Match a story holding any keyword of `q` (not all of them), best `ts_rank_cd` first, instead of the feed's every-piece substring match. */
   ftsMode?: 'any';
 };
 
@@ -82,7 +84,7 @@ export class FeedService {
     return this.loadCards(rows.slice(0, query.limit).map((row) => row.id));
   }
 
-  /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
+  /** The only raw SQL read: filters, search, personalisation and the keyset, all as bound parameters. */
   private async selectPage(
     query: FeedQuery,
     keyset: Keyset | undefined,
@@ -111,9 +113,7 @@ export class FeedService {
         : query.sources?.length
           ? [sourceExists(Prisma.sql`src."slug" = ANY(${query.sources}::text[])`)]
           : []),
-      ...(query.q && !keywords
-        ? [Prisma.sql`s."searchVector" @@ websearch_to_tsquery('english', ${query.q})`]
-        : []),
+      ...(query.q && !keywords ? splitSearchPieces(query.q).map(pieceMatches) : []),
       ...exclusions,
     ];
     const limit = query.limit + 1;
@@ -154,6 +154,13 @@ export class FeedService {
 
 function whereClause(conditions: Prisma.Sql[]) {
   return conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}` : Prisma.empty;
+}
+
+/** A piece occurring in the title or the excerpt: strpos has no pattern syntax, and lower() under COLLATE "C" folds A-Z only, as `foldAsciiCase` does. */
+function pieceMatches(piece: string) {
+  const folded = foldAsciiCase(piece);
+  return Prisma.sql`(strpos(lower(s."title" COLLATE "C"), ${folded}::text) > 0
+    OR strpos(lower(s."excerpt" COLLATE "C"), ${folded}::text) > 0)`;
 }
 
 function sourceExists(sourceCondition: Prisma.Sql) {

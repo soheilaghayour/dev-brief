@@ -127,7 +127,7 @@ a category name like `common/` is its specific name.
 - Raw sources lie: every HN, Dev.to, RSS and GitHub payload, every LLM output, `process.env` and the guest store read from `localStorage` is parsed with Zod at the boundary before use. An invalid upstream item is dropped and counted; it never crashes a run.
 - Every request and response has a schema in `packages/shared/src/contracts`. The API validates every input (and every output in dev and test); the web client parses every response. A contract change updates every consumer in the same PR.
 - Nest controllers are thin: the Zod pipe parses the input, the controller calls one service method and returns the contract shape. Services own I/O and orchestration. Env is read only through `env.ts`.
-- Prisma client for every query it can express; a query it can't (the feed's FTS and keyset cursor, the database clock) is a parameterised `$queryRaw` tagged template, never a built string (PRD §4.2, DECISIONS.md).
+- Prisma client for every query it can express; a query it can't (the feed's search and keyset cursor, the database clock) is a parameterised `$queryRaw` tagged template, never a built string (PRD §4.2, DECISIONS.md).
 - Server Components by default; `'use client'` goes on the smallest component that needs state, effects, browser APIs or event handlers: client JS is budgeted (PRD §8.5).
 - Components reach personal state only through the mode hooks (`useSaves()`; P2/P3: `usePreferences()`, `useCollections()`): they never read storage or branch on auth. The URL (`nuqs`) is the only source of truth for filters.
 - Colors only by role (`bg-background`, `text-muted-foreground`, `border-border`, `bg-accent`); palette values exist only in the shadcn CSS variables: design changes stay one-line.
