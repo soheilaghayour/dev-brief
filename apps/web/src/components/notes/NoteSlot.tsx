@@ -60,7 +60,7 @@ export function NoteSlot({ storyId }: { storyId: string }) {
       variant="ghost"
       size="sm"
       className="mt-1 -ml-2.5 max-w-full justify-start"
-      title="Edit note (N)"
+      title="Edit note"
       aria-label={text ? `Edit note: ${firstLine(text)}` : 'Add note'}
       onClick={open}
     >

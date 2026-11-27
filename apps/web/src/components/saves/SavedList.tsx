@@ -1,17 +1,13 @@
 'use client';
 
 import { BookmarkIcon } from 'lucide-react';
-import {
-  AddToCollectionShortcut,
-  useAddToCollection,
-} from '@/components/collections/AddToCollection';
+import { useAddToCollection } from '@/components/collections/AddToCollection';
 import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { InfiniteSentinel } from '@/components/feed/InfiniteSentinel';
 import { StoryCard } from '@/components/feed/StoryCard';
-import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
+import { LazyDigestExportMenu, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
-import { SAVED_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
 import { useNotesVersion } from './useNotesVersion';
 import { useSaves } from './useSaves';
 import { useSavedStories } from './useSavedStories';
@@ -23,7 +19,7 @@ function SavedEmpty() {
       <div>
         <p className="font-medium">Nothing saved yet</p>
         <p className="text-muted-foreground mt-1">
-          Press S on a story in the feed, or use its bookmark, to keep it here.
+          Use a story's bookmark in the feed to keep it here.
         </p>
       </div>
     </div>
@@ -37,11 +33,6 @@ export function SavedList() {
   const saved = useSavedStories();
   const addToCollection = useAddToCollection();
   const stories = saved.status === 'ready' ? saved.stories : [];
-  const { activeId, toggleStory } = useStoryListNavigation({
-    stories,
-    shortcuts: SAVED_SHORTCUTS,
-    onToggleSave: saves.toggle,
-  });
 
   if (saved.status === 'loading') return <FeedSkeleton />;
   if (saved.status === 'error')
@@ -54,15 +45,12 @@ export function SavedList() {
         <LazyDigestExportMenu stories={stories} />
       </div>
       <div role="feed" aria-label="Saved stories">
-        <AddToCollectionShortcut storyId={activeId} />
-        <LazyNoteShortcut storyId={activeId} />
         {stories.map((story) => (
           <StoryCard
             key={story.id}
             story={story}
             isSaved={saves.isSaved(story.id)}
-            onToggleSave={() => toggleStory(story.id)}
-            isActive={story.id === activeId}
+            onToggleSave={() => saves.toggle(story.id, { title: story.title })}
             preferenceMenu={PreferenceMenu}
             note={<LazyNoteSlot storyId={story.id} />}
             onAddToCollection={

@@ -31,7 +31,7 @@ export const NOTE_SAVE_DELAY_MS = 800;
 
 type NoteEditorProps = {
   storyId: string;
-  /** Moves focus into the text when the editor opens from a click or `n`. */
+  /** Moves focus into the text when the editor opens from a click. */
   focusOnOpen?: boolean;
   /** Called on Esc and on the Done button; absent where the editor stays open. */
   onDone?: () => void;

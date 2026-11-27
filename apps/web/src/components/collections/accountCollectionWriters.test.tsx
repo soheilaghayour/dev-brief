@@ -3,14 +3,12 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { QueryClient } from '@tanstack/react-query';
 import type { Collection, StoryCard as StoryCardData } from '@devbrief/shared';
 import { ApiError } from '@/lib/api/apiError';
-import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { AddToCollectionProvider, useAddToCollection } from './AddToCollection';
 import { CollectionBoard } from './CollectionBoard';
 import { CollectionsSidebar } from './CollectionsSidebar';
 import {
   byRole,
   click,
-  hotkeysReady,
   mount,
   NoopResizeObserver,
   openMenuByKeyboard,
@@ -174,7 +172,6 @@ beforeAll(async () => {
     import('./CollectionDialogs'),
     import('./CollectionMenuDropdown'),
     import('./collectionNotice'),
-    import('@/lib/hotkeys/ShortcutBindings'),
   ]);
 });
 
@@ -350,13 +347,8 @@ describe('account collections in the sidebar', () => {
 
 describe('an account board', () => {
   async function showBoard(slug: string) {
-    const mounted = await mount(
-      <HotkeysProvider>
-        <CollectionBoard slug={slug} />
-      </HotkeysProvider>,
-    );
+    const mounted = await mount(<CollectionBoard slug={slug} />);
     unmount = mounted.unmount;
-    await hotkeysReady();
   }
   const titles = () =>
     [...document.querySelectorAll('article[data-story-id] h2 a')].map((link) => link.textContent);
@@ -409,11 +401,9 @@ describe('adding to an account collection', () => {
   }
   async function showCard() {
     const mounted = await mount(
-      <HotkeysProvider>
-        <AddToCollectionProvider>
-          <Card />
-        </AddToCollectionProvider>
-      </HotkeysProvider>,
+      <AddToCollectionProvider>
+        <Card />
+      </AddToCollectionProvider>,
     );
     unmount = mounted.unmount;
     await vi.waitFor(() => expect(byRole('button', 'Add to collection')).not.toBeNull());

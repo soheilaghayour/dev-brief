@@ -7,14 +7,13 @@ import { FolderOpenIcon, SearchXIcon, XIcon } from 'lucide-react';
 import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { StoryCard } from '@/components/feed/StoryCard';
-import { LazyDigestExportMenu, LazyNoteShortcut, LazyNoteSlot } from '@/components/notes/LazyNotes';
+import { LazyDigestExportMenu, LazyNoteSlot } from '@/components/notes/LazyNotes';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { lookupInChunks } from '@/components/saves/savedStories';
 import { useNotesVersion } from '@/components/saves/useNotesVersion';
 import { useSaves } from '@/components/saves/useSaves';
 import { Button } from '@/components/ui/Button';
-import { BOARD_SHORTCUTS, useStoryListNavigation } from '@/components/useStoryListNavigation';
-import { AddToCollectionShortcut, useAddToCollection } from './AddToCollection';
+import { useAddToCollection } from './AddToCollection';
 import { BoardSkeleton } from './BoardSkeleton';
 import { CollectionsSidebar } from './CollectionsSidebar';
 import { useCollectionItems } from './useCollectionItems';
@@ -43,9 +42,7 @@ function BoardEmpty() {
       <FolderOpenIcon className="text-muted-foreground size-8" aria-hidden="true" />
       <div>
         <p className="font-medium">Nothing in this collection yet</p>
-        <p className="text-muted-foreground mt-1">
-          Press A on a story, or use its folder button, to add it here.
-        </p>
+        <p className="text-muted-foreground mt-1">Use a story's folder button to add it here.</p>
       </div>
     </div>
   );
@@ -94,14 +91,8 @@ function BoardContent({ collection }: { collection: CollectionView }) {
   useNotesVersion();
   const addToCollection = useAddToCollection();
   const { stories, isLoading, query } = useBoardStories(collection);
-  const { activeId, leaveStory, toggleStory } = useStoryListNavigation({
-    stories,
-    shortcuts: BOARD_SHORTCUTS,
-    onToggleSave: saves.toggle,
-  });
 
   function removeFromCollection(storyId: string) {
-    leaveStory(storyId);
     if (collections.status === 'ready') void collections.removeItems(collection.id, [storyId]);
   }
   function retry() {
@@ -135,15 +126,12 @@ function BoardContent({ collection }: { collection: CollectionView }) {
           <BoardEmpty />
         ) : (
           <div role="feed" aria-label={`Stories in ${collection.name}`}>
-            <AddToCollectionShortcut storyId={activeId} />
-            <LazyNoteShortcut storyId={activeId} />
             {stories.map((story) => (
               <StoryCard
                 key={story.id}
                 story={story}
                 isSaved={saves.isSaved(story.id)}
-                onToggleSave={() => toggleStory(story.id)}
-                isActive={story.id === activeId}
+                onToggleSave={() => saves.toggle(story.id, { title: story.title })}
                 preferenceMenu={PreferenceMenu}
                 note={<LazyNoteSlot storyId={story.id} />}
                 onAddToCollection={

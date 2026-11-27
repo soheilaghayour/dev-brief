@@ -12,11 +12,6 @@ export const LazyUnsaveNoteConfirm = dynamic(
   { ssr: false },
 );
 
-export const LazyNoteShortcut = dynamic(
-  () => import('./NoteShortcut').then((module) => module.NoteShortcut),
-  { ssr: false },
-);
-
 export const LazyDigestExportMenu = dynamic(
   () => import('./DigestExportMenu').then((module) => module.DigestExportMenu),
   { ssr: false },

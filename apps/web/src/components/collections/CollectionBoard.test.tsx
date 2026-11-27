@@ -3,16 +3,13 @@ import { act } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { useGuestStore } from '@/lib/guest/guestStore';
-import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { CollectionBoard } from './CollectionBoard';
 import {
   byRole,
   click,
   collection,
-  hotkeysReady,
   mount,
   NoopResizeObserver,
-  pressKey,
   preloadLazyModules,
   seedGuestStore,
   storyId,
@@ -70,13 +67,8 @@ afterEach(() => {
 });
 
 async function showBoard(slug: string) {
-  const mounted = await mount(
-    <HotkeysProvider>
-      <CollectionBoard slug={slug} />
-    </HotkeysProvider>,
-  );
+  const mounted = await mount(<CollectionBoard slug={slug} />);
   unmount = mounted.unmount;
-  await hotkeysReady();
 }
 
 const titles = () =>
@@ -142,23 +134,6 @@ describe('CollectionBoard', () => {
 
     await showsTitles(['Story 3', 'Story 2']);
     expect(useGuestStore.getState().collections.map((c) => c.items.length)).toEqual([2, 0]);
-  });
-
-  it('AC-3.4.3 j moves the active card and s unsaves it, like /saved', async () => {
-    await seedBoard();
-    await showBoard('reading-list');
-    await showsTitles(['Story 3', 'Story 1', 'Story 2']);
-
-    await pressKey(document, 'j');
-    const active = () =>
-      document.querySelector('article[data-active="true"] h2 a')?.textContent ?? null;
-    expect(active()).toBe('Story 3');
-    await pressKey(document, 'j');
-    expect(active()).toBe('Story 1');
-
-    await pressKey(document, 's');
-    await showsTitles(['Story 3', 'Story 2']);
-    expect(active()).toBe('Story 2');
   });
 
   it('AC-3.4.3 a story another tab adds to the collection appears on the open board', async () => {

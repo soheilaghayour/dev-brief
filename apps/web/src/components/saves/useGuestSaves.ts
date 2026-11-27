@@ -29,7 +29,7 @@ function announceSave(outcome: ToggleOutcome) {
 }
 
 // Everything waits for the stored saves, so whether a note exists is decided on what is stored now.
-async function toggle(storyId: string, { title, onUnsave }: ToggleSaveOptions) {
+async function toggle(storyId: string, { title }: ToggleSaveOptions) {
   // `now` is taken at click time.
   const now = new Date();
   // What the reader just typed in the open editor counts as a note.
@@ -37,11 +37,9 @@ async function toggle(storyId: string, { title, onUnsave }: ToggleSaveOptions) {
   const { saves, notes } = await latestGuestData();
   const isSaved = saves.some((save) => save.storyId === storyId);
   if (isSaved && notes[storyId] && isFeatureEnabled('collections')) {
-    // `onUnsave` waits for the reader's answer: cancelling must leave the active card where it was (AC-3.4.1).
-    requestUnsave({ storyId, title, onUnsave });
+    requestUnsave({ storyId, title });
     return;
   }
-  if (isSaved) onUnsave?.();
   announceSave(await toggleGuestSave(storyId, now));
 }
 
