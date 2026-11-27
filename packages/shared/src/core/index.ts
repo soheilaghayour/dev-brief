@@ -10,3 +10,4 @@ export * from './clustering.js';
 export * from './collectionSlug.js';
 export * from './isoWeek.js';
 export * from './renderDigestMarkdown.js';
+export * from './searchMatch.js';
