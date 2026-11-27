@@ -604,7 +604,6 @@ dev-brief/
 │  │  ├─ src/components/radar/               Recharts velocity chart (P3)
 │  │  ├─ src/lib/api/                        typed fetch client (parses with shared Zod)
 │  │  ├─ src/lib/guest/                      Zustand guest store (persist → localStorage)
-│  │  ├─ src/lib/hotkeys/                    shortcut registry + help dialog data
 │  │  ├─ src/content/landing-fixture.json    fallback snapshot for first build
 │  │  └─ src/config/features.ts              feature flags (§3)
 │  └─ api/                                   NestJS
@@ -1264,7 +1263,7 @@ export const StoryCardSchema = z.object({
   }).nullable().optional(),
   hasSummary: z.boolean().optional(),      // P2 (additive)
   summaryLine: z.string().max(220).nullable().optional(), // P2 (additive): the summary's tldr[0] (F2.3 card line), null without one
-  canSummarize: z.boolean().optional(),    // P2 (additive): hasSummaryInput (F2.3), read by the feed's u; omitted with summaries off
+  canSummarize: z.boolean().optional(),    // P2 (additive): hasSummaryInput (F2.3); omitted with summaries off
 });
 
 export const StoryDetailSchema = StoryCardSchema.extend({
@@ -1578,8 +1577,8 @@ Client handling: one `MessageProcessor` per briefing. Each `a2ui` event's data i
 ### 7.1 Design references and system
 | Area | Reference | What we take |
 |---|---|---|
-| Landing | [linear.app](https://linear.app), [raycast.com](https://www.raycast.com) | Product-window hero, hairline borders, keycap visuals |
-| Feed density | [app.daily.dev](https://app.daily.dev), [news.ycombinator.com](https://news.ycombinator.com) | Scannable single-line metadata, source badges with numbers, j/k navigation, quick tag filters, no thumbnails |
+| Landing | [linear.app](https://linear.app) | Product-window hero, hairline borders |
+| Feed density | [app.daily.dev](https://app.daily.dev), [news.ycombinator.com](https://news.ycombinator.com) | Scannable single-line metadata, source badges with numbers, quick tag filters, no thumbnails |
 | Trends | [github.com/trending](https://github.com/trending), Vercel Analytics | Clean time-series, movers table, compact toggles (7d/30d) |
 
 System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--background`, `--foreground`, `--muted`, `--border`, `--accent`, and one brand accent hue). Themes use `next-themes` (class strategy, system default).
@@ -1612,7 +1611,7 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 | `/settings` | Settings | Client | P1 |
 | `/sign-in` | Sign-in | Static | P1 |
 | `/impressum`, `/privacy` | Legal | Static | P1 |
-| ⌘K overlay | Copilot command bar | Client, lazy | P3 |
+| Command bar (Ask button) | Copilot command bar | Client, lazy | P3 |
 
 ### 7.3 Wireframes
 
@@ -1625,19 +1624,19 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │   312 today · 3 sources )     │ │ ● ● ●  devbrief.dev/feed    [Feed|Brief] │ │
 │                               │ │ [All] [React] [Rust] [AI/LLMs]           │ │
 │ Your morning tech scan        │ │ [TypeScript] [Databases]                 │ │
-│ in 5 minutes                  │ │▸Native TS compiler preview ships        ▲│ │
+│ in 5 minutes                  │ │ Native TS compiler preview ships        ▲│ │
 │                               │ │ HN ▲612 · TS Blog · 3h · [ts][perf]     █│ │
 │ The same link on Hacker News, │ │ Postgres 18 async I/O in practice       ░│ │
 │ Dev.to and GitHub becomes one │ │ HN ▲301 · Dev.to ♥95 · 5h · [databases] ░│ │
 │ card, with every source's     │ │ Bun 2.0 ships a built-in test runner    ░│ │
 │ points and comments…          │ │ HN ▲188 · 7h · [javascript][testing]    ▼│ │
-│                               │ │ J K · S · Enter    Showing 30 of 312 →   │ │
+│                               │ │                    Showing 30 of 312 →   │ │
 │ [Explore the feed — no login] │ └──────────────────────────────────────────┘ │
 │ [ Sign in with GitHub ]       │   list of up to 30 scrolls inside the frame  │
 │ Hacker News · Dev.to · GitHub (P2)                                           │
 │ ┌ Same story, five tabs ┐ ┌ Rankings you can't trust ┐ ┌ Signal in comments ┐│
 │ ① Ingest hourly ───── ② Dedupe & tag ───── ③ Rank fairly                     │
-│ ┌──────── bento ────────┬─────────────┐   [J] [K] [S] [/] [?]  keyboard row  │
+│ ┌──────── bento ────────┬─────────────┐                                      │
 │ Under the hood · FAQ · Final CTA · Footer (Impressum · Privacy · Status)     │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1655,7 +1654,7 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ [ Sign in with GitHub      ] │
 │ ┌ ● ● ● devbrief.dev/feed ─┐ │
 │ │ [All] [React] [Rust] …   │ │
-│ │▸Native TS compiler prev… │ │
+│ │ Native TS compiler prev… │ │
 │ │ … fixed height, scrolls  │ │
 │ └──────────────────────────┘ │
 └──────────────────────────────┘
@@ -1664,14 +1663,14 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 **Feed (desktop)**
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ◆ DevBrief   [ / Search stories…                    ]   Top|Latest  ◐  (👤)  │
+│ ◆ DevBrief   [ Search stories…                      ]   Top|Latest  ◐  (👤)  │
 ├───────────────┬──────────────────────────────────────────────────────────────┤
-│ Feed       g f│ ⓘ You're browsing as a guest. Saves stay on this device. [×]│
-│ Saved      g s│ Filters: React × TypeScript ×  · HN ×        Clear all      │
-│ Radar (P3) g r│──────────────────────────────────────────────────────────────│
-│───────────────│▌Native TS compiler preview ships     devblogs.microsoft.com │
-│ TAGS          │▌Go port builds large codebases ~10x faster; watch mode lags │
-│ ☑ React   48 ♡│▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
+│ Feed          │ ⓘ You're browsing as a guest. Saves stay on this device. [×]│
+│ Saved         │ Filters: React × TypeScript ×  · HN ×        Clear all      │
+│ Radar (P3)    │──────────────────────────────────────────────────────────────│
+│───────────────│ Native TS compiler preview ships     devblogs.microsoft.com │
+│ TAGS          │ Go port builds large codebases ~10x faster; watch mode lags │
+│ ☑ React   48 ♡│ HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
 │ ☑ TypeScr 41 ♡│ ─────────────────────────────────────────────────────────── │
 │ ☐ AI/LLMs 77 ♡│  React Compiler 1.x in production: lessons      vercel.com  │
 │ ☐ …           │  Teams report fewer memo bugs; build-time cost is debated   │
@@ -1679,9 +1678,9 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ ☑ Hacker N ●♡ │ ─────────────────────────────────────────────────────────── │
 │ ☐ Dev.to   ●♡ │  …                                                          │
 │ ☐ Blogs(10)●♡ │                    (infinite scroll sentinel)               │
-│ Status: all ok│                                       ? Keyboard shortcuts  │
+│ Status: all ok│                                                             │
 └───────────────┴──────────────────────────────────────────────────────────────┘
- ▌ = active card (j/k)    ☆/★ = save toggle (s)    ● = source health dot
+ ☆/★ = save toggle    ● = source health dot
  P2: ♡/♥/⊘ = follow/mute heart: none, followed, muted (AC-2.5.1)
  P2: the muted line under a title is its summary line (F2.3); a story without a summary has none
  P2: a cluster card shows its combined source line and a "+N related ▾" control under it (F2.2)
@@ -1747,7 +1746,7 @@ Export digest ▾ → Download .md · Copy to clipboard   (week picker: 2026-W47
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Copilot command bar (P3, ⌘K)**
+**Copilot command bar (P3)**
 ```
 ┌────────────────────────── Ask the News ─────────────────────── 2/3 left ─┐
 │ > What were this week's TypeScript tooling debates?                  ⏎  │
@@ -1784,11 +1783,11 @@ RootLayout  (ThemeProvider; Sentry starts from instrumentation)
 ├─ (marketing)/layout → SiteHeader, SiteFooter
 │  └─ LandingPage
 │     ├─ Hero (2 columns from md) → LiveCountsPill, HeroCtas | HeroPreview(client, fixed-height scroll frame) → PreviewTagChips, StoryCard[compact]×≤30
-│     ├─ SourceStrip · ProblemGrid · HowItWorks · FeatureBento(flags) · KeyboardShowcase
+│     ├─ SourceStrip · ProblemGrid · HowItWorks · FeatureBento(flags)
 │     ├─ ExampleBriefings (P3, lazy client) → BriefingView
 │     └─ UnderTheHood · Faq · CtaBand
-└─ (app)/layout  (HotkeysProvider · QueryProvider · NuqsAdapter · Toaster) → AppShell
-   ├─ AppHeader → Logo, SearchInput(/), SortToggle(t), ThemeToggle(AC-1.6.5), UserMenu | SignInButton
+└─ (app)/layout  (QueryProvider · NuqsAdapter · Toaster) → AppShell
+   ├─ AppHeader → Logo, SearchInput, SortToggle, ThemeToggle(AC-1.6.5), UserMenu | SignInButton
    ├─ Sidebar → NavLinks, TagFilterList → FollowMuteHeart(P2), SourceFilterList → FollowMuteHeart(P2), SourceStatus
    ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, SummaryLine(P2), RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
@@ -1796,8 +1795,7 @@ RootLayout  (ThemeProvider; Sentry starts from instrumentation)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
    ├─ RadarPage (P3) → RadarControls, MoversTable, TechVelocityChart(Recharts, lazy)
    ├─ SettingsPage → AppearanceSection, FeedPreferencesSection(P2) → FollowMuteHeart, AccountSection → DeleteAccountDialog
-   ├─ CopilotCommandBar (P3, global, lazy) → QuestionInput, SuggestionList, QuotaBadge, BriefingView → A2uiSurface | BriefingSkeleton | StreamErrorNotice
-   └─ ShortcutsHelpDialog (?)
+   └─ CopilotCommandBar (P3, global, lazy) → QuestionInput, SuggestionList, QuotaBadge, BriefingView → A2uiSurface | BriefingSkeleton | StreamErrorNotice
 ```
 The landing has no `QueryProvider`, so nothing it renders may use TanStack Query (§2.3 "+N related").
 
@@ -1808,30 +1806,11 @@ Shared visual components (`StoryCard`, `TagBadge`, `SourceBadge`, `ConsensusCall
 |---|---|---|
 | **Server state** | TanStack Query | Keys: `['feed', normalizedQuery]` (infinite), `['story', id]`, `['tags', normalizedQuery]` (the feed's query without `tags`, `cursor`, `limit` and the boosts), `['sources']`, `['me']`, `['saves','ids']`, `['saves','list']`, `['summary', id]` (P2), `['cluster', id]` (P2), `['prefs']` (P2), `['radar', window, metric, tags]` (P3), `['collections']` (P3). `staleTime` is 60 s for feed, tags and sources and `Infinity` for summaries. Retry 2× for GETs and 0 for mutations. SSR uses `HydrationBoundary` with dehydrated state. |
 | **Guest state** | Zustand + `persist` (`localStorage` key `devbrief:guest:v1`) | `{ version, deviceId, saves[], prefs (P2), collections[] + notes (P3), hintDismissed, pendingMerge }`. Versioned `migrate()`. In-memory fallback if storage is unavailable. |
-| **URL state** | `nuqs` (type-safe search params) | `sort`, `tags`, `kinds`, `sources`, `q` (debounced 250 ms), and `focus`. Uses `router.replace`, never push, for filter changes. URL state is the only source of truth for filters. |
-| **Ephemeral UI** | React state / small Zustand slice | Active card index, open dialogs and the command bar, toasts. |
+| **URL state** | `nuqs` (type-safe search params) | `sort`, `tags`, `kinds`, `sources` and `q` (debounced 250 ms). Uses `router.replace`, never push, for filter changes. URL state is the only source of truth for filters. |
+| **Ephemeral UI** | React state / small Zustand slice | Open dialogs and the command bar, toasts. |
 | **Mode abstraction** | Hooks `useSaves()`, `usePreferences()` (P2), `useCollections()` (P3) | Each returns the same interface `{ ids, isSaved(id), toggle(id), list… }`. Guest mode backs it with the Zustand store, and account mode with TanStack Query and the API. Components never branch on auth. |
 | **Optimistic updates** | TanStack `useMutation` | `onMutate`: cancel queries, snapshot, then patch `['saves','ids']` and `['saves','list']`. `onError`: roll back and toast. `onSettled`: invalidate. The same pattern covers notes autosave and collection reorder (P3). |
 | **Theme** | `next-themes` | Stored in `localStorage`. A `class` on `<html>` prevents flashes. |
-
-### 7.6 Keyboard shortcuts
-| Key | Action | Scope | Phase |
-|---|---|---|---|
-| `j` / `k` | Next / previous card | Feed, Saved, landing preview | P1 |
-| `o` / `Enter` | Open original in a new tab | Active card | P1 |
-| `c` | Open discussion (HN/Dev.to) | Active card | P1 |
-| `s` | Save / unsave | Active card | P1 |
-| `/` | Focus search | App | P1 |
-| `t` | Toggle Top / Latest | Feed | P1 |
-| `g` then `f` / `s` / `r` / `c` | Go to Feed / Saved / Radar / Collections | App | P1 (`r`, `c` in P3) |
-| `?` | Shortcuts help dialog | App | P1 |
-| `Esc` | Blur input or close dialog | Global | P1 |
-| `u` | Summarize active story; bound only while the card has a summary or `canSummarize` is true | Active card (Feed) | P2 |
-| `a` | Add to collection | Active card | P3 |
-| `n` | Edit note | Active saved item | P3 |
-| `⌘K` / `Ctrl+K` | Open the Ask the News command bar | Global | P3 |
-
-Implementation: one registry in `apps/web/src/lib/hotkeys` (built on `react-hotkeys-hook`) feeds both the handlers and the help dialog, so they cannot diverge. Single-key shortcuts are disabled while focus is in an editable element.
 
 ---
 
