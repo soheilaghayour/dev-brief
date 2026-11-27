@@ -203,7 +203,7 @@ Rules:
 |---|---|
 | F1.1 | Public landing page with a live hero preview (§2) |
 | F1.2 | Hourly ingestion from HN and Dev.to (the ~10 curated RSS feeds are supported but seeded off, §8.8), with exact dedup and deterministic tagging |
-| F1.3 | Feed: Top/Latest, multi-tag filter, source-kind filter, full-text search, infinite scroll, keyboard navigation and a story page |
+| F1.3 | Feed: Top/Latest, multi-tag filter, source-kind filter, text search, infinite scroll, keyboard navigation and a story page |
 | F1.4 | Guest saves (localStorage) and a Saved page |
 | F1.5 | Auth with Better Auth (GitHub and Google OAuth), account saves, guest→account merge and optimistic updates |
 | F1.6 | Settings: theme, account info, sign out and delete account |
@@ -256,16 +256,28 @@ Acceptance criteria:
 - **AC-1.3.1** Given `/feed` with no params, then Top is shown: stories published in the last 7 days ordered by `rankScore desc, id desc`. The first 20 cards are in the server-rendered HTML.
 - **AC-1.3.2** Given `sort=latest`, then cards are ordered by `publishedAt desc, id desc` with no time window.
 - **AC-1.3.3** Given `tags=react,typescript`, then only stories tagged React **or** TypeScript are shown. Given `kinds=hn`, then only stories with at least one HN SourceItem are shown. Facets combine with AND.
-- **AC-1.3.4** Given `q=bun runtime`, then results match Postgres `websearch_to_tsquery('english', q)` against the title (weight A) and excerpt (weight B), combined with the active filters and sort. `q` must be 2–100 chars; anything else gives a 400 `VALIDATION_FAILED`.
+- **AC-1.3.4** Given `q`, then the feed returns the stories that match it under the rules below, combined with the active filters and sort. `q` is trimmed and split on whitespace into **pieces**; punctuation inside a piece (`c++`, `node.js`) is part of it. The rules:
+  - Every piece must be found. A story matches when each piece occurs in its title or its excerpt, and each piece may be found in either one: `angu react` matches a story with "Angular" in the title and "React" in the excerpt. Case is ignored for the letters A–Z only and every other character must match exactly, so `angular` finds "Angular" and `école` does not find "ÉCOLE". The API and the highlight of AC-1.3.14 use this same rule.
+  - A piece matches anywhere: at the start, in the middle or at the end of a word, and across punctuation. `angu`, `gular`, `ngul` and `ANGULAR` each find a story titled "Angular 21 is out"; `script` finds "JavaScript" and "TypeScript"; `ai` finds "AI agents" and "Maintaining a monorepo"; `a` finds every story with an "a" or "A" in its title or excerpt.
+  - `q` is 1–100 characters after trimming. Without `q` the feed is not searched; a `q` that is empty after trimming, or longer than 100 characters, gives a 400 `VALIDATION_FAILED`.
+  - `q` is plain text and has no operators. Quotes, a leading minus and the word `or` are characters to find like any other, and `%`, `_` and `\` are not wildcards.
+  - Word forms do not match: `databases` does not find a story that only says "database".
+  - A `q` that matches nothing returns an empty page with 200.
+  - This applies to the public feed `q` only; copilot retrieval (§3.3) matches on `searchVector`.
 - **AC-1.3.5** Given the user scrolls to the end of the list, then the next page (20 items, cursor-based) loads automatically. No story id appears twice in the rendered list, and the client dedups by id.
 - **AC-1.3.6** Given any filter, sort or search change, then the URL updates via `router.replace`, and reloading or sharing the URL reproduces the view. The default `sort=top` is omitted from the URL.
-- **AC-1.3.7** A card shows: title (linking to the original, `target="_blank" rel="noopener noreferrer"`), domain, one badge per source with its numbers (HN `▲ 320 · 💬 141`, Dev.to `♥ 95 · 💬 12`, RSS = blog name), relative time (`3h`), up to 3 tags plus `+n`, and reading time when known. It also has a Save button with `aria-pressed`.
+- **AC-1.3.7** A card shows: title (linking to the original, `target="_blank" rel="noopener noreferrer"`), domain, one badge per source with its numbers (HN `▲ 320 · 💬 141`, Dev.to `♥ 95 · 💬 12`, RSS = blog name), relative time (`3h`), up to 3 tags plus `+n`, reading time when known, and, during a search, the excerpt line of AC-1.3.14. It also has a Save button with `aria-pressed`.
 - **AC-1.3.8** Keyboard: `j`/`k` move the active card (focus ring visible, scrolled into view), `o`/`Enter` open the original, `c` opens the discussion (first HN or Dev.to item), `s` toggles save, `/` focuses search, `t` toggles Top/Latest, `Esc` blurs search or closes dialogs, and `?` opens the shortcuts dialog. Shortcuts are ignored while focus is in a text input, except `Esc`.
 - **AC-1.3.9** Loading shows skeleton cards with fixed height (CLS < 0.05). An empty result shows "No stories match" plus a "Clear filters" button. An API error shows an inline error with "Retry". A failed next page keeps the existing cards.
 - **AC-1.3.10** `/story/[id]` shows the title, excerpt, domain, tags, every SourceItem (source, author, numbers, discussion link), first-seen and published times, and Save. An unknown id gives a 404 page.
 - **AC-1.3.11** The sidebar lists every tag with its 7-day count (`GET /api/v1/tags`). It also lists source kinds with a health dot: green = success within 2 h, amber = stale for more than 3 h or degraded, red = circuit open. A tooltip shows "Last updated 14 min ago".
 - **AC-1.3.12** On mobile (< 768 px), filters move into a bottom sheet, cards stay single-column, and there is no horizontal scroll at 360 px.
 - **AC-1.3.13** `/feed?focus=<id>` scrolls to that card and makes it active if it is on the first page. Otherwise it is ignored.
+- **AC-1.3.14** Given `q` on `/feed`, then each card shows why it matches:
+  - A card highlights every occurrence of every piece of `q` (AC-1.3.4) in its title, with a `<mark>` element, using the case rule of AC-1.3.4: `ai` highlights "AI" in a title and the letters "ai" inside "main".
+  - When at least one piece does not occur in the title, the card also shows one line of the excerpt, starting a few words before the earliest place in the excerpt where such a piece occurs, with "…" where text is cut, and highlighted the same way. Without `q`, a card shows no excerpt line.
+  - Every card in a search result shows at least one highlight.
+  - The highlight uses the role colours of §7.1, and the highlighted text keeps ≥ 4.5:1 contrast in both themes.
 
 #### F1.4 Guest saves
 User stories:
@@ -412,7 +424,7 @@ Default UI (the orchestrator's choice while the owner was away; reversible): a c
   - It is true when the story has a Dev.to article body, or at least 3 comments in total across its HN and Dev.to items (summed over cluster members, as for auto eligibility). Below that, three points would be invented from a title, an excerpt or a comment or two, so a GitHub-only story, for example, is never summarised.
   - The auto step evaluates it before any upstream fetch, from the stored items and comment counts.
   - When it is false and the story has no summary, the card shows no summary line, `u` on its feed card does nothing (§7.6), the story page shows no Summarize button, and `POST` answers 404 `NOT_FOUND` with a message that says the story has too little to summarise. A summary stored earlier is still served: the card shows its line (AC-2.3.9), `u` opens it, and `POST` answers 200.
-- **Card line:** a feed card whose story or cluster has a summary shows that summary's first TL;DR point (`tldr[0]`, ≤ 220 chars) under the title, as plain text clamped to 2 lines. A story without a summary yet shows no line: there is no excerpt fallback. A cluster card's line comes from the cluster's summary (Clusters, below). The API sends it as `summaryLine` on every `StoryCard` (§6.1). The line shows in both densities, the landing preview included (§2.3). The story page keeps the full panel (3 points and the consensus).
+- **Card line:** a feed card whose story or cluster has a summary shows that summary's first TL;DR point (`tldr[0]`, ≤ 220 chars) under the title, as plain text clamped to 2 lines. A story without a summary yet shows no summary line: the excerpt does not stand in for it (the search excerpt line of AC-1.3.14 is separate). A cluster card's line comes from the cluster's summary (Clusters, below). The API sends it as `summaryLine` on every `StoryCard` (§6.1). The line shows in both densities, the landing preview included (§2.3). The story page keeps the full panel (3 points and the consensus).
   - Cost: at most 220 chars more per card, about 4.4 KB per 20-card feed page before gzip. It is data, not script: the card adds a few lines of markup, and the `/feed` first-load JS budget (§8.5) is unchanged.
 - **Cached forever:** a Story never gets a second Summary row (unique `storyId`). The summary is deleted only when the Story is purged.
 - **Clusters** (with F2.1 on): the comment count for auto eligibility is summed over all members. A clustered story's summary is looked up across all its members, newest first. Only when no member has one is a new summary generated, from all members' inputs, and stored on the representative. The same lookup serves `GET /stories/:id/summary`, `POST` (cached → 200) and the summary panel on any member's page.
@@ -673,7 +685,7 @@ sequenceDiagram
   N->>A: GET /api/v1/feed?tags=react&limit=20 (internal URL)
   A->>C: lookup(normalized query)
   alt miss
-    A->>P: keyset query (FTS / tags && / kinds / window) ORDER BY rankScore DESC, id DESC
+    A->>P: keyset query (q contains / tags && / kinds / window) ORDER BY rankScore DESC, id DESC
     P-->>A: rows
     A->>C: store
   end
@@ -1264,7 +1276,7 @@ export const FeedQuerySchema = z.object({
   tags: csv(TagSlugSchema).optional(),           // OR within
   kinds: csv(SourceKindSchema).optional(),       // OR within
   sources: csv(z.string()).optional(),           // source slugs
-  q: z.string().trim().min(2).max(100).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   // P2 personalisation (client-derived, keeps responses cacheable)
   excludeTags: csv(TagSlugSchema).optional(),
   excludeSources: csv(z.string()).optional(),
@@ -2065,7 +2077,7 @@ Each item is one PR from one agent in its own worktree. **Done when** means the 
 | **P1-05** | Ingestion engine + Hacker News source | P1-02, P1-03 | `SourceAdapter` interface. `HttpClient` (timeouts, retry with jitter, Retry-After, size cap). `IngestionService` (advisory lock, `allSettled`, `IngestionRun` rows, circuit breaker, dedup/attach, tagging). Hourly schedule. `ingest:once` CLI. HN adapter with recorded fixtures. | AC-1.2.1–1.2.3, 1.2.5–1.2.9, 1.2.11 and 1.2.12 pass |
 | **P1-06** | Dev.to and RSS sources | P1-05 | Dev.to adapter (Accept header, serial pacing, canonical_url mapping, 429 handling) and RSS adapter (`rss-parser`, conditional GET, plain-text excerpt, 7-day window, 20 per feed), each with fixtures | AC-1.2.4 and AC-1.2.7 pass, and Dev.to and RSS fixtures ingest with the expected counts |
 | **P1-07** | Rank recompute, daily rollup & retention jobs | P1-05 | Post-run percentile and `rankScore` recompute (7-day window), cache-clear hook, daily `15 3 * * *` job (`TagDailyStat` upsert for the last 3 days, 90-day purge sparing saved stories, `IngestionRun` 30-day purge, expired session cleanup) | AC-1.2.10 and AC-1.7.3 pass, and an integration test proves a saved 91-day-old story survives while an unsaved one is deleted |
-| **P1-08** | Public read API: feed, story, lookup, tags, sources | P1-02, P1-04 | `GET /feed` (keyset cursor, Top/Latest, tags/kinds/sources, FTS `q`, 7-day Top window, 60 s LRU, cache headers), `GET /stories/:id`, `POST /stories/lookup`, `GET /tags`, `GET /sources`, and health with source status. Tests seed data directly. | Integration tests cover AC-1.3.1–1.3.5 (API side) and AC-1.7.1, and every response parses with its shared schema |
+| **P1-08** | Public read API: feed, story, lookup, tags, sources | P1-02, P1-04 | `GET /feed` (keyset cursor, Top/Latest, tags/kinds/sources, `q` contains search, 7-day Top window, 60 s LRU, cache headers), `GET /stories/:id`, `POST /stories/lookup`, `GET /tags`, `GET /sources`, and health with source status. Tests seed data directly. | Integration tests cover AC-1.3.1–1.3.5 (API side) and AC-1.7.1, and every response parses with its shared schema |
 | **P1-09** | Web app shell & design system | P1-01, P1-04 | Tailwind + shadcn/ui init and tokens, `next-themes`, Geist fonts, `AppShell` (header, sidebar, mobile sheet), `QueryProvider` with SSR hydration helpers, Toaster, hotkeys registry + `ShortcutsHelpDialog`, error and 404 pages, `features.ts` flags, Playwright config + the first smoke test (shell renders in both themes) | The app shell renders at 360 px and 1280 px with no horizontal scroll, `?` opens the help dialog, and the Playwright smoke test is green in CI |
 | **P1-10** | Feed UI & story page | P1-08, P1-09 | `/feed` (SSR first page, infinite list, `StoryCard`, filters sidebar and mobile sheet, search, sort toggle, `nuqs` URL state, `focus` param, skeleton/empty/error states, source health dots), `/story/[id]`, keyboard `j` `k` `o` `c` `t` `/` `Esc`. `StoryCard` exposes `isSaved`/`onToggleSave` props, which are wired in P1-11. | AC-1.3.1–1.3.13 pass (the UI side, with Playwright for 1.3.3, 1.3.6 and 1.3.8), except the save behaviour in AC-1.3.7/1.3.8, which is verified in P1-11 |
 | **P1-11** | Guest saves & Saved page | P1-10 | Zustand guest store (`devbrief:guest:v1`, versioned, in-memory fallback), `useSaves()` guest mode, Save button and `s` shortcut, toast, `GuestHintBar`, `/saved` via `POST /stories/lookup`, `missingIds` cleanup | AC-1.4.1–1.4.5 pass, and the Playwright test "guest saves, reloads, sees it on /saved" is green |
