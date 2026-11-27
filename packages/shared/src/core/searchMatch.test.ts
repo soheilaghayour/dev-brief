@@ -10,6 +10,11 @@ describe('splitSearchPieces', () => {
     expect(splitSearchPieces('c++ node.js "bun -x')).toEqual(['c++', 'node.js', '"bun', '-x']);
   });
 
+  it('AC-1.3.4 returns each distinct piece once, in first-seen order', () => {
+    expect(splitSearchPieces('a a a')).toEqual(['a']);
+    expect(splitSearchPieces('react angu react A')).toEqual(['react', 'angu', 'A']);
+  });
+
   it('AC-1.3.4 gives no pieces for empty or blank text', () => {
     expect(splitSearchPieces('')).toEqual([]);
     expect(splitSearchPieces('   ')).toEqual([]);
