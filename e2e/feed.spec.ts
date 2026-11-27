@@ -74,18 +74,17 @@ test('AC-1.3.3 tags combine with OR, kinds with AND against tags', async ({ page
   }
 });
 
-test('AC-1.3.4 search drives q and a 1-character query is not sent', async ({ page }) => {
-  const feedQueries: string[] = [];
-  page.on('request', (request) => {
-    if (request.url().includes('/api/v1/feed')) feedQueries.push(request.url());
-  });
+test('AC-1.3.4 search drives q and a 1-character query is sent', async ({ page }) => {
   await openFeed(page);
   const search = page.getByRole('searchbox', { name: 'Search stories' });
 
+  const oneCharacterRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname === '/api/v1/feed' && url.searchParams.get('q') === 'b';
+  });
   await search.fill('b');
   await expect(page).toHaveURL(/q=b$/);
-  await page.waitForTimeout(500);
-  expect(feedQueries.some((url) => url.includes('q='))).toBe(false);
+  await oneCharacterRequest;
 
   await search.fill('bun runtime');
   await expect(cards(page)).toHaveCount(1);
