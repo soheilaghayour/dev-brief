@@ -29,7 +29,7 @@
 ## 1. Executive Summary & Differentiation
 
 ### 1.1 One-liner
-**DevBrief is a fast, developer news reader.** Every hour it pulls Hacker News and Dev.to, and GitHub from Phase 2. It merges duplicates, tags stories by technology and ranks them fairly across sources. Later phases add AI summaries of what the comments actually debate, and generative-UI research briefings. No login is needed to use it.
+**DevBrief is a fast news reader for developers.** Every hour it pulls Hacker News and Dev.to, and GitHub from Phase 2. It merges duplicates, tags stories by technology and ranks them fairly across sources. Later phases add AI summaries of what the comments actually debate, and generative-UI research briefings. No login is needed to use it.
 
 ### 1.2 Problem
 | Pain | Today |
@@ -131,7 +131,7 @@ A product "window" framed like Linear's, in the hero's right column (below `md`,
 | Frame | The window has a fixed height at each breakpoint, whatever the chip, the number of matching stories or the Phase 3 view, so nothing below it moves. Its list scrolls vertically inside the frame and the page never scrolls sideways. |
 | List | Every embedded story that matches the selected chip, in rank order, up to 30. With clustering on (F2.1), a cluster's card shows its combined source line, as in the feed (F2.2), and a static "+N related" that links to the representative's `/story/<storyId>`. It doesn't expand: the feed's expanding control fetches with TanStack Query, which the landing doesn't load (§7.4, §8.5). |
 | Tag chips | A row of 6 chips: All, React, Rust, AI/LLMs, TypeScript, Databases. The row wraps on narrow screens. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
-| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time, up to 3 tags and the summary line (F2.3). Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. |
+| Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time, up to 3 tags and the summary line (F2.3). Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. Its Save button saves to the real guest store, so the story shows as saved on `/feed`. |
 | Footer of window | "Showing 30 of 312 stories today → Open full feed", counting the stories the selected chip shows. |
 | Hydration budget | The preview is the only client island above the fold. It must be ≤ 25 KB gzip on top of the framework baseline. |
 | Phase 3 | The window's title bar gains a segmented control, **Feed \| Briefing**. "Briefing" lazy-loads the A2UI renderer and shows example briefing #1 in the same fixed-height frame, scrolling inside it. |
@@ -485,7 +485,7 @@ User stories:
 - As a **guest**, I want to try it a few times without signing up.
 
 Acceptance criteria:
-- **AC-3.1.1** The header's Ask button on any app page opens the command bar. It has 3 suggested questions and an input limited to 200 chars. `Enter` submits and `Esc` closes. The copilot bundle is lazy-loaded on first open.
+- **AC-3.1.1** The header's Ask button, on every app page and at every width, opens the command bar. It has 3 suggested questions and an input limited to 200 chars. `Enter` submits and `Esc` closes. The copilot bundle is lazy-loaded on first open.
 - **AC-3.1.2** Given a submitted question, then a skeleton shows until the `root` component arrives, and components then appear progressively in stream order.
 - **AC-3.1.3** Given a question that normalises identically to one answered in the last 24 h, then the cached message sequence is replayed, `meta.cached = true`, and the quota is not consumed.
 - **AC-3.1.4** Quotas: guests get 3 questions per day per (IP hash, device id), with an IP-wide backstop of 10 per day. Users get 20 per day. Exceeding a quota returns 429 `QUOTA_EXCEEDED`, and the UI shows the remaining count and the reset time.
@@ -511,7 +511,7 @@ Retrieval: the tag path is `tagStory(question)`. The FTS path matches a story th
 #### F3.4 Collections, notes and digest
 - **AC-3.4.1** Users and guests can create, rename, reorder and delete collections. A saved story can belong to 0..n collections. Unsaving removes it from all collections, with a confirm step if it has a note.
 - **AC-3.4.2** Each saved story has one Markdown note (≤ 20,000 chars) with an editor, preview and autosave (debounced 800 ms, optimistic, with a "Saved" indicator). The note renders through `react-markdown` without raw HTML.
-- **AC-3.4.3** A card's Add to collection button opens the "Add to collection" dialog with type-ahead. The `/collections/[slug]` board view lists items with their notes.
+- **AC-3.4.3** A card's "Add to collection" button opens a dialog of that name with type-ahead. The `/collections/[slug]` board view lists items with their notes.
 - **AC-3.4.4** "Export weekly digest" builds Markdown client-side with the pure `renderDigestMarkdown()` function from `packages/shared`. It covers stories saved in the selected ISO week, optionally per collection, with title, link, tags and note. The two actions are **Download .md** and **Copy to clipboard**. No email.
 - **AC-3.4.5** Guest collections and notes are merged on sign-in via `POST /api/v1/me/merge`. Collections are matched by slug. If a note conflicts, the server note is kept and the local note is appended under a `---` separator.
 
@@ -1787,9 +1787,9 @@ RootLayout  (ThemeProvider; Sentry starts from instrumentation)
 │     ├─ ExampleBriefings (P3, lazy client) → BriefingView
 │     └─ UnderTheHood · Faq · CtaBand
 └─ (app)/layout  (QueryProvider · NuqsAdapter · Toaster) → AppShell
-   ├─ AppHeader → Logo, SearchInput, SortToggle, ThemeToggle(AC-1.6.5), UserMenu | SignInButton
+   ├─ AppHeader → Logo, SearchInput, SortToggle, AskButton(P3, opens CopilotCommandBar), ThemeToggle(AC-1.6.5), UserMenu | SignInButton
    ├─ Sidebar → NavLinks, TagFilterList → FollowMuteHeart(P2), SourceFilterList → FollowMuteHeart(P2), SourceStatus
-   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, SummaryLine(P2), RelatedToggle(P2)
+   ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, AddToCollectionButton(P3), SummaryLine(P2), RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
    ├─ StoryPage → StoryHeader, SourceItemList, SummaryPanel(P2) → TldrList, ConsensusCallout · ClusterMembers(P2) · NoteEditor(P3)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
@@ -2067,7 +2067,7 @@ Each item is one PR from one agent in its own worktree. **Done when** means the 
 | **P1-07** | Rank recompute, daily rollup & retention jobs | P1-05 | Post-run percentile and `rankScore` recompute (7-day window), cache-clear hook, daily `15 3 * * *` job (`TagDailyStat` upsert for the last 3 days, 90-day purge sparing saved stories, `IngestionRun` 30-day purge, expired session cleanup) | AC-1.2.10 and AC-1.7.3 pass, and an integration test proves a saved 91-day-old story survives while an unsaved one is deleted |
 | **P1-08** | Public read API: feed, story, lookup, tags, sources | P1-02, P1-04 | `GET /feed` (keyset cursor, Top/Latest, tags/kinds/sources, `q` contains search, 7-day Top window, 60 s LRU, cache headers), `GET /stories/:id`, `POST /stories/lookup`, `GET /tags`, `GET /sources`, and health with source status. Tests seed data directly. | Integration tests cover AC-1.3.1–1.3.5 (API side) and AC-1.7.1, and every response parses with its shared schema |
 | **P1-09** | Web app shell & design system | P1-01, P1-04 | Tailwind + shadcn/ui init and tokens, `next-themes`, Geist fonts, `AppShell` (header, sidebar, mobile sheet), `QueryProvider` with SSR hydration helpers, Toaster, error and 404 pages, `features.ts` flags, Playwright config + the first smoke test (shell renders in both themes) | The app shell renders at 360 px and 1280 px with no horizontal scroll, and the Playwright smoke test is green in CI |
-| **P1-10** | Feed UI & story page | P1-08, P1-09 | `/feed` (SSR first page, infinite list, `StoryCard`, filters sidebar and mobile sheet, search, sort toggle, `nuqs` URL state, skeleton/empty/error states, source health dots), `/story/[id]`. `StoryCard` exposes `isSaved`/`onToggleSave` props, which are wired in P1-11. | AC-1.3.1–1.3.7 and 1.3.9–1.3.12 pass (the UI side, with Playwright for 1.3.3 and 1.3.6), except the save behaviour in AC-1.3.7, which is verified in P1-11 |
+| **P1-10** | Feed UI & story page | P1-08, P1-09 | `/feed` (SSR first page, infinite list, `StoryCard`, filters sidebar and mobile sheet, search, sort toggle, `nuqs` URL state, skeleton/empty/error states, source health dots), `/story/[id]`. `StoryCard` exposes `isSaved`/`onToggleSave` props, which are wired in P1-11. | AC-1.3.1–1.3.7, 1.3.9–1.3.12 and 1.3.14 pass (the UI side, with Playwright for 1.3.3 and 1.3.6), except the save behaviour in AC-1.3.7, which is verified in P1-11 |
 | **P1-11** | Guest saves & Saved page | P1-10 | Zustand guest store (`devbrief:guest:v1`, versioned, in-memory fallback), `useSaves()` guest mode, Save button, toast, `GuestHintBar`, `/saved` via `POST /stories/lookup`, `missingIds` cleanup | AC-1.4.1–1.4.5 pass, and the Playwright test "guest saves, reloads, sees it on /saved" is green |
 | **P1-12** | Authentication: Better Auth with GitHub + Google | P1-02, P1-04, P1-09 | Better Auth instance (Prisma adapter, GitHub `user:email`, Google, account linking, cookie config) mounted at `/api/auth` before the body parser. `AuthGuard`. `GET` and `DELETE /api/v1/me`. `/sign-in` page with `callbackURL`. `UserMenu`. `/settings` (appearance, account, sign out, delete account, clear local data). Guarded test-mode sign-in route. Playwright sign-in test. OAuth app setup steps in `docs/operations.md`. | AC-1.5.1–1.5.3, AC-1.5.8, AC-1.5.9 and AC-1.6.1–1.6.3 pass |
 | **P1-13** | Account saves, optimistic UI & guest→account merge | P1-08, P1-11, P1-12 | `PUT`/`DELETE /me/saves/:id`, `GET /me/saves`, `GET /me/saves/ids`, `POST /me/merge` (transactional, idempotent). `useSaves()` account mode with optimistic mutations and rollback. Merge-on-sign-in with a `pendingMerge` retry. Playwright test "guest save → sign in → merged". | AC-1.5.4–1.5.7 pass, and repeating the merge creates no rows (integration test) |
