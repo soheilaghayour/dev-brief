@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
@@ -64,6 +65,8 @@ function render(
     preferenceMenu?: typeof PreferenceMenu;
     relatedToggle?: typeof RelatedToggle;
     sourceLine?: typeof ClusterSourceLine;
+    titleContent?: ReactNode;
+    excerptLine?: ReactNode;
   } = {},
 ) {
   return renderToStaticMarkup(
@@ -269,5 +272,22 @@ describe('StoryCard', () => {
     const html = render(CLUSTERED);
     features.clusters = false;
     expect(html).toBe(render(STORY));
+  });
+
+  it('AC-1.3.14 renders the title content the page passes inside the title link', () => {
+    const html = render(STORY, { titleContent: <mark>Native</mark> });
+    expect(html).toMatch(/<a[^>]*target="_blank"[^>]*><mark>Native<\/mark><\/a>/);
+    expect(html).not.toContain('Native TS compiler preview ships');
+  });
+
+  it('AC-1.3.14 renders the excerpt line the page passes, truncated to one line', () => {
+    const html = render(STORY, { excerptLine: <mark>React</mark> });
+    expect(html).toMatch(/<p class="[^"]*\btruncate\b[^"]*"><mark>React<\/mark><\/p>/);
+  });
+
+  it('AC-1.3.14 without title content or an excerpt line the card has no mark and no excerpt line', () => {
+    const html = render(STORY);
+    expect(html).not.toContain('<mark');
+    expect(html).not.toContain('truncate');
   });
 });

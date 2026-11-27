@@ -7,11 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { isFeatureEnabled } from '@/config/features';
 import { cn } from '@/lib/cn';
 import type { ClusterSourceLineProps } from './ClusterSourceLine';
-import { HighlightedText } from './HighlightedText';
 import { RelativeTime } from './RelativeTime';
 import type { RelatedToggleProps } from './RelatedToggle';
 import { SaveButton } from '@/components/saves/SaveButton';
-import { highlightCard } from './searchHighlight';
 import { SourceBadge } from './SourceBadge';
 import { TagBadge } from './TagBadge';
 
@@ -25,8 +23,10 @@ type StoryCardProps = {
   story: CardStory;
   isSaved: boolean;
   onToggleSave: () => void;
-  /** The pieces of the feed's `q` and the story's excerpt: marks the matches and adds the excerpt line; absent outside a search, so the card is unchanged. */
-  search?: { pieces: string[]; excerpt: string | null };
+  /** The title with a search's matches marked; the plain title when absent. */
+  titleContent?: ReactNode;
+  /** One excerpt line holding a search's match; the page injects it so routes without a search don't load the highlight code. */
+  excerptLine?: ReactNode;
   /** Denser rows for previews: tags stay, the reading time goes. */
   compact?: boolean;
   /** The card j/k currently points at. */
@@ -51,7 +51,8 @@ export function StoryCard({
   story,
   isSaved,
   onToggleSave,
-  search,
+  titleContent,
+  excerptLine,
   compact = false,
   isActive = false,
   preferenceMenu,
@@ -65,12 +66,6 @@ export function StoryCard({
   const cluster = isFeatureEnabled('clusters') ? story.cluster : null;
   const visibleTags = story.tags.slice(0, MAX_VISIBLE_TAGS);
   const hiddenTagCount = story.tags.length - visibleTags.length;
-  const highlight = search && highlightCard(story.title, search.excerpt, search.pieces);
-  const title = highlight ? (
-    <HighlightedText text={story.title} ranges={highlight.titleRanges} />
-  ) : (
-    story.title
-  );
   return (
     <article
       data-story-id={story.id}
@@ -86,21 +81,19 @@ export function StoryCard({
         <h2 className="leading-snug">
           {titleHref ? (
             <Link href={titleHref} className={TITLE_CLASS}>
-              {title}
+              {titleContent ?? story.title}
             </Link>
           ) : (
             <a href={story.url} target="_blank" rel="noopener noreferrer" className={TITLE_CLASS}>
-              {title}
+              {titleContent ?? story.title}
             </a>
           )}
           <span className="text-muted-foreground ml-2 text-xs whitespace-nowrap">
             {story.domain}
           </span>
         </h2>
-        {highlight?.snippet && (
-          <p className="text-muted-foreground mt-1 truncate text-sm">
-            <HighlightedText text={highlight.snippet.text} ranges={highlight.snippet.ranges} />
-          </p>
+        {excerptLine && (
+          <p className="text-muted-foreground mt-1 truncate text-sm">{excerptLine}</p>
         )}
         {story.summaryLine && isFeatureEnabled('summaries') && (
           <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
