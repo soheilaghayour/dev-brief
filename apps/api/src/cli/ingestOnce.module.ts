@@ -5,12 +5,21 @@ import { EnvModule } from '../common/env/env.module.js';
 import { PrismaModule } from '../common/prisma/prisma.module.js';
 import { IngestionModule } from '../modules/ingestion/ingestion.module.js';
 import { IngestionService } from '../modules/ingestion/ingestion.service.js';
+import { MaintenanceModule } from '../modules/maintenance/maintenance.module.js';
 import { RankingModule } from '../modules/ranking/ranking.module.js';
 import { SummariesModule } from '../modules/summaries/summaries.module.js';
 
-// The scheduler is left out so the CLI doesn't also run boot tasks.
+// The scheduler is left out so the CLI doesn't also run boot tasks. Each module that registers a post-run step must be listed: a missing one silently skips its step.
 @Module({
-  imports: [EnvModule, PrismaModule, CacheModule, IngestionModule, RankingModule, SummariesModule],
+  imports: [
+    EnvModule,
+    PrismaModule,
+    CacheModule,
+    IngestionModule,
+    RankingModule,
+    MaintenanceModule,
+    SummariesModule,
+  ],
 })
 export class IngestOnceModule {}
 
