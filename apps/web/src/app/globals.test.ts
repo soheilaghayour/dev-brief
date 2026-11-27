@@ -216,12 +216,12 @@ describe('pointer cursor', () => {
     for (const control of [
       'button',
       'summary',
-      "[type='checkbox']",
-      "[type='radio']",
+      "input:is([type='checkbox'], [type='radio'])",
       'label:has(',
       "[role='button']",
       "[role='tab']",
       "[role='radio']",
+      "[role='checkbox']",
       "[role='switch']",
       "[role='menuitem']",
       "[role='menuitemcheckbox']",
@@ -239,7 +239,7 @@ describe('pointer cursor', () => {
     expect(rule![1]).not.toMatch(/\binput[,)\s]|textarea|\[type='text'\]/);
   });
 
-  it('no component sets a cursor class the rule already provides', () => {
+  it('no component sets a pointer or default cursor class', () => {
     const offenders = sourceFiles(join(__dirname, '..')).filter((file) =>
       /\bcursor-(pointer|default)\b/.test(readFileSync(file, 'utf8')),
     );
