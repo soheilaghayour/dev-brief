@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 export function FinalCtaBand() {
   return (
     <section aria-labelledby="cta-title" className="px-4 pb-20">
-      <div className="from-primary/15 via-card to-card relative mx-auto max-w-6xl overflow-hidden rounded-2xl border bg-gradient-to-b px-6 py-16 text-center">
+      <div className="from-brand/15 via-card to-card relative mx-auto max-w-6xl overflow-hidden rounded-2xl border bg-gradient-to-b px-6 py-16 text-center">
         <h2
           id="cta-title"
           className="text-3xl font-semibold tracking-tight text-balance md:text-4xl"
