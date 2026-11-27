@@ -313,6 +313,10 @@ Acceptance criteria:
 - **AC-1.6.2** Delete account requires typing `delete` in a confirm dialog. It then calls `DELETE /api/v1/me`, which removes the user, sessions, accounts and saves (cascade), signs out and redirects to `/` with a toast.
 - **AC-1.6.3** Guests see Appearance and a "Clear local data" action, which resets `devbrief:guest:v1`.
 - **AC-1.6.4** Both themes use the palette of §7.1. A test reads the light and dark token values from `globals.css` and checks that each text token reaches ≥ 4.5:1 on the backgrounds it is used on, `--primary-foreground` included, and that no `--chart-*` token equals `--primary` or `--brand`.
+- **AC-1.6.5** The app header and the landing header each have one theme button, and no other theme control.
+  - The button shows a sun while the theme in use is light and a moon while it is dark. The theme in use is the resolved theme, so with no stored choice it follows the system.
+  - A click switches to the other theme and stores the choice. The header offers no System option; Settings (AC-1.6.1) is where to return to System.
+  - The button's accessible name says what a click does: "Switch to dark theme" while the theme in use is light, "Switch to light theme" while it is dark.
 
 #### F1.7 Platform
 - **AC-1.7.1** `GET /api/v1/health` returns 200 `{ status: "ok" | "degraded", db: "ok", version, sources: [...] }`. `degraded` means at least one source is stale or has an open circuit. It returns 503 if the DB is unreachable.
@@ -452,7 +456,15 @@ Acceptance criteria:
 - **AC-2.4.2** When the `x-ratelimit-remaining` header is below 5, the adapter stops and records `partial`.
 
 #### F2.5 Follow/mute
-- **AC-2.5.1** On a tag or source badge, a context menu (and the settings page) offers Follow and Mute. Guests store this locally (`prefs` in the guest store), and users sync via `PUT /api/v1/me/preferences`.
+- **AC-2.5.1** A tag or a source is followed or muted only with one three-state heart button, the same everywhere.
+  - The heart is on every row of the sidebar's tag list, on every row of the sidebar's source list, and on the settings page's feed preferences, which use the same control.
+  - The states are an empty heart (neither), a filled heart (followed) and a crossed heart (muted). Each click moves to the next state: none → followed → muted → none.
+  - The button's accessible name gives the tag or source, its state and what a click does, for example "React: following. Click to mute."
+  - The heart and the row's filter checkbox are separate controls: clicking one does not trigger the other.
+  - A muted tag or source stays in its sidebar list with the crossed heart, so it can be un-muted there.
+  - A sidebar source row stands for a source kind (AC-1.3.11), while a preference is stored per source slug. The heart on a kind's row sets its state on every source of that kind, and the row shows followed or muted only when all of its sources are in that state, otherwise empty.
+  - Tag and source badges, on feed cards, Saved, collections, the story page and copilot cards, are plain labels with no follow/mute menu.
+  - Guests store this locally (`prefs` in the guest store), and users sync via `PUT /api/v1/me/preferences`.
 - **AC-2.5.2** The feed request carries `excludeTags`, `excludeSources` and `boostTags` / `boostSources` params, derived client-side from preferences for both guests and users, so feed responses stay public-cacheable. Muted items never appear. Followed items get a rank multiplier of ×1.5.
 - **AC-2.5.3** The merge endpoint accepts `preferences`. On a conflict, the server value wins for the same `(kind, value)`.
 
@@ -1666,17 +1678,18 @@ System: shadcn/ui (Radix primitives) with Tailwind CSS variables for tokens (`--
 │ Radar (P3) g r│──────────────────────────────────────────────────────────────│
 │───────────────│▌Native TS compiler preview ships     devblogs.microsoft.com │
 │ TAGS          │▌Go port builds large codebases ~10x faster; watch mode lags │
-│ ☑ React   48  │▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
-│ ☑ TypeScr 41  │ ─────────────────────────────────────────────────────────── │
-│ ☐ AI/LLMs 77  │  React Compiler 1.x in production: lessons      vercel.com  │
+│ ☑ React  48 ♡ │▌HN ▲612 💬288 · TypeScript Blog · 3h · 6 min  [ts][perf] [☆]│
+│ ☑ TypeSc 41 ♡ │ ─────────────────────────────────────────────────────────── │
+│ ☐ AI/LLM 77 ♡ │  React Compiler 1.x in production: lessons      vercel.com  │
 │ ☐ …           │  Teams report fewer memo bugs; build-time cost is debated   │
 │ SOURCES       │  HN ▲188 💬64 · Dev.to ♥95 💬12 · 7h       [react][perf] [★]│
-│ ☑ Hacker News●│ ─────────────────────────────────────────────────────────── │
-│ ☐ Dev.to     ●│  …                                                          │
-│ ☐ Blogs (10) ●│                    (infinite scroll sentinel)               │
+│ ☑ Hacker N ●♡ │ ─────────────────────────────────────────────────────────── │
+│ ☐ Dev.to   ●♡ │  …                                                          │
+│ ☐ Blogs(10)●♡ │                    (infinite scroll sentinel)               │
 │ Status: all ok│                                       ? Keyboard shortcuts  │
 └───────────────┴──────────────────────────────────────────────────────────────┘
  ▌ = active card (j/k)    ☆/★ = save toggle (s)    ● = source health dot
+ P2: ♡ none · ♥ followed · ⊘ crossed = muted (the heart on each sidebar row, AC-2.5.1)
  P2: the muted line under a title is its summary line (F2.3); a story without a summary has none
  P2: a cluster card shows its combined source line and a "+N related ▾" control under it (F2.2)
 ```
@@ -1764,7 +1777,7 @@ Export digest ▾ → Download .md · Copy to clipboard   (week picker: 2026-W47
 ┌──────────────────────────────────────────────────────────────┐
 │ Settings                                                     │
 │ Appearance     ( System ) ( Light ) ( Dark )                 │
-│ Feed (P2)      Followed: [react ×] [rust ×]  Muted: [career ×]│
+│ Feed (P2)      react ♥   rust ♥   career ⊘   vue ♡   …       │
 │ Account        (👤) Jane · jane@… · GitHub ✓ Google —        │
 │                [Sign out]                [Delete account…]   │
 │ Guest only:    [Clear local data]                            │
@@ -1782,13 +1795,13 @@ RootLayout  (ThemeProvider; Sentry starts from instrumentation)
 │     └─ UnderTheHood · Faq · CtaBand
 └─ (app)/layout  (HotkeysProvider · QueryProvider · NuqsAdapter · Toaster) → AppShell
    ├─ AppHeader → Logo, SearchInput(/), SortToggle(t), ThemeToggle, UserMenu | SignInButton
-   ├─ Sidebar → NavLinks, TagFilterList, SourceFilterList, SourceStatus
+   ├─ Sidebar → NavLinks, TagFilterList → FollowMuteHeart(P2), SourceFilterList → FollowMuteHeart(P2), SourceStatus
    ├─ FeedPage → GuestHintBar, ActiveFilters, FeedList → StoryCard → SourceBadge, TagBadge, RelativeTime, SaveButton, SummaryLine(P2), RelatedToggle(P2)
    │            InfiniteSentinel, FeedSkeleton, FeedEmpty, FeedError
    ├─ StoryPage → StoryHeader, SourceItemList, SummaryPanel(P2) → TldrList, ConsensusCallout · ClusterMembers(P2) · NoteEditor(P3)
    ├─ SavedPage → SavedList (P1) | CollectionsSidebar + CollectionBoard (P3) → SavedItem, NoteEditor, DigestExportMenu
    ├─ RadarPage (P3) → RadarControls, MoversTable, TechVelocityChart(Recharts, lazy)
-   ├─ SettingsPage → AppearanceSection, FeedPreferencesSection(P2), AccountSection → DeleteAccountDialog
+   ├─ SettingsPage → AppearanceSection, FeedPreferencesSection(P2) → FollowMuteHeart, AccountSection → DeleteAccountDialog
    ├─ CopilotCommandBar (P3, global, lazy) → QuestionInput, SuggestionList, QuotaBadge, BriefingView → A2uiSurface | BriefingSkeleton | StreamErrorNotice
    └─ ShortcutsHelpDialog (?)
 ```
