@@ -23,4 +23,15 @@ describe('opengraph image', () => {
     expect(textOf(element)).toContain('Your morning tech scan in 5 minutes');
     expect(alt).toBe('DevBrief — Your morning tech scan in 5 minutes');
   });
+
+  it('AC-1.6.4 uses the §7.1 palette on a flat background with no indigo', () => {
+    const { element } = OpenGraphImage() as unknown as { element: ReactNode };
+    const props = JSON.stringify(element, (key, value) =>
+      key.startsWith('_') ? undefined : value,
+    );
+    expect(props).toContain('"background":"#faf8f5"');
+    expect(props).toContain('"color":"#1c1917"');
+    expect(props).toContain('#d94e1f');
+    expect(props).not.toMatch(/gradient|#6366f1|#8b93ff/i);
+  });
 });

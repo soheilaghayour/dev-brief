@@ -9,7 +9,7 @@ export function Logo() {
       prefetch={false}
       className="flex items-center gap-2 rounded-md font-semibold tracking-tight"
     >
-      <DiamondIcon className="text-primary size-4 fill-current" aria-hidden="true" />
+      <DiamondIcon className="fill-brand stroke-brand size-4" aria-hidden="true" />
       <span className="text-base">DevBrief</span>
     </Link>
   );

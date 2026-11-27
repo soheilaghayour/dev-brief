@@ -54,7 +54,7 @@ function RankingVisual() {
           <div className="bg-muted relative h-2 flex-1 overflow-hidden rounded-full">
             <div
               style={{ animationDelay: `${index * 0.4}s` }}
-              className="bg-primary/70 absolute inset-y-0 left-0 w-3/5 origin-left rounded-full motion-safe:animate-[bento-grow_5s_ease-in-out_infinite]"
+              className="bg-brand/70 absolute inset-y-0 left-0 w-3/5 origin-left rounded-full motion-safe:animate-[bento-grow_5s_ease-in-out_infinite]"
             />
           </div>
         </div>
@@ -91,7 +91,7 @@ function RadarVisual() {
           <div className="bg-muted relative h-2 flex-1 overflow-hidden rounded-full">
             <div
               style={{ animationDelay: `${index * 0.4}s` }}
-              className={`bg-primary/70 absolute inset-y-0 left-0 ${width} origin-left rounded-full motion-safe:animate-[bento-grow_5s_ease-in-out_infinite]`}
+              className={`bg-brand/70 absolute inset-y-0 left-0 ${width} origin-left rounded-full motion-safe:animate-[bento-grow_5s_ease-in-out_infinite]`}
             />
           </div>
           <span className="text-muted-foreground w-16 text-right font-mono">{delta}</span>
@@ -179,7 +179,7 @@ export function FeatureBento() {
         {visibleTiles().map((tile) => (
           <article
             key={tile.title}
-            className={`bg-card hover:border-primary/40 grid content-between gap-6 rounded-lg border p-6 transition-colors ${tile.className ?? ''}`}
+            className={`bg-card hover:border-brand/40 grid content-between gap-6 rounded-lg border p-6 transition-colors ${tile.className ?? ''}`}
           >
             <div>
               <h3 className="text-lg font-semibold tracking-tight">{tile.title}</h3>

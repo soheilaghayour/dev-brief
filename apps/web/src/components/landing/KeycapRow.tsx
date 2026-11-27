@@ -99,7 +99,7 @@ export function KeycapRow({ features }: { features?: Features }) {
             style={{ animationDelay: `${index * 0.9}s` }}
             className={cn(
               'bg-card text-foreground flex size-16 items-center justify-center rounded-xl border border-b-4 font-mono text-2xl shadow-sm transition-all',
-              'data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground data-[pressed=true]:translate-y-0.5 data-[pressed=true]:border-b',
+              'data-[pressed=true]:bg-brand data-[pressed=true]:text-primary-foreground data-[pressed=true]:translate-y-0.5 data-[pressed=true]:border-b',
               isInView && 'motion-safe:animate-[keycap-press_5s_ease-in-out_infinite]',
             )}
           >

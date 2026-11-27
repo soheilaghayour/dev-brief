@@ -67,7 +67,7 @@ export function StoryCard({
       className={cn(
         'relative flex scroll-mt-16 items-start gap-2 border-b px-3 transition-colors ring-inset',
         'data-[active=true]:bg-accent/50 data-[active=true]:ring-ring data-[active=true]:ring-2',
-        'before:bg-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:opacity-0 data-[active=true]:before:opacity-100',
+        'before:bg-brand before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:opacity-0 data-[active=true]:before:opacity-100',
         compact ? 'py-2' : 'py-3',
       )}
     >

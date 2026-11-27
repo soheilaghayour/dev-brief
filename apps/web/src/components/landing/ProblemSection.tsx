@@ -30,7 +30,7 @@ export function ProblemSection() {
         {PROBLEMS.map((problem) => (
           <article
             key={problem.title}
-            className="bg-card hover:border-primary/40 group rounded-lg border p-5 transition-colors"
+            className="bg-card hover:border-brand/40 group rounded-lg border p-5 transition-colors"
           >
             <div aria-hidden="true" className="mb-5 flex flex-wrap gap-1.5 font-mono text-[11px]">
               {problem.mock.map((chip, index) => (
