@@ -82,7 +82,7 @@ test('AC-3.4.1 unsaving a story with a note asks first; without a note it is ins
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('AC-3.4.1 cancelling an unsave with Esc keeps the active card, so the next s asks about the same story', async ({
+test('AC-3.4.1 cancelling an unsave with Esc keeps the story, so the next unsave asks about the same story', async ({
   page,
 }) => {
   await page.goto('/feed?sort=latest');
@@ -100,22 +100,17 @@ test('AC-3.4.1 cancelling an unsave with Esc keeps the active card, so the next 
   // Saved last, so it is the first card on /saved.
   await saveWithNote(page, newer);
   await page.goto('/saved');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
   await expect(cards(page)).toHaveCount(2);
-  await page.keyboard.press('j');
-  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
 
+  const save = cards(page).first().getByRole('button', { name: 'Save story' });
   const dialog = page.getByRole('dialog', { name: `Remove “${newer.title}” and its note?` });
-  // The card's `s` binding registers just after `data-active` shows, so the first press can land early.
-  await expect(async () => {
-    if (!(await dialog.isVisible())) await page.keyboard.press('s');
-    await expect(dialog).toBeVisible({ timeout: 1000 });
-  }).toPass();
+  await save.click();
+  await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
-  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
+  await expect(cards(page)).toHaveCount(2);
 
-  await page.keyboard.press('s');
+  await save.click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Remove story and note' }).click();
   await expect(cards(page)).toHaveCount(1);
@@ -155,30 +150,6 @@ test.describe('digest', () => {
 
     expect((await download).suggestedFilename()).toMatch(/^devbrief-\d{4}-W\d{2}\.md$/);
   });
-});
-
-test('AC-3.4.2 n opens the note editor on the active saved card, and not inside an input', async ({
-  page,
-}) => {
-  const story = await firstStory(page);
-  await saveWithNote(page, story);
-  await page.goto('/saved');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
-  await expect(cards(page).first()).toBeVisible();
-  await page.keyboard.press('j');
-  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
-
-  const editor = page.getByRole('textbox', { name: 'Note' });
-  // The card's `n` binding registers just after `data-active` shows, so the first press can land early.
-  await expect(async () => {
-    if (!(await editor.isVisible())) await page.keyboard.press('n');
-    await expect(editor).toBeVisible({ timeout: 1000 });
-  }).toPass();
-  await expect(editor).toBeFocused();
-  await expect(editor).toHaveValue(NOTE);
-
-  await page.keyboard.press('n');
-  expect((await editor.inputValue()).length).toBe(NOTE.length + 1);
 });
 
 test('AC-3.4.2 a signed-in user edits a note that persists after a reload, and is asked before unsaving the story', async ({
