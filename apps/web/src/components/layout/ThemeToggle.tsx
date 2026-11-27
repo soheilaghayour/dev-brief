@@ -4,8 +4,7 @@ import { MoonIcon, SunIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/Button';
 
-// The theme in use is known only in the browser, so the `.dark` class set by the inline theme
-// script picks the icon and the name through CSS: both are in the HTML and none swaps after hydration.
+// CSS picks the icon and name from the `dark` class, so nothing swaps after hydration.
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
 
