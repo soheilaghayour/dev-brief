@@ -270,7 +270,9 @@ Acceptance criteria:
 - **AC-1.3.8** Keyboard: `j`/`k` move the active card (focus ring visible, scrolled into view), `o`/`Enter` open the original, `c` opens the discussion (first HN or Dev.to item), `s` toggles save, `/` focuses search, `t` toggles Top/Latest, `Esc` blurs search or closes dialogs, and `?` opens the shortcuts dialog. Shortcuts are ignored while focus is in a text input, except `Esc`.
 - **AC-1.3.9** Loading shows skeleton cards with fixed height (CLS < 0.05). An empty result shows "No stories match" plus a "Clear filters" button. An API error shows an inline error with "Retry". A failed next page keeps the existing cards.
 - **AC-1.3.10** `/story/[id]` shows the title, excerpt, domain, tags, every SourceItem (source, author, numbers, discussion link), first-seen and published times, and Save. An unknown id gives a 404 page.
-- **AC-1.3.11** The sidebar lists every tag with its 7-day count (`GET /api/v1/tags`). It also lists source kinds with a health dot: green = success within 2 h, amber = stale for more than 3 h or degraded, red = circuit open. A tooltip shows "Last updated 14 min ago".
+- **AC-1.3.11** The sidebar lists every tag with a count (`GET /api/v1/tags`). It also lists source kinds with a health dot: green = success within 2 h, amber = stale for more than 3 h or degraded, red = circuit open. A tooltip shows "Last updated 14 min ago".
+  - A tag's count is the number of stories the feed lists with that tag as the selected tag and the same sort (Top has its 7-day window, Latest has none), search, source-kind and source filters, and mutes. Clicking a tag whose count is `n` lists `n` stories.
+  - The tags currently selected do not change the counts. A tag with no stories shows `0` and stays in the list.
 - **AC-1.3.12** On mobile (< 768 px), filters move into a bottom sheet, cards stay single-column, and there is no horizontal scroll at 360 px.
 - **AC-1.3.13** `/feed?focus=<id>` scrolls to that card and makes it active if it is on the first page. Otherwise it is ignored.
 - **AC-1.3.14** Given `q` on `/feed`, then each card shows why it matches:
@@ -694,7 +696,7 @@ sequenceDiagram
   B->>A: GET /api/v1/feed?...&cursor=… (infinite scroll, same-origin)
   B->>A: GET /api/v1/me/saves/ids (signed in) — guest uses local store
 ```
-Personal state (saved ids, Phase 2 preferences) is never mixed into feed responses, so feed responses stay public and cacheable. Personalisation is applied through explicit query params (`excludeTags`, `boostTags`, …), which the client derives from local or account preferences.
+Personal state (saved ids, Phase 2 preferences) is never mixed into feed responses, so feed and tag-list responses stay public and cacheable. Personalisation is applied through explicit query params (`excludeTags`, `boostTags`, …), which the client derives from local or account preferences.
 
 #### 4.3.3 Guest → account merge
 ```mermaid
@@ -1295,7 +1297,7 @@ export const FeedPageSchema = z.object({ items: z.array(StoryCardSchema), nextCu
 | 2 | GET | `/api/v1/feed` | public | `FeedQuerySchema` | 200 `FeedPageSchema` | Top: 7-day window, `rankScore desc, id desc`. Latest: `publishedAt desc, id desc`. Cached 60 s in memory. |
 | 3 | GET | `/api/v1/stories/:id` | public | none | 200 `StoryDetailSchema` | 404 `NOT_FOUND` |
 | 4 | POST | `/api/v1/stories/lookup` | public | `{ ids: string[] (1..100) }` (`StoryLookupRequestSchema`) | 200 `{ items: StoryCard[], missingIds: string[] }` | Used by guest Saved, preserving input order |
-| 5 | GET | `/api/v1/tags` | public | none | 200 `{ version: number, tags: [{ slug, label, count7d }] }` (`TagListSchema`) | `count7d` from `TagDailyStat` |
+| 5 | GET | `/api/v1/tags` | public | the query parameters of `GET /api/v1/feed` except `tags`, `cursor` and `limit` | 200 `{ version: number, tags: [{ slug, label, count }] }` (`TagListSchema`) | `count` comes from the feed's filters (AC-1.3.11), not from `TagDailyStat`. Cached like a feed page. |
 | 6 | GET | `/api/v1/sources` | public | none | 200 `{ sources: [{ slug, kind, name, siteUrl, status, lastSuccessAt }] }` (`SourceListSchema`) | |
 | 7 | GET | `/api/v1/me` | user | none | 200 `MeSchema` `{ id, name, email, image, providers: ('github'\|'google')[], createdAt }` | 401 when signed out (the web treats this as guest) |
 | 8 | DELETE | `/api/v1/me` | user | none | 204 | Cascades all user data and invalidates sessions |
