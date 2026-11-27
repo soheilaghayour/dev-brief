@@ -11,6 +11,10 @@ describe('FeedQuerySchema', () => {
     expect(FeedQuerySchema.parse({}).q).toBeUndefined();
   });
 
+  it('AC-1.3.4 rejects a q containing a NUL character', () => {
+    expect(FeedQuerySchema.safeParse({ q: 'a\u0000b' }).success).toBe(false);
+  });
+
   it('parses tags=react,typescript to an array and rejects an unknown tag', () => {
     expect(FeedQuerySchema.parse({ tags: 'react,typescript' }).tags).toEqual([
       'react',

@@ -31,6 +31,8 @@ const STORIES = [
   { title: 'ÉCOLE de code' },
   { title: 'école notes' },
   { title: String.raw`Path C:\dev` },
+  { title: 'Angular and React', excerpt: 'Two tools' },
+  { title: 'Angular or React', excerpt: 'A choice' },
 ];
 
 describe('GET /api/v1/feed search', () => {
@@ -96,8 +98,10 @@ describe('GET /api/v1/feed search', () => {
   });
 
   it('AC-1.3.4 needs every piece, each in the title or the excerpt', async () => {
-    expect(await foundTitles('angu react')).toEqual(['Angular 21 is out']);
-    expect(await foundTitles('react angu')).toEqual(['Angular 21 is out']);
+    const expected = ['Angular 21 is out', 'Angular and React', 'Angular or React'];
+    expect(await foundTitles('angu react')).toEqual(expected);
+    expect(await foundTitles('react angu')).toEqual(expected);
+    expect(await foundTitles('angu react news')).toEqual([]);
   });
 
   it('AC-1.3.4 finds a match in the excerpt alone', async () => {
@@ -115,6 +119,11 @@ describe('GET /api/v1/feed search', () => {
     expect(await foundTitles('"bun runtime"')).toEqual(['Say "bun runtime" aloud']);
     expect(await foundTitles('-angular')).toEqual(['Anti -angular rant']);
     expect(await foundTitles('c++')).toEqual(['Why C++ matters']);
+  });
+
+  it('AC-1.3.4 treats "or" as a piece to find, not an operator', async () => {
+    expect(await foundTitles('angular or react')).toEqual(['Angular or React']);
+    expect(await foundTitles('angular and react')).toEqual(['Angular and React']);
   });
 
   it('AC-1.3.4 does not match word forms: q=databases misses "database"', async () => {
@@ -135,8 +144,8 @@ describe('GET /api/v1/feed search', () => {
     expect(FeedPageSchema.parse(response.body)).toEqual({ items: [], nextCursor: null });
   });
 
-  it('AC-1.3.4 rejects a blank q and a q of 101 characters with 400 VALIDATION_FAILED', async () => {
-    for (const q of ['', '   ', 'x'.repeat(101)]) {
+  it('AC-1.3.4 rejects a blank q, a q of 101 characters and a q with a NUL character with 400 VALIDATION_FAILED', async () => {
+    for (const q of ['', '   ', 'x'.repeat(101), 'a\u0000b']) {
       const response = await getFeed({ q });
       expect(response.status).toBe(400);
       expect(ApiErrorSchema.parse(response.body).error.code).toBe('VALIDATION_FAILED');

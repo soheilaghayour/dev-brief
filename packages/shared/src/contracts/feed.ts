@@ -25,7 +25,13 @@ export const FeedQuerySchema = PaginationQuerySchema.extend({
   tags: csv(TagSlugSchema).optional(),
   kinds: csv(SourceKindSchema).optional(),
   sources: csv(sourceSlugParam).optional(),
-  q: z.string().trim().min(FEED_QUERY_MIN).max(FEED_QUERY_MAX).optional(),
+  q: z
+    .string()
+    .trim()
+    .min(FEED_QUERY_MIN)
+    .max(FEED_QUERY_MAX)
+    .refine((q) => !q.includes('\u0000'), 'q must not contain a NUL character')
+    .optional(),
   // Personalisation is derived by the client from its preferences, so responses stay public and cacheable.
   excludeTags: csv(TagSlugSchema).optional(),
   excludeSources: csv(sourceSlugParam).optional(),

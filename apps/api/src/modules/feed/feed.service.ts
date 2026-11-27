@@ -84,7 +84,7 @@ export class FeedService {
     return this.loadCards(rows.slice(0, query.limit).map((row) => row.id));
   }
 
-  /** The only raw SQL read: filters, full-text search, personalisation and the keyset, all as bound parameters. */
+  /** The only raw SQL read: filters, search, personalisation and the keyset, all as bound parameters. */
   private async selectPage(
     query: FeedQuery,
     keyset: Keyset | undefined,
