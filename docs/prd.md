@@ -29,7 +29,7 @@
 ## 1. Executive Summary & Differentiation
 
 ### 1.1 One-liner
-**DevBrief is a fast, keyboard-first developer news reader.** Every hour it pulls Hacker News and Dev.to, and GitHub from Phase 2. It merges duplicates, tags stories by technology and ranks them fairly across sources. Later phases add AI summaries of what the comments actually debate, and generative-UI research briefings. No login is needed to use it.
+**DevBrief is a fast, developer news reader.** Every hour it pulls Hacker News and Dev.to, and GitHub from Phase 2. It merges duplicates, tags stories by technology and ranks them fairly across sources. Later phases add AI summaries of what the comments actually debate, and generative-UI research briefings. No login is needed to use it.
 
 ### 1.2 Problem
 | Pain | Today |
@@ -46,15 +46,14 @@
 | Cross-source dedup | Weak (one card per source post) | Manual, curated | n/a | Exact URL and title dedup (P1); AI-assisted clustering behind a deterministic pre-filter (P2) |
 | Fair cross-source ranking | Engagement plus personalisation, opaque | Editorial | HN votes only | Per-source percentile × age decay, a documented formula (Appendix B) |
 | Comment synthesis | No | No | No | 3-bullet TL;DR and "Community Consensus" pros/cons (P2) |
-| Ask a question, get a structured answer | No | No | No | ⌘K "Ask the News", which streams a native-component briefing (P3, A2UI v1.0) |
+| Ask a question, get a structured answer | No | No | No | "Ask the News", which streams a native-component briefing (P3, A2UI v1.0) |
 | Trends | No | No | No | Tech Radar: 7/30-day tag velocity (P3) |
 | Usable without an account | Partially | Email required | Yes | Yes, fully. Saves and collections stay local, and you sign in only to sync |
-| Keyboard-first | Partial | n/a | No | j/k, s, /, ?, ⌘K throughout |
 
 ### 1.4 What the project demonstrates
 | Capability | Evidence in DevBrief |
 |---|---|
-| Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, keyboard navigation, dark/light themes, generative UI rendered with native React components |
+| Senior frontend craft | App Router SSG/ISR landing with Lighthouse ≥ 95, dense accessible feed, optimistic UI, URL-as-state, dark/light themes, generative UI rendered with native React components |
 | Product ownership | Phased scope, a guest-first funnel, a cost model, measurable acceptance criteria, a public changelog |
 | Pragmatic full stack | NestJS REST with a Zod contract shared with the web app, a relational Prisma schema, Postgres full-text search and `pg_trgm`, scheduled ingestion with circuit breaking, OAuth sessions |
 | AI engineering with guardrails | Structured outputs, an under-$10/month spend cap, caching, prompt-injection boundaries, an LLM classifier behind a cheap deterministic pre-filter, no embeddings (deliberate) |
@@ -87,7 +86,7 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 
 ## 2. Landing Page & First-Impression Blueprint
 
-**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders and restrained motion. [Raycast](https://www.raycast.com) for keycap visuals and a keyboard-first story. Colour comes from the warm palette of §7.1, with no glow or gradient behind the hero.
+**Design references:** [Linear](https://linear.app) for crisp type, an interactive product frame in the hero, subtle 1 px borders and restrained motion. Colour comes from the warm palette of §7.1, with no glow or gradient behind the hero.
 
 **Rendering:** `app/(marketing)/page.tsx` is statically generated with ISR (`export const revalidate = 900`). Live preview data is fetched at build or revalidate time from `API_INTERNAL_URL`. If the API is unreachable on the very first build, the page renders from a committed fixture snapshot, `apps/web/src/content/landing-fixture.json`, and shows a small "Sample data" label. After that, ISR keeps serving the last good page.
 
@@ -100,13 +99,12 @@ Email sending or newsletters, push notifications, native mobile apps, user-submi
 | 2 | **Source strip** | One line of monospace wordmarks (text only, no third-party logos) of the enabled sources: `Hacker News · Dev.to · GitHub`. The RSS blog feeds are off (§8.8), so they aren't listed. | None | P1 |
 | 3 | **Problem** | Three bordered cards: "Same story, five tabs", "Rankings you can't trust", "Signal buried in comments". Each has a 1-line pain statement and a tiny illustrative mock. | Hover lifts the border colour. | P1 |
 | 4 | **How it works** | Three steps joined by a hairline connector: **Ingest hourly** → **Dedupe and tag** → **Rank fairly**. Each step has a 2-line explanation and a "See the formula" link to Appendix B of this PRD on GitHub. | None | P1 |
-| 5 | **Feature bento** | A bento grid: 3 tiles in P1, up to 8 by P3. Tiles appear only when their feature flag is on. P1: "Keyboard-first feed", "Guest mode, real features", "Fair cross-source ranking". P2 adds "One card per story" and "TL;DR + Community Consensus". P3 adds "Ask the News", "Tech Radar" and "Collections & notes". | Each tile has a short looped CSS/SVG animation that respects `prefers-reduced-motion`. | P1+ |
-| 6 | **Keyboard showcase** | Raycast-style row of keycaps: `J` `K` `S` `/` `?`. P3 adds `⌘K`. Each keycap has a one-word label. | Pressing a shown key on the landing page animates its keycap. This works only while the section is in view and focus is not in an input. | P1 |
-| 7 | **Example briefings** | Three tabs, each a question such as "What were this week's TypeScript tooling debates?". The tab body renders a **pre-generated** A2UI briefing through the real renderer. | Tabs; the renderer is lazy-loaded on scroll into view, at zero runtime LLM cost. | P3 |
-| 8 | **Under the hood** | Aimed at engineers and recruiters. A mini architecture diagram, stack badges (Next.js, NestJS, Prisma, PostgreSQL, TanStack Query, Vercel AI SDK, A2UI), and links to the GitHub repo, this PRD, the OpenAPI docs (`/api/v1/docs`) and the changelog. Includes the line "Built end-to-end by one engineer." | Links | P1 |
-| 9 | **FAQ** | 5–6 accordion items: "Do I need an account?", "How are stories ranked?", "What data do you store?", "Does it cost anything?", "How do the AI features stay cheap?" (P2+), "Is it open source?" | Accordion (Radix) | P1 |
-| 10 | **Final CTA band** | The H2 "Your morning scan, in five minutes." plus the primary CTA. | None | P1 |
-| 11 | **Footer** | GitHub, API docs, Changelog, Source status, **Impressum**, **Privacy (Datenschutz)** and © year. | None | P1 |
+| 5 | **Feature bento** | A bento grid: 2 tiles in P1, up to 7 by P3. Tiles appear only when their feature flag is on. P1: "Guest mode, real features", "Fair cross-source ranking". P2 adds "One card per story" and "TL;DR + Community Consensus". P3 adds "Ask the News", "Tech Radar" and "Collections & notes". | Each tile has a short looped CSS/SVG animation that respects `prefers-reduced-motion`. | P1+ |
+| 6 | **Example briefings** | Three tabs, each a question such as "What were this week's TypeScript tooling debates?". The tab body renders a **pre-generated** A2UI briefing through the real renderer. | Tabs; the renderer is lazy-loaded on scroll into view, at zero runtime LLM cost. | P3 |
+| 7 | **Under the hood** | Aimed at engineers and recruiters. A mini architecture diagram, stack badges (Next.js, NestJS, Prisma, PostgreSQL, TanStack Query, Vercel AI SDK, A2UI), and links to the GitHub repo, this PRD, the OpenAPI docs (`/api/v1/docs`) and the changelog. Includes the line "Built end-to-end by one engineer." | Links | P1 |
+| 8 | **FAQ** | 5–6 accordion items: "Do I need an account?", "How are stories ranked?", "What data do you store?", "Does it cost anything?", "How do the AI features stay cheap?" (P2+), "Is it open source?" | Accordion (Radix) | P1 |
+| 9 | **Final CTA band** | The H2 "Your morning scan, in five minutes." plus the primary CTA. | None | P1 |
+| 10 | **Footer** | GitHub, API docs, Changelog, Source status, **Impressum**, **Privacy (Datenschutz)** and © year. | None | P1 |
 
 ### 2.2 Copy direction
 Copy should be confident, concrete and technical. Lead with verbs and avoid superlatives. Use numbers wherever they are real: live counts and source counts.
@@ -133,7 +131,6 @@ A product "window" framed like Linear's, in the hero's right column (below `md`,
 | Frame | The window has a fixed height at each breakpoint, whatever the chip, the number of matching stories or the Phase 3 view, so nothing below it moves. Its list scrolls vertically inside the frame and the page never scrolls sideways. |
 | List | Every embedded story that matches the selected chip, in rank order, up to 30. With clustering on (F2.1), a cluster's card shows its combined source line, as in the feed (F2.2), and a static "+N related" that links to the representative's `/story/<storyId>`. It doesn't expand: the feed's expanding control fetches with TanStack Query, which the landing doesn't load (§7.4, §8.5). |
 | Tag chips | A row of 6 chips: All, React, Rust, AI/LLMs, TypeScript, Databases. The row wraps on narrow screens. Clicking filters the embedded 30 stories **client-side** with an instant list animation. |
-| Keyboard | When the preview is focused (click or Tab), `j`/`k` move the active card and scroll it into view inside the frame, `s` toggles a "Saved" demo state stored in the real guest store (so it carries over to `/feed`), and `Enter` opens the active story's page, `/story/<storyId>`. A muted hint line shows `J K to navigate · S to save · Enter to open`. |
 | Story card | The real `<StoryCard>` component in compact density: source badges with points and comments, domain, relative time, up to 3 tags and the summary line (F2.3). Its title links to the story's page, `/story/<storyId>`, in the same tab, so clicking a card opens it; the story page links on to the original. |
 | Footer of window | "Showing 30 of 312 stories today → Open full feed", counting the stories the selected chip shows. |
 | Hydration budget | The preview is the only client island above the fold. It must be ≤ 25 KB gzip on top of the framework baseline. |
@@ -144,9 +141,8 @@ A product "window" framed like Linear's, in the hero's right column (below `md`,
 Landing (/) ──click "Explore the feed"──▶ /feed            (SSR first page, < 1 s)
    │                                         │
    │                                         ├─ dismissible GuestHintBar (shown once; dismissal stored locally)
-   │                                         ├─ "?" opens shortcuts dialog; "/" focuses search
    │                                         ├─ filter by tags/sources → URL updates (shareable)
-   │                                         └─ "s" saves → toast "Saved on this device · Sign in to sync"
+   │                                         └─ clicking Save → toast "Saved on this device · Sign in to sync"
    │                                                     │
    └─────────────── any "Sign in" ───────────────────────┴─▶ /sign-in?callbackURL=<current URL>
                                                               │ GitHub or Google OAuth
