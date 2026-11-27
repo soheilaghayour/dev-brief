@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 /** PRD §4.3.1: the order the post-run steps run in, whatever order their modules register them. */
-const POST_RUN_ORDER = [
+export const POST_RUN_ORDER = [
   'clustering',
   'rank-recompute',
   'auto-summaries',
