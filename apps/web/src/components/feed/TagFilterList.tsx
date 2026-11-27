@@ -25,10 +25,7 @@ export function TagFilterList() {
         ))}
       {!isPending && !data && <p className="text-muted-foreground px-2 py-1">Tags unavailable.</p>}
       {data?.tags.map(({ slug, label, count7d }) => (
-        <label
-          key={slug}
-          className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1"
-        >
+        <label key={slug} className="hover:bg-accent flex items-center gap-2 rounded-md px-2 py-1">
           <Checkbox checked={filters.tags.includes(slug)} onChange={() => toggleTag(slug)} />
           <span className="flex-1 truncate">{label}</span>
           <span className="text-muted-foreground text-xs tabular-nums">{count7d}</span>

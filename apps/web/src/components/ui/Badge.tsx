@@ -25,7 +25,7 @@ function Badge({
   );
 }
 
-// A badge that opens something: the same look, plus the hover and pointer of a control.
+// A badge that opens something: the same look, plus the hover of a control.
 function BadgeButton({
   className,
   variant,
@@ -37,7 +37,7 @@ function BadgeButton({
       data-slot="badge"
       className={cn(
         badgeVariants({ variant }),
-        'hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent cursor-pointer',
+        'hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent',
         className,
       )}
       {...props}

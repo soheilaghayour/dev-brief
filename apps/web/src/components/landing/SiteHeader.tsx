@@ -16,7 +16,7 @@ export function SiteHeader() {
         <details className="group relative md:hidden">
           <summary
             aria-label="Menu"
-            className="hover:bg-accent flex size-8 cursor-pointer list-none items-center justify-center rounded-md [&::-webkit-details-marker]:hidden"
+            className="hover:bg-accent flex size-8 list-none items-center justify-center rounded-md [&::-webkit-details-marker]:hidden"
           >
             <MenuIcon className="size-4" aria-hidden="true" />
           </summary>
