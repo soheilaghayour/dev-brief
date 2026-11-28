@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { AppHeader } from './AppHeader';
-import { GoToShortcuts } from './GoToShortcuts';
 import { SidebarContent } from './SidebarContent';
 
 type AppShellProps = {
@@ -29,7 +28,6 @@ export function AppShell({ children, filtersSlot, mobileBarSlot, ...headerSlots 
         </aside>
         <main className="min-w-0 flex-1 px-4 py-5 md:px-8">{children}</main>
       </div>
-      <GoToShortcuts />
     </div>
   );
 }

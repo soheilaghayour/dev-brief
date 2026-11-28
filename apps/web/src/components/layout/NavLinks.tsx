@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Kbd } from '@/components/ui/Kbd';
 import { cn } from '@/lib/cn';
-import { displayKeys } from '@/lib/hotkeys/shortcutRules';
 import { NAV_ITEMS } from './navItems';
 
 export function NavLinks() {
@@ -26,13 +24,6 @@ export function NavLinks() {
           >
             <item.Icon className="size-4" />
             <span className="flex-1">{item.label}</span>
-            <span className="flex gap-0.5" aria-hidden="true">
-              {displayKeys(item.shortcut.keys).map((key, index) => (
-                <Kbd key={index} size="sm">
-                  {key}
-                </Kbd>
-              ))}
-            </span>
           </Link>
         );
       })}

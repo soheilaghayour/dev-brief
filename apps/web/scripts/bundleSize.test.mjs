@@ -214,7 +214,6 @@ describe('next/dynamic', () => {
       'features/copilot/CopilotLauncher.tsx',
       'features/copilot/LazyBriefingView.tsx',
       'features/copilot/LazyCopilotLauncher.tsx',
-      'lib/hotkeys/HotkeysProvider.tsx',
     ]);
   });
 });
