@@ -7,10 +7,9 @@ const TOAST = 'Saved on this device · Sign in to sync';
 
 async function openFeed(page: Page, search = '') {
   await page.goto(`/feed${search}`);
-  // The sidebar fetches tags and sources after hydration, so an idle network means the page is interactive.
   await page.waitForLoadState('networkidle');
-  // The hotkeys flag marks the page as hydrated, so the clicks are not lost.
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  // The source rows are fetched by the browser after it mounts the page; attached, since the sidebar is hidden on narrow screens.
+  await expect(page.locator('aside [data-kind="hn"]')).toBeAttached();
 }
 
 test('AC-1.4.1 AC-1.4.2 AC-1.4.3 a guest filters by tag, saves, reloads and finds the save on /saved', async ({

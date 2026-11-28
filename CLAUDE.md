@@ -64,7 +64,6 @@ apps/
     src/components/radar/       # the velocity chart (Recharts), shared by the radar and the copilot catalog
     src/lib/api/                # typed fetch client; parses every response with the shared schemas
     src/lib/guest/              # Zustand guest store (persist → localStorage)
-    src/lib/hotkeys/            # shortcut registry: feeds both handlers and the help dialog
     src/content/                # landing-fixture.json: landing data when the API is unreachable at first build
     src/config/                 # features.ts: feature flags
     scripts/                    # checkBundleBudgets.mjs: the first-load JS gate (PRD §8.5); addCompileHints.mjs: runs after next build
@@ -181,7 +180,6 @@ a category name like `common/` is its specific name.
 
 23. **`localStorage` can be unavailable.** The guest store falls back to memory and nothing throws (AC-1.4.4); stored data is parsed and `migrate()`d by version.
 24. **The landing build must survive a dead API.** It renders `landing-fixture.json` with the "Sample data" label (AC-L2).
-25. **Single-key shortcuts fire only outside editable elements;** `Esc` works everywhere (AC-1.3.8).
 
 **LLM and A2UI (Phases 2–3)**
 

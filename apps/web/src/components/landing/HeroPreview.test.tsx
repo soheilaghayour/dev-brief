@@ -156,12 +156,10 @@ describe('HeroPreview', () => {
     expect(toggleSave).toHaveBeenCalledWith(STORIES[2]!.id);
   });
 
-  it('makes the window no tab stop, with no keyboard shortcut hint', () => {
+  it('makes the window no tab stop', () => {
     const container = mount();
     const window = container.querySelector('[aria-label="Live feed preview"]')!;
     expect(window.hasAttribute('tabindex')).toBe(false);
-    expect(window.hasAttribute('aria-keyshortcuts')).toBe(false);
-    expect(container.querySelector('kbd')).toBeNull();
   });
 
   it('AC-L2 links a sample card’s title to the feed, since a sample story has no page', () => {

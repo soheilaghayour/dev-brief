@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { LazyToaster } from '@/components/layout/LazyToaster';
-import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { LazyAccountSlot } from '@/components/account/LazyAccountSlot';
@@ -17,7 +16,7 @@ import { SortToggle } from '@/components/feed/SortToggle';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <HotkeysProvider>
+    <>
       <QueryProvider>
         <NuqsAdapter>
           <GuestStoreHydrator />
@@ -52,6 +51,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </NuqsAdapter>
       </QueryProvider>
       <LazyToaster />
-    </HotkeysProvider>
+    </>
   );
 }

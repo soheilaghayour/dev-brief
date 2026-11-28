@@ -34,29 +34,6 @@ test('AC-1.3.12 the navigation moves into a sheet below 768 px', async ({ page }
   await expect(page.getByRole('dialog').getByRole('link', { name: /Saved/ })).toBeVisible();
 });
 
-test('? opens the shortcuts help from the registry and Esc closes it', async ({ page }) => {
-  await page.goto('/feed');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
-  await page.keyboard.press('?');
-  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('Go to Feed')).toBeVisible();
-  await expect(dialog.getByText('Go to Saved')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
-});
-
-test('g then s navigates to Saved', async ({ page }) => {
-  await page.goto('/feed');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
-  await page.keyboard.press('j');
-  await page.keyboard.press('g');
-  await page.keyboard.press('s');
-  await expect(page).toHaveURL(/\/saved$/);
-  // The `s` that completes the sequence must not also save the active story.
-  await expect(page.getByText('Nothing saved yet')).toBeVisible();
-});
-
 test('with the OS in dark mode and no stored theme, the first paint is dark', async ({
   browser,
 }) => {
