@@ -4,9 +4,14 @@ import type { FeedPage, Preferences } from '@devbrief/shared';
 import { ApiError } from '@/lib/api/apiError';
 import { toFeedParams } from '@/lib/guest/preferences';
 import type { FeedFilters } from './feedParams';
-import { feedQueryOptions } from './feedQueries';
+import { feedQueryOptions, tagsQueryOptions } from './feedQueries';
 
-const api = vi.hoisted(() => ({ getMe: vi.fn(), getPreferences: vi.fn(), getFeed: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getMe: vi.fn(),
+  getPreferences: vi.fn(),
+  getFeed: vi.fn(),
+  getTags: vi.fn(),
+}));
 vi.mock('@/lib/api/endpoints', () => api);
 
 const { prefetchFeed } = await import('./prefetchFeed');
@@ -61,6 +66,22 @@ describe('prefetchFeed', () => {
 
     expect(api.getMe).not.toHaveBeenCalled();
     expect(firstPageIds(queryClient)).toEqual(['react-story', 'career-story']);
+  });
+
+  it('AC-1.3.11 prefetches the tag counts under the key the sidebar uses, with the mutes and without the boosts', async () => {
+    api.getMe.mockResolvedValue({ id: 'u1' });
+    api.getPreferences.mockResolvedValue({
+      follow: { tags: ['rust'], sources: [] },
+      mute: { tags: ['career'], sources: [] },
+    });
+    api.getTags.mockResolvedValue({ version: 1, tags: [] });
+    const queryClient = new QueryClient();
+
+    await prefetchFeed(queryClient, { ...filters, tags: ['react'] }, SESSION);
+
+    expect(api.getTags).toHaveBeenCalledWith({ sort: 'top', excludeTags: ['career'] });
+    const key = tagsQueryOptions(filters, { excludeTags: ['career'] }).queryKey;
+    expect(queryClient.getQueryData(key)).toEqual({ version: 1, tags: [] });
   });
 
   it('treats a session the API rejects as a guest', async () => {

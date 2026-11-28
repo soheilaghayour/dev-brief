@@ -1,7 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
-import { TagListSchema } from '@devbrief/shared';
+import { Controller, Get, Query } from '@nestjs/common';
+import { TagListQuerySchema, TagListSchema } from '@devbrief/shared';
+import type { TagListQuery } from '@devbrief/shared';
 import { PublicCache } from '../../common/cache/cacheControl.js';
 import { Contract } from '../../common/zod/contract.decorator.js';
+import { ZodPipe } from '../../common/zod/zod.pipe.js';
 import { TagsService } from './tags.service.js';
 
 @Controller('tags')
@@ -10,8 +12,8 @@ export class TagsController {
 
   @Get()
   @PublicCache()
-  @Contract({ response: TagListSchema })
-  list() {
-    return this.tags.list();
+  @Contract({ query: TagListQuerySchema, response: TagListSchema })
+  list(@Query(new ZodPipe(TagListQuerySchema)) query: TagListQuery) {
+    return this.tags.list(query);
   }
 }

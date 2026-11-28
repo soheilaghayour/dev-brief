@@ -5,7 +5,7 @@ import { getMe, getPreferences } from '@/lib/api/endpoints';
 import { ME_QUERY_KEY } from '@/lib/auth/meQueryKey';
 import { toFeedParams, type PersonalFeedParams } from '@/lib/guest/preferences';
 import type { FeedFilters } from './feedParams';
-import { feedQueryOptions } from './feedQueries';
+import { feedQueryOptions, tagsQueryOptions } from './feedQueries';
 
 const SESSION_COOKIE = 'better-auth.session_token=';
 
@@ -40,7 +40,7 @@ async function prefetchAccountFeedParams(
 }
 
 /**
- * Prefetches the feed's first page into the cache; for a signed-in visitor it asks for the page their
+ * Prefetches the feed's first page and the tag counts into the cache; for a signed-in visitor it asks for the page their
  * preferences give, so a muted story is never rendered.
  */
 export async function prefetchFeed(
@@ -50,5 +50,8 @@ export async function prefetchFeed(
 ) {
   const hasSession = cookie?.includes(SESSION_COOKIE);
   const personal = hasSession && cookie ? await prefetchAccountFeedParams(queryClient, cookie) : {};
-  await queryClient.prefetchInfiniteQuery(feedQueryOptions(filters, personal));
+  await Promise.all([
+    queryClient.prefetchInfiniteQuery(feedQueryOptions(filters, personal)),
+    queryClient.prefetchQuery(tagsQueryOptions(filters, personal)),
+  ]);
 }
