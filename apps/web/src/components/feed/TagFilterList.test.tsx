@@ -51,7 +51,7 @@ describe('TagFilterList', () => {
 
   it('AC-1.3.11 titles the group "Tags", with no 7-day label', () => {
     const html = renderToStaticMarkup(<TagFilterList />);
-    expect(html).toContain('<span>Tags</span>');
+    expect(html).toMatch(/<legend[^>]*>Tags<\/legend>/);
     expect(html).not.toContain('7d');
   });
 
