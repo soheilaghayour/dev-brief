@@ -326,6 +326,12 @@ links to them instead of restating them.
 - **The chart hues are blue, olive, purple, ochre and rose in both themes, none within the terracotta hue.** Each reaches 3:1 on the background and on cards, and a chart line never reads as a link or a button. The dash patterns above still separate the lines without colour. The values are in `apps/web/src/app/globals.css`.
 - **`--brand` is used only for non-text marks and 24 px text.** `--primary` stays for links, button fills and the focus ring, because `--brand` on the background is under 4.5:1 in light mode.
 
+- **A source kind's heart shows followed or muted only when every source the kind lists is in that state, and a click sets the next state on all of them in one preferences update.** Preferences are stored per source slug while a sidebar row is a kind ([AC-2.5.1](docs/prd.md#f25-followmute)), so a mixed kind shows the empty heart and its click follows all; the batch goes through `setModes` of `usePreferences()` as one cache patch and one `PUT` (or one guest-store write), and a list that the new sources would push past `FEED_LIST_MAX` refuses the whole batch with the usual toast.
+- **The heart is a sibling of the row's filter label, not inside it.** A button inside the `<label>` would toggle the checkbox too; the label keeps wrapping the checkbox, so the pointer rule in `globals.css` still reaches it, and the heart sits at the row's end after the count (or the health dot).
+- **The heart is an outline heart (neither), a heart filled with `--brand` (followed) and a crossed heart in the foreground colour (muted).** Outline, filled and crossed differ in shape, so colour is not the only cue; `--brand` is a non-text mark with 3:1 on the background and cards in both themes, and the neutral states use the muted and normal text colours.
+- **Muting from the sidebar leaves focus on the heart, and nothing moves it.** The heart stays mounted when the cards leave, so no focus handling remains; the hook that moved focus to the next card after a mute from a card's badge was removed with that menu.
+- **The Settings page lists every tag of the taxonomy and every source kind `/sources` lists, each with the same heart as the sidebar.** The tags come from the shared taxonomy and need no request; the sources use the sidebar's query, so a change on one page shows on the other through the same hook.
+
 ## Open PM questions
 
 - Buying the domain (`devbrief.dev` is a placeholder): [O2](docs/prd.md#34-open-items).
