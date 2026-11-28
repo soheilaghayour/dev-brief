@@ -1,7 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { FEED_LIST_MAX } from '@devbrief/shared';
 import type { Preferences } from '@devbrief/shared';
-import { putPreferences } from '@/lib/api/endpoints';
 import { setGuestPreferences } from '@/lib/guest/guestPreferences';
 import type { PreferenceKind, PreferenceMode, PreferenceValue } from '@/lib/guest/preferences';
 import { setPreferences, type PreferenceOutcome } from '@/lib/guest/preferenceModes';
@@ -51,6 +50,7 @@ export async function changeAccountPreferences<K extends PreferenceKind>(
   // A refetch in flight would overwrite the patch with the older set.
   void queryClient.cancelQueries({ queryKey: PREFS_KEY, exact: true });
   queryClient.setQueryData(PREFS_KEY, prefs);
+  const { putPreferences } = await import('@/lib/api/endpoints');
   const mutation = queryClient
     .getMutationCache()
     .build(queryClient, preferencesMutationOptions(queryClient, { putPreferences, notify }));
