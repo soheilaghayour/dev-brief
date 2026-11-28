@@ -12,24 +12,8 @@ type BentoTile = {
   flag?: FeatureFlag;
 };
 
+// The first row holds Ranking (two columns) and Guest (one); the rest fill their own row.
 // Every animation is motion-safe, so nothing loops under prefers-reduced-motion.
-function KeyboardVisual() {
-  return (
-    <div aria-hidden="true" className="relative grid gap-1.5 overflow-hidden">
-      <div className="bg-accent absolute inset-x-0 h-8 rounded-md motion-safe:animate-[bento-scan_6s_steps(1,end)_infinite]" />
-      {['Native TS compiler preview', 'Postgres 18 async I/O', 'React Compiler 1.x'].map((row) => (
-        <div
-          key={row}
-          className="text-muted-foreground relative flex h-8 items-center justify-between rounded-md px-3 text-xs"
-        >
-          {row}
-          <kbd className="bg-muted rounded-sm border px-1 font-mono text-[10px]">j</kbd>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function GuestVisual() {
   return (
     <div aria-hidden="true" className="grid gap-2 text-xs">
@@ -124,21 +108,15 @@ function CollectionsVisual() {
 
 const TILES: readonly BentoTile[] = [
   {
-    title: 'Keyboard-first feed',
-    text: 'j and k to move, s to save, Enter to open, / to search and ? for every shortcut. The mouse is optional.',
-    visual: <KeyboardVisual />,
+    title: 'Fair cross-source ranking',
+    text: 'Engagement is scored within each source, so a Dev.to post is not buried under Hacker News points.',
+    visual: <RankingVisual />,
     className: 'md:col-span-2',
   },
   {
     title: 'Guest mode, real features',
     text: 'Save, filter and share links without an account. Sign in later and your saves follow you.',
     visual: <GuestVisual />,
-  },
-  {
-    title: 'Fair cross-source ranking',
-    text: 'Engagement is scored within each source, so a Dev.to post is not buried under Hacker News points.',
-    visual: <RankingVisual />,
-    className: 'md:col-span-3',
   },
   {
     title: 'Ask the News',

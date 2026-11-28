@@ -4,7 +4,7 @@ import { FEATURES } from '@/config/features';
 import { FeatureBento, visibleTiles } from './FeatureBento';
 
 describe('FeatureBento', () => {
-  it('AC-L7 renders the Radar tile with every flag off, and no copilot text', () => {
+  it('renders the Radar tile with every flag off, and no copilot text', () => {
     expect(
       visibleTiles({
         ...FEATURES,
@@ -13,14 +13,9 @@ describe('FeatureBento', () => {
         copilot: false,
         collections: false,
       }),
-    ).toHaveLength(4);
+    ).toHaveLength(3);
     const html = renderToStaticMarkup(<FeatureBento />);
-    for (const title of [
-      'Keyboard-first feed',
-      'Guest mode, real features',
-      'Fair cross-source ranking',
-      'Tech Radar',
-    ]) {
+    for (const title of ['Guest mode, real features', 'Fair cross-source ranking', 'Tech Radar']) {
       expect(html).toContain(title);
     }
     expect(html).not.toContain('Ask the News');
@@ -38,5 +33,13 @@ describe('FeatureBento', () => {
       visibleTiles({ ...FEATURES, copilot }).map((tile) => tile.title);
     expect(titles(false)).not.toContain('Ask the News');
     expect(titles(true)).toContain('Ask the News');
+  });
+
+  it('fills the first row: Ranking and Guest span three columns together', () => {
+    const [first, second] = visibleTiles({ ...FEATURES, copilot: false, collections: false });
+    expect(first?.title).toBe('Fair cross-source ranking');
+    expect(second?.title).toBe('Guest mode, real features');
+    expect(first?.className).toBe('md:col-span-2');
+    expect(second?.className).toBeUndefined();
   });
 });

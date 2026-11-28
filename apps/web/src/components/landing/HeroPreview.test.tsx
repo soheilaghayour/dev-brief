@@ -11,14 +11,13 @@ import { fixtureStories, type FixtureStory } from './landingStories';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
+const toggleSave = vi.hoisted(() => vi.fn());
 const features = vi.hoisted(() => ({ clusters: false, summaries: false }));
-vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('@/config/features', () => ({
   isFeatureEnabled: (flag: 'clusters' | 'summaries') => features[flag],
 }));
 vi.mock('./usePreviewSaves', () => ({
-  usePreviewSaves: () => ({ isReady: true, isSaved: () => false, toggle: vi.fn() }),
+  usePreviewSaves: () => ({ isReady: true, isSaved: () => false, toggle: toggleSave }),
 }));
 vi.mock('@/features/copilot/LazyBriefingView', () => ({
   LazyBriefingView: () => <div data-testid="renderer" />,
@@ -37,7 +36,7 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = '';
-  router.push.mockReset();
+  toggleSave.mockReset();
   features.clusters = false;
   features.summaries = false;
 });
@@ -88,8 +87,6 @@ async function showBriefing(container: HTMLElement) {
 const button = (container: HTMLElement, name: string) =>
   [...container.querySelectorAll('button')].find((candidate) => candidate.textContent === name)!;
 
-const previewWindow = (container: HTMLElement) =>
-  container.querySelector<HTMLElement>('[aria-label="Live feed preview"]')!;
 const body = (container: HTMLElement) =>
   container.querySelector<HTMLElement>('[data-preview-body]')!;
 const frame = (container: HTMLElement) =>
@@ -97,22 +94,6 @@ const frame = (container: HTMLElement) =>
 const cards = (container: HTMLElement) => [
   ...container.querySelectorAll<HTMLElement>('article[data-story-id]'),
 ];
-
-function press(container: HTMLElement, key: string) {
-  act(() => {
-    previewWindow(container).dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
-  });
-}
-
-// jsdom has no layout: each card is 100 px tall, stacked from the frame's top, and the frame shows 400 px.
-function stubLayout(container: HTMLElement) {
-  const list = frame(container);
-  Object.defineProperty(list, 'clientHeight', { configurable: true, value: 400 });
-  list.getBoundingClientRect = () => new DOMRect(0, 0, 300, 400);
-  cards(container).forEach((card, index) => {
-    card.getBoundingClientRect = () => new DOMRect(0, index * 100 - list.scrollTop, 300, 100);
-  });
-}
 
 describe('HeroPreview', () => {
   it('AC-L13 server-renders every embedded story of All inside one scrolling frame', () => {
@@ -166,7 +147,24 @@ describe('HeroPreview', () => {
     expect(title.hasAttribute('target')).toBe(false);
   });
 
-  it('AC-L2 links a sample card’s title and Enter to the feed, since a sample story has no page', () => {
+  it('a card’s Save button toggles that story’s preview save', () => {
+    const container = mount();
+    const save = cards(container)[2]!.querySelector<HTMLButtonElement>(
+      'button[aria-label="Save story"]',
+    )!;
+    act(() => save.click());
+    expect(toggleSave).toHaveBeenCalledWith(STORIES[2]!.id);
+  });
+
+  it('makes the window no tab stop, with no keyboard shortcut hint', () => {
+    const container = mount();
+    const window = container.querySelector('[aria-label="Live feed preview"]')!;
+    expect(window.hasAttribute('tabindex')).toBe(false);
+    expect(window.hasAttribute('aria-keyshortcuts')).toBe(false);
+    expect(container.querySelector('kbd')).toBeNull();
+  });
+
+  it('AC-L2 links a sample card’s title to the feed, since a sample story has no page', () => {
     const sample = STORIES.map((story, index) => ({ ...story, id: `sample-${index + 1}` }));
     const container = document.createElement('div');
     container.innerHTML = staticMarkup(sample);
@@ -174,38 +172,6 @@ describe('HeroPreview', () => {
       (link) => link.textContent === sample[0]!.title,
     )!;
     expect(title.getAttribute('href')).toBe('/feed');
-  });
-
-  it('AC-L5 j three times then Enter opens the fourth card’s story page', () => {
-    const container = mount();
-    stubLayout(container);
-    act(() => previewWindow(container).focus());
-    press(container, 'j');
-    press(container, 'j');
-    press(container, 'j');
-    expect(cards(container)[3]!.dataset.active).toBe('true');
-    press(container, 'Enter');
-    expect(router.push).toHaveBeenCalledWith(`/story/${STORIES[3]!.id}`);
-  });
-
-  it('AC-L13 j and k scroll the frame to the active card, never the page', () => {
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const container = mount();
-    stubLayout(container);
-    act(() => previewWindow(container).focus());
-    for (let step = 0; step < 5; step++) press(container, 'j');
-    // Card 5 spans 500–600 px, so the 400 px frame scrolls to 200 to show all of it.
-    expect(frame(container).scrollTop).toBe(200);
-    press(container, 'k');
-    press(container, 'k');
-    press(container, 'k');
-    // Card 2 starts at 200 px, still the frame's top: no scroll needed.
-    expect(frame(container).scrollTop).toBe(200);
-    press(container, 'k');
-    expect(frame(container).scrollTop).toBe(100);
-    expect(scrollIntoView).not.toHaveBeenCalled();
-    delete (Element.prototype as Partial<Element>).scrollIntoView;
   });
 
   it('AC-L14 shows a cluster card’s combined source line and a static "+N related" link while clustering is on', () => {
@@ -267,12 +233,10 @@ describe('HeroPreview', () => {
     expect(container.querySelector('article[data-story-id]')).not.toBeNull();
   });
 
-  it('AC-3.2.2 the Briefing view drops the feed-only shortcuts and the story count', async () => {
+  it('AC-3.2.2 the Briefing view hides the story count but keeps its space', async () => {
     const container = mount();
-    expect(previewWindow(container).getAttribute('aria-keyshortcuts')).toBe('J K S Enter');
     expect(container.textContent).toContain('Showing 30 of 300 stories today');
     await showBriefing(container);
-    expect(previewWindow(container).hasAttribute('aria-keyshortcuts')).toBe(false);
     // Hidden, not removed, so the footer keeps its height at 320 px.
     const count = [...container.querySelectorAll('span')].find((span) =>
       span.textContent?.startsWith('Showing'),
@@ -295,31 +259,6 @@ describe('HeroPreview', () => {
     expect(frameElement.hasAttribute('tabindex')).toBe(false);
   });
 
-  it('AC-L13 starts the active card at the top again after a chip change', () => {
-    const container = mount();
-    stubLayout(container);
-    act(() => previewWindow(container).focus());
-    press(container, 'j');
-    press(container, 'j');
-    expect(cards(container)[2]!.dataset.active).toBe('true');
-    act(() => button(container, 'React').click());
-    expect(cards(container)[0]!.dataset.active).toBe('true');
-    expect(cards(container).filter((card) => card.dataset.active === 'true')).toHaveLength(1);
-  });
-
-  it('AC-L13 starts the active card at the top again after Briefing and back to Feed', async () => {
-    const container = mount();
-    stubLayout(container);
-    act(() => previewWindow(container).focus());
-    press(container, 'j');
-    press(container, 'j');
-    expect(cards(container)[2]!.dataset.active).toBe('true');
-    await showBriefing(container);
-    act(() => button(container, 'Feed').click());
-    expect(cards(container)[0]!.dataset.active).toBe('true');
-    expect(cards(container).filter((card) => card.dataset.active === 'true')).toHaveLength(1);
-  });
-
   it('AC-L13 resets the frame to its top on a chip change', () => {
     const container = mount();
     const before = frame(container);
@@ -327,15 +266,6 @@ describe('HeroPreview', () => {
     act(() => button(container, 'React').click());
     expect(frame(container)).not.toBe(before);
     expect(frame(container).scrollTop).toBe(0);
-  });
-
-  it('AC-L5 Enter on a chip keeps its own meaning and opens no story', () => {
-    const container = mount();
-    const chip = button(container, 'React');
-    act(() => {
-      chip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    });
-    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('AC-L2 announces a sample briefing through a live region', async () => {

@@ -5,7 +5,6 @@ import { FeatureBento } from '@/components/landing/FeatureBento';
 import { FinalCtaBand } from '@/components/landing/FinalCtaBand';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
-import { KeyboardShowcase } from '@/components/landing/KeyboardShowcase';
 import { loadLandingData } from '@/components/landing/loadLandingData';
 import { ProblemSection } from '@/components/landing/ProblemSection';
 import { SourceStrip } from '@/components/landing/SourceStrip';
@@ -42,7 +41,6 @@ export default async function LandingPage() {
       <ProblemSection />
       <HowItWorksSection />
       <FeatureBento />
-      <KeyboardShowcase />
       <ExampleBriefings examples={data.examples} isSample={data.examplesAreSample} />
       <UnderTheHoodSection />
       <FaqSection />

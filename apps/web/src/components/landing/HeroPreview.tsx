@@ -1,31 +1,18 @@
 'use client';
 
-// The window itself takes focus and the keys (PRD §2.3), so it is a focusable keyboard region.
-/* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
-
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { lazy, Suspense, useRef, useState } from 'react';
-import type { FocusEvent, KeyboardEvent } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { ArrowRightIcon } from 'lucide-react';
 import { TAG_LABELS } from '@devbrief/shared';
 import { ClusterSourceLine } from '@/components/feed/ClusterSourceLine';
 import type { RelatedToggleProps } from '@/components/feed/RelatedToggle';
 import { StoryCard, type CardStory } from '@/components/feed/StoryCard';
 import { Button } from '@/components/ui/Button';
-import { Kbd } from '@/components/ui/Kbd';
 import { ToggleGroup } from '@/components/ui/ToggleGroup';
 import { cn } from '@/lib/cn';
 import type { ExampleBriefing } from './exampleBriefingData';
 import { PANEL_STYLE, SELECTED_TAB_CLASS } from './exampleTabStyles';
-import {
-  PREVIEW_TAGS,
-  moveActiveIndex,
-  scrollTopToReveal,
-  storyHref,
-  visibleStories,
-  type PreviewTag,
-} from './previewLogic';
+import { PREVIEW_TAGS, storyHref, visibleStories, type PreviewTag } from './previewLogic';
 import { usePreviewSaves } from './usePreviewSaves';
 
 type HeroPreviewProps = {
@@ -48,8 +35,6 @@ const VIEW_OPTIONS = [
   { value: 'briefing', label: 'Briefing' },
 ] as const;
 
-const MODIFIER_KEYS = ['ctrlKey', 'metaKey', 'altKey'] as const;
-
 // The frame shows about five cards; the ones after these skip layout and paint until scrolled near.
 const CARDS_ABOVE_FOLD = 6;
 // A compact card with a summary line, so the frame's scrollbar barely moves when a skipped card renders.
@@ -57,7 +42,7 @@ const OFFSCREEN_CARD_CLASS = '[content-visibility:auto] [contain-intrinsic-size:
 // The list animates in on a chip change; past the fold, a longer stagger would only delay cards nobody sees yet.
 const MAX_STAGGERED_CARDS = 8;
 
-/** The product window of the hero: filter chips, the feed's top stories and the feed's j/k/s/Enter keys. */
+/** The product window of the hero: filter chips and the feed's top stories. */
 export function HeroPreview({
   stories,
   storiesToday,
@@ -66,80 +51,24 @@ export function HeroPreview({
   briefing,
   briefingIsSample = false,
 }: HeroPreviewProps) {
-  const router = useRouter();
   const saves = usePreviewSaves();
   const [tag, setTag] = useState<PreviewTag>('all');
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isFocused, setIsFocused] = useState(false);
   const [hasChosenTag, setHasChosenTag] = useState(false);
   const [view, setView] = useState<'feed' | 'briefing'>('feed');
-  const frameRef = useRef<HTMLDivElement>(null);
   const isBriefing = view === 'briefing' && briefing !== undefined;
 
   const shown = visibleStories(stories, tag);
-  const activeStory = shown[activeIndex];
 
   function chooseTag(next: PreviewTag) {
     setTag(next);
     setHasChosenTag(true);
-    setActiveIndex(0);
-  }
-
-  // The list remounts at its top on the way back, so the active card starts there too.
-  function chooseView(next: 'feed' | 'briefing') {
-    setView(next);
-    setActiveIndex(0);
-  }
-
-  // Scrolls the frame only: scrollIntoView would also scroll the page to bring the frame into view.
-  function revealCard(index: number) {
-    const frame = frameRef.current;
-    const card = frame?.querySelectorAll('article[data-story-id]')[index];
-    if (!frame || !card) return;
-    const cardBox = card.getBoundingClientRect();
-    const frameTop = frame.getBoundingClientRect().top + frame.clientTop;
-    frame.scrollTop = scrollTopToReveal(
-      { scrollTop: frame.scrollTop, height: frame.clientHeight },
-      { top: cardBox.top - frameTop + frame.scrollTop, height: cardBox.height },
-    );
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (isBriefing) return;
-    if (MODIFIER_KEYS.some((modifier) => event[modifier])) return;
-    if (event.key === 'j' || event.key === 'k') {
-      event.preventDefault();
-      const next = moveActiveIndex(activeIndex, event.key, shown.length);
-      setActiveIndex(next);
-      revealCard(next);
-    } else if (event.key === 's' && activeStory) {
-      event.preventDefault();
-      saves.toggle(activeStory.id);
-    } else if (event.key === 'Enter' && event.target === event.currentTarget && activeStory) {
-      // Enter on a chip or a link keeps its own meaning; only the window itself opens the card.
-      event.preventDefault();
-      router.push(storyHref(activeStory.id));
-    }
-  }
-
-  function handleFocus() {
-    setIsFocused(true);
-  }
-
-  function handleBlur(event: FocusEvent<HTMLDivElement>) {
-    if (!event.currentTarget.contains(event.relatedTarget)) setIsFocused(false);
   }
 
   return (
     <div
       role="group"
       aria-label="Live feed preview"
-      aria-keyshortcuts={isBriefing ? undefined : 'J K S Enter'}
-      tabIndex={0}
       data-saves-ready={saves.isReady}
-      onKeyDown={handleKeyDown}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
       className="bg-card/80 relative overflow-hidden rounded-xl border shadow-overlay/20 dark:shadow-overlay ring-border/50 shadow-2xl ring-1"
     >
       <div className="flex items-center gap-3 border-b px-4 py-2.5">
@@ -163,7 +92,7 @@ export function HeroPreview({
           label="Preview view"
           options={VIEW_OPTIONS}
           value={view}
-          onValueChange={chooseView}
+          onValueChange={setView}
           className="mx-3 mt-3 w-fit"
         />
       )}
@@ -173,6 +102,8 @@ export function HeroPreview({
           <div
             role="region"
             aria-label={briefing.question}
+            // A scrollable region needs a tab stop so keyboard users can scroll it.
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
             tabIndex={0}
             style={PANEL_STYLE}
             className="isolate mt-2 min-h-0 flex-1 overflow-y-auto px-4 pb-4 text-left"
@@ -212,7 +143,6 @@ export function HeroPreview({
             {/* Keyed by the chip, so a new chip starts the list at its top. */}
             <div
               key={tag}
-              ref={frameRef}
               data-preview-frame
               role="region"
               aria-label="Latest stories"
@@ -243,7 +173,6 @@ export function HeroPreview({
                     titleHref={storyHref(story.id)}
                     sourceLine={ClusterSourceLine}
                     relatedToggle={RelatedLink}
-                    isActive={isFocused && index === activeIndex}
                     isSaved={saves.isSaved(story.id)}
                     onToggleSave={() => saves.toggle(story.id)}
                   />
@@ -253,22 +182,7 @@ export function HeroPreview({
           </>
         )}
       </div>
-      {/* Always two rows: on one wrapping row, the story count, which the Briefing view drops, would decide the footer's height. */}
-      <div className="text-muted-foreground flex flex-col items-start gap-2 border-t px-4 py-2.5 text-xs">
-        <p
-          className={cn('flex items-center gap-1.5', isBriefing && 'invisible')}
-          aria-hidden="true"
-        >
-          <Kbd size="sm">J</Kbd>
-          <Kbd size="sm">K</Kbd>
-          <span>to navigate</span>
-          <span>·</span>
-          <Kbd size="sm">S</Kbd>
-          <span>to save</span>
-          <span>·</span>
-          <Kbd size="sm">Enter</Kbd>
-          <span>to open</span>
-        </p>
+      <div className="text-muted-foreground border-t px-4 py-2.5 text-xs">
         <Link
           href="/feed"
           className="text-foreground group inline-flex items-center gap-1 rounded-sm font-medium"
