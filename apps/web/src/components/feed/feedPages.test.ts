@@ -1,21 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { FeedPage, SourceRef, StoryCard } from '@devbrief/shared';
+import type { FeedPage, StoryCard } from '@devbrief/shared';
 import { flattenPages } from './feedPages';
 
-function source(kind: SourceRef['kind'], itemUrl: string): SourceRef {
-  return {
-    kind,
-    slug: kind,
-    name: kind,
-    itemUrl,
-    points: null,
-    comments: null,
-    reactions: null,
-    stars: null,
-  };
-}
-
-function story(id: string, sources: SourceRef[] = [source('rss', 'https://blog.test/post')]) {
+function story(id: string) {
   return {
     id,
     title: id,
@@ -26,7 +13,18 @@ function story(id: string, sources: SourceRef[] = [source('rss', 'https://blog.t
     publishedAt: '2026-11-19T10:00:00.000Z',
     tags: [],
     readingTimeMinutes: null,
-    sources,
+    sources: [
+      {
+        kind: 'rss',
+        slug: 'rss',
+        name: 'rss',
+        itemUrl: 'https://blog.test/post',
+        points: null,
+        comments: null,
+        reactions: null,
+        stars: null,
+      },
+    ],
     rankScore: 1,
   } satisfies StoryCard;
 }

@@ -49,7 +49,7 @@ export function SearchInput() {
         value={draft}
         maxLength={FEED_QUERY_MAX}
         onChange={updateDraft}
-        className="min-w-0 pl-8"
+        className="min-w-0 pr-2 pl-8"
       />
     </div>
   );

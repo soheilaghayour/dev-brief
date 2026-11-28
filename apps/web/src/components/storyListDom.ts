@@ -2,8 +2,8 @@ function findStoryElement(id: string) {
   return document.querySelector(`[data-story-id="${CSS.escape(id)}"]`);
 }
 
-export function scrollToStory(id: string, block: ScrollLogicalPosition) {
-  findStoryElement(id)?.scrollIntoView({ block, behavior: 'instant' });
+export function scrollToStory(id: string) {
+  findStoryElement(id)?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 }
 
 /** Moves DOM focus to the card's title link, which gives a native focus ring and tells screen readers where focus is. */

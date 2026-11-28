@@ -37,7 +37,7 @@ function highlightProps(story: StoryCardData, pieces: string[]) {
 
 function focusAndReveal(storyId: string) {
   focusStory(storyId);
-  scrollToStory(storyId, 'nearest');
+  scrollToStory(storyId);
 }
 
 export function FeedList() {

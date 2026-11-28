@@ -94,7 +94,6 @@ beforeEach(() => {
   document.body.append(container);
   api.getCluster.mockReset();
   api.getCluster.mockResolvedValue(CLUSTER);
-  Element.prototype.scrollIntoView = vi.fn();
 });
 
 afterEach(async () => {

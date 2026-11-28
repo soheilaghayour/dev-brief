@@ -6,7 +6,7 @@ import { signInThroughTestRoute } from './signIn';
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Collections' });
 
-// The hotkeys flag marks the page as hydrated, so the click is not lost; the dialog's chunk loads on the click.
+// The hotkeys flag marks the page as hydrated, so the click is not lost.
 async function openAddDialog(page: Page) {
   await page.goto('/feed?sort=latest');
   await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
