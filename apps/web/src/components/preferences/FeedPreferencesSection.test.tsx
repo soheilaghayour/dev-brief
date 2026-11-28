@@ -1,11 +1,20 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TAG_LABELS, TAG_SLUGS } from '@devbrief/shared';
 import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
 
 const preferences = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQuery: () => ({ data: undefined }),
+  useQuery: () => ({
+    data: {
+      sources: [
+        { slug: 'hn', kind: 'hn', status: 'healthy', lastSuccessAt: null },
+        { slug: 'blog-a', kind: 'rss', status: 'healthy', lastSuccessAt: null },
+        { slug: 'blog-b', kind: 'rss', status: 'healthy', lastSuccessAt: null },
+      ],
+    },
+  }),
 }));
 vi.mock('./usePreferences', () => ({ usePreferences: () => preferences.current }));
 
@@ -13,11 +22,13 @@ const { FeedPreferencesSection } = await import('./FeedPreferencesSection');
 
 beforeEach(() => {
   preferences.current = {
-    isReady: false,
+    isReady: true,
     isError: false,
     refetch: () => {},
     prefs: EMPTY_PREFERENCES,
+    modeOf: () => null,
     setMode: () => {},
+    setModes: () => {},
   };
 });
 
@@ -30,10 +41,22 @@ describe('FeedPreferencesSection', () => {
     expect(html).toContain('Retry');
   });
 
-  it('shows the lists, and no error, once the preferences are known', () => {
-    preferences.current.isReady = true;
+  it('AC-2.5.1 lists every tag and every source kind with a heart, as the sidebar does', () => {
     const html = renderToStaticMarkup(<FeedPreferencesSection />);
-    expect(html).toContain('Followed:');
     expect(html).not.toContain('role="alert"');
+    for (const slug of TAG_SLUGS) {
+      expect(html).toContain(`aria-label="${TAG_LABELS[slug]}: not followed. Click to follow."`);
+    }
+    for (const label of ['Hacker News', 'Blogs']) {
+      expect(html).toContain(`aria-label="${label}: not followed. Click to follow."`);
+    }
+    // Only the kinds `/sources` lists get a row.
+    expect(html).not.toContain('Dev.to:');
+  });
+
+  it('AC-2.5.1 no longer tells to follow or mute from a badge, and has no chips', () => {
+    const html = renderToStaticMarkup(<FeedPreferencesSection />);
+    expect(html).not.toContain('badge');
+    expect(html).not.toContain('Followed:');
   });
 });
