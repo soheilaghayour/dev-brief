@@ -24,26 +24,30 @@ export function modeOf<K extends PreferenceKind>(
   return null;
 }
 
-/** Puts the value in the mode's list (null clears it), moving it out of the other mode's list; a full list refuses a new value. */
-export function setPreference<K extends PreferenceKind>(
+/** Puts the values in the mode's list (null clears them), moving them out of the other mode's list; a list that the new values would overfill refuses all of them. */
+export function setPreferences<K extends PreferenceKind>(
   prefs: Preferences,
   kind: K,
-  value: PreferenceValue[K],
+  values: readonly PreferenceValue[K][],
   mode: PreferenceMode | null,
 ): { outcome: PreferenceOutcome; prefs: Preferences } {
   const target = mode ? listOf(prefs, mode, kind) : [];
-  if (!target.includes(value) && target.length >= FEED_LIST_MAX) return { outcome: 'full', prefs };
+  const added = new Set(values.filter((value) => !target.includes(value)));
+  if (added.size > 0 && target.length + added.size > FEED_LIST_MAX) {
+    return { outcome: 'full', prefs };
+  }
+  const valueStrings: readonly string[] = values;
   function without(from: PreferenceMode) {
-    return listOf(prefs, from, kind).filter((existing) => existing !== value);
+    return listOf(prefs, from, kind).filter((existing) => !valueStrings.includes(existing));
   }
   const lists = { follow: without('follow'), mute: without('mute') };
-  if (mode) lists[mode] = [...lists[mode], value];
+  if (mode) lists[mode] = [...lists[mode], ...new Set(values)];
   const list = LIST_OF[kind];
   const next = {
     follow: { ...prefs.follow, [list]: lists.follow },
     mute: { ...prefs.mute, [list]: lists.mute },
   };
-  // The lists only ever gain a value of the kind's own type.
+  // The lists only ever gain values of the kind's own type.
   return { outcome: 'changed', prefs: next as Preferences };
 }
 

@@ -2,9 +2,9 @@ import type { QueryClient } from '@tanstack/react-query';
 import { FEED_LIST_MAX } from '@devbrief/shared';
 import type { Preferences } from '@devbrief/shared';
 import { putPreferences } from '@/lib/api/endpoints';
-import { setGuestPreference } from '@/lib/guest/guestPreferences';
+import { setGuestPreferences } from '@/lib/guest/guestPreferences';
 import type { PreferenceKind, PreferenceMode, PreferenceValue } from '@/lib/guest/preferences';
-import { setPreference, type PreferenceOutcome } from '@/lib/guest/preferenceModes';
+import { setPreferences, type PreferenceOutcome } from '@/lib/guest/preferenceModes';
 import { notify } from '@/lib/toast/notify';
 import { PREFS_FAILED_NOTICE, preferencesMutationOptions } from './accountPreferences';
 import { PREFS_KEY, prefsQueryOptions } from './preferenceQueries';
@@ -20,20 +20,20 @@ function announce(outcome: PreferenceOutcome, kind: PreferenceKind, mode: Prefer
   }
 }
 
-/** Follows, mutes or clears the value on this device. */
-export async function changeGuestPreference<K extends PreferenceKind>(
+/** Follows, mutes or clears the values on this device. */
+export async function changeGuestPreferences<K extends PreferenceKind>(
   kind: K,
-  value: PreferenceValue[K],
+  values: readonly PreferenceValue[K][],
   mode: PreferenceMode | null,
 ) {
-  announce(await setGuestPreference(kind, value, mode), kind, mode);
+  announce(await setGuestPreferences(kind, values, mode), kind, mode);
 }
 
-/** Follows, mutes or clears the value in the account, building on the stored set (loaded first if needed) and on changes still in flight. */
-export async function changeAccountPreference<K extends PreferenceKind>(
+/** Follows, mutes or clears the values in the account, building on the stored set (loaded first if needed) and on changes still in flight. */
+export async function changeAccountPreferences<K extends PreferenceKind>(
   queryClient: QueryClient,
   kind: K,
-  value: PreferenceValue[K],
+  values: readonly PreferenceValue[K][],
   mode: PreferenceMode | null,
 ) {
   let loaded: Preferences;
@@ -45,7 +45,7 @@ export async function changeAccountPreference<K extends PreferenceKind>(
   }
   // From here to the cache write nothing awaits, so changes made during the load build on each other instead of on the same set.
   const current = queryClient.getQueryData<Preferences>(PREFS_KEY) ?? loaded;
-  const { outcome, prefs } = setPreference(current, kind, value, mode);
+  const { outcome, prefs } = setPreferences(current, kind, values, mode);
   announce(outcome, kind, mode);
   if (outcome === 'full') return;
   // A refetch in flight would overwrite the patch with the older set.

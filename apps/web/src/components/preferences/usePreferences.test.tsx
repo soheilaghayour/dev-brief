@@ -11,12 +11,12 @@ import { PREFS_FAILED_NOTICE } from './accountPreferences';
 const me = vi.hoisted(() => ({ current: { data: null as object | null, isPending: false } }));
 const api = vi.hoisted(() => ({ getPreferences: vi.fn(), putPreferences: vi.fn() }));
 const notify = vi.hoisted(() => vi.fn());
-const setGuestPreference = vi.hoisted(() => vi.fn(async () => 'changed'));
+const setGuestPreferences = vi.hoisted(() => vi.fn(async () => 'changed'));
 
 vi.mock('@/lib/auth/useMe', () => ({ useMe: () => me.current }));
 vi.mock('@/lib/api/endpoints', () => api);
 vi.mock('@/lib/toast/notify', () => ({ notify }));
-vi.mock('@/lib/guest/guestPreferences', () => ({ setGuestPreference }));
+vi.mock('@/lib/guest/guestPreferences', () => ({ setGuestPreferences }));
 
 const { usePreferences } = await import('./usePreferences');
 // The write path is a lazy chunk; loading it up front keeps its first transform out of the waits below.
@@ -217,7 +217,7 @@ describe('usePreferences in guest mode', () => {
     await render();
     expect(hook().isReady).toBe(false);
     await act(async () => hook().setMode('tag', 'react', 'follow'));
-    expect(setGuestPreference).toHaveBeenCalledWith('tag', 'react', 'follow');
+    expect(setGuestPreferences).toHaveBeenCalledWith('tag', ['react'], 'follow');
     expect(api.getPreferences).not.toHaveBeenCalled();
     expect(api.putPreferences).not.toHaveBeenCalled();
   });
