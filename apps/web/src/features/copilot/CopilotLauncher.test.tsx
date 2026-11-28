@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { act, useEffect } from 'react';
+import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HotkeysProvider, useShortcutsHelp } from '@/lib/hotkeys/HotkeysProvider';
+import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { CopilotLauncher } from './CopilotLauncher';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -23,47 +23,22 @@ vi.mock('@/lib/guest/loadDeviceId', () => ({
 vi.mock('@/lib/auth/useMe', () => ({ useMe: () => ({ data: null }) }));
 vi.mock('next/link', () => ({ default: 'a' }));
 
-/** Opens the help dialog once it is mounted, standing in for pressing `?`. */
-function HelpOpener({ shouldOpen }: { shouldOpen: boolean }) {
-  const { setOpen } = useShortcutsHelp();
-  useEffect(() => {
-    if (shouldOpen) setOpen(true);
-  }, [shouldOpen, setOpen]);
-  return null;
-}
-
 let container: HTMLDivElement;
 let root: Root;
-
-async function renderTree(helpOpen: boolean) {
-  await act(async () =>
-    root.render(
-      <HotkeysProvider>
-        <input aria-label="Search stories" />
-        <CopilotLauncher />
-        <HelpOpener shouldOpen={helpOpen} />
-      </HotkeysProvider>,
-    ),
-  );
-}
 
 beforeEach(async () => {
   container = document.body.appendChild(document.createElement('div'));
   root = createRoot(container);
-  await renderTree(false);
-  // The bindings load after hydration; keys pressed earlier would be lost.
-  await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBeDefined());
+  await act(async () => root.render(<CopilotLauncher />));
 });
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
 });
 
-const searchInput = () =>
-  document.querySelector<HTMLInputElement>('input[aria-label="Search stories"]')!;
 const bar = () => document.querySelector('[role="dialog"]');
 const askButton = () =>
-  [...container.querySelectorAll('button')].find((b) => b.textContent?.includes('Ask'))!;
+  [...container.querySelectorAll('button')].find((b) => b.textContent === 'Ask')!;
 
 async function press(key: string, init: KeyboardEventInit, target: EventTarget = document) {
   await act(async () => {
@@ -87,69 +62,17 @@ describe('CopilotLauncher', () => {
     expect(bar()).toBeNull();
   });
 
-  it('AC-3.1.1 Ctrl+K opens the bar from inside a focused search input', async () => {
-    searchInput().focus();
-
-    await press('k', { ctrlKey: true }, searchInput());
-    await whenBarIsOpen();
-
-    expect(bar()?.textContent).toContain('Ask the News');
-    expect(loads.count).toBe(1);
-  });
-
-  it('keeps the browser from also running its own Ctrl+K', async () => {
-    const event = new KeyboardEvent('keydown', {
-      key: 'k',
-      ctrlKey: true,
-      bubbles: true,
-      cancelable: true,
-    });
-
-    await act(async () => {
-      document.dispatchEvent(event);
-    });
-
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it('opens from the header button for mouse and touch users', async () => {
+  it('AC-3.1.1 the Ask button opens the bar', async () => {
     await act(async () => askButton().click());
     await whenBarIsOpen();
 
     expect(bar()?.textContent).toContain('Ask the News');
   });
 
-  it('returns focus to the field the shortcut was pressed in when the bar closes', async () => {
-    searchInput().focus();
-    await press('k', { ctrlKey: true }, searchInput());
-    await whenBarIsOpen();
-
-    await press('Escape', {}, document.activeElement ?? document);
-    await vi.waitFor(() => expect(bar()).toBeNull());
-
-    // Radix hands focus back a tick after the content unmounts.
-    await vi.waitFor(() => expect(document.activeElement).toBe(searchInput()));
-  });
-
-  it('returns focus to the header button when the bar opened from it closes', async () => {
-    askButton().focus();
+  it('AC-3.1.1 Esc closes the bar and returns focus to the Ask button', async () => {
     await act(async () => askButton().click());
     await whenBarIsOpen();
 
-    await press('Escape', {}, document.activeElement ?? document);
-    await vi.waitFor(() => expect(bar()).toBeNull());
-
-    await vi.waitFor(() => expect(document.activeElement).toBe(askButton()));
-  });
-
-  it('returns focus to the header button when the field that opened the bar is gone', async () => {
-    // Outside React's tree, so the test can remove it from the page.
-    const field = document.body.appendChild(document.createElement('input'));
-    field.focus();
-    await press('k', { ctrlKey: true }, field);
-    await whenBarIsOpen();
-
-    field.remove();
     await press('Escape', {}, document.activeElement ?? document);
     await vi.waitFor(() => expect(bar()).toBeNull());
 
@@ -177,17 +100,6 @@ describe('CopilotLauncher', () => {
     expect(question().value).toBe('');
   });
 
-  it('keeps page shortcuts quiet behind the open bar: ? does not open the help dialog', async () => {
-    await act(async () => askButton().click());
-    await whenBarIsOpen();
-
-    await press('?', {}, document.activeElement ?? document);
-    await press('g', {}, document.activeElement ?? document);
-    await press('s', {}, document.activeElement ?? document);
-
-    expect(document.body.textContent).not.toContain('Keyboard shortcuts');
-  });
-
   it('traps focus inside the open bar', async () => {
     await act(async () => askButton().click());
     await whenBarIsOpen();
@@ -201,11 +113,33 @@ describe('CopilotLauncher', () => {
     expect(bar()!.contains(document.activeElement)).toBe(true);
   });
 
-  it('lists the shortcut in the help dialog', async () => {
-    await renderTree(true);
-
-    await vi.waitFor(() =>
-      expect(document.body.textContent).toContain('Open the Ask the News command bar'),
+  it('AC-3.1.1 Ctrl+K and ⌘K do nothing', async () => {
+    // Inside the real shortcut registry: without it, registering a shortcut is a no-op.
+    await act(async () =>
+      root.render(
+        <HotkeysProvider>
+          <CopilotLauncher />
+        </HotkeysProvider>,
+      ),
     );
+    await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
+    const loadsBefore = loads.count;
+
+    for (const init of [{ ctrlKey: true }, { metaKey: true }]) {
+      const event = new KeyboardEvent('keydown', {
+        key: 'k',
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
+      await act(async () => {
+        document.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(bar()).toBeNull();
+    expect(loads.count).toBe(loadsBefore);
   });
 });
