@@ -7,7 +7,6 @@ import { COPILOT_USER_DAILY_LIMIT } from '@devbrief/shared';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog';
 import { useMe } from '@/lib/auth/useMe';
 import { loadDeviceId } from '@/lib/guest/loadDeviceId';
-import { useReturnFocus } from '@/lib/useReturnFocus';
 import type { BriefingSource } from './BriefingView';
 import { briefingBarReducer, initialBarState, type BriefingView } from './briefingBarReducer';
 import {
@@ -169,20 +168,17 @@ function CommandBarBody({ close }: { close: () => void }) {
 type CopilotCommandBarProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** What had focus when the bar opened; focus goes back to it on close. */
-  opener: Element | null;
-  /** Where focus goes when the opener has left the page. */
-  fallbackFocus: () => HTMLElement | null;
+  /** The Ask button: focus goes back to it when the bar closes. */
+  returnFocusTo: () => HTMLElement | null;
 };
 
-/** The ⌘K dialog: a question, three suggestions, the quota and the streamed briefing. */
-export function CopilotCommandBar({
-  open,
-  onOpenChange,
-  opener,
-  fallbackFocus,
-}: CopilotCommandBarProps) {
-  const returnFocus = useReturnFocus(opener, fallbackFocus);
+/** The command bar dialog: a question, three suggestions, the quota and the streamed briefing. */
+export function CopilotCommandBar({ open, onOpenChange, returnFocusTo }: CopilotCommandBarProps) {
+  function returnFocus(event: Event) {
+    // There is no Radix trigger to hand focus to, so it goes to the button by hand.
+    event.preventDefault();
+    returnFocusTo()?.focus({ preventScroll: true });
+  }
 
   function close() {
     onOpenChange(false);

@@ -24,23 +24,20 @@ function watchBarChunks(page: Page) {
 
 async function openFeed(page: Page) {
   await page.goto('/feed');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
-  // The launcher registers ⌘K once its own chunk has loaded, a moment after the bindings.
-  await expect(page.getByRole('button', { name: /^Ask/ })).toBeVisible();
+  // The Ask button renders on the client only, once its own chunk has loaded.
+  await expect(askButton(page)).toBeVisible();
 }
 
+const askButton = (page: Page) => page.getByRole('button', { name: 'Ask', exact: true });
 const bar = (page: Page) => page.getByRole('dialog', { name: 'Ask the News' });
 
-test('AC-3.1.1 the copilot chunk is fetched only after the first open, from inside a search input', async ({
-  page,
-}) => {
+test('AC-3.1.1 the copilot chunk is fetched only after the first open', async ({ page }) => {
   const chunks = watchBarChunks(page);
   await openFeed(page);
   await page.waitForLoadState('networkidle');
   expect(chunks).toEqual([]);
 
-  await page.getByLabel('Search stories').focus();
-  await page.keyboard.press('Control+k');
+  await askButton(page).click();
 
   await expect(bar(page)).toBeVisible();
   await expect.poll(() => chunks.length).toBeGreaterThan(0);
@@ -50,7 +47,7 @@ test('AC-3.1.1 the bar has three suggestions, a 200-character input and the quot
   page,
 }) => {
   await openFeed(page);
-  await page.getByRole('button', { name: /^Ask/ }).click();
+  await askButton(page).click();
 
   await expect(bar(page)).toBeVisible();
   await expect(
@@ -70,7 +67,7 @@ test('AC-3.1.1 suggestion #1 shows the skeleton, then the stored briefing; a sto
     await route.fulfill({ response });
   });
   await openFeed(page);
-  await page.keyboard.press('Control+k');
+  await askButton(page).click();
   await expect(bar(page)).toBeVisible();
 
   await bar(page).getByRole('button', { name: SUGGESTION_1 }).click();
@@ -94,7 +91,7 @@ test('on a 360 px screen the Ask button is not covered and a tap opens the bar',
 }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await openFeed(page);
-  const ask = page.getByRole('button', { name: /^Ask/ });
+  const ask = askButton(page);
 
   const box = (await ask.boundingBox())!;
   const topmostIsAsk = await ask.evaluate(
@@ -115,7 +112,7 @@ test('a question with no coverage renders "Not enough coverage" and costs no quo
   page,
 }) => {
   await openFeed(page);
-  await page.keyboard.press('Control+k');
+  await askButton(page).click();
 
   await bar(page).getByLabel('Your question').fill('COBOL on the blockchain');
   await bar(page).getByLabel('Your question').press('Enter');
@@ -124,17 +121,13 @@ test('a question with no coverage renders "Not enough coverage" and costs no quo
   await expect(bar(page).getByText('3/3 left')).toBeVisible();
 });
 
-test('AC-3.1.1 Esc closes the bar and returns focus to the field it was opened from', async ({
-  page,
-}) => {
+test('AC-3.1.1 Esc closes the bar and returns focus to the Ask button', async ({ page }) => {
   await openFeed(page);
-  const search = page.getByLabel('Search stories');
-  await search.focus();
-  await page.keyboard.press('Control+k');
+  await askButton(page).click();
   await expect(bar(page)).toBeVisible();
 
   await page.keyboard.press('Escape');
 
   await expect(bar(page)).toHaveCount(0);
-  await expect(search).toBeFocused();
+  await expect(askButton(page)).toBeFocused();
 });

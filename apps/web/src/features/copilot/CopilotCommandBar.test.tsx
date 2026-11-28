@@ -91,12 +91,7 @@ afterEach(() => {
 async function openBar(open = true) {
   await act(async () =>
     root.render(
-      <CopilotCommandBar
-        open={open}
-        onOpenChange={onOpenChange}
-        opener={null}
-        fallbackFocus={() => null}
-      />,
+      <CopilotCommandBar open={open} onOpenChange={onOpenChange} returnFocusTo={() => null} />,
     ),
   );
 }

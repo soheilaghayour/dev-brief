@@ -4,10 +4,7 @@ import dynamic from 'next/dynamic';
 import { useRef, useState } from 'react';
 import { SparklesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Kbd } from '@/components/ui/Kbd';
 import { cn } from '@/lib/cn';
-import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
-import { isApplePlatform, type Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { LAUNCHER_SIZE } from './launcherSize';
 
 // The bar, the renderer and the stream parser are fetched the first time the bar opens.
@@ -16,40 +13,17 @@ const CopilotCommandBar = dynamic(
   { ssr: false },
 );
 
-const OPEN_COMMAND_BAR = {
-  id: 'copilot-open',
-  keys: 'mod+k',
-  description: 'Open the Ask the News command bar',
-  scope: 'Global',
-} satisfies Shortcut;
-
-/** One open of the bar: a new one remounts it, so each starts empty and remembers its own opener. */
-type Opening = { id: number; opener: Element | null };
-
-/** The header's "Ask ⌘K" button and the shortcut that opens the command bar; the bar itself loads on first open. */
+/** The header's Ask button, which opens the command bar; the bar itself loads on first open. */
 export function CopilotLauncher() {
   const [isOpen, setOpen] = useState(false);
-  const [opening, setOpening] = useState<Opening>();
+  // A new key remounts the bar on each open, so each starts empty.
+  const [openCount, setOpenCount] = useState(0);
   const button = useRef<HTMLButtonElement>(null);
-  // The launcher renders on the client only, so the platform is known here.
-  const isApple = isApplePlatform();
 
   function open() {
-    if (!isOpen) {
-      // What has focus now: the button, or the field the shortcut was pressed in.
-      const opener = document.activeElement;
-      setOpening((previous) => ({ id: (previous?.id ?? 0) + 1, opener }));
-    }
+    if (!isOpen) setOpenCount((count) => count + 1);
     setOpen(true);
   }
-
-  function openFromShortcut(event: KeyboardEvent) {
-    // The browser's own ⌘K / Ctrl+K (a search or link bar) must not also run.
-    event.preventDefault();
-    open();
-  }
-
-  useShortcut(OPEN_COMMAND_BAR, openFromShortcut);
 
   return (
     <>
@@ -59,23 +33,18 @@ export function CopilotLauncher() {
         size="sm"
         className={cn(LAUNCHER_SIZE, 'max-md:px-0')}
         aria-haspopup="dialog"
-        aria-keyshortcuts={isApple ? 'Meta+K' : 'Control+K'}
         onClick={open}
       >
         <SparklesIcon aria-hidden="true" />
         {/* Below md the header has room for an icon only; the name stays for screen readers. */}
         <span className="max-md:sr-only">Ask</span>
-        <Kbd size="sm" className="max-md:hidden">
-          {isApple ? '⌘K' : 'Ctrl K'}
-        </Kbd>
       </Button>
-      {opening && (
+      {openCount > 0 && (
         <CopilotCommandBar
-          key={opening.id}
+          key={openCount}
           open={isOpen}
           onOpenChange={setOpen}
-          opener={opening.opener}
-          fallbackFocus={() => button.current}
+          returnFocusTo={() => button.current}
         />
       )}
     </>
