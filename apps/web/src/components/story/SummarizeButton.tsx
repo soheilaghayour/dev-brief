@@ -1,25 +1,14 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoaderCircleIcon, SparklesIcon } from 'lucide-react';
 import type { StorySummary } from '@devbrief/shared';
 import { Button } from '@/components/ui/Button';
 import { useMe } from '@/lib/auth/useMe';
 import { loadDeviceId } from '@/lib/guest/loadDeviceId';
-import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
-import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { summaryErrorMessage } from './summaryErrors';
 import { SummaryView, type SummaryOrigin } from './SummaryView';
-
-const SUMMARIZE_STORY = {
-  id: 'story-summarize',
-  keys: 'u',
-  description: 'Summarize active story',
-  scope: 'Story',
-} satisfies Shortcut;
 
 // Loaded on first use like the other queries: the endpoints pull in Zod, which first paint does not need.
 async function requestSummary(storyId: string) {
@@ -31,18 +20,8 @@ async function requestSummary(storyId: string) {
 }
 
 /** The Summarize button; on success the summary takes its place without a reload. */
-export function SummarizeButton({
-  storyId,
-  origin,
-  autoStart,
-}: {
-  storyId: string;
-  origin: SummaryOrigin;
-  autoStart: boolean;
-}) {
+export function SummarizeButton({ storyId, origin }: { storyId: string; origin: SummaryOrigin }) {
   const queryClient = useQueryClient();
-  const router = useRouter();
-  const pathname = usePathname();
   const { data: user } = useMe();
   const summaryKey = ['summary', storyId];
   // Nothing fetches this query: the mutation primes it, and it never goes stale.
@@ -55,22 +34,11 @@ export function SummarizeButton({
     mutationFn: () => requestSummary(storyId),
     onSuccess: (summary) => queryClient.setQueryData(summaryKey, summary),
   });
-  const hasStarted = useRef(false);
 
   function summarize() {
     if (request.isPending || stored.data) return;
     request.mutate();
   }
-
-  useShortcut(SUMMARIZE_STORY, summarize);
-
-  useEffect(() => {
-    if (!autoStart || hasStarted.current) return;
-    hasStarted.current = true;
-    summarize();
-    // Without this a reload or back/forward would summarize again.
-    router.replace(pathname, { scroll: false });
-  });
 
   if (stored.data) return <SummaryView summary={stored.data} origin={origin} />;
 

@@ -39,7 +39,6 @@ const STORY: StoryDetail = {
 async function render() {
   const page = await StoryPage({
     params: Promise.resolve({ id: 's1' }),
-    searchParams: Promise.resolve({}),
   });
   return renderToStaticMarkup(page);
 }

@@ -8,17 +8,14 @@ export function SummaryPanel({
   summary,
   canSummarize,
   origin,
-  autoStart = false,
 }: {
   storyId: string;
   summary: StorySummary | null;
   /** `StoryDetail.canSummarize`: the server's answer to whether the story has enough to summarise. */
   canSummarize: boolean;
   origin: SummaryOrigin;
-  /** Starts the request once on load, for `?summarize=1`. */
-  autoStart?: boolean;
 }) {
   if (summary) return <SummaryView summary={summary} origin={origin} />;
   if (!canSummarize) return null;
-  return <SummarizeButton storyId={storyId} origin={origin} autoStart={autoStart} />;
+  return <SummarizeButton storyId={storyId} origin={origin} />;
 }

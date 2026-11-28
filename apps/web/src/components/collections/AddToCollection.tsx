@@ -3,8 +3,6 @@
 import { createContext, lazy, Suspense, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { isFeatureEnabled } from '@/config/features';
-import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
-import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { preloadCollectionWriters, useCollections } from './useCollections';
 
 // The dialog (and Radix Dialog with it) is fetched the first time it opens.
@@ -13,7 +11,7 @@ const AddToCollectionDialog = lazy(() =>
   loadDialog().then((module) => ({ default: module.AddToCollectionDialog })),
 );
 
-// Fetched when the browser is idle, so a fast typist's first keys after `a` reach the dialog, not the page's shortcuts.
+// Fetched when the browser is idle, so the dialog opens without waiting for its code.
 function preloadWhenIdle() {
   function preload() {
     void loadDialog();
@@ -26,13 +24,6 @@ function preloadWhenIdle() {
   const handle = window.setTimeout(preload, 200);
   return () => window.clearTimeout(handle);
 }
-
-const ADD_TO_COLLECTION = {
-  id: 'add-to-collection',
-  keys: 'a',
-  description: 'Add to collection',
-  scope: 'Collections',
-} satisfies Shortcut;
 
 type AddToCollectionState = { canAdd: boolean; open: (storyId: string) => void };
 
@@ -74,21 +65,4 @@ export function AddToCollectionProvider({ children }: { children: ReactNode }) {
 /** `canAdd` is false with the flag off and while the collections load, so cards then show no entry. */
 export function useAddToCollection() {
   return useContext(AddToCollectionContext);
-}
-
-function BoundShortcut({ storyId }: { storyId: string }) {
-  const { open } = useAddToCollection();
-
-  function openForStory() {
-    open(storyId);
-  }
-
-  useShortcut(ADD_TO_COLLECTION, openForStory);
-  return null;
-}
-
-/** Binds `a` to the active card, and registers it in the help list only where collections are usable. */
-export function AddToCollectionShortcut({ storyId }: { storyId: string | null }) {
-  const { canAdd } = useAddToCollection();
-  return canAdd && storyId ? <BoundShortcut storyId={storyId} /> : null;
 }

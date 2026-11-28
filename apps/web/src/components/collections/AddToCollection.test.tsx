@@ -1,19 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { MAX_GUEST_SAVES } from '@/lib/guest/guestState';
 import { useGuestStore } from '@/lib/guest/guestStore';
-import {
-  AddToCollectionProvider,
-  AddToCollectionShortcut,
-  useAddToCollection,
-} from './AddToCollection';
+import { AddToCollectionProvider, useAddToCollection } from './AddToCollection';
 import {
   byRole,
   click,
   collection,
-  hotkeysReady,
   mount,
   NoopResizeObserver,
   pressKey,
@@ -42,8 +36,6 @@ function Card() {
   const add = useAddToCollection();
   return (
     <div>
-      <input aria-label="search" />
-      <AddToCollectionShortcut storyId={STORY} />
       {add.canAdd && (
         <button type="button" aria-label="Add to collection" onClick={() => add.open(STORY)} />
       )}
@@ -68,14 +60,11 @@ afterEach(() => {
 
 async function showCard() {
   const mounted = await mount(
-    <HotkeysProvider>
-      <AddToCollectionProvider>
-        <Card />
-      </AddToCollectionProvider>
-    </HotkeysProvider>,
+    <AddToCollectionProvider>
+      <Card />
+    </AddToCollectionProvider>,
   );
   unmount = mounted.unmount;
-  await hotkeysReady();
 }
 
 const dialog = () => document.querySelector('[role="dialog"]');
@@ -85,38 +74,19 @@ const checkboxes = () => [
   ...document.querySelectorAll<HTMLInputElement>('[role="dialog"] input[type="checkbox"]'),
 ];
 
-async function openWithA() {
-  await pressKey(document, 'a');
+async function openDialog() {
+  await click(byRole('button', 'Add to collection'));
   await vi.waitFor(() => expect(dialogInput()).not.toBeNull());
 }
 
 describe('AddToCollection', () => {
-  it('AC-3.4.3 a opens "Add to collection" for the active card', async () => {
-    await seedGuestStore([collection('a', 'Frontend', 0)]);
-    await showCard();
-    expect(dialog()).toBeNull();
-
-    await openWithA();
-
-    expect(dialog()?.textContent).toContain('Add to collection');
-    expect(document.activeElement).toBe(dialogInput());
-  });
-
-  it('AC-3.4.3 a does not fire inside an input', async () => {
-    await seedGuestStore([collection('a', 'Frontend', 0)]);
-    await showCard();
-    const search = document.querySelector('input[aria-label="search"]')!;
-
-    await pressKey(search, 'a');
-
-    expect(dialog()).toBeNull();
-  });
-
-  it('AC-3.4.3 the card entry opens the same dialog', async () => {
+  it('AC-3.4.3 the card entry opens "Add to collection" with the name field focused', async () => {
     await seedGuestStore([collection('a', 'Frontend', 0)]);
     await showCard();
     await click(byRole('button', 'Add to collection'));
     await vi.waitFor(() => expect(dialog()).not.toBeNull());
+    expect(dialog()?.textContent).toContain('Add to collection');
+    await vi.waitFor(() => expect(document.activeElement).toBe(dialogInput()));
   });
 
   it('AC-3.4.3 typing filters the collections', async () => {
@@ -126,7 +96,7 @@ describe('AddToCollection', () => {
       collection('c', 'Frontier tech', 2),
     ]);
     await showCard();
-    await openWithA();
+    await openDialog();
     expect(checkboxes()).toHaveLength(3);
 
     await typeInto(dialogInput()!, 'front');
@@ -140,7 +110,7 @@ describe('AddToCollection', () => {
   it('AC-3.4.3 a checkbox adds the story to a collection and saves it first', async () => {
     await seedGuestStore([collection('a', 'Frontend', 0), collection('b', 'Interview', 1)]);
     await showCard();
-    await openWithA();
+    await openDialog();
 
     await click(checkboxes()[0] ?? null);
     // Ticked at once, before the write lands.
@@ -168,7 +138,7 @@ describe('AddToCollection', () => {
     const full = Array.from({ length: MAX_GUEST_SAVES }, (_, index) => storyId(1000 + index));
     await seedGuestStore([collection('a', 'Frontend', 0)], full);
     await showCard();
-    await openWithA();
+    await openDialog();
 
     await click(checkboxes()[0] ?? null);
 
@@ -182,7 +152,7 @@ describe('AddToCollection', () => {
   it('AC-3.4.3 Enter on a name with no match creates the collection and adds the story', async () => {
     await seedGuestStore([collection('a', 'Frontend', 0)]);
     await showCard();
-    await openWithA();
+    await openDialog();
     await typeInto(dialogInput()!, 'Rust reading');
     expect(dialog()?.textContent).toContain('Press Enter to create “Rust reading”');
 
@@ -200,7 +170,7 @@ describe('AddToCollection', () => {
   it('AC-3.4.3 Enter on a name that only matches part of another collection still creates it', async () => {
     await seedGuestStore([collection('a', 'Frontend Architecture', 0)]);
     await showCard();
-    await openWithA();
+    await openDialog();
     await typeInto(dialogInput()!, 'Frontend');
     expect(dialog()?.querySelector('p[role="status"]:not(.sr-only)')?.textContent).toContain(
       'Press Enter to create “Frontend”',
@@ -219,7 +189,7 @@ describe('AddToCollection', () => {
   it('a second Enter while the create is pending makes no duplicate', async () => {
     await seedGuestStore([]);
     await showCard();
-    await openWithA();
+    await openDialog();
     await typeInto(dialogInput()!, 'Rust reading');
 
     await act(async () => {
@@ -237,7 +207,7 @@ describe('AddToCollection', () => {
     const full = Array.from({ length: MAX_GUEST_SAVES }, (_, index) => storyId(1000 + index));
     await seedGuestStore([], full);
     await showCard();
-    await openWithA();
+    await openDialog();
     await typeInto(dialogInput()!, 'Rust reading');
 
     await pressKey(dialogInput()!, 'Enter');
@@ -253,7 +223,7 @@ describe('AddToCollection', () => {
   it('AC-3.4.3 Enter on the name of an existing collection, in any case, creates nothing', async () => {
     await seedGuestStore([collection('a', 'Frontend', 0)]);
     await showCard();
-    await openWithA();
+    await openDialog();
     await typeInto(dialogInput()!, 'FRONTEND');
     expect(dialog()?.textContent).not.toContain('Press Enter to create');
 
@@ -276,12 +246,10 @@ describe('AddToCollection', () => {
     await vi.waitFor(() => expect(document.activeElement).toBe(opener));
   });
 
-  it('offers no entry and no shortcut while the collections flag is off', async () => {
+  it('offers no entry while the collections flag is off', async () => {
     flag.collections = false;
     await seedGuestStore([collection('a', 'Frontend', 0)]);
     await showCard();
     expect(byRole('button', 'Add to collection')).toBeNull();
-    await pressKey(document, 'a');
-    expect(dialog()).toBeNull();
   });
 });
