@@ -1,15 +1,10 @@
 import { MessageSquareIcon } from 'lucide-react';
 import type { SourceRef } from '@devbrief/shared';
-import type { ComponentType } from 'react';
-import type { PreferenceMenuProps } from '@/components/preferences/PreferenceMenu';
 import { Badge } from '@/components/ui/Badge';
 import { formatCompactCount } from '@/lib/format/formatCompactCount';
-import type { PreferenceKind } from '@/lib/guest/preferences';
 
 type SourceBadgeProps = {
   source: Pick<SourceRef, 'kind' | 'slug' | 'name' | 'points' | 'comments' | 'reactions' | 'stars'>;
-  /** The Follow / Mute menu the badge opens; passed in, so pages without one (the landing preview) don't load it. */
-  menu?: ComponentType<PreferenceMenuProps<PreferenceKind>>;
 };
 
 const SCORE_GLYPH = { hn: '▲', devto: '♥' } as const;
@@ -74,24 +69,10 @@ function SourceBadgeContent({ source }: Pick<SourceBadgeProps, 'source'>) {
 }
 
 /** One source of a story: HN `▲ 320 · 141`, Dev.to `♥ 95 · 12`, GitHub `★ 1.2k`, a blog by its name. */
-export function SourceBadge({ source, menu: Menu }: SourceBadgeProps) {
-  const content = <SourceBadgeContent source={source} />;
-  if (!Menu) {
-    return (
-      <Badge variant="outline" data-source-kind={source.kind}>
-        {content}
-      </Badge>
-    );
-  }
+export function SourceBadge({ source }: SourceBadgeProps) {
   return (
-    <Menu
-      kind="source"
-      value={source.slug}
-      label={source.name}
-      variant="outline"
-      data={{ 'data-source-kind': source.kind }}
-    >
-      {content}
-    </Menu>
+    <Badge variant="outline" data-source-kind={source.kind}>
+      <SourceBadgeContent source={source} />
+    </Badge>
   );
 }

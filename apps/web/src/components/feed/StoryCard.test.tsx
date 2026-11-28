@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
-import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { ClusterSourceLine } from './ClusterSourceLine';
 import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
@@ -62,7 +61,6 @@ function render(
   props: {
     isSaved?: boolean;
     compact?: boolean;
-    preferenceMenu?: typeof PreferenceMenu;
     relatedToggle?: typeof RelatedToggle;
     sourceLine?: typeof ClusterSourceLine;
     titleContent?: ReactNode;
@@ -158,18 +156,12 @@ describe('StoryCard', () => {
     error.mockRestore();
   });
 
-  const menuTriggers = (html: string) => html.match(/<button[^>]*aria-haspopup="menu"/g) ?? [];
-
-  it('AC-2.5.1 makes every tag and source badge a menu trigger where preferences apply', () => {
-    const html = render(STORY, { preferenceMenu: PreferenceMenu });
-    // Two tags and three sources; the badges keep their data attributes on the trigger.
-    expect(menuTriggers(html)).toHaveLength(5);
-    expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-tag="typescript"/);
-    expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*data-source-kind="hn"/);
-  });
-
-  it('keeps the badges plain without a preferenceMenu, as in the landing preview', () => {
-    expect(menuTriggers(render(STORY))).toHaveLength(0);
+  it('AC-2.5.1 renders the tag and source badges as plain badges that open no menu', () => {
+    const html = render(STORY);
+    expect(html).toContain('data-tag="typescript"');
+    expect(html).toContain('data-source-kind="hn"');
+    expect(html).not.toContain('aria-haspopup');
+    expect(html).not.toMatch(/<button[^>]*data-(tag|source-kind)=/);
   });
 
   it('links a TL;DR badge to the story page when the story has a summary', () => {

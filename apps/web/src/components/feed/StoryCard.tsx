@@ -1,5 +1,5 @@
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
-import type { ComponentProps, ComponentType, ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { FolderPlusIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
@@ -29,8 +29,6 @@ type StoryCardProps = {
   excerptLine?: ReactNode;
   /** Denser rows for previews: tags stay, the reading time goes. */
   compact?: boolean;
-  /** The Follow / Mute menu the tag and source badges open; absent where preferences don't apply, like the landing preview. */
-  preferenceMenu?: ComponentProps<typeof TagBadge>['menu'];
   /** The "+N related" control of a cluster card: the feed's expanding toggle or the landing preview's static link; passed in, so pages without clusters (/saved) load neither. */
   relatedToggle?: ComponentType<RelatedToggleProps>;
   /** The combined source line of a cluster card, in place of the per-source badges; passed in for the same reason as `relatedToggle`. */
@@ -52,7 +50,6 @@ export function StoryCard({
   titleContent,
   excerptLine,
   compact = false,
-  preferenceMenu,
   relatedToggle: RelatedToggle,
   sourceLine: SourceLine,
   onAddToCollection,
@@ -97,11 +94,7 @@ export function StoryCard({
             <SourceLine sources={cluster.sources} />
           ) : (
             story.sources.map((source) => (
-              <SourceBadge
-                key={`${source.slug}:${source.itemUrl}`}
-                source={source}
-                menu={preferenceMenu}
-              />
+              <SourceBadge key={`${source.slug}:${source.itemUrl}`} source={source} />
             ))
           )}
           <RelativeTime iso={story.publishedAt} />
@@ -109,7 +102,7 @@ export function StoryCard({
             <span>{story.readingTimeMinutes} min read</span>
           )}
           {visibleTags.map((tag) => (
-            <TagBadge key={tag} slug={tag} menu={preferenceMenu} />
+            <TagBadge key={tag} slug={tag} />
           ))}
           {hiddenTagCount > 0 && <span>+{hiddenTagCount}</span>}
           {story.hasSummary && isFeatureEnabled('summaries') && (
