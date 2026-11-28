@@ -40,6 +40,18 @@ describe('AppHeader', () => {
     expect(html).not.toContain('Control+K');
   });
 
+  it('AC-1.6.5 has exactly one theme control and no System option', () => {
+    const html = renderToStaticMarkup(
+      <HotkeysProvider>
+        <AppHeader features={off} />
+      </HotkeysProvider>,
+    );
+
+    expect(html.match(/Switch to dark theme/g)).toHaveLength(1);
+    expect(html).not.toContain('role="radio');
+    expect(html).not.toContain('System');
+  });
+
   it('flag off: no binding, so Ctrl+K opens nothing, and no help-dialog row', async () => {
     const container = document.body.appendChild(document.createElement('div'));
     await act(async () =>

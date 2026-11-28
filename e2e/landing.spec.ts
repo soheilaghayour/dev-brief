@@ -232,7 +232,7 @@ test('AC-L6 renders dark on first paint for a dark OS and keeps a chosen theme a
   await page.goto('/');
   expect(await firstPaintClass()).toContain('dark');
 
-  await page.getByRole('radio', { name: 'Light' }).click();
+  await page.getByRole('button', { name: 'Switch to light theme' }).click();
   await page.reload();
   expect(await firstPaintClass()).not.toContain('dark');
 });

@@ -82,8 +82,47 @@ test('with the OS in dark mode and no stored theme, the first paint is dark', as
 test('the theme choice persists across reloads', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/feed');
-  await page.getByRole('radio', { name: 'Dark' }).click();
+  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
-  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Switch to light theme' })).toBeVisible();
 });
+
+for (const path of ['/feed', '/']) {
+  test(`AC-1.6.5 on ${path} the theme button names the switch from first load, and the click persists`, async ({
+    page,
+  }) => {
+    const pageErrors: string[] = [];
+    const hydrationMessages: string[] = [];
+    page.on('console', (message) => {
+      if (
+        message.type() === 'error' &&
+        /hydrat|Minified React error #(418|423|425)/i.test(message.text())
+      ) {
+        hydrationMessages.push(message.text());
+      }
+    });
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto(path);
+    const toLight = page.getByRole('button', { name: 'Switch to light theme' });
+    await expect(toLight).toBeVisible();
+    await expect(toLight.locator('svg.lucide-moon')).toBeVisible();
+    await expect(toLight.locator('svg.lucide-sun')).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toHaveCount(0);
+
+    await toLight.click();
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    const toDark = page.getByRole('button', { name: 'Switch to dark theme' });
+    await expect(toDark).toBeVisible();
+    await expect(toDark.locator('svg.lucide-sun')).toBeVisible();
+    await expect(toDark.locator('svg.lucide-moon')).toBeHidden();
+
+    await page.reload();
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await expect(page.getByRole('button', { name: 'Switch to dark theme' })).toBeVisible();
+    expect(pageErrors).toEqual([]);
+    expect(hydrationMessages).toEqual([]);
+  });
+}

@@ -1,12 +1,12 @@
 'use client';
 
 import { toast } from 'sonner';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { FeedPreferencesSection } from '@/components/preferences/FeedPreferencesSection';
 import { Button } from '@/components/ui/Button';
 import { useMe } from '@/lib/auth/useMe';
 import { clearGuestData } from '@/lib/guest/clear';
 import { AccountSection } from './AccountSection';
+import { AppearanceSection } from './AppearanceSection';
 
 export function SettingsPage() {
   const { data: user, isPending } = useMe();
@@ -19,14 +19,7 @@ export function SettingsPage() {
   return (
     <div className="flex max-w-xl flex-col gap-8">
       <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-      <section aria-labelledby="appearance-heading" className="flex flex-col gap-3">
-        <h2 id="appearance-heading" className="text-sm font-medium">
-          Appearance
-        </h2>
-        <div>
-          <ThemeToggle />
-        </div>
-      </section>
+      <AppearanceSection />
       <FeedPreferencesSection />
       {isPending ? null : user ? (
         <AccountSection user={user} />
