@@ -17,8 +17,6 @@ export function parseKeyset(cursor: string, sort: FeedQuery['sort']): Keyset {
   return { sortKey: publishedAt, id };
 }
 
-const asSet = sortedSet;
-
 /** The query the feed runs: Latest orders by date, never by rankScore, so its boost params are dropped. */
 export function effectiveFeedQuery(query: FeedQuery): FeedQuery {
   return query.sort === 'top' ? query : { ...query, boostTags: undefined, boostSources: undefined };
@@ -29,14 +27,14 @@ export function feedCacheKey(query: FeedQuery) {
   return JSON.stringify([
     'feed',
     query.sort,
-    asSet(query.tags),
-    asSet(query.kinds),
-    asSet(query.sources),
+    sortedSet(query.tags),
+    sortedSet(query.kinds),
+    sortedSet(query.sources),
     query.q ?? null,
-    asSet(query.excludeTags),
-    asSet(query.excludeSources),
-    asSet(query.boostTags),
-    asSet(query.boostSources),
+    sortedSet(query.excludeTags),
+    sortedSet(query.excludeSources),
+    sortedSet(query.boostTags),
+    sortedSet(query.boostSources),
     query.cursor ?? null,
     query.limit,
   ]);

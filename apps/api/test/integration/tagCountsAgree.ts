@@ -3,13 +3,13 @@ import { FeedPageSchema, TagListSchema, TAG_SLUGS } from '@devbrief/shared';
 import request from 'supertest';
 import { expect } from 'vitest';
 
-// The internal token skips the per-IP rate limit, which one test file's hundreds of requests would hit.
 export type Params = Record<string, string | number>;
 
 export async function getTagCounts(app: INestApplication, params: Params = {}) {
   const response = await request(app.getHttpServer())
     .get('/api/v1/tags')
     .query(params)
+    // The internal token skips the per-IP rate limit, which one test file's hundreds of requests would hit.
     .set('x-internal-token', process.env.INTERNAL_API_TOKEN ?? '');
   expect(response.status).toBe(200);
   const list = TagListSchema.parse(response.body);

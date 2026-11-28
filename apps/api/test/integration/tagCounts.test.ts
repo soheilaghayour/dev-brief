@@ -101,7 +101,23 @@ describe('GET /api/v1/tags counts what the feed lists', () => {
     expect(counts['react']).toBeGreaterThan(0);
   });
 
-  it('AC-1.3.11 ignores tags, cursor, limit, boostTags and boostSources, and shares one cache entry', async () => {
+  it('AC-1.3.11 computes the same counts whatever tags, cursor, limit, boostTags and boostSources say', async () => {
+    const ignored = {
+      tags: 'react',
+      cursor: 'not-a-cursor',
+      limit: 3,
+      boostTags: 'rust',
+      boostSources: 'hn',
+    };
+    // The cache is cleared before each request, so both answers are computed, not shared.
+    const withIgnored = await getTagCounts(app, { q: 'compiler', ...ignored });
+    app.get(LruCache).clear();
+    const plain = await getTagCounts(app, { q: 'compiler' });
+    expect(withIgnored).toEqual(plain);
+    expect(plain['typescript']).toBeGreaterThan(0);
+  });
+
+  it('AC-1.3.11 answers a request that differs only in the ignored parameters from one cache entry', async () => {
     const plain = await getTagCounts(app, { q: 'compiler' });
     await createStory(prisma, {
       title: 'Compiler arrives late',
@@ -112,13 +128,22 @@ describe('GET /api/v1/tags counts what the feed lists', () => {
     const withIgnored = await getTagCounts(app, {
       q: 'compiler',
       tags: 'react',
-      cursor: 'not-a-cursor',
       limit: 3,
       boostTags: 'rust',
-      boostSources: 'hn',
     });
-    // The new story would raise react's count, so only the shared cache entry can give the old one.
+    // The new story would raise react's count, so only the shared entry can give the old one.
     expect(withIgnored).toEqual(plain);
+  });
+
+  it('AC-1.3.11 rejects an invalid sort and a 101-character q with 400 VALIDATION_FAILED', async () => {
+    for (const query of [{ sort: 'nonsense' }, { q: 'a'.repeat(101) }]) {
+      const response = await request(app.getHttpServer())
+        .get('/api/v1/tags')
+        .query(query)
+        .set('x-internal-token', process.env.INTERNAL_API_TOKEN ?? '');
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    }
   });
 
   it('AC-1.3.11 returns every taxonomy tag in order, 0 for a tag with no story, and no tag outside the taxonomy', async () => {
