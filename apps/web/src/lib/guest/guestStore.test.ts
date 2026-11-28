@@ -63,8 +63,8 @@ describe('guest store', () => {
     const { items, localStorage } = fakeLocalStorage();
     await loadStore({ localStorage });
     const guestPreferences = await import('./guestPreferences');
-    expect(await guestPreferences.setGuestPreference('tag', 'react', 'mute')).toBe('changed');
-    await guestPreferences.setGuestPreference('source', 'hn', 'follow');
+    expect(await guestPreferences.setGuestPreferences('tag', ['react'], 'mute')).toBe('changed');
+    await guestPreferences.setGuestPreferences('source', ['hn'], 'follow');
     const prefs = {
       follow: { tags: [], sources: ['hn'] },
       mute: { tags: ['react' as const], sources: [] },
@@ -84,7 +84,7 @@ describe('guest store', () => {
   it('AC-1.5.8 clearGuestData drops the preferences with the rest', async () => {
     const { localStorage } = fakeLocalStorage();
     const { useGuestStore, clearGuestData } = await loadStore({ localStorage });
-    await (await import('./guestPreferences')).setGuestPreference('tag', 'rust', 'follow');
+    await (await import('./guestPreferences')).setGuestPreferences('tag', ['rust'], 'follow');
     clearGuestData();
     expect(useGuestStore.getState().prefs.follow.tags).toEqual([]);
   });

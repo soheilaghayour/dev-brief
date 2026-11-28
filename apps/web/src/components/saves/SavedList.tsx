@@ -7,7 +7,6 @@ import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { InfiniteSentinel } from '@/components/feed/InfiniteSentinel';
 import { StoryCard } from '@/components/feed/StoryCard';
 import { LazyDigestExportMenu, LazyNoteSlot } from '@/components/notes/LazyNotes';
-import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { useNotesVersion } from './useNotesVersion';
 import { useSaves } from './useSaves';
 import { useSavedStories } from './useSavedStories';
@@ -51,7 +50,6 @@ export function SavedList() {
             story={story}
             isSaved={saves.isSaved(story.id)}
             onToggleSave={() => saves.toggle(story.id, { title: story.title })}
-            preferenceMenu={PreferenceMenu}
             note={<LazyNoteSlot storyId={story.id} />}
             onAddToCollection={
               addToCollection.canAdd ? () => addToCollection.open(story.id) : undefined

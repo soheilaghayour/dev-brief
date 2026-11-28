@@ -326,6 +326,12 @@ links to them instead of restating them.
 - **The chart hues are blue, olive, purple, ochre and rose in both themes, none within the terracotta hue.** Each reaches 3:1 on the background and on cards, and a chart line never reads as a link or a button. The dash patterns above still separate the lines without colour. The values are in `apps/web/src/app/globals.css`.
 - **`--brand` is used only for non-text marks and 24 px text.** `--primary` stays for links, button fills and the focus ring, because `--brand` on the background is under 4.5:1 in light mode.
 
+- **A kind-wide heart change is one batch through the preferences hook, and a batch that would pass a list's cap is refused whole.** The rule is [AC-2.5.1](docs/prd.md#f25-followmute); preferences are stored per source slug while a row is a kind, so one click is one cache patch and one `PUT` (or one guest-store write) instead of a request per source, and a half-applied kind would show a state no click can reach.
+- **The heart is a sibling of the row's filter label, not inside it.** A button inside the `<label>` would toggle the checkbox too; the label keeps wrapping the checkbox, so the pointer rule in `globals.css` still reaches it, and the heart sits at the row's end after the count (or the health dot).
+- **The heart is an outline heart (neither), a heart filled with `--brand` (followed) and a crossed heart in the foreground colour (muted).** Outline, filled and crossed differ in shape, so colour is not the only cue; `--brand` is a non-text mark with 3:1 on the background and cards in both themes, and the neutral states use the muted and normal text colours.
+- **Muting from the sidebar leaves focus on the heart, and nothing moves it.** The heart stays mounted when the cards leave, so it keeps focus without any handling.
+- **The Settings page lists every tag of the taxonomy and every source kind `/sources` lists, each with the same heart as the sidebar.** The tags come from the shared taxonomy and need no request; the sources use the sidebar's query, so a change on one page shows on the other through the same hook.
+
 ## Open PM questions
 
 - Buying the domain (`devbrief.dev` is a placeholder): [O2](docs/prd.md#34-open-items).

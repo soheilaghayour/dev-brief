@@ -7,6 +7,8 @@ const GUEST_STORAGE_KEY = 'devbrief:guest:v1';
 
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const tagBadges = (page: Page, slug: string) => cards(page).locator(`[data-tag="${slug}"]`);
+const heart = (page: Page, label: string) =>
+  page.getByRole('button', { name: new RegExp(`^${label}: `) });
 
 async function openFeed(page: Page) {
   await page.goto('/feed');
@@ -19,17 +21,24 @@ async function storedPrefs(page: Page) {
   return (JSON.parse(stored ?? '{}') as { prefs?: unknown }).prefs;
 }
 
-test('AC-2.5.1 AC-2.5.2 a guest mutes a tag from a badge, its stories disappear and stay hidden after a reload', async ({
+test('AC-2.5.1 AC-2.5.2 a guest follows then mutes a tag with its heart, its stories leave the feed and stay hidden after a reload', async ({
   page,
 }) => {
   await openFeed(page);
   await expect(tagBadges(page, 'rust').first()).toBeVisible();
+  const rustHeart = heart(page, 'Rust');
+  await expect(rustHeart).toBeEnabled();
 
-  await tagBadges(page, 'rust').first().click();
-  await expect(page.getByRole('menu')).toContainText('Rust');
-  await page.getByRole('menuitemcheckbox', { name: 'Mute' }).click();
+  await rustHeart.click();
+  await expect(rustHeart).toHaveAccessibleName('Rust: following. Click to mute.');
+  await expect(tagBadges(page, 'rust').first()).toBeVisible();
+  await rustHeart.click();
+  await expect(rustHeart).toHaveAccessibleName('Rust: muted. Click to clear.');
 
   await expect(tagBadges(page, 'rust')).toHaveCount(0);
+  // The heart is not the row's filter, and it keeps focus when the cards leave.
+  await expect(rustHeart).toBeFocused();
+  expect(new URL(page.url()).search).toBe('');
   expect(await storedPrefs(page)).toEqual({
     follow: { tags: [], sources: [] },
     mute: { tags: ['rust'], sources: [] },
@@ -44,23 +53,55 @@ test('AC-2.5.1 AC-2.5.2 a guest mutes a tag from a badge, its stories disappear 
   await personalised;
   await page.waitForLoadState('networkidle');
   await expect(tagBadges(page, 'rust')).toHaveCount(0);
+  // A muted tag stays in the list with the crossed heart.
+  await expect(heart(page, 'Rust')).toHaveAccessibleName('Rust: muted. Click to clear.');
   expect(new URL(page.url()).search).toBe('');
 
   await page.goto('/settings');
-  await expect(page.getByRole('button', { name: 'Unmute Rust' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rust: muted. Click to clear.' })).toBeVisible();
+});
+
+test('AC-2.5.1 AC-2.5.2 a guest mutes a source kind with its heart and its stories leave the feed', async ({
+  page,
+}) => {
+  await openFeed(page);
+  // Seeded stories: ce2e00000019 is on Hacker News only, ce2e00000005 on Hacker News and Dev.to; both rank on the first page of Top.
+  const hnOnly = cards(page).and(page.locator('[data-story-id="ce2e00000019"]'));
+  const hnAndDevto = cards(page).and(page.locator('[data-story-id="ce2e00000005"]'));
+  await expect(hnOnly).toBeVisible();
+  await expect(hnAndDevto).toBeVisible();
+  const kindHeart = heart(page, 'Hacker News');
+  await expect(kindHeart).toBeEnabled();
+
+  await kindHeart.click();
+  await expect(kindHeart).toHaveAccessibleName('Hacker News: following. Click to mute.');
+  const muteRequest = page.waitForRequest(
+    (request) =>
+      request.url().includes('/api/v1/feed?') && request.url().includes('excludeSources=hn'),
+  );
+  await kindHeart.click();
+  await expect(kindHeart).toHaveAccessibleName('Hacker News: muted. Click to clear.');
+
+  // A muted source hides a story only when every one of its sources is muted.
+  await muteRequest;
+  await page.waitForLoadState('networkidle');
+  await expect(hnOnly).toHaveCount(0);
+  await expect(hnAndDevto).toBeVisible();
+  await expect(kindHeart).toBeFocused();
 });
 
 test('AC-2.5.1 AC-2.5.3 a guest follows a tag by keyboard, signs in, and Settings shows the follow from the server', async ({
   page,
 }) => {
   await openFeed(page);
-  const badge = tagBadges(page, 'databases').first();
-  await badge.focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('menu')).toContainText('Databases');
-  await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('menuitemcheckbox', { name: 'Follow' })).toBeFocused();
-  await page.keyboard.press('Enter');
+  const databasesHeart = heart(page, 'Databases');
+  await expect(databasesHeart).toBeEnabled();
+  // The row's Tab order is its filter checkbox, then the heart.
+  await page.getByRole('checkbox', { name: /^Databases/ }).focus();
+  await page.keyboard.press('Tab');
+  await expect(databasesHeart).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(databasesHeart).toHaveAccessibleName('Databases: following. Click to mute.');
   await expect
     .poll(() => storedPrefs(page))
     .toEqual({
@@ -76,23 +117,13 @@ test('AC-2.5.1 AC-2.5.3 a guest follows a tag by keyboard, signs in, and Setting
     .toEqual({ follow: { tags: [], sources: [] }, mute: { tags: [], sources: [] } });
 
   await page.goto('/settings');
-  await expect(page.getByRole('button', { name: 'Unfollow Databases' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Databases: following. Click to mute.' }),
+  ).toBeVisible();
 });
 
-test('AC-2.5.1 Space opens a badge menu, Esc closes it, and a mute leaves focus on the next card', async ({
-  page,
-}) => {
+test('AC-2.5.1 a tag badge on a card opens no menu', async ({ page }) => {
   await openFeed(page);
-  const badge = tagBadges(page, 'rust').first();
-  await badge.focus();
-  await page.keyboard.press('Space');
-  await expect(page.getByRole('menu')).toContainText('Rust');
-  await page.keyboard.press('Escape');
+  await tagBadges(page, 'rust').first().click();
   await expect(page.getByRole('menu')).toHaveCount(0);
-
-  await page.keyboard.press('Space');
-  await page.getByRole('menuitemcheckbox', { name: 'Mute' }).click();
-  await expect(tagBadges(page, 'rust')).toHaveCount(0);
-  // Focus must not fall back to the page.
-  await expect(page.locator('body')).not.toBeFocused();
 });

@@ -1,7 +1,6 @@
 import type { StoryDetail } from '@devbrief/shared';
 import { RelativeTime } from '@/components/feed/RelativeTime';
 import { SourceBadge } from '@/components/feed/SourceBadge';
-import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 
 /** Every SourceItem behind the story: where it ran, by whom, its numbers and a link to the thread. */
 export function SourceItemList({ items }: { items: StoryDetail['items'] }) {
@@ -19,7 +18,7 @@ export function SourceItemList({ items }: { items: StoryDetail['items'] }) {
             key={`${item.slug}:${item.itemUrl}`}
             className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5"
           >
-            <SourceBadge source={item} menu={PreferenceMenu} />
+            <SourceBadge source={item} />
             <span className="text-muted-foreground text-xs">
               {item.author && <>by {item.author} · </>}
               <RelativeTime iso={item.publishedAt} style="long" />

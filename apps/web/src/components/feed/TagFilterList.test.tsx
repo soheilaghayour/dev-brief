@@ -19,6 +19,9 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@/components/preferences/usePreferenceState', () => ({
   usePreferenceState: () => ({ feedParams: {} }),
 }));
+vi.mock('@/components/preferences/usePreferences', () => ({
+  usePreferences: () => ({ isReady: true, modeOf: () => null, setMode: () => {} }),
+}));
 vi.mock('./feedQueries', () => ({
   tagsQueryOptions: () => ({ queryKey: ['tags'] }),
   personalisedTagsPlaceholder: () => () => undefined,

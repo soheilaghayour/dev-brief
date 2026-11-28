@@ -1,22 +1,6 @@
-import type { TagSlug } from '@devbrief/shared';
-import { TAG_LABELS } from '@devbrief/shared';
-import type { ComponentType } from 'react';
-import type { PreferenceMenuProps } from '@/components/preferences/PreferenceMenu';
+import { TAG_LABELS, type TagSlug } from '@devbrief/shared';
 import { Badge } from '@/components/ui/Badge';
-import type { PreferenceKind } from '@/lib/guest/preferences';
 
-type TagBadgeProps = {
-  slug: TagSlug;
-  /** The Follow / Mute menu the badge opens; passed in, so pages without one (the landing preview) don't load it. */
-  menu?: ComponentType<PreferenceMenuProps<PreferenceKind>>;
-};
-
-export function TagBadge({ slug, menu: Menu }: TagBadgeProps) {
-  const label = TAG_LABELS[slug];
-  if (!Menu) return <Badge data-tag={slug}>{label}</Badge>;
-  return (
-    <Menu kind="tag" value={slug} label={label} variant="secondary" data={{ 'data-tag': slug }}>
-      {label}
-    </Menu>
-  );
+export function TagBadge({ slug }: { slug: TagSlug }) {
+  return <Badge data-tag={slug}>{TAG_LABELS[slug]}</Badge>;
 }

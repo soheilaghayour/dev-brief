@@ -5,7 +5,6 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useAddToCollection } from '@/components/collections/AddToCollection';
 import { splitSearchPieces } from '@devbrief/shared';
 import type { StoryCard as StoryCardData } from '@devbrief/shared';
-import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
 import { FeedEmpty } from './FeedEmpty';
@@ -18,12 +17,10 @@ import { hideMuted } from './hideMuted';
 import { HighlightedText } from './HighlightedText';
 import { highlightCard } from './searchHighlight';
 import { InfiniteSentinel } from './InfiniteSentinel';
-import { focusStory, scrollToStory } from '@/components/storyListDom';
 import { ClusterSourceLine } from './ClusterSourceLine';
 import { RelatedToggle } from './RelatedToggle';
 import { StoryCard } from './StoryCard';
 import { useFeedFilters } from './useFeedFilters';
-import { useFocusAfterRemoval } from './useFocusAfterRemoval';
 
 /** What a search result card renders instead of the plain title, plus the excerpt line when a piece is missing from the title. */
 function highlightProps(story: StoryCardData, pieces: string[]) {
@@ -33,11 +30,6 @@ function highlightProps(story: StoryCardData, pieces: string[]) {
     titleContent: <HighlightedText text={story.title} ranges={titleRanges} />,
     excerptLine: snippet && <HighlightedText text={snippet.text} ranges={snippet.ranges} />,
   };
-}
-
-function focusAndReveal(storyId: string) {
-  focusStory(storyId);
-  scrollToStory(storyId);
 }
 
 export function FeedList() {
@@ -59,7 +51,6 @@ export function FeedList() {
   const searchPieces = useMemo(() => splitSearchPieces(markedQuery), [markedQuery]);
   // The server-rendered page and a list kept while preferences change still hold muted stories.
   const stories = useMemo(() => hideMuted(flattenPages(data?.pages ?? []), prefs), [data, prefs]);
-  const trackFocus = useFocusAfterRemoval(stories, focusAndReveal);
 
   // Stable, so the sentinel's observer isn't rebuilt on every render.
   const loadNextPage = useCallback(() => {
@@ -76,12 +67,7 @@ export function FeedList() {
   }
 
   return (
-    <div
-      role="feed"
-      aria-busy={isFetchingNextPage}
-      aria-label="Stories"
-      onFocusCapture={trackFocus}
-    >
+    <div role="feed" aria-busy={isFetchingNextPage} aria-label="Stories">
       {stories.map((story) => (
         <StoryCard
           key={story.id}
@@ -89,7 +75,6 @@ export function FeedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => saves.toggle(story.id, { title: story.title })}
           {...highlightProps(story, searchPieces)}
-          preferenceMenu={PreferenceMenu}
           relatedToggle={RelatedToggle}
           sourceLine={ClusterSourceLine}
           onAddToCollection={

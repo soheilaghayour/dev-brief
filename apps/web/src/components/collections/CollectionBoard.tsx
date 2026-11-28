@@ -8,7 +8,6 @@ import { FeedError } from '@/components/feed/FeedError';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { StoryCard } from '@/components/feed/StoryCard';
 import { LazyDigestExportMenu, LazyNoteSlot } from '@/components/notes/LazyNotes';
-import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { lookupInChunks } from '@/components/saves/savedStories';
 import { useNotesVersion } from '@/components/saves/useNotesVersion';
 import { useSaves } from '@/components/saves/useSaves';
@@ -134,7 +133,6 @@ function BoardContent({ collection }: { collection: CollectionView }) {
                 story={story}
                 isSaved={saves.isSaved(story.id)}
                 onToggleSave={() => saves.toggle(story.id, { title: story.title })}
-                preferenceMenu={PreferenceMenu}
                 note={<LazyNoteSlot storyId={story.id} />}
                 onAddToCollection={
                   addToCollection.canAdd ? () => addToCollection.open(story.id) : undefined

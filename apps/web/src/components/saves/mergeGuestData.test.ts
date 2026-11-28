@@ -14,7 +14,7 @@ vi.mock('@/config/features', () => ({
 }));
 
 const { mergeGuestData } = await import('./mergeGuestData');
-const { setGuestPreference } = await import('@/lib/guest/guestPreferences');
+const { setGuestPreferences } = await import('@/lib/guest/guestPreferences');
 const { latestGuestData } = await import('@/lib/guest/guestSaves');
 const { useGuestStore } = await import('@/lib/guest/guestStore');
 const { hydrateGuestStore } = await import('@/lib/guest/hydrateGuestStore');
@@ -29,8 +29,8 @@ const PREFS_CONFIRMED: MergeResponse = {
 describe('mergeGuestData preferences', () => {
   beforeEach(async () => {
     mergeSaves.mockReset();
-    await setGuestPreference('tag', 'rust', 'follow');
-    await setGuestPreference('tag', 'career', 'mute');
+    await setGuestPreferences('tag', ['rust'], 'follow');
+    await setGuestPreferences('tag', ['career'], 'mute');
   });
 
   it('AC-2.5.3 keeps the device preferences and the pending flag when the merge fails', async () => {
@@ -48,7 +48,7 @@ describe('mergeGuestData preferences', () => {
     let duringRequest;
     mergeSaves.mockImplementation(async () => {
       duringRequest = (await latestGuestData()).prefs.follow.tags;
-      await setGuestPreference('tag', 'go', 'follow');
+      await setGuestPreferences('tag', ['go'], 'follow');
       return PREFS_CONFIRMED;
     });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { SourceKindHeart } from '@/components/preferences/SourceKindHeart';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatRelativeTime } from '@/lib/format/formatRelativeTime';
@@ -44,6 +45,7 @@ export function SourceFilterList() {
               <span className="flex-1 truncate">{SOURCE_KIND_LABELS[kind]}</span>
             </label>
             <HealthDot status={health.status} tooltip={tooltipFor(health)} />
+            <SourceKindHeart kind={kind} />
           </div>
         ))}
     </fieldset>
