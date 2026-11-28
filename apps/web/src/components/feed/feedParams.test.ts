@@ -16,7 +16,11 @@ const NONE: FeedFilters = { sort: 'top', tags: [], kinds: [], sources: [], q: ''
 
 describe('loadFeedSearchParams', () => {
   it('AC-1.3.1 reads the defaults from an empty URL', () => {
-    expect(loadFeedSearchParams({})).toEqual({ ...NONE, focus: null });
+    expect(loadFeedSearchParams({})).toEqual(NONE);
+  });
+
+  it('AC-1.3.1 ignores a leftover focus parameter', () => {
+    expect(loadFeedSearchParams({ focus: 'story-1' })).toEqual(NONE);
   });
 
   it('AC-1.3.3 splits comma-separated lists', () => {

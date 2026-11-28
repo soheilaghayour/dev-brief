@@ -1,21 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { SearchIcon } from 'lucide-react';
 import { FEED_QUERY_MAX } from '@devbrief/shared';
 import { Input } from '@/components/ui/Input';
-import { Kbd } from '@/components/ui/Kbd';
-import { useShortcut } from '@/lib/hotkeys/HotkeysProvider';
-import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { useFeedFilters } from './useFeedFilters';
-
-const FOCUS_SEARCH = {
-  id: 'focus-search',
-  keys: '/',
-  description: 'Focus search',
-  scope: 'Feed',
-} satisfies Shortcut;
 
 const URL_DEBOUNCE_MS = 250;
 
@@ -26,7 +16,6 @@ export function SearchInput() {
   const [draft, setDraft] = useState(urlQuery);
   // The query the draft last agreed with; a URL change from elsewhere (Clear all, a chip) resets the draft.
   const [agreedQuery, setAgreedQuery] = useState(urlQuery);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   if (urlQuery !== agreedQuery) {
     setAgreedQuery(urlQuery);
@@ -46,12 +35,6 @@ export function SearchInput() {
   function updateDraft(event: ChangeEvent<HTMLInputElement>) {
     setDraft(event.target.value);
   }
-  function focusSearch(event: KeyboardEvent) {
-    event.preventDefault();
-    inputRef.current?.focus();
-  }
-
-  useShortcut(FOCUS_SEARCH, focusSearch);
 
   return (
     <div className="relative w-full max-w-md min-w-0">
@@ -60,20 +43,14 @@ export function SearchInput() {
         aria-hidden="true"
       />
       <Input
-        ref={inputRef}
         type="search"
         aria-label="Search stories"
         placeholder="Search stories…"
         value={draft}
         maxLength={FEED_QUERY_MAX}
         onChange={updateDraft}
-        className="min-w-0 pr-2 pl-8 md:pr-8"
+        className="min-w-0 pr-2 pl-8"
       />
-      {draft === '' && (
-        <Kbd className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 md:inline-flex">
-          /
-        </Kbd>
-      )}
     </div>
   );
 }

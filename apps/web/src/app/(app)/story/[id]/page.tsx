@@ -11,7 +11,6 @@ import { getStory } from '@/lib/api/endpoints';
 
 type StoryPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ summarize?: string }>;
 };
 
 const SUMMARY_SOURCE_KINDS = new Set<string>(['hn', 'devto']);
@@ -32,10 +31,9 @@ export async function generateMetadata({ params }: StoryPageProps) {
   return { title: story?.title ?? 'Story not found' };
 }
 
-export default async function StoryPage({ params, searchParams }: StoryPageProps) {
+export default async function StoryPage({ params }: StoryPageProps) {
   const story = await loadStory((await params).id);
   if (!story) notFound();
-  const autoStart = (await searchParams).summarize === '1';
   // A cluster summary draws on every member, so it names every member's sources; only HN and Dev.to feed a summary (hasSummaryInput).
   const sourceNames = [
     ...new Set(
@@ -54,7 +52,6 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
           summary={story.summary ?? null}
           canSummarize={story.canSummarize ?? false}
           origin={{ url: story.url, domain: story.domain, sourceNames }}
-          autoStart={autoStart}
         />
       )}
       {isFeatureEnabled('collections') && <StoryNote storyId={story.id} />}

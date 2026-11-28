@@ -9,7 +9,7 @@ async function openFeed(page: Page, search = '') {
   await page.goto(`/feed${search}`);
   // The sidebar fetches tags and sources after hydration, so an idle network means the page is interactive.
   await page.waitForLoadState('networkidle');
-  // The shortcuts bind after the lazy hotkeys chunk loads; keys pressed earlier are lost.
+  // The hotkeys flag marks the page as hydrated, so the clicks are not lost.
   await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
 }
 
@@ -44,21 +44,17 @@ test('AC-1.4.1 AC-1.4.2 AC-1.4.3 a guest filters by tag, saves, reloads and find
   await expect(cards(page).first().locator('h2 a')).toHaveText(title);
 });
 
-test('AC-1.3.8 AC-1.4.1 s saves the active card and the toast shows once per session', async ({
-  page,
-}) => {
+test('AC-1.4.1 saving a story shows the toast once per session', async ({ page }) => {
   await openFeed(page, '?sort=latest');
-  await page.keyboard.press('j');
-  await page.keyboard.press('s');
+  await saveButton(cards(page).first()).click();
   await expect(saveButton(cards(page).first())).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText(TOAST)).toBeVisible();
 
-  await page.keyboard.press('j');
-  await page.keyboard.press('s');
+  await saveButton(cards(page).nth(1)).click();
   await expect(saveButton(cards(page).nth(1))).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText(TOAST)).toHaveCount(1);
 
-  await page.keyboard.press('s');
+  await saveButton(cards(page).nth(1)).click();
   await expect(saveButton(cards(page).nth(1))).toHaveAttribute('aria-pressed', 'false');
 });
 

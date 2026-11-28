@@ -8,43 +8,35 @@ import { feedSearchParams, toFeedFilters, toggleValue } from './feedParams';
 // Filter changes replace the history entry, so Back leaves the feed instead of stepping through filters.
 const URL_OPTIONS = { history: 'replace' } as const;
 
-/** The feed filters read from and written to the URL; every change also drops the one-shot `focus`. */
+/** The feed filters read from and written to the URL. */
 export function useFeedFilters() {
   const [raw, setRaw] = useQueryStates(feedSearchParams, URL_OPTIONS);
-  const { sort, tags, kinds, sources, q, focus } = raw;
+  const { sort, tags, kinds, sources, q } = raw;
   const filters = useMemo(
     () => toFeedFilters({ sort, tags, kinds, sources, q }),
     [sort, tags, kinds, sources, q],
   );
 
   function setSort(next: typeof sort) {
-    return setRaw({ sort: next, focus: null });
-  }
-  function toggleSort() {
-    return setSort(sort === 'top' ? 'latest' : 'top');
+    return setRaw({ sort: next });
   }
   function toggleTag(slug: TagSlug) {
-    return setRaw({ tags: toggleValue(filters.tags, slug), focus: null });
+    return setRaw({ tags: toggleValue(filters.tags, slug) });
   }
   function toggleKind(kind: SourceKind) {
-    return setRaw({ kinds: toggleValue(filters.kinds, kind), focus: null });
+    return setRaw({ kinds: toggleValue(filters.kinds, kind) });
   }
   function removeSource(slug: string) {
-    return setRaw({
-      sources: filters.sources.filter((existing) => existing !== slug),
-      focus: null,
-    });
+    return setRaw({ sources: filters.sources.filter((existing) => existing !== slug) });
   }
-  const setQuery = useCallback((next: string) => setRaw({ q: next, focus: null }), [setRaw]);
+  const setQuery = useCallback((next: string) => setRaw({ q: next }), [setRaw]);
   function clearAll() {
-    return setRaw({ tags: null, kinds: null, sources: null, q: null, focus: null });
+    return setRaw({ tags: null, kinds: null, sources: null, q: null });
   }
 
   return {
     filters,
-    focus,
     setSort,
-    toggleSort,
     toggleTag,
     toggleKind,
     removeSource,

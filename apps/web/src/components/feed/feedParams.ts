@@ -17,7 +17,6 @@ export const feedSearchParams = {
   kinds: parseAsArrayOf(parseAsString).withDefault([]),
   sources: parseAsArrayOf(parseAsString).withDefault([]),
   q: parseAsString.withDefault(''),
-  focus: parseAsString,
 };
 
 export const loadFeedSearchParams = createLoader(feedSearchParams);

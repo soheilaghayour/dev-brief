@@ -146,13 +146,6 @@ describe('StoryCard', () => {
     expect(html).not.toContain('min read');
   });
 
-  it('AC-1.3.8 marks the active card', () => {
-    const html = renderToStaticMarkup(
-      <StoryCard story={STORY} isSaved={false} onToggleSave={() => {}} isActive />,
-    );
-    expect(html).toContain('data-active="true"');
-  });
-
   it('keys two items of the same source apart, as an HN repost produces', () => {
     const [hn] = STORY.sources;
     if (!hn) throw new Error('fixture has sources');

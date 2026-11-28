@@ -6,21 +6,14 @@ import { signInThroughTestRoute } from './signIn';
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Collections' });
 
-// The shortcuts bind after the lazy hotkeys chunk loads, and the dialog's chunk after `a`; keys typed earlier are lost.
+// The hotkeys flag marks the page as hydrated, so the click is not lost.
 async function openAddDialog(page: Page) {
   await page.goto('/feed?sort=latest');
   await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
-  await expect(
-    cards(page).first().getByRole('button', { name: 'Add to collection' }),
-  ).toBeVisible();
-  await page.keyboard.press('j');
-  await expect(cards(page).first()).toHaveAttribute('data-active', 'true');
+  const addButton = cards(page).first().getByRole('button', { name: 'Add to collection' });
+  await addButton.click();
   const dialog = page.getByRole('dialog', { name: 'Add to collection' });
-  // The card's `a` binding registers in an effect just after `data-active` shows, so the first press can land a moment early.
-  await expect(async () => {
-    if (!(await dialog.isVisible())) await page.keyboard.press('a');
-    await expect(dialog).toBeVisible({ timeout: 1000 });
-  }).toPass();
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('textbox')).toBeFocused();
   return dialog;
 }
@@ -34,7 +27,7 @@ async function createCollection(page: Page, name: string) {
   await expect(sidebar(page).getByRole('link', { name })).toBeVisible();
 }
 
-test('AC-3.4.1 AC-3.4.3 a guest creates a collection, adds a story with a, reloads and finds it on the board', async ({
+test('AC-3.4.1 AC-3.4.3 a guest creates a collection, adds a story from its card, reloads and finds it on the board', async ({
   page,
 }) => {
   await createCollection(page, 'Frontend Architecture');
@@ -46,8 +39,9 @@ test('AC-3.4.1 AC-3.4.3 a guest creates a collection, adds a story with a, reloa
   await expect(dialog.getByRole('checkbox', { name: /Frontend Architecture/ })).toBeChecked();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
-  // Focus is back on the card's title link, where it was when `a` was pressed.
-  await expect(cards(page).first().locator('h2 a')).toBeFocused();
+  await expect(
+    cards(page).first().getByRole('button', { name: 'Add to collection' }),
+  ).toBeFocused();
 
   await page.goto('/saved');
   await page.reload();

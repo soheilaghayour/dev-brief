@@ -11,13 +11,7 @@ import { SummarizeButton } from './SummarizeButton';
 
 const api = vi.hoisted(() => ({ summarizeStory: vi.fn() }));
 vi.mock('@/lib/api/endpoints', () => api);
-const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: navigation.replace }),
-  usePathname: () => '/story/story-1',
-}));
 vi.mock('@/lib/guest/loadDeviceId', () => ({ loadDeviceId: async () => 'device-1' }));
-vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
 const me = vi.hoisted(() => ({ user: null as { id: string } | null }));
 vi.mock('@/lib/auth/useMe', () => ({ useMe: () => ({ data: me.user }) }));
 
@@ -39,15 +33,14 @@ let container: HTMLDivElement;
 let unmount = () => {};
 let queryClient: QueryClient;
 
-async function render(autoStart = false, cached?: StorySummary) {
+async function render() {
   queryClient = new QueryClient();
-  if (cached) queryClient.setQueryData(['summary', 'story-1'], cached);
   const root = createRoot(container);
   unmount = () => act(() => root.unmount());
   await act(async () => {
     root.render(
       <QueryClientProvider client={queryClient}>
-        <SummarizeButton storyId="story-1" origin={ORIGIN} autoStart={autoStart} />
+        <SummarizeButton storyId="story-1" origin={ORIGIN} />
       </QueryClientProvider>,
     );
   });
@@ -69,7 +62,6 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.append(container);
   api.summarizeStory.mockReset();
-  navigation.replace.mockReset();
   me.user = null;
 });
 
@@ -110,35 +102,6 @@ describe('SummarizeButton', () => {
 
     expect(container.querySelector('a')?.getAttribute('href')).toBe(ORIGIN.url);
     expect(container.textContent).toContain('Source: Hacker News');
-  });
-
-  it('starts once on its own for ?summarize=1', async () => {
-    api.summarizeStory.mockResolvedValue(SUMMARY);
-
-    await render(true);
-    await act(async () => {
-      await new Promise((done) => setTimeout(done, 10));
-    });
-
-    expect(api.summarizeStory).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toContain('First point');
-  });
-
-  it('removes ?summarize=1 from the URL once it has started, so a reload does not summarize again', async () => {
-    api.summarizeStory.mockResolvedValue(SUMMARY);
-
-    await render(true);
-
-    expect(navigation.replace).toHaveBeenCalledTimes(1);
-    expect(navigation.replace).toHaveBeenCalledWith('/story/story-1', { scroll: false });
-  });
-
-  it('does not start for ?summarize=1 when the summary is already cached', async () => {
-    await render(true, SUMMARY);
-
-    expect(api.summarizeStory).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('First point');
-    expect(navigation.replace).toHaveBeenCalledTimes(1);
   });
 
   it('AC-2.3.4 shows the budget copy on 503 SPEND_CAP_REACHED', async () => {

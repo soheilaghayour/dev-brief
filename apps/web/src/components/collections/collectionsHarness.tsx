@@ -3,7 +3,6 @@ import { act } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { expect, vi } from 'vitest';
 import type { GuestCollection } from '@/lib/guest/collectionsState';
 import { useGuestStore } from '@/lib/guest/guestStore';
 import { hydrateGuestStore } from '@/lib/guest/hydrateGuestStore';
@@ -85,13 +84,7 @@ export async function preloadLazyModules() {
     import('./CollectionDialogs'),
     import('./CollectionMenuDropdown'),
     import('./collectionNotice'),
-    import('@/lib/hotkeys/ShortcutBindings'),
   ]);
-}
-
-/** Waits for the hotkeys provider to attach its handlers. */
-export async function hotkeysReady() {
-  await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
 }
 
 export async function typeInto(input: HTMLInputElement, text: string) {
