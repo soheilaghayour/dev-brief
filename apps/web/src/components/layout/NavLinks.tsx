@@ -23,7 +23,7 @@ export function NavLinks() {
             )}
           >
             <item.Icon className="size-4" />
-            <span className="flex-1">{item.label}</span>
+            <span>{item.label}</span>
           </Link>
         );
       })}
