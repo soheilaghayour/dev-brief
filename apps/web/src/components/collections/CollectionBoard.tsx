@@ -42,7 +42,9 @@ function BoardEmpty() {
       <FolderOpenIcon className="text-muted-foreground size-8" aria-hidden="true" />
       <div>
         <p className="font-medium">Nothing in this collection yet</p>
-        <p className="text-muted-foreground mt-1">Use a story's folder button to add it here.</p>
+        <p className="text-muted-foreground mt-1">
+          Use a story's Add to collection button to add it here.
+        </p>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ function SavedEmpty() {
       <div>
         <p className="font-medium">Nothing saved yet</p>
         <p className="text-muted-foreground mt-1">
-          Use a story's bookmark in the feed to keep it here.
+          Use a story's Save button in the feed to keep it here.
         </p>
       </div>
     </div>
