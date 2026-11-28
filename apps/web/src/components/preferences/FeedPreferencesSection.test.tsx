@@ -3,10 +3,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TAG_LABELS, TAG_SLUGS } from '@devbrief/shared';
 import { EMPTY_PREFERENCES } from '@/lib/guest/guestState';
 
+const sourcesQuery = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 const preferences = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useQuery: () => ({
+  useQuery: () => sourcesQuery.current,
+}));
+vi.mock('./usePreferences', () => ({ usePreferences: () => preferences.current }));
+
+const { FeedPreferencesSection } = await import('./FeedPreferencesSection');
+
+beforeEach(() => {
+  sourcesQuery.current = {
+    isPending: false,
+    isError: false,
     data: {
       sources: [
         { slug: 'hn', kind: 'hn', status: 'healthy', lastSuccessAt: null },
@@ -14,13 +24,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => ({
         { slug: 'blog-b', kind: 'rss', status: 'healthy', lastSuccessAt: null },
       ],
     },
-  }),
-}));
-vi.mock('./usePreferences', () => ({ usePreferences: () => preferences.current }));
-
-const { FeedPreferencesSection } = await import('./FeedPreferencesSection');
-
-beforeEach(() => {
+  };
   preferences.current = {
     isReady: true,
     isError: false,
@@ -54,9 +58,10 @@ describe('FeedPreferencesSection', () => {
     expect(html).not.toContain('Dev.to:');
   });
 
-  it('AC-2.5.1 no longer tells to follow or mute from a badge, and has no chips', () => {
+  it('AC-2.5.1 says the sources are unavailable when their request fails, and still lists every tag', () => {
+    sourcesQuery.current = { isPending: false, isError: true, data: undefined };
     const html = renderToStaticMarkup(<FeedPreferencesSection />);
-    expect(html).not.toContain('badge');
-    expect(html).not.toContain('Followed:');
+    expect(html).toContain('Sources unavailable.');
+    expect(html).toContain('aria-label="React: not followed. Click to follow."');
   });
 });
