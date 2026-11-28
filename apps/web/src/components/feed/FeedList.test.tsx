@@ -10,11 +10,7 @@ import { FeedList } from './FeedList';
 import { feedQueryOptions } from './feedQueries';
 
 const query = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-const features = vi.hoisted(() => ({
-  summaries: false,
-  focus: null as string | null,
-  q: '',
-}));
+const features = vi.hoisted(() => ({ q: '' }));
 const preferences = vi.hoisted(() => ({ prefs: undefined as Preferences | undefined }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -34,16 +30,10 @@ vi.mock('./feedQueries', () => ({
   feedQueryOptions: vi.fn(() => ({})),
   personalisedPlaceholder: () => () => undefined,
 }));
-vi.mock('@/config/features', () => ({ isFeatureEnabled: () => features.summaries }));
-vi.mock('./SummarizeShortcut', () => ({
-  SummarizeShortcut: ({ storyId }: { storyId: string }) => <i data-summarize-shortcut={storyId} />,
-}));
-vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
+vi.mock('@/config/features', () => ({ isFeatureEnabled: () => false }));
 vi.mock('./useFeedFilters', () => ({
   useFeedFilters: () => ({
     filters: { sort: 'top', tags: ['react'], kinds: [], sources: [], q: features.q },
-    focus: features.focus,
-    toggleSort: () => {},
     clearAll: () => {},
   }),
 }));
@@ -99,33 +89,9 @@ beforeEach(() => {
   mockQuery({});
   features.q = '';
   preferences.prefs = undefined;
-  features.summaries = false;
-  features.focus = null;
 });
 
 describe('FeedList', () => {
-  it('AC-2.3.12 binds the `u` shortcut while the active story can be summarised or has a summary', () => {
-    features.summaries = true;
-    features.focus = 'a';
-    const withInput = { ...story('a'), canSummarize: true };
-    mockQuery({
-      data: { pages: [{ items: [withInput], nextCursor: null }], pageParams: [undefined] },
-    });
-    expect(renderToStaticMarkup(<FeedList />)).toContain('data-summarize-shortcut="a"');
-
-    const summarisedButThin = { ...story('a'), canSummarize: false, hasSummary: true };
-    mockQuery({
-      data: { pages: [{ items: [summarisedButThin], nextCursor: null }], pageParams: [undefined] },
-    });
-    expect(renderToStaticMarkup(<FeedList />)).toContain('data-summarize-shortcut="a"');
-
-    const withoutInput = { ...story('a'), canSummarize: false, hasSummary: false };
-    mockQuery({
-      data: { pages: [{ items: [withoutInput], nextCursor: null }], pageParams: [undefined] },
-    });
-    expect(renderToStaticMarkup(<FeedList />)).not.toContain('data-summarize-shortcut');
-  });
-
   it('AC-1.3.9 shows skeleton rows while the first page loads', () => {
     mockQuery({ isPending: true, data: undefined });
     expect(renderToStaticMarkup(<FeedList />)).toContain('Loading stories');

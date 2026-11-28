@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { SearchInput } from './SearchInput';
 
-vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
 vi.mock('./useFeedFilters', () => ({
   useFeedFilters: () => ({ filters: { q: '' }, setQuery: () => {} }),
 }));

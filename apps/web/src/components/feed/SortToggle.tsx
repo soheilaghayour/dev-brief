@@ -8,7 +8,7 @@ const SORT_OPTIONS = [
   { value: 'latest', label: 'Latest' },
 ] as const;
 
-/** Top / Latest; the `t` shortcut lives with the feed list. */
+/** The Top / Latest switch. */
 export function SortToggle({ className }: { className?: string }) {
   const { filters, setSort } = useFeedFilters();
 

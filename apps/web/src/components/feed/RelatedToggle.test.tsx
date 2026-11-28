@@ -4,7 +4,6 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClusterDetail, SourceRef, StoryCard } from '@devbrief/shared';
-import { FeedList } from './FeedList';
 import { RelatedToggle } from './RelatedToggle';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -12,52 +11,7 @@ import { RelatedToggle } from './RelatedToggle';
 const api = vi.hoisted(() => ({ getCluster: vi.fn() }));
 vi.mock('@/lib/api/endpoints', () => api);
 
-// FeedList, for the keyboard test: its feed query, filters, saves and shortcut registry are stubbed.
-const feed = vi.hoisted(() => ({
-  stories: [] as unknown[],
-  handlers: new Map<string, () => void>(),
-  toggleSave: vi.fn(),
-}));
 vi.mock('@/config/features', () => ({ isFeatureEnabled: (flag: string) => flag === 'clusters' }));
-vi.mock('@tanstack/react-query', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
-  useInfiniteQuery: () => ({
-    isPending: false,
-    data: { pages: [{ items: feed.stories, nextCursor: null }], pageParams: [undefined] },
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    isFetchNextPageError: false,
-    isPlaceholderData: false,
-    fetchNextPage: () => {},
-    refetch: () => {},
-  }),
-}));
-vi.mock('./feedQueries', () => ({
-  feedQueryOptions: () => ({}),
-  personalisedPlaceholder: () => () => undefined,
-}));
-vi.mock('./useFeedFilters', () => ({
-  useFeedFilters: () => ({
-    filters: { sort: 'top', tags: [], kinds: [], sources: [], q: '' },
-    focus: null,
-    toggleSort: () => {},
-    clearAll: () => {},
-  }),
-}));
-vi.mock('@/components/preferences/usePreferenceState', () => ({
-  usePreferenceState: () => ({
-    prefs: { follow: { tags: [], sources: [] }, mute: { tags: [], sources: [] } },
-    feedParams: {},
-  }),
-}));
-vi.mock('@/components/saves/useSaves', () => ({
-  useSaves: () => ({ isSaved: () => false, toggle: feed.toggleSave }),
-}));
-vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({
-  useShortcut: (shortcut: { keys: string }, handler: () => void) => {
-    feed.handlers.set(shortcut.keys, handler);
-  },
-}));
 
 function card(id: string, title: string, source: Partial<SourceRef>): StoryCard {
   return {
@@ -140,8 +94,6 @@ beforeEach(() => {
   document.body.append(container);
   api.getCluster.mockReset();
   api.getCluster.mockResolvedValue(CLUSTER);
-  feed.handlers.clear();
-  feed.toggleSave.mockReset();
   Element.prototype.scrollIntoView = vi.fn();
 });
 
@@ -277,38 +229,6 @@ describe('RelatedToggle', () => {
     const alertAfter = container.querySelector('[role="alert"]');
     expect(alertAfter).not.toBeNull();
     expect(alertAfter).not.toBe(alertBefore);
-  });
-
-  it('AC-1.3.8 keeps j, k and s working on the feed with a card expanded', async () => {
-    const clustered = {
-      ...CLUSTER.representative,
-      id: 'rep',
-      cluster: { id: 'cluster-1', memberCount: 3, sources: CLUSTER.representative.sources },
-    };
-    feed.stories = [clustered, card('next', 'Next story', {})];
-    await render(<FeedList />);
-
-    await click(toggle());
-    expect(container.querySelectorAll('li a')).toHaveLength(2);
-
-    const activeId = () =>
-      container.querySelector('[data-active="true"]')?.getAttribute('data-story-id');
-    const press = (key: string) =>
-      act(async () => {
-        feed.handlers.get(key)?.();
-      });
-    await press('j');
-    expect(activeId()).toBe('rep');
-    await press('j');
-    expect(activeId()).toBe('next');
-    await press('k');
-    expect(activeId()).toBe('rep');
-    await press('s');
-    expect(feed.toggleSave).toHaveBeenCalledWith(
-      'rep',
-      expect.objectContaining({ title: expect.any(String) }),
-    );
-    expect(toggle().getAttribute('aria-expanded')).toBe('true');
   });
 
   // Last, because it resets the module graph.
