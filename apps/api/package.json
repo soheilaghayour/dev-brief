@@ -18,7 +18,7 @@
     "briefings:generate": "pnpm --filter @devbrief/shared build && nest build && dotenv -e ../../.env -e ../../.env.example -- node dist/cli/generateExampleBriefings.js"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "4.0.106",
+    "@ai-sdk/anthropic": "4.0.107",
     "@devbrief/shared": "workspace:*",
     "@nestjs/common": "^12.5.1",
     "@nestjs/core": "^12.5.1",
