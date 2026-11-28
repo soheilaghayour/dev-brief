@@ -120,7 +120,7 @@ jobs:
       - name: Runner benchmark index
         if: always()
         run: jq '.environment.benchmarkIndex' .lighthouseci/lhr-*.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: lighthouse-reports
