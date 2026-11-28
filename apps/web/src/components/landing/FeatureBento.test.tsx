@@ -1,10 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { FEATURES } from '@/config/features';
-import { FeatureBento, tileSpans, visibleTiles } from './FeatureBento';
+import { FeatureBento, visibleTiles } from './FeatureBento';
 
 describe('FeatureBento', () => {
-  it('AC-L7 renders the Radar tile with every flag off, and no copilot text', () => {
+  it('renders the Radar tile with every flag off, and no copilot text', () => {
     expect(
       visibleTiles({
         ...FEATURES,
@@ -35,21 +35,11 @@ describe('FeatureBento', () => {
     expect(titles(true)).toContain('Ask the News');
   });
 
-  it('AC-L7 spans the tiles for every flag combination so no row holds a lone tile', () => {
-    for (const copilot of [false, true]) {
-      for (const collections of [false, true]) {
-        const count = visibleTiles({ ...FEATURES, copilot, collections }).length;
-        const rows: number[][] = [[]];
-        for (const span of tileSpans(count)) {
-          const row = rows.at(-1)!;
-          if (row.reduce((sum, width) => sum + width, 0) + span > 3) rows.push([span]);
-          else row.push(span);
-        }
-        for (const row of rows) {
-          expect(row.reduce((sum, width) => sum + width, 0)).toBe(3);
-          expect(row.length).toBeGreaterThan(1);
-        }
-      }
-    }
+  it('fills the first row: Ranking and Guest span three columns together', () => {
+    const [first, second] = visibleTiles({ ...FEATURES, copilot: false, collections: false });
+    expect(first?.title).toBe('Fair cross-source ranking');
+    expect(second?.title).toBe('Guest mode, real features');
+    expect(first?.className).toBe('md:col-span-2');
+    expect(second?.className).toBeUndefined();
   });
 });

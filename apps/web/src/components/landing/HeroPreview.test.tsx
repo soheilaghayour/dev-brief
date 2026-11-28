@@ -147,7 +147,7 @@ describe('HeroPreview', () => {
     expect(title.hasAttribute('target')).toBe(false);
   });
 
-  it('AC-L5 a card’s Save button saves that story to the guest store', () => {
+  it('a card’s Save button toggles that story’s preview save', () => {
     const container = mount();
     const save = cards(container)[2]!.querySelector<HTMLButtonElement>(
       'button[aria-label="Save story"]',
@@ -156,7 +156,7 @@ describe('HeroPreview', () => {
     expect(toggleSave).toHaveBeenCalledWith(STORIES[2]!.id);
   });
 
-  it('AC-L13 makes the window no tab stop, with no keyboard shortcut hint', () => {
+  it('makes the window no tab stop, with no keyboard shortcut hint', () => {
     const container = mount();
     const window = container.querySelector('[aria-label="Live feed preview"]')!;
     expect(window.hasAttribute('tabindex')).toBe(false);
