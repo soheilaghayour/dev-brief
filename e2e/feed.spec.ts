@@ -10,8 +10,8 @@ async function openFeed(page: Page, search = '') {
   await page.goto(`/feed${search}`);
   // The sidebar fetches tags and sources after hydration, so an idle network means the page is interactive.
   await page.waitForLoadState('networkidle');
-  // The hotkeys flag marks the page as hydrated, so the clicks are not lost.
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  // A tag checkbox only exists once the client has fetched the tags, so the page is hydrated and clicks are not lost.
+  await expect(page.getByRole('checkbox', { name: /^React\b/ })).toBeVisible();
 }
 
 async function cardTitles(page: Page) {

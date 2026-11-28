@@ -13,7 +13,7 @@ const card = (page: Page, id: string) => page.locator(`article[data-story-id="${
 async function openFeed(page: Page, search: string) {
   await page.goto(`/feed${search}`);
   await page.waitForLoadState('networkidle');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  await expect(page.getByRole('checkbox', { name: /^React\b/ })).toBeVisible();
 }
 
 test('AC-2.3.6 a stored summary renders as labelled plain text with its consensus', async ({

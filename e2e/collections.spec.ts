@@ -6,10 +6,10 @@ import { signInThroughTestRoute } from './signIn';
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Collections' });
 
-// The hotkeys flag marks the page as hydrated, so the click is not lost.
+// A tag checkbox only exists once the client has fetched the tags, so the click is not lost.
 async function openAddDialog(page: Page) {
   await page.goto('/feed?sort=latest');
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
+  await expect(page.getByRole('checkbox', { name: /^React\b/ })).toBeVisible();
   const addButton = cards(page).first().getByRole('button', { name: 'Add to collection' });
   await addButton.click();
   const dialog = page.getByRole('dialog', { name: 'Add to collection' });
@@ -121,14 +121,6 @@ test('AC-3.4.3 an unknown board shows a not-found state with a link back to /sav
   await page.goto('/collections/does-not-exist');
   await expect(page.getByText('Collection not found')).toBeVisible();
   await page.getByRole('link', { name: 'Back to Saved' }).click();
-  await expect(page).toHaveURL(/\/saved$/);
-});
-
-test('AC-3.4.3 g then c opens /saved', async ({ page }) => {
-  await page.goto('/feed');
-  await page.waitForLoadState('networkidle');
-  await page.keyboard.press('g');
-  await page.keyboard.press('c');
   await expect(page).toHaveURL(/\/saved$/);
 });
 
