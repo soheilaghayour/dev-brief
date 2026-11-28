@@ -18,7 +18,6 @@ export function UnsaveNoteDialog({ request }: { request: UnsaveRequest }) {
   const saves = useSaves();
 
   function confirm() {
-    request.onUnsave?.();
     void saves.remove(request.storyId);
     cancelUnsave();
   }

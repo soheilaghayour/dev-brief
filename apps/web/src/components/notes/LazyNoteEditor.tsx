@@ -12,7 +12,7 @@ export const LazyNoteEditor = lazy(() =>
 
 let preloading = false;
 
-/** Fetches the editor when the browser is idle, so the first `n` or click doesn't wait for the chunk. */
+/** Fetches the editor when the browser is idle, so the first click doesn't wait for the chunk. */
 export function preloadNoteEditorWhenIdle() {
   if (preloading) return;
   preloading = true;

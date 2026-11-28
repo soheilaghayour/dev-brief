@@ -55,7 +55,7 @@ export function useAccountSaves(enabled: boolean) {
       return 'unknown';
     }
   }
-  // Asks first when the story has a note, or may have one, wherever the unsave comes from (AC-3.4.2); `onUnsave` runs only once it happens.
+  // Asks first when the story has a note, or may have one, wherever the unsave comes from (AC-3.4.2).
   async function unsave(storyId: string, options?: ToggleSaveOptions) {
     if (options && isFeatureEnabled('collections')) {
       // A second press while the lookup is out would ask twice, or unsave behind the dialog.
@@ -67,7 +67,6 @@ export function useAccountSaves(enabled: boolean) {
         return;
       }
     }
-    options?.onUnsave?.();
     mutation.mutate({ storyId, save: false });
   }
   function toggle(storyId: string, options?: ToggleSaveOptions) {

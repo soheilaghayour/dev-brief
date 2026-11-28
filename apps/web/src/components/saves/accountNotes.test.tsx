@@ -381,13 +381,12 @@ describe('unsaving when the note cannot be looked up', () => {
         <button
           type="button"
           aria-label="Unsave"
-          onClick={() => saves.toggle(STORY, { title: 'Story one', onUnsave })}
+          onClick={() => saves.toggle(STORY, { title: 'Story one' })}
         />
         <UnsaveNoteConfirm />
       </div>
     );
   }
-  const onUnsave = vi.fn();
   async function showCard() {
     const mounted = await mount(<Card />);
     unmount = mounted.unmount;
@@ -397,18 +396,16 @@ describe('unsaving when the note cannot be looked up', () => {
     });
   }
 
-  it('AC-3.4.1 asks with neutral wording, and runs onUnsave only once the reader confirms', async () => {
+  it('AC-3.4.1 asks with neutral wording, and deletes only once the reader confirms', async () => {
     server.failGet = true;
     await showCard();
     await click(byRole('button', 'Unsave'));
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     expect(document.body.textContent).toContain('This story may have a note. Remove it anyway?');
-    expect(onUnsave).not.toHaveBeenCalled();
     expect(server.calls).not.toContain('DELETE');
 
     await click(byRole('button', 'Remove story'));
     await vi.waitFor(() => expect(server.calls).toContain('DELETE'));
-    expect(onUnsave).toHaveBeenCalledTimes(1);
   });
 
   it('AC-3.4.1 a second press while the note is being looked up asks once', async () => {

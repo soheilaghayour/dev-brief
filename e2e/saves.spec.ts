@@ -165,7 +165,7 @@ test("AC-1.4.2 two open tabs keep each other's saves", async ({ context }) => {
   await expect(saveButton(cards(first).nth(1))).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('j and s on /saved move through the list and unsave the active story', async ({ page }) => {
+test('unsaving from /saved takes the card off the list and out of the store', async ({ page }) => {
   await openFeed(page, '?sort=latest');
   await saveButton(cards(page).nth(0)).click();
   await expect(saveButton(cards(page).nth(0))).toHaveAttribute('aria-pressed', 'true');
@@ -174,9 +174,7 @@ test('j and s on /saved move through the list and unsave the active story', asyn
 
   await page.goto('/saved');
   await expect(cards(page)).toHaveCount(2);
-  await expect(page.locator('html[data-hotkeys-ready]')).toBeAttached();
-  await page.keyboard.press('j');
-  await page.keyboard.press('s');
+  await saveButton(cards(page).nth(0)).click();
 
   await expect(cards(page)).toHaveCount(1);
   const stored = await page.evaluate(() => localStorage.getItem('devbrief:guest:v1'));
