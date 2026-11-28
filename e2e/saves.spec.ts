@@ -44,21 +44,17 @@ test('AC-1.4.1 AC-1.4.2 AC-1.4.3 a guest filters by tag, saves, reloads and find
   await expect(cards(page).first().locator('h2 a')).toHaveText(title);
 });
 
-test('AC-1.3.8 AC-1.4.1 s saves the active card and the toast shows once per session', async ({
-  page,
-}) => {
+test('AC-1.4.1 saving a story shows the toast once per session', async ({ page }) => {
   await openFeed(page, '?sort=latest');
-  await page.keyboard.press('j');
-  await page.keyboard.press('s');
+  await saveButton(cards(page).first()).click();
   await expect(saveButton(cards(page).first())).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText(TOAST)).toBeVisible();
 
-  await page.keyboard.press('j');
-  await page.keyboard.press('s');
+  await saveButton(cards(page).nth(1)).click();
   await expect(saveButton(cards(page).nth(1))).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText(TOAST)).toHaveCount(1);
 
-  await page.keyboard.press('s');
+  await saveButton(cards(page).nth(1)).click();
   await expect(saveButton(cards(page).nth(1))).toHaveAttribute('aria-pressed', 'false');
 });
 

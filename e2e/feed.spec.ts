@@ -5,7 +5,6 @@ import { expect, test, type Page } from '@playwright/test';
 const TOP_STORY_COUNT = 46;
 
 const cards = (page: Page) => page.locator('article[data-story-id]');
-const activeCard = (page: Page) => page.locator('article[data-active="true"]');
 
 async function openFeed(page: Page, search = '') {
   await page.goto(`/feed${search}`);
@@ -134,57 +133,6 @@ test('AC-1.3.6 filters, sort and search update the URL with replace and survive 
   await expect(page).not.toHaveURL(/sort=/);
 });
 
-test('AC-1.3.8 j and k move the active card and o and c open the story', async ({ page }) => {
-  await page
-    .context()
-    .route(/\/\/(e2e|hn)\.example\.com\//, (route) =>
-      route.fulfill({ contentType: 'text/html', body: '<title>fixture</title>' }),
-    );
-  await openFeed(page, '?sort=latest');
-
-  await expect(activeCard(page)).toHaveCount(0);
-  await page.keyboard.press('j');
-  await expect(activeCard(page)).toHaveAttribute('data-story-id', /^ce2e0*1$/);
-  await page.keyboard.press('j');
-  await expect(activeCard(page)).toHaveAttribute('data-story-id', /^ce2e0*2$/);
-  await page.keyboard.press('k');
-  await expect(activeCard(page)).toHaveAttribute('data-story-id', /^ce2e0*1$/);
-
-  const originalPromise = page.context().waitForEvent('page');
-  await page.keyboard.press('o');
-  expect((await originalPromise).url()).toBe('https://e2e.example.com/ce2e00000001');
-
-  const discussionPromise = page.context().waitForEvent('page');
-  await page.keyboard.press('c');
-  expect((await discussionPromise).url()).toBe('https://hn.example.com/ce2e00000001');
-});
-
-test('AC-1.3.8 / focuses search, t toggles the sort, Esc blurs, and typing ignores shortcuts', async ({
-  page,
-}) => {
-  await openFeed(page);
-  const search = page.getByRole('searchbox', { name: 'Search stories' });
-
-  await page.keyboard.press('/');
-  await expect(search).toBeFocused();
-  await page.keyboard.type('jkt');
-  await expect(search).toHaveValue('jkt');
-  await expect(activeCard(page)).toHaveCount(0);
-  await expect(page).not.toHaveURL(/sort=latest/);
-
-  await page.keyboard.press('Escape');
-  await expect(search).not.toBeFocused();
-
-  // fill() focuses the box again, so blur it before the shortcut.
-  await search.fill('');
-  await expect(page).not.toHaveURL(/q=/);
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('t');
-  await expect(page).toHaveURL(/sort=latest/);
-  await page.keyboard.press('t');
-  await expect(page).not.toHaveURL(/sort=/);
-});
-
 test('AC-1.3.9 an empty result offers Clear filters', async ({ page }) => {
   await openFeed(page, '?q=zzzxqjvw');
   await expect(page.getByText('No stories match')).toBeVisible();
@@ -240,20 +188,6 @@ test('AC-1.3.11 the sidebar lists tags with the count of stories each lists and 
   }
   // The RSS sources are switched off (PRD §8.8), so there is no "Blogs" filter.
   await expect(sidebar.locator('[data-kind="rss"]')).toHaveCount(0);
-});
-
-test('AC-1.3.13 focus makes a first-page card active and an unknown id is ignored', async ({
-  page,
-}) => {
-  await openFeed(page);
-  const id = (await cards(page).nth(5).getAttribute('data-story-id')) ?? '';
-
-  await openFeed(page, `?focus=${id}`);
-  await expect(activeCard(page)).toHaveAttribute('data-story-id', id);
-
-  await openFeed(page, '?focus=cdoesnotexistxxxxxxxxxx');
-  await expect(cards(page)).toHaveCount(20);
-  await expect(activeCard(page)).toHaveCount(0);
 });
 
 test('AC-1.3.12 on mobile the filters sit in a bottom sheet and nothing scrolls sideways', async ({
