@@ -13,7 +13,9 @@ import { usePreferences } from './usePreferences';
 export function SourceKindHeart({ kind }: { kind: SourceKind }) {
   const { data } = useQuery(sourcesQueryOptions);
   const { isReady, prefs, setModes } = usePreferences();
-  const slugs = (data?.sources ?? []).filter((source) => source.kind === kind).map((s) => s.slug);
+  const slugs = (data?.sources ?? [])
+    .filter((source) => source.kind === kind)
+    .map((source) => source.slug);
 
   function change(mode: PreferenceMode | null) {
     setModes('source', slugs, mode);
