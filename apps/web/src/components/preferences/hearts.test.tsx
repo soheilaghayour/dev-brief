@@ -151,7 +151,8 @@ describe('hearts with an account', () => {
     await settle(() => expect(heart(container, 'Blogs').disabled).toBe(false));
 
     await act(async () => heart(container, 'Blogs').click());
-    await settle(() => expect(api.putPreferences).toHaveBeenCalledTimes(1));
+    await settle(() => expect(api.getPreferences).toHaveBeenCalledTimes(2));
+    expect(api.putPreferences).toHaveBeenCalledTimes(1);
     expect(api.putPreferences).toHaveBeenCalledWith({
       ...STORED,
       follow: { tags: [], sources: ['blog-a', 'blog-b'] },
@@ -159,14 +160,23 @@ describe('hearts with an account', () => {
   });
 
   it('AC-2.5.1 shows the new state at once and rolls the icon back when the request fails', async () => {
-    api.putPreferences.mockRejectedValue(new Error('500'));
+    let failRequest = () => {};
+    api.putPreferences.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        failRequest = () => reject(new Error('500'));
+      }),
+    );
     const container = await mount(<TagHeart slug="react" />);
     await settle(() => expect(heart(container, 'React').disabled).toBe(false));
 
     await act(async () => heart(container, 'React').click());
     await settle(() => expect(api.putPreferences).toHaveBeenCalledTimes(1));
+    await settle(() => expect(nameOf(container, 'React')).toBe('React: following. Click to mute.'));
+
+    await act(async () => failRequest());
     await settle(() =>
       expect(nameOf(container, 'React')).toBe('React: not followed. Click to follow.'),
     );
+    expect(api.getPreferences).toHaveBeenCalledTimes(2);
   });
 });
