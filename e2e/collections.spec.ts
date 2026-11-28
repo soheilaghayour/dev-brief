@@ -6,10 +6,10 @@ import { signInThroughTestRoute } from './signIn';
 const cards = (page: Page) => page.locator('article[data-story-id]');
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Collections' });
 
-// A tag checkbox only exists once the client has fetched the tags, so the click is not lost.
 async function openAddDialog(page: Page) {
   await page.goto('/feed?sort=latest');
-  await expect(page.getByRole('checkbox', { name: /^React\b/ })).toBeVisible();
+  // The source rows are fetched by the browser after it mounts the page; attached, since the sidebar is hidden on narrow screens.
+  await expect(page.locator('aside [data-kind="hn"]')).toBeAttached();
   const addButton = cards(page).first().getByRole('button', { name: 'Add to collection' });
   await addButton.click();
   const dialog = page.getByRole('dialog', { name: 'Add to collection' });
