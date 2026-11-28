@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FeedPage, Preferences, StoryCard } from '@devbrief/shared';
@@ -7,7 +10,11 @@ import { FeedList } from './FeedList';
 import { feedQueryOptions } from './feedQueries';
 
 const query = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-const features = vi.hoisted(() => ({ summaries: false, focus: null as string | null }));
+const features = vi.hoisted(() => ({
+  summaries: false,
+  focus: null as string | null,
+  q: '',
+}));
 const preferences = vi.hoisted(() => ({ prefs: undefined as Preferences | undefined }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -34,7 +41,7 @@ vi.mock('./SummarizeShortcut', () => ({
 vi.mock('@/lib/hotkeys/HotkeysProvider', () => ({ useShortcut: () => {} }));
 vi.mock('./useFeedFilters', () => ({
   useFeedFilters: () => ({
-    filters: { sort: 'top', tags: ['react'], kinds: [], sources: [], q: '' },
+    filters: { sort: 'top', tags: ['react'], kinds: [], sources: [], q: features.q },
     focus: features.focus,
     toggleSort: () => {},
     clearAll: () => {},
@@ -86,8 +93,11 @@ function mockQuery(overrides: Record<string, unknown>) {
   };
 }
 
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 beforeEach(() => {
   mockQuery({});
+  features.q = '';
   preferences.prefs = undefined;
   features.summaries = false;
   features.focus = null;
@@ -171,5 +181,42 @@ describe('FeedList', () => {
     expect(feedQueryOptions).toHaveBeenLastCalledWith(expect.anything(), {
       excludeTags: ['career'],
     });
+  });
+
+  it('AC-1.3.14 marks the cards of a loading search with the q they were fetched for', () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    const onScreen = () =>
+      [...container.querySelectorAll('article h2 mark')].map((mark) => mark.textContent);
+    const render = () => act(() => root.render(<FeedList />));
+    const titled = (title: string): FeedPage => ({
+      items: [{ ...story('a'), title }],
+      nextCursor: null,
+    });
+    const dataOf = (title: string) => ({ pages: [titled(title)], pageParams: [undefined] });
+
+    features.q = 'alpha';
+    mockQuery({ data: dataOf('Alpha bravo') });
+    render();
+    expect(onScreen()).toEqual(['Alpha']);
+
+    features.q = 'bravo';
+    mockQuery({ data: dataOf('Alpha bravo'), isPlaceholderData: true });
+    render();
+    expect(onScreen()).toEqual(['Alpha']);
+
+    mockQuery({ data: dataOf('Bravo only'), isPlaceholderData: false });
+    render();
+    expect(onScreen()).toEqual(['Bravo']);
+
+    features.q = '';
+    mockQuery({ data: dataOf('Bravo only'), isPlaceholderData: true });
+    render();
+    expect(onScreen()).toEqual(['Bravo']);
+
+    mockQuery({ data: dataOf('Plain'), isPlaceholderData: false });
+    render();
+    expect(onScreen()).toEqual([]);
+    act(() => root.unmount());
   });
 });

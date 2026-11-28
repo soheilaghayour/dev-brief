@@ -116,6 +116,22 @@ describe('theme tokens', () => {
     }
   }
 
+  const markSource = readFileSync(
+    join(__dirname, '../components/feed/HighlightedText.tsx'),
+    'utf8',
+  );
+  const markOpacity = Number(/bg-primary\/(\d+) text-foreground/.exec(markSource)?.[1]) / 100;
+
+  for (const [theme, tokens] of Object.entries(themes)) {
+    it(`AC-1.3.14 ${theme}: highlighted text keeps foreground at 4.5:1`, () => {
+      expect(markOpacity).toBeGreaterThan(0);
+      for (const surface of ['background', 'card', 'accent']) {
+        const marked = blend(tokens.primary!, tokens[surface]!, markOpacity);
+        expect(contrast(tokens.foreground!, marked)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+
   it('AC-1.6.4 uses the PRD §7.1 palette values', () => {
     expect(light).toMatchObject({
       background: '#faf8f5',

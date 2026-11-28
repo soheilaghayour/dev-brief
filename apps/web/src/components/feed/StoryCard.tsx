@@ -23,6 +23,10 @@ type StoryCardProps = {
   story: CardStory;
   isSaved: boolean;
   onToggleSave: () => void;
+  /** The title with a search's matches marked; the plain title when absent. */
+  titleContent?: ReactNode;
+  /** One excerpt line holding a search's match; the page injects it so routes without a search don't load the highlight code. */
+  excerptLine?: ReactNode;
   /** Denser rows for previews: tags stay, the reading time goes. */
   compact?: boolean;
   /** The card j/k currently points at. */
@@ -47,6 +51,8 @@ export function StoryCard({
   story,
   isSaved,
   onToggleSave,
+  titleContent,
+  excerptLine,
   compact = false,
   isActive = false,
   preferenceMenu,
@@ -75,17 +81,20 @@ export function StoryCard({
         <h2 className="leading-snug">
           {titleHref ? (
             <Link href={titleHref} className={TITLE_CLASS}>
-              {story.title}
+              {titleContent ?? story.title}
             </Link>
           ) : (
             <a href={story.url} target="_blank" rel="noopener noreferrer" className={TITLE_CLASS}>
-              {story.title}
+              {titleContent ?? story.title}
             </a>
           )}
           <span className="text-muted-foreground ml-2 text-xs whitespace-nowrap">
             {story.domain}
           </span>
         </h2>
+        {excerptLine && (
+          <p className="text-muted-foreground mt-1 truncate text-sm">{excerptLine}</p>
+        )}
         {story.summaryLine && isFeatureEnabled('summaries') && (
           <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
             <span className="sr-only">AI summary: </span>

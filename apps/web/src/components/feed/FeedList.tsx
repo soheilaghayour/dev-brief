@@ -6,6 +6,8 @@ import {
   AddToCollectionShortcut,
   useAddToCollection,
 } from '@/components/collections/AddToCollection';
+import { splitSearchPieces } from '@devbrief/shared';
+import type { StoryCard as StoryCardData } from '@devbrief/shared';
 import { PreferenceMenu } from '@/components/preferences/PreferenceMenu';
 import { usePreferenceState } from '@/components/preferences/usePreferenceState';
 import { useSaves } from '@/components/saves/useSaves';
@@ -15,7 +17,7 @@ import type { Shortcut } from '@/lib/hotkeys/shortcutRules';
 import { FeedEmpty } from './FeedEmpty';
 import { FeedError } from './FeedError';
 import { FeedSkeleton } from './FeedSkeleton';
-import { hasActiveFilters } from './feedParams';
+import { hasActiveFilters, toFeedParams } from './feedParams';
 import {
   discussionUrl,
   flattenPages,
@@ -25,6 +27,8 @@ import {
 } from './feedNavigation';
 import { feedQueryOptions, personalisedPlaceholder } from './feedQueries';
 import { hideMuted } from './hideMuted';
+import { HighlightedText } from './HighlightedText';
+import { highlightCard } from './searchHighlight';
 import { InfiniteSentinel } from './InfiniteSentinel';
 import { focusStory, openInNewTab, scrollToStory } from '@/components/storyListDom';
 import { ClusterSourceLine } from './ClusterSourceLine';
@@ -76,6 +80,16 @@ const TOGGLE_SORT = {
   scope: 'Feed',
 } satisfies Shortcut;
 
+/** What a search result card renders instead of the plain title, plus the excerpt line when a piece is missing from the title. */
+function highlightProps(story: StoryCardData, pieces: string[]) {
+  if (pieces.length === 0) return {};
+  const { titleRanges, snippet } = highlightCard(story.title, story.excerpt, pieces);
+  return {
+    titleContent: <HighlightedText text={story.title} ranges={titleRanges} />,
+    excerptLine: snippet && <HighlightedText text={snippet.text} ranges={snippet.ranges} />,
+  };
+}
+
 export function FeedList() {
   const { filters, focus, toggleSort, clearAll } = useFeedFilters();
   const saves = useSaves();
@@ -88,6 +102,11 @@ export function FeedList() {
   });
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const { prefs } = preferences;
+  const urlQuery = toFeedParams(filters).q ?? '';
+  // Placeholder data is the previous search's list, so it stays marked for that `q` until the new data arrives.
+  const [markedQuery, setMarkedQuery] = useState(urlQuery);
+  if (!query.isPlaceholderData && markedQuery !== urlQuery) setMarkedQuery(urlQuery);
+  const searchPieces = useMemo(() => splitSearchPieces(markedQuery), [markedQuery]);
   // The server-rendered page and a list kept while preferences change still hold muted stories.
   const stories = useMemo(() => hideMuted(flattenPages(data?.pages ?? []), prefs), [data, prefs]);
   // Derived from hydrated data, so the server HTML and the first client render agree.
@@ -169,6 +188,7 @@ export function FeedList() {
           isSaved={saves.isSaved(story.id)}
           onToggleSave={() => saves.toggle(story.id, { title: story.title })}
           isActive={story.id === activeId}
+          {...highlightProps(story, searchPieces)}
           preferenceMenu={PreferenceMenu}
           relatedToggle={RelatedToggle}
           sourceLine={ClusterSourceLine}

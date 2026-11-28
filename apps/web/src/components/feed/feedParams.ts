@@ -46,6 +46,12 @@ function isOneOf<T extends string>(allowed: readonly T[], value: string): value 
   return (allowed as readonly string[]).includes(value);
 }
 
+/** The search cut to the API's limit, without a half emoji at its end that the API would read as U+FFFD. */
+export function cutSearch(q: string) {
+  const cut = q.trim().slice(0, FEED_QUERY_MAX);
+  return /[\ud800-\udbff]$/.test(cut) ? cut.slice(0, -1) : cut;
+}
+
 /** Drops URL values the API would reject, so a hand-edited URL never produces a 400. */
 export function toFeedFilters(raw: RawFeedFilters): FeedFilters {
   return {
@@ -53,7 +59,7 @@ export function toFeedFilters(raw: RawFeedFilters): FeedFilters {
     tags: unique(raw.tags.filter((tag) => isOneOf(TAG_SLUGS, tag))),
     kinds: unique(raw.kinds.filter((kind) => isOneOf(SOURCE_KINDS, kind))),
     sources: unique(raw.sources.filter((slug) => slug.length <= FEED_SOURCE_SLUG_MAX)),
-    q: raw.q.trim().slice(0, FEED_QUERY_MAX),
+    q: cutSearch(raw.q),
   };
 }
 
