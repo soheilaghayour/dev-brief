@@ -4,13 +4,6 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 const preview = (page: Page) => page.getByRole('group', { name: 'Live feed preview' });
 const previewCards = (page: Page) => preview(page).locator('article[data-story-id]');
 
-async function focusPreview(page: Page) {
-  await page.goto('/');
-  // The guest store loads after hydration; the marker says the keys are wired.
-  await expect(preview(page)).toHaveAttribute('data-saves-ready', 'true');
-  await preview(page).focus();
-}
-
 test('AC-L4 the landing page renders and the primary CTA reaches the feed without login', async ({
   page,
 }) => {
@@ -32,18 +25,6 @@ test('AC-L1 the initial HTML holds at least 6 story titles and no sample label',
   expect(html.match(/data-story-id=/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
   expect(html).not.toContain('Sample data');
   expect(html).toMatch(/\d+ stories today · \d+ sources?/);
-});
-
-test('AC-L5 j three times then Enter opens the fourth card’s story page', async ({ page }) => {
-  await focusPreview(page);
-  const fourthId = await previewCards(page).nth(3).getAttribute('data-story-id');
-  expect(fourthId).toBeTruthy();
-  await page.keyboard.press('j');
-  await page.keyboard.press('j');
-  await page.keyboard.press('j');
-  await expect(previewCards(page).nth(3)).toHaveAttribute('data-active', 'true');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(`/story/${fourthId}`);
 });
 
 test('AC-L5 clicking a card title opens its story page in the same tab', async ({ page }) => {
@@ -104,30 +85,6 @@ test('AC-L13 the window and its frame keep their height for a chip, an empty lis
   expect(await height(preview(page))).toBeCloseTo(windowHeight, 0);
   expect(await height(frame(page))).toBeCloseTo(frameHeight, 0);
 });
-
-for (const viewport of [
-  { width: 360, height: 740 },
-  { width: 1280, height: 800 },
-]) {
-  test(`AC-L13 j ten times keeps the active card in the frame without scrolling the page (${viewport.width} px)`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(viewport);
-    await focusPreview(page);
-    // Scroll the page so the frame is only partly in view: a scrollIntoView would then move the page.
-    await page.evaluate(() => window.scrollTo(0, 120));
-    await preview(page).evaluate((element) => element.focus({ preventScroll: true }));
-    const scrollY = await page.evaluate(() => window.scrollY);
-    for (let step = 0; step < 10; step++) await page.keyboard.press('j');
-    const active = previewCards(page).nth(10);
-    await expect(active).toHaveAttribute('data-active', 'true');
-    expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
-    const frameBox = (await frame(page).boundingBox())!;
-    const cardBox = (await active.boundingBox())!;
-    expect(cardBox.y).toBeGreaterThanOrEqual(frameBox.y - 1);
-    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1);
-  });
-}
 
 test('AC-L12 from md up the hero is two columns, 45% text on the left and 55% window', async ({
   page,
@@ -190,15 +147,16 @@ test('AC-L13 at 320 px the footer keeps its height between the Feed and Briefing
   expect(await height(footer)).toBeCloseTo(feedHeight, 0);
 });
 
-test('pressing s in the preview saves to the guest store and the feed shows it saved', async ({
+test('a card’s Save button saves to the guest store and the feed shows it saved', async ({
   page,
 }) => {
-  await focusPreview(page);
+  await page.goto('/');
+  // The guest store loads after hydration; the marker says the buttons are wired.
+  await expect(preview(page)).toHaveAttribute('data-saves-ready', 'true');
   const firstId = await previewCards(page).first().getAttribute('data-story-id');
-  await page.keyboard.press('s');
-  await expect(
-    previewCards(page).first().getByRole('button', { name: 'Save story' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  const save = previewCards(page).first().getByRole('button', { name: 'Save story' });
+  await save.click();
+  await expect(save).toHaveAttribute('aria-pressed', 'true');
   await page.goto('/feed');
   await expect(
     page.locator(`article[data-story-id="${firstId}"]`).getByRole('button', { name: 'Save story' }),
@@ -291,7 +249,7 @@ test('AC-L10 no looping animation runs with prefers-reduced-motion', async ({ pa
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await page
-    .getByRole('heading', { name: 'Read the whole feed without touching the mouse' })
+    .getByRole('heading', { name: 'Built for the way engineers read' })
     .scrollIntoViewIfNeeded();
   const loopingCount = await page.evaluate(
     () =>

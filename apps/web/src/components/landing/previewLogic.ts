@@ -20,26 +20,7 @@ export function visibleStories<Story extends { tags: readonly TagSlug[] }>(
   return tag === 'all' ? pool : pool.filter((story) => story.tags.includes(tag));
 }
 
-/** The card j or k moves to, staying inside the list; other keys leave it where it is. */
-export function moveActiveIndex(current: number, key: string, count: number) {
-  if (key === 'j') return Math.min(current + 1, Math.max(count - 1, 0));
-  if (key === 'k') return Math.max(current - 1, 0);
-  return current;
-}
-
 /** The story page a preview card opens; a sample story (`sample-N`) has none, so its card opens the feed. */
 export function storyHref(storyId: string) {
   return storyId.startsWith('sample-') ? '/feed' : `/story/${encodeURIComponent(storyId)}`;
-}
-
-type ScrollFrame = { scrollTop: number; height: number };
-/** A card's box in the frame's content coordinates (0 is the top of the list, not of the visible part). */
-type FrameBox = { top: number; height: number };
-
-/** The frame's scrollTop that shows the whole card (its top, if it is taller than the frame), moving as little as possible. */
-export function scrollTopToReveal(frame: ScrollFrame, card: FrameBox) {
-  if (card.top < frame.scrollTop || card.height > frame.height) return card.top;
-  const cardBottom = card.top + card.height;
-  if (cardBottom > frame.scrollTop + frame.height) return cardBottom - frame.height;
-  return frame.scrollTop;
 }

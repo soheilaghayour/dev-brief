@@ -7,29 +7,11 @@ type BentoTile = {
   title: string;
   text: string;
   visual: ReactNode;
-  className?: string;
   /** The tile exists in the HTML only while this feature flag is on. */
   flag?: FeatureFlag;
 };
 
 // Every animation is motion-safe, so nothing loops under prefers-reduced-motion.
-function KeyboardVisual() {
-  return (
-    <div aria-hidden="true" className="relative grid gap-1.5 overflow-hidden">
-      <div className="bg-accent absolute inset-x-0 h-8 rounded-md motion-safe:animate-[bento-scan_6s_steps(1,end)_infinite]" />
-      {['Native TS compiler preview', 'Postgres 18 async I/O', 'React Compiler 1.x'].map((row) => (
-        <div
-          key={row}
-          className="text-muted-foreground relative flex h-8 items-center justify-between rounded-md px-3 text-xs"
-        >
-          {row}
-          <kbd className="bg-muted rounded-sm border px-1 font-mono text-[10px]">j</kbd>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function GuestVisual() {
   return (
     <div aria-hidden="true" className="grid gap-2 text-xs">
@@ -124,12 +106,6 @@ function CollectionsVisual() {
 
 const TILES: readonly BentoTile[] = [
   {
-    title: 'Keyboard-first feed',
-    text: 'j and k to move, s to save, Enter to open, / to search and ? for every shortcut. The mouse is optional.',
-    visual: <KeyboardVisual />,
-    className: 'md:col-span-2',
-  },
-  {
     title: 'Guest mode, real features',
     text: 'Save, filter and share links without an account. Sign in later and your saves follow you.',
     visual: <GuestVisual />,
@@ -138,26 +114,22 @@ const TILES: readonly BentoTile[] = [
     title: 'Fair cross-source ranking',
     text: 'Engagement is scored within each source, so a Dev.to post is not buried under Hacker News points.',
     visual: <RankingVisual />,
-    className: 'md:col-span-3',
   },
   {
     title: 'Ask the News',
     text: 'Ask a question and get a briefing of real story cards, takeaways and the community consensus, not a wall of text.',
     visual: <AskVisual />,
-    className: 'md:col-span-3',
     flag: 'copilot',
   },
   {
     title: 'Tech Radar',
     text: 'See which technologies are gaining or losing attention over 7 and 30 days, by stories or engagement.',
     visual: <RadarVisual />,
-    className: 'md:col-span-3',
   },
   {
     title: 'Collections & notes',
     text: 'Group saved stories into boards and keep a note on each. Guests keep them on the device, and signing in syncs them.',
     visual: <CollectionsVisual />,
-    className: 'md:col-span-3',
     flag: 'collections',
   },
 ];
@@ -167,7 +139,22 @@ export function visibleTiles(features?: Features) {
   return TILES.filter((tile) => !tile.flag || isFeatureEnabled(tile.flag, features));
 }
 
+// Column spans (of 3, from md up) by tile count, so a flag that is off never leaves a lone tile in a row.
+const SPAN_CLASSES = ['md:col-span-1', 'md:col-span-2', 'md:col-span-3'] as const;
+const SPANS_BY_COUNT: Record<number, readonly (1 | 2 | 3)[]> = {
+  3: [1, 1, 1],
+  4: [1, 2, 2, 1],
+  5: [1, 2, 1, 1, 1],
+};
+
+/** How many of the grid's 3 columns each of `count` tiles spans, in order. */
+export function tileSpans(count: number) {
+  return SPANS_BY_COUNT[count] ?? Array.from({ length: count }, () => 3 as const);
+}
+
 export function FeatureBento() {
+  const tiles = visibleTiles();
+  const spans = tileSpans(tiles.length);
   return (
     <section aria-labelledby="features-title" className="mx-auto max-w-6xl px-4 py-20">
       <SectionHeading
@@ -176,10 +163,10 @@ export function FeatureBento() {
         title="Built for the way engineers read"
       />
       <div className="grid gap-4 md:grid-cols-3">
-        {visibleTiles().map((tile) => (
+        {tiles.map((tile, index) => (
           <article
             key={tile.title}
-            className={`bg-card hover:border-brand/40 grid content-between gap-6 rounded-lg border p-6 transition-colors ${tile.className ?? ''}`}
+            className={`bg-card hover:border-brand/40 grid content-between gap-6 rounded-lg border p-6 transition-colors ${SPAN_CLASSES[spans[index]! - 1]}`}
           >
             <div>
               <h3 className="text-lg font-semibold tracking-tight">{tile.title}</h3>

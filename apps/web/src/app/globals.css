@@ -172,19 +172,6 @@
 }
 
 /* Landing page animations; each use is behind motion-safe. */
-@keyframes bento-scan {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  33% {
-    transform: translateY(2.25rem);
-  }
-  66% {
-    transform: translateY(4.5rem);
-  }
-}
-
 @keyframes bento-pop {
   0%,
   60%,
@@ -203,16 +190,5 @@
   }
   50% {
     transform: scaleX(1);
-  }
-}
-
-@keyframes keycap-press {
-  0%,
-  85%,
-  100% {
-    transform: translateY(0);
-  }
-  92% {
-    transform: translateY(3px);
   }
 }
