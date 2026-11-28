@@ -2,6 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HotkeysProvider } from '@/lib/hotkeys/HotkeysProvider';
 import { CopilotLauncher } from './CopilotLauncher';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -69,7 +70,6 @@ describe('CopilotLauncher', () => {
   });
 
   it('AC-3.1.1 Esc closes the bar and returns focus to the Ask button', async () => {
-    askButton().focus();
     await act(async () => askButton().click());
     await whenBarIsOpen();
 
@@ -114,10 +114,32 @@ describe('CopilotLauncher', () => {
   });
 
   it('AC-3.1.1 Ctrl+K and ⌘K do nothing', async () => {
-    await press('k', { ctrlKey: true });
-    await press('k', { metaKey: true });
+    // Inside the real shortcut registry: without it, registering a shortcut is a no-op.
+    await act(async () =>
+      root.render(
+        <HotkeysProvider>
+          <CopilotLauncher />
+        </HotkeysProvider>,
+      ),
+    );
+    await vi.waitFor(() => expect(document.documentElement.dataset.hotkeysReady).toBe(''));
+    const loadsBefore = loads.count;
+
+    for (const init of [{ ctrlKey: true }, { metaKey: true }]) {
+      const event = new KeyboardEvent('keydown', {
+        key: 'k',
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
+      await act(async () => {
+        document.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+    }
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(bar()).toBeNull();
+    expect(loads.count).toBe(loadsBefore);
   });
 });
