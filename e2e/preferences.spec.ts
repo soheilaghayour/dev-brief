@@ -65,16 +65,28 @@ test('AC-2.5.1 AC-2.5.2 a guest mutes a source kind with its heart and its stori
   page,
 }) => {
   await openFeed(page);
-  const before = await cards(page).count();
+  // Seeded stories: ce2e00000019 is on Hacker News only, ce2e00000005 on Hacker News and Dev.to; both rank on the first page of Top.
+  const hnOnly = cards(page).and(page.locator('[data-story-id="ce2e00000019"]'));
+  const hnAndDevto = cards(page).and(page.locator('[data-story-id="ce2e00000005"]'));
+  await expect(hnOnly).toBeVisible();
+  await expect(hnAndDevto).toBeVisible();
   const kindHeart = heart(page, 'Hacker News');
   await expect(kindHeart).toBeEnabled();
 
   await kindHeart.click();
   await expect(kindHeart).toHaveAccessibleName('Hacker News: following. Click to mute.');
+  const muteRequest = page.waitForRequest(
+    (request) =>
+      request.url().includes('/api/v1/feed?') && request.url().includes('excludeSources=hn'),
+  );
   await kindHeart.click();
   await expect(kindHeart).toHaveAccessibleName('Hacker News: muted. Click to clear.');
 
-  await expect.poll(() => cards(page).count()).toBeLessThan(before);
+  // A muted source hides a story only when every one of its sources is muted.
+  await muteRequest;
+  await page.waitForLoadState('networkidle');
+  await expect(hnOnly).toHaveCount(0);
+  await expect(hnAndDevto).toBeVisible();
   await expect(kindHeart).toBeFocused();
 });
 
@@ -84,8 +96,11 @@ test('AC-2.5.1 AC-2.5.3 a guest follows a tag by keyboard, signs in, and Setting
   await openFeed(page);
   const databasesHeart = heart(page, 'Databases');
   await expect(databasesHeart).toBeEnabled();
-  await databasesHeart.focus();
-  await page.keyboard.press('Enter');
+  // The row's Tab order is its filter checkbox, then the heart.
+  await page.getByRole('checkbox', { name: /^Databases/ }).focus();
+  await page.keyboard.press('Tab');
+  await expect(databasesHeart).toBeFocused();
+  await page.keyboard.press('Space');
   await expect(databasesHeart).toHaveAccessibleName('Databases: following. Click to mute.');
   await expect
     .poll(() => storedPrefs(page))
